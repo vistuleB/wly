@@ -2,7 +2,7 @@
 
 ## Intro
 
-"Writerly" is a derivative of Elm-Markup. It encodes a superset of XML. It is build on three primitives:
+"Writerly" is a derivative of Elm-Markup. It encodes a superset of XML. It is built on three primitives:
 
 - xml-like nodes with key-value attribute pairs and children, where the children may be selfsame nodes or:
 - multi-line text blurbs, or:
@@ -36,13 +36,13 @@ Sample:
             style=background:red
 
             Hello world. The 'li'
-            to which I, this paragraph belongs, is
+            to which I, this paragraph, belongs, is
             the granchild of 'SomeTag', and the child
             of 'ol'.
 
         |> li
             This text does not parse as a
-            key-value pair, though it direclt follows
+            key-value pair, though it directly follows
             a tag; so it will become the
             first paragraph child this node.
 
