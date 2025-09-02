@@ -2,52 +2,58 @@
 
 ## Intro
 
-"Writerly" is a markup language inspired by Elm-Markup. It is built
-on three primitives:
+"Writerly" is a derivative of Elm-Markup. It encodes a superset of XML. It is build on three primitives:
 
 - xml-like nodes with key-value attribute pairs and children, where the children may be selfsame nodes or:
-- multi-line text blurbs, or
-- code blocks
+- multi-line text blurbs, or:
+- triple-backquoted code blocks
 
-Indentation is used to indicate parent-child relationships.
+Parent-child relationships are indicated by indentation, with four spaces of indentation.
 
-Any block such as key-value attributes, text blurbs, etc. that is a descendant of the parent block is indented by four spaces.
+Key-value attributes in the form `key=val` are defined on the lines immediately following the node tag, which has the form `|> Tag`.
 
-Key-value attributes must be defined on the first line immediately following the parent block.
+Lines of whitespace are used to separate text blurbs from one another
 
-Lines of whitespace are used to separate key-value attribute definitions from text blurbs, and to separate
-text blurbs from one another.
-
-Here is a sample:
+Sample:
 
 ```
 |> SomeTag
     attr1=value1
     attr2=value2
 
+    A paragraph with one line.
+
+    A paragraph
+    with
+    four small
+    lines.
+
     |> Child1
-        attr1 here everything after the space is the attribute value, starting with 'here'
+        attr3=val3
 
-        first line of a text blurb
-        second line of a text blurb
-        etc
-        etc
+    |> ol
+        |> li
+            style=background:red
 
-        new
-        text
-        blurb
-        |> ThirdTag
+            Hello world. The 'li'
+            to which I, this paragraph belongs, is
+            the granchild of 'SomeTag', and the child
+            of 'ol'.
 
-        |> ThirdTag
+        |> li
+            This text does not parse as a
+            key-value pair, though it direclt follows
+            a tag; so it will become the
+            first paragraph child this node.
 
-            child
-
-            beast
-
-    |> Child2
-
-    here is a code block, with an annotation next to the opening quote (let's see
-    how Markdown deals with the nested triple quotes):
+    !! lines starting with "!!"
+    !! are comments
+    !!
+    !! this is all
+    !!
+    !! one big...
+    !!
+    !! ...comment
 
     ```python
     j
@@ -57,13 +63,4 @@ Here is a sample:
     qqq
     ```
 ```
-
-## Development
-
-```sh
-gleam run   # Run the project
-```
-
-## What's there
-
 ...
