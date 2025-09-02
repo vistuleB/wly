@@ -48,12 +48,8 @@ Sample:
 
     !! lines starting with "!!"
     !! are comments
-    !!
-    !! this is all
-    !!
-    !! one big...
-    !!
-    !! ...comment
+
+    !! here is a code block:
 
     ```python
     j
