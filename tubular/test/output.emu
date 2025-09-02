@@ -1,0 +1,9 @@
+const Article = () => {
+    return <> <Book><MathBlock>{`$$
+ten thousand
+ten thousand`}<Inline></Inline>{`$$`}</MathBlock><div class="spacer"></div><VerticalChunk><col />{`paragraph a`}</VerticalChunk><VerticalChunk indent={true}>{`paragraph b`}<ImageRight></ImageRight><ImageLeft></ImageLeft></VerticalChunk><div class="spacer"></div><MathBlock>{`$$
+a^2 + b^2
+$$`}<ImageRight></ImageRight><ImageLeft></ImageLeft></MathBlock></Book> </>
+  }
+  export default Article
+  

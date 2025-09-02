@@ -1,0 +1,53 @@
+import gleam/list
+import gleam/option
+import infrastructure.{ type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError } as infra
+import nodemaps_2_desugarer_transforms as n2t
+import vxml.{type VXML, T, V}
+
+fn nodemap(
+  node: VXML,
+) -> Result(List(VXML), DesugaringError) {
+  case node {
+    V(_, _, _, _) -> Ok([node])
+    T(blame, lines) -> {
+      let nonempty_lines = list.filter(lines, fn (b) { b.content != "" })
+      case list.is_empty(nonempty_lines) {
+        True -> Ok([])
+        False -> Ok([T(blame, lines)])
+      }
+    }
+  }
+}
+
+fn nodemap_factory(_: InnerParam) -> n2t.OneToManyNodeMap {
+  nodemap
+}
+
+fn desugarer_factory(inner: InnerParam) -> DesugarerTransform {
+  n2t.one_to_many_nodemap_2_desugarer_transform(nodemap_factory(inner))
+}
+
+fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
+  Ok(param)
+}
+
+type Param = Nil
+type InnerParam = Nil
+
+/// removes text nodes that contain only empty
+/// strings, leaves other text nodes untouched
+pub fn remove_text_nodes_where_all_lines_are_empty_strings(param: Param) -> Desugarer {
+  Desugarer(
+    description: DesugarerDescription(
+      name: "remove_text_nodes_where_all_lines_are_empty_strings",
+      stringified_param: option.None,
+    "
+/// removes text nodes that contain only empty
+/// strings, leaves other text nodes untouched
+    ",
+    case param_to_inner_param(param) {
+      Error(error) -> fn(_) { Error(error) }
+      Ok(inner) -> desugarer_factory(inner)
+    }
+  )
+}

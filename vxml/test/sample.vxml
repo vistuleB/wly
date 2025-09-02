@@ -1,0 +1,24 @@
+<> vxmlSample
+  attr1=mom
+  attr2=
+  <> WriterlyBlurb
+    <>
+      "this is a text child"
+      "with two lines"
+      "with two lines"
+      "with two lines"
+  <>
+    "more text here"
+  <> html
+    <> header
+      charset=utf-8
+    <> body
+      <> p
+        <>
+          "hello "
+      <> i
+        <>
+          "gates"
+      <>
+        ")"
+<> yello

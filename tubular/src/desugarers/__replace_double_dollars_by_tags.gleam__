@@ -1,0 +1,22 @@
+import gleam/option
+import infrastructure.{type Desugarer, type Desugarer, Desugarer} as infra
+import indexed_regex_splitting as irs
+
+fn nodemap_factory() -> infra.OneToManyNodeMap {
+  irs.replace_regex_by_tag_param_transform_indexed_group_version(
+    _,
+    irs.unescaped_suffix_indexed_regex("\\$\\$"),
+    "DoubleDollar",
+  )
+}
+
+fn desugarer_factory(inner: InnerParam) -> DesugarerTransform {
+  n2t.one_to_many_nodemap_2_desugarer_transform(nodemap_factory())
+}
+
+pub fn replace_double_dollars_by_tags(param: Param) -> Desugarer {
+  Desugarer(
+    description: DesugarerDescription("replace_dd_by_tags", option.None, "..."),
+    desugarer: desugarer_factory(),
+  )
+}

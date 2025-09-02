@@ -1,0 +1,783 @@
+import gleam/io
+import gleam/list.{type ContinueOrStop, Continue, Stop}
+import gleam/string.{inspect as ins}
+
+//********************
+// pub types
+//********************
+
+pub type StringChar {
+  Codepoint(UtfCodepoint)
+  EndOfString
+  StartOfString
+}
+
+pub type DelimiterPattern1 {
+  DelimiterPattern1(
+    match_one_of_before: List(StringChar),
+    delimiter_chars: List(UtfCodepoint),
+    match_one_of_after: List(StringChar),
+  )
+}
+
+// *
+// semantics of this one are not totally clear from
+// just at type, but semantics are: match on substring
+// 'delimiter_chars' if it is not preceded by an odd
+// number of backslashes (i.e., if it is not escaped)
+// *
+pub type DelimiterPattern10 {
+  DelimiterPattern10(delimiter_chars: List(UtfCodepoint))
+}
+
+// *
+// same as DelimiterPattern10 but with a matching
+// following character
+// *
+pub type DelimiterPattern5 {
+  DelimiterPattern5(
+    delimiter_chars: List(UtfCodepoint),
+    match_one_of_after: List(StringChar),
+  )
+}
+
+pub type DelimiterPattern {
+  P1(DelimiterPattern1)
+  P5(DelimiterPattern5)
+  P10(DelimiterPattern10)
+}
+
+//********************
+// some pub functions
+//********************
+
+pub const as_utf_codepoints = string.to_utf_codepoints
+
+pub fn as_string_chars(from: String) -> List(StringChar) {
+  string.to_utf_codepoints(from) |> list.map(Codepoint)
+}
+
+pub fn alphanumeric_string_chars() -> List(StringChar) {
+  "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+  |> as_string_chars
+}
+
+pub fn space_string_chars() -> List(StringChar) {
+  " " |> as_string_chars
+}
+
+pub fn opening_bracket_string_chars() -> List(StringChar) {
+  "({[" |> as_string_chars
+}
+
+pub fn closing_bracket_string_chars() -> List(StringChar) {
+  ")}]" |> as_string_chars
+}
+
+pub fn backslash_string_chars() -> List(StringChar) {
+  "\\" |> as_string_chars
+}
+
+pub const one_of = list.flatten
+
+//********************
+// loop_white_not_stop
+//********************
+
+fn loop_while_not_stop(
+  initial_state initial_state: a,
+  map map: fn(a) -> ContinueOrStop(a),
+) -> a {
+  case map(initial_state) {
+    Stop(new_state) -> new_state
+    Continue(new_state) -> loop_while_not_stop(new_state, map)
+  }
+}
+
+//********************
+// StateLooper & run_state_looper
+//********************
+
+type StateLooper(a, b, c) {
+  StateLooper(
+    initial_state_generator: fn(a) -> b,
+    state_updater: fn(b) -> ContinueOrStop(b),
+    final_answer_extractor: fn(b) -> c,
+  )
+}
+
+fn run_state_looper(state_looper: StateLooper(a, b, c), input: a) -> c {
+  let StateLooper(
+    initial_state_generator,
+    state_updater,
+    final_answer_extractor,
+  ) = state_looper
+  input
+  |> initial_state_generator
+  |> loop_while_not_stop(state_updater)
+  |> final_answer_extractor
+}
+
+//***************************************************
+// VanillaSplitMatcher 
+//
+// currently all our splitting algorithm(s) are built
+// around this type that specifies the form of a
+// function that takes the nonempty tail end of a 
+// string in the form of a List(UtfCodepoint), some
+// information about the characters before the tail 
+// end in the form of a type parameter called 
+// pre_input_info, and returns 
+//
+// (i) if the string starts with a match (Bool),
+// (ii) the list of characters consumed by the match,
+// or the first character of the input if no match
+// (iii) the next pre-input state for the new tail
+// characters after the consumed characters (or
+// after the first character if no match), and 
+// (iv) the new tail characters (i.e., the characters
+// after the first character if no match)
+//
+// Therefore, the return type has this form:
+// 
+// #(Bool, List(UtfCodepoint), pre_input_info, List(UtfCodepoint))
+//
+// TECHNICAL NOTE I: a VanillaSplitMatcher should not
+// be used for a split that can match the empty string;
+// this type can only be used to split on nonempty 
+// sequences! (if you need to match & split on empty 
+// strings then create some other type/mechanism)
+//
+// TECHNICAL NOTE II: a non-match could consume >1
+// chars as long as you don't "miss" a match by doing
+// so, though we don't currenlty do this optimization; 
+// (all non-matches currently consume exactly 1 char);
+// things might go a bit faster if we did this
+//***************************************************
+
+type VanillaSplitMatcher(pre_input_info) =
+  fn(pre_input_info, List(UtfCodepoint)) ->
+    #(Bool, List(UtfCodepoint), pre_input_info, List(UtfCodepoint))
+
+//***************************************************
+// to use a VanillaSplitMatch you need to know how to
+// initialize the pre_input_info at the start of a 
+// string; this will be a constant value; the 
+// VanillaSplitMatcher and the initial constant value
+// of pre_input_info are bundled in this type:
+//***************************************************
+
+type VanillaSplitter(pre_input_info) {
+  VanillaSplitter(
+    initial_pre_input_info: pre_input_info,
+    matcher: VanillaSplitMatcher(pre_input_info),
+  )
+}
+
+//***************************************************
+// the function that uses a VanillaSplitter to split
+// a string will maintain some other data besides
+// the pre_input_info in order to collect all the
+// splits etc; the entire data including the pre_input_info
+// is encapsulated in this type:
+//***************************************************
+
+type VanillaSplitterContinueOrStopState(pre_input_info) {
+  VanillaSplitterContinueOrStopState(
+    previous_splits: List(List(UtfCodepoint)),
+    chars_since_last_split: List(UtfCodepoint),
+    pre_input_info: pre_input_info,
+    remaining_input: List(UtfCodepoint),
+  )
+}
+
+//***************************************************
+// the following function takes a
+// VanillaSplitterContinueOrStopState and a
+// VanillaSplitMatcher and tests for a termination
+// condition; if the termination condition is met, 
+// it returns the state wrapped in Stop(...) variant 
+// [see gleam/list.{ContinueOrStop}]; if the termination
+// is not met, it runs the VanillaSplitMatcher to get
+// info to set up a new state, and wraps the new state
+// in Continue(...) variant
+//***************************************************
+
+fn vanilla_splitter_state_updater(
+  state: VanillaSplitterContinueOrStopState(a),
+  matcher: VanillaSplitMatcher(a),
+) -> ContinueOrStop(VanillaSplitterContinueOrStopState(a)) {
+  let VanillaSplitterContinueOrStopState(
+    previous_splits,
+    chars_since_last_split,
+    pre_input_info,
+    remaining_input,
+  ) = state
+  case remaining_input {
+    [] -> Stop(state)
+    _ ->
+      case matcher(pre_input_info, remaining_input) {
+        #(False, chars_eaten, new_pre_input_info, new_remaining_input) -> {
+          Continue(VanillaSplitterContinueOrStopState(
+            previous_splits,
+            list.flatten([chars_eaten, chars_since_last_split]),
+            new_pre_input_info,
+            new_remaining_input,
+          ))
+        }
+        #(True, _, new_pre_input_info, new_remaining_input) ->
+          Continue(VanillaSplitterContinueOrStopState(
+            [chars_since_last_split |> list.reverse, ..previous_splits],
+            [],
+            new_pre_input_info,
+            new_remaining_input,
+          ))
+      }
+  }
+}
+
+//***************************************************
+// constructs a StateLooper from a VanillaSplitter;
+// later we can run the StateLooper with run_state_looper
+//***************************************************
+
+fn state_looper_for_vanilla_splitter(
+  splitter: VanillaSplitter(pre_input_info),
+) -> StateLooper(
+  List(UtfCodepoint),
+  VanillaSplitterContinueOrStopState(pre_input_info),
+  List(List(UtfCodepoint)),
+) {
+  let VanillaSplitter(initial_pre_input_info, matcher) = splitter
+  StateLooper(
+    initial_state_generator: fn(input) {
+      VanillaSplitterContinueOrStopState(
+        previous_splits: [],
+        chars_since_last_split: [],
+        pre_input_info: initial_pre_input_info,
+        remaining_input: input,
+      )
+    },
+    state_updater: vanilla_splitter_state_updater(_, matcher),
+    final_answer_extractor: fn(final_state) {
+      let assert VanillaSplitterContinueOrStopState(
+        final_previous_splits,
+        final_chars_since_last_split,
+        _,
+        [],
+      ) = final_state
+      [final_chars_since_last_split |> list.reverse, ..final_previous_splits]
+      |> list.reverse
+    },
+  )
+}
+
+//***************************************************
+// utf_split_for_vanilla_splitter constructs & then
+// runs the StateLooper for a given VanillaSplitter
+//***************************************************
+
+fn utf_split_for_vanilla_splitter(
+  input: List(UtfCodepoint),
+  splitter: VanillaSplitter(a),
+) -> List(List(UtfCodepoint)) {
+  splitter
+  |> state_looper_for_vanilla_splitter
+  |> run_state_looper(input)
+}
+
+//***************************************************
+// string wrapper for utf_split_for_vanilla_splitter:
+//***************************************************
+
+fn string_split_for_vanilla_splitter(
+  content: String,
+  splitter: VanillaSplitter(a),
+) -> List(String) {
+  content
+  |> as_utf_codepoints
+  |> utf_split_for_vanilla_splitter(splitter)
+  |> list.map(string.from_utf_codepoints)
+}
+
+//***************************************************
+// root pub function
+//***************************************************
+
+pub fn delimiter_pattern_string_split(
+  content: String,
+  pattern: DelimiterPattern,
+) -> List(String) {
+  case pattern {
+    P1(pattern1) ->
+      string_split_for_vanilla_splitter(
+        content,
+        delimiter_pattern_1_vanilla_splitter_constructor(pattern1),
+      )
+    P5(pattern5) ->
+      string_split_for_vanilla_splitter(
+        content,
+        delimiter_pattern_5_vanilla_splitter_constructor(pattern5),
+      )
+    P10(pattern10) ->
+      string_split_for_vanilla_splitter(
+        content,
+        delimiter_pattern_10_vanilla_splitter_constructor(pattern10),
+      )
+  }
+}
+
+//***********************************
+// start_of_input_match_keeping_track_of_last_char
+//
+// (utility function based on StateLooper, used in
+// delimiter_pattern_1_vanilla_splitter_constructor & co.)
+//***********************************
+
+type StartOfInputMatchKeepTrackOfLastCharState {
+  StartOfInputMatchKeepTrackOfLastCharState(
+    last_char_before_input: StringChar,
+    remaining_pattern_chars: List(UtfCodepoint),
+    remaining_input_chars: List(UtfCodepoint),
+  )
+}
+
+fn start_of_input_match_keeping_track_of_last_char_state_updater(
+  state: StartOfInputMatchKeepTrackOfLastCharState,
+) -> ContinueOrStop(StartOfInputMatchKeepTrackOfLastCharState) {
+  let StartOfInputMatchKeepTrackOfLastCharState(
+    _,
+    remaining_pattern_chars,
+    remaining_input_chars,
+  ) = state
+  case remaining_pattern_chars, remaining_input_chars {
+    [], _ -> Stop(state)
+    _, [] -> Stop(state)
+    [first_pattern, ..rest_pattern], [first_input, ..rest_input] ->
+      case first_pattern == first_input {
+        False -> Stop(state)
+        True -> {
+          let new_state =
+            StartOfInputMatchKeepTrackOfLastCharState(
+              Codepoint(first_input),
+              rest_pattern,
+              rest_input,
+            )
+          Continue(new_state)
+        }
+      }
+  }
+}
+
+fn state_looper_for_start_of_input_match_keeping_track_of_last_char() -> StateLooper(
+  #(StringChar, List(UtfCodepoint), List(UtfCodepoint)),
+  StartOfInputMatchKeepTrackOfLastCharState,
+  #(Bool, StringChar, List(UtfCodepoint)),
+) {
+  StateLooper(
+    initial_state_generator: fn(
+      params: #(StringChar, List(UtfCodepoint), List(UtfCodepoint)),
+    ) {
+      let #(initial_last_char, pattern, input) = params
+      StartOfInputMatchKeepTrackOfLastCharState(
+        last_char_before_input: initial_last_char,
+        remaining_pattern_chars: pattern,
+        remaining_input_chars: input,
+      )
+    },
+    state_updater: start_of_input_match_keeping_track_of_last_char_state_updater,
+    final_answer_extractor: fn(final_state) {
+      case final_state {
+        StartOfInputMatchKeepTrackOfLastCharState(
+          last_char,
+          [],
+          remaining_input,
+        ) -> #(True, last_char, remaining_input)
+        StartOfInputMatchKeepTrackOfLastCharState(last_char, _, remaining_input) -> #(
+          False,
+          last_char,
+          remaining_input,
+        )
+      }
+    },
+  )
+}
+
+fn start_of_input_match_keeping_track_of_last_char(
+  last_char_before_input: StringChar,
+  pattern: List(UtfCodepoint),
+  input: List(UtfCodepoint),
+) -> #(Bool, StringChar, List(UtfCodepoint)) {
+  state_looper_for_start_of_input_match_keeping_track_of_last_char()
+  |> run_state_looper(#(last_char_before_input, pattern, input))
+}
+
+//***********************************
+// start_of_input_match_keeping_track_of_num_backslashes
+//
+// (utility function based on StateLooper, used in
+// delimiter_pattern_10_vanilla_splitter_constructor & co.)
+//***********************************
+
+fn is_backlash(pt: UtfCodepoint) -> Bool {
+  string.utf_codepoint_to_int(pt) == 92
+}
+
+type StartOfInputMatchKeepingTrackOfNumBackslashesState {
+  StartOfInputMatchKeepingTrackOfNumBackslashesState(
+    num_backslashes_before_input: Int,
+    remaining_pattern_chars: List(UtfCodepoint),
+    remaining_input_chars: List(UtfCodepoint),
+  )
+}
+
+fn start_of_input_match_keeping_track_of_num_backslashes_state_updater(
+  state: StartOfInputMatchKeepingTrackOfNumBackslashesState,
+) -> ContinueOrStop(StartOfInputMatchKeepingTrackOfNumBackslashesState) {
+  let StartOfInputMatchKeepingTrackOfNumBackslashesState(
+    num_backslashes_before_input,
+    remaining_pattern_chars,
+    remaining_input_chars,
+  ) = state
+  case remaining_pattern_chars, remaining_input_chars {
+    [], _ -> Stop(state)
+    _, [] -> Stop(state)
+    [first_pattern, ..rest_pattern], [first_input, ..rest_input] ->
+      case first_pattern == first_input {
+        False -> Stop(state)
+        True -> {
+          let new_num_backslashes = case is_backlash(first_input) {
+            True -> num_backslashes_before_input + 1
+            False -> 0
+          }
+          let new_state =
+            StartOfInputMatchKeepingTrackOfNumBackslashesState(
+              new_num_backslashes,
+              rest_pattern,
+              rest_input,
+            )
+          Continue(new_state)
+        }
+      }
+  }
+}
+
+fn state_looper_for_start_of_input_match_keeping_track_of_num_backslashes() -> StateLooper(
+  #(Int, List(UtfCodepoint), List(UtfCodepoint)),
+  StartOfInputMatchKeepingTrackOfNumBackslashesState,
+  #(Bool, Int, List(UtfCodepoint)),
+) {
+  StateLooper(
+    initial_state_generator: fn(
+      params: #(Int, List(UtfCodepoint), List(UtfCodepoint)),
+    ) {
+      let #(num_backslashes, pattern, input) = params
+      StartOfInputMatchKeepingTrackOfNumBackslashesState(
+        num_backslashes_before_input: num_backslashes,
+        remaining_pattern_chars: pattern,
+        remaining_input_chars: input,
+      )
+    },
+    state_updater: start_of_input_match_keeping_track_of_num_backslashes_state_updater,
+    final_answer_extractor: fn(final_state) {
+      case final_state {
+        StartOfInputMatchKeepingTrackOfNumBackslashesState(
+          num_backslashes,
+          [],
+          remaining_input,
+        ) -> #(True, num_backslashes, remaining_input)
+        StartOfInputMatchKeepingTrackOfNumBackslashesState(
+          num_backslashes,
+          _,
+          remaining_input,
+        ) -> #(False, num_backslashes, remaining_input)
+      }
+    },
+  )
+}
+
+fn start_of_input_match_keeping_track_of_num_backslashes(
+  num_backslashes_before_input: Int,
+  pattern: List(UtfCodepoint),
+  input: List(UtfCodepoint),
+) -> #(Bool, Int, List(UtfCodepoint)) {
+  state_looper_for_start_of_input_match_keeping_track_of_num_backslashes()
+  |> run_state_looper(#(num_backslashes_before_input, pattern, input))
+}
+
+//***************************************************
+// delimiter_pattern_1_vanilla_splitter_constructor
+//
+// (no looping, just matching/not matching at the start
+// of a string, while updating the pre_input_info,
+// the eaten_chars, the remaining_chars, etc)
+//***************************************************
+
+fn start_of_input_match_one_of(
+  input: List(UtfCodepoint),
+  one_of: List(StringChar),
+) -> Bool {
+  case input {
+    [] -> list.contains(one_of, EndOfString)
+    [first, ..] -> list.contains(one_of, Codepoint(first))
+  }
+}
+
+fn delimiter_pattern_1_vanilla_split_matcher_parameterized(
+  last_char_before_remaining_chars: StringChar,
+  remaining_chars: List(UtfCodepoint),
+  pattern: DelimiterPattern1,
+) -> #(Bool, List(UtfCodepoint), StringChar, List(UtfCodepoint)) {
+  let DelimiterPattern1(
+    match_one_of_before,
+    delimiter_chars,
+    match_one_of_after,
+  ) = pattern
+  let assert [first_char, ..rest] = remaining_chars
+  let failure_return_value = #(False, [first_char], Codepoint(first_char), rest)
+  case list.contains(match_one_of_before, last_char_before_remaining_chars) {
+    False -> failure_return_value
+    True ->
+      case
+        start_of_input_match_keeping_track_of_last_char(
+          last_char_before_remaining_chars,
+          delimiter_chars,
+          remaining_chars,
+        )
+      {
+        #(False, _, _) -> failure_return_value
+        #(True, new_last_char, after_delimiter_chars) ->
+          case
+            start_of_input_match_one_of(
+              after_delimiter_chars,
+              match_one_of_after,
+            )
+          {
+            False -> failure_return_value
+            True -> #(
+              True,
+              delimiter_chars |> list.reverse,
+              new_last_char,
+              after_delimiter_chars,
+            )
+          }
+      }
+  }
+}
+
+fn delimiter_pattern_1_vanilla_splitter_constructor(
+  pattern: DelimiterPattern1,
+) -> VanillaSplitter(StringChar) {
+  VanillaSplitter(
+    initial_pre_input_info: StartOfString,
+    matcher: fn(last_char_before_remaining_chars, remaining_chars) {
+      delimiter_pattern_1_vanilla_split_matcher_parameterized(
+        last_char_before_remaining_chars,
+        remaining_chars,
+        pattern,
+      )
+    },
+  )
+}
+
+//***************************************************
+//* delimiter_pattern_5_vanilla_splitter_constructor
+//
+// (no looping, just matching/not matching at the start
+// of a string, while updating the pre_input_info,
+// the eaten_chars, the remaining_chars, etc)
+//***************************************************
+
+fn delimiter_pattern_5_vanilla_split_matcher_parameterized(
+  num_preceding_backslashes: Int,
+  remaining_chars: List(UtfCodepoint),
+  pattern: DelimiterPattern5,
+) -> #(Bool, List(UtfCodepoint), Int, List(UtfCodepoint)) {
+  let DelimiterPattern5(delimiter_chars, match_one_of_after) = pattern
+  let assert [first_char, ..rest] = remaining_chars
+  let new_num_backslashes_after_first = case is_backlash(first_char) {
+    True -> num_preceding_backslashes + 1
+    False -> 0
+  }
+  let failure_return_value = #(
+    False,
+    [first_char],
+    new_num_backslashes_after_first,
+    rest,
+  )
+  case num_preceding_backslashes % 2 == 0 {
+    False -> failure_return_value
+    True ->
+      case
+        start_of_input_match_keeping_track_of_num_backslashes(
+          num_preceding_backslashes,
+          delimiter_chars,
+          remaining_chars,
+        )
+      {
+        #(False, _, _) -> failure_return_value
+        #(
+          True,
+          new_num_backslashes_after_delimiter_chars,
+          after_delimiter_chars,
+        ) ->
+          case
+            start_of_input_match_one_of(
+              after_delimiter_chars,
+              match_one_of_after,
+            )
+          {
+            False -> failure_return_value
+            True -> #(
+              True,
+              delimiter_chars |> list.reverse,
+              new_num_backslashes_after_delimiter_chars,
+              after_delimiter_chars,
+            )
+          }
+      }
+  }
+}
+
+fn delimiter_pattern_5_vanilla_splitter_constructor(
+  pattern: DelimiterPattern5,
+) -> VanillaSplitter(Int) {
+  VanillaSplitter(
+    initial_pre_input_info: 0,
+    matcher: fn(num_backslashes_before_remaining_chars, remaining_chars) {
+      delimiter_pattern_5_vanilla_split_matcher_parameterized(
+        num_backslashes_before_remaining_chars,
+        remaining_chars,
+        pattern,
+      )
+    },
+  )
+}
+
+//***************************************************
+//* delimiter_pattern_10_vanilla_splitter_constructor
+//
+// (no looping, just matching/not matching at the start
+// of a string, while updating the pre_input_info,
+// the eaten_chars, the remaining_chars, etc)
+//***************************************************
+
+fn delimiter_pattern_10_vanilla_split_matcher_parameterized(
+  num_preceding_backslashes: Int,
+  remaining_chars: List(UtfCodepoint),
+  pattern: DelimiterPattern10,
+) -> #(Bool, List(UtfCodepoint), Int, List(UtfCodepoint)) {
+  let DelimiterPattern10(delimiter_chars) = pattern
+  let assert [first_char, ..rest] = remaining_chars
+  let new_num_backslashes_after_first = case is_backlash(first_char) {
+    True -> num_preceding_backslashes + 1
+    False -> 0
+  }
+  let failure_return_value = #(
+    False,
+    [first_char],
+    new_num_backslashes_after_first,
+    rest,
+  )
+  case num_preceding_backslashes % 2 == 0 {
+    False -> failure_return_value
+    True ->
+      case
+        start_of_input_match_keeping_track_of_num_backslashes(
+          num_preceding_backslashes,
+          delimiter_chars,
+          remaining_chars,
+        )
+      {
+        #(False, _, _) -> failure_return_value
+        #(
+          True,
+          new_num_backslashes_after_delimiter_chars,
+          after_delimiter_chars,
+        ) -> #(
+          True,
+          delimiter_chars |> list.reverse,
+          new_num_backslashes_after_delimiter_chars,
+          after_delimiter_chars,
+        )
+      }
+  }
+}
+
+fn delimiter_pattern_10_vanilla_splitter_constructor(
+  pattern: DelimiterPattern10,
+) -> VanillaSplitter(Int) {
+  VanillaSplitter(
+    initial_pre_input_info: 0,
+    matcher: fn(num_backslashes_before_remaining_chars, remaining_chars) {
+      delimiter_pattern_10_vanilla_split_matcher_parameterized(
+        num_backslashes_before_remaining_chars,
+        remaining_chars,
+        pattern,
+      )
+    },
+  )
+}
+
+//***************************************************
+//* misc
+//***************************************************
+
+pub fn tests() -> Nil {
+  // let pattern1 =
+  //   DelimiterPattern1(
+  //     match_one_of_before: " " |> as_string_chars,
+  //     delimiter_chars: "aa" |> as_utf_codepoints,
+  //     match_one_of_after: "(" |> as_string_chars,
+  //   )
+
+  let double_dollar_delimiter_pattern =
+    P10(DelimiterPattern10(delimiter_chars: "$$" |> as_utf_codepoints))
+
+  // let assert [space_utf_codepoint] = string.to_utf_codepoints(" ")
+  // let assert [opening_parenthesis_utf_codepoint] = string.to_utf_codepoints("(")
+  // let assert [underscore_utf_codepoint] = string.to_utf_codepoints("_")
+  // let alphanumeric_utf_codepoints =
+  //   string.to_utf_codepoints(
+  //     "abcdefghijklmnopqrstuvxyzABCDEFGHIJKLMNOPQRSTUVXYZ0123456789",
+  //   )
+  // let brackets_utf_codepoints = string.to_utf_codepoints("()[]{}")
+
+  // let opening_double_underscore_delimiter_pattern =
+  //   P1(DelimiterPattern1(
+  //     match_one_of_before: one_of([[StartOfString], space_string_chars()]),
+  //     delimiter_chars: "__" |> as_utf_codepoints,
+  //     match_one_of_after: one_of([
+  //       alphanumeric_string_chars(),
+  //       opening_bracket_string_chars(),
+  //     ]),
+  //   ))
+
+  // let closing_double_underscore_delimiter_pattern =
+  //   P1(DelimiterPattern1(
+  //     match_one_of_before: one_of([
+  //       alphanumeric_string_chars(),
+  //       closing_bracket_string_chars(),
+  //     ]),
+  //     delimiter_chars: "__" |> as_utf_codepoints,
+  //     match_one_of_after: one_of([
+  //       [EndOfString],
+  //       alphanumeric_string_chars(),
+  //       opening_bracket_string_chars(),
+  //     ]),
+  //   ))
+
+  io.println(
+    ins(delimiter_pattern_string_split(
+      "__\\\\$$aa__",
+      double_dollar_delimiter_pattern,
+    )),
+  )
+  // io.println(
+  //   ins(delimiter_pattern_string_split(
+  //     "hello aa$$hm \\$$hm \\\\$$",
+  //     P10(pattern10),
+  //   )),
+  // )
+  Nil
+}

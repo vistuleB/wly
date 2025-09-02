@@ -1,0 +1,72 @@
+import gleam/option
+import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as infra
+import nodemaps_2_desugarer_transforms as n2t
+import vxml.{type VXML, T, V}
+
+fn nodemap(
+  node: VXML,
+) -> Result(VXML, DesugaringError) {
+  case node {
+    T(_, _) -> Ok(node)
+    V(_, tag, _, children) -> {
+      case tag == "VerticalChunk" {
+        True ->
+          case children {
+            [child] -> Ok(child)
+            _ -> Ok(node)
+          }
+        False -> Ok(node)
+      }
+    }
+  }
+}
+
+fn nodemap_factory(_: InnerParam) -> n2t.OneToOneNodeMap {
+  nodemap
+}
+
+fn desugarer_factory(inner: InnerParam) -> DesugarerTransform {
+  n2t.one_to_one_nodemap_2_desugarer_transform(nodemap_factory(inner))
+}
+
+fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
+  Ok(param)
+}
+
+type Param = Nil
+type InnerParam = Nil
+
+const name = "remove_vertical_chunks_around_single_children"
+const constructor = remove_vertical_chunks_around_single_children
+
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
+// 🏖️🏖️ Desugarer 🏖️🏖️
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
+//------------------------------------------------53
+/// removes VerticalChunk tags that have only 
+/// a single child
+pub fn remove_vertical_chunks_around_single_children(param: Param) -> Desugarer {
+  Desugarer(
+    name,
+    option.None,
+    "
+/// removes VerticalChunk tags that have only 
+/// a single child
+    ",
+    case param_to_inner_param(param) {
+      Error(error) -> fn(_) { Error(error) }
+      Ok(inner) -> desugarer_factory(inner)
+    }
+  )
+}
+
+// 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
+// 🌊🌊🌊 tests 🌊🌊🌊🌊🌊
+// 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
+fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
+  []
+}
+
+pub fn assertive_tests() {
+  infra.assertive_test_collection_from_data(name, assertive_tests_data(), constructor)
+}

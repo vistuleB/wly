@@ -1,0 +1,463 @@
+import blamedlines.{type Blame}
+import gleam/int
+import gleam/list
+import gleam/option
+import gleam/order
+import gleam/string.{inspect as ins}
+import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as infra
+import nodemaps_2_desugarer_transforms as n2t
+import vxml.{type Line, type VXML, Line, T, V}
+
+type Splits {
+  DelimiterSurrounding(list: PositionedLines)
+  DelimiterContent(list: PositionedLines)
+}
+
+type InlineTags =
+  List(#(VXML, Int))
+
+type PositionedLines =
+  List(#(Line, Int))
+
+fn look_for_closing_delimiter(
+  rest: PositionedLines,
+  extra: #(String, String, String, Bool, List(String)),
+  output: PositionedLines,
+) -> #(Bool, PositionedLines, PositionedLines) {
+  // return list of blamed contents inside delimiter and rest of blamed contents
+  let #(_, close_delimiter, _, _, _) = extra
+  case rest {
+    [] -> #(False, [], [])
+    [#(first, pos), ..rest] -> {
+      let cropped = string.crop(first.content, close_delimiter)
+      case cropped == first.content {
+        True -> {
+          let #(found, output, rest) =
+            look_for_closing_delimiter(rest, extra, output)
+          #(found, [#(first, pos), ..output], rest)
+        }
+        False -> {
+          let before_closing_del =
+            cropped |> string.length() |> string.drop_end(first.content, _)
+          let after_closing_del =
+            close_delimiter
+            |> string.length()
+            |> string.drop_start(cropped, _)
+
+          #(
+            True,
+            list.append(output, [
+              #(
+                Line(blame: first.blame, content: before_closing_del),
+                pos,
+              ),
+            ]),
+            [
+              #(
+                Line(blame: first.blame, content: after_closing_del),
+                pos,
+              ),
+              ..rest
+            ],
+          )
+        }
+      }
+    }
+  }
+}
+
+fn split_lines_by_delimiter(
+  contents: PositionedLines,
+  extra: #(String, String, String, Bool, List(String)),
+  iteration: Int,
+) -> List(Splits) {
+  let #(open_delimiter, _, _, _, _) = extra
+
+  case contents {
+    [] -> []
+    [#(first, pos), ..rest] -> {
+      let cropped = string.crop(first.content, open_delimiter)
+      case
+        cropped == first.content,
+        string.starts_with(first.content, open_delimiter)
+      {
+        True, False -> {
+          [
+            DelimiterSurrounding([#(first, pos)]),
+            ..split_lines_by_delimiter(rest, extra, iteration + 1)
+          ]
+        }
+        _, _ -> {
+          // check closing
+          let cropped_str_length = string.length(cropped)
+          let before_delimiter_split =
+            Line(
+              blame: first.blame,
+              content: string.drop_end(first.content, cropped_str_length),
+            )
+
+          let current_line_delimiter_content =
+            Line(
+              blame: first.blame,
+              content: open_delimiter
+                |> string.length()
+                |> string.drop_start(cropped, _),
+            )
+
+          let #(found, delimiter_content, rest) =
+            look_for_closing_delimiter(
+              list.append([#(current_line_delimiter_content, pos)], rest),
+              extra,
+              [],
+            )
+          case found {
+            True -> {
+              let after_delimiter_split =
+                split_lines_by_delimiter(rest, extra, iteration + 1)
+
+              [DelimiterSurrounding([#(before_delimiter_split, pos)])]
+              |> list.append([DelimiterContent(delimiter_content)])
+              |> list.append(after_delimiter_split)
+            }
+            False -> {
+              [
+                DelimiterSurrounding([#(first, pos)]),
+                ..split_lines_by_delimiter(rest, extra, iteration + 1)
+              ]
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+fn get_inline_tags_before(
+  inline_tags: InlineTags,
+  contents_pos: Int,
+) -> #(List(VXML), InlineTags) {
+  case inline_tags {
+    [] -> #([], [])
+    [#(tag, position), ..rest] -> {
+      case int.compare(position, contents_pos - 1) {
+        order.Eq -> {
+          let previous_elements =
+            inline_tags
+            |> list.filter(fn(x) {
+              let #(_, prev_pos) = x
+              prev_pos <= position
+            })
+            |> list.map(fn(x) {
+              let #(e, _) = x
+              e
+            })
+
+          #(previous_elements, rest)
+        }
+        order.Lt -> {
+          let #(tags, rest) = get_inline_tags_before(rest, contents_pos)
+          #([tag, ..tags], rest)
+        }
+        order.Gt -> {
+          #([], [#(tag, position), ..rest])
+        }
+      }
+    }
+  }
+}
+
+fn append_until_tag(
+  list: List(VXML),
+  output: List(Line),
+) -> #(List(Line), List(VXML)) {
+  case list {
+    [] -> #(output, [])
+    [first, ..rest] -> {
+      case first {
+        V(_, _, _, _) -> #(output, [first, ..rest])
+        T(_, contents) -> {
+          let #(output, rest) = append_until_tag(rest, output)
+          #(list.append(contents, output), rest)
+        }
+      }
+    }
+  }
+}
+
+fn assemble_lines(list: List(VXML)) -> List(VXML) {
+  case list {
+    [] -> []
+    [first, ..rest] -> {
+      case first {
+        V(_, _, _, _) -> [first, ..assemble_lines(rest)]
+        T(blame, contents) -> {
+          let #(next_contents, rest) = append_until_tag(rest, [])
+          [
+            T(blame, list.append(contents, next_contents)),
+            ..assemble_lines(rest)
+          ]
+        }
+      }
+    }
+  }
+}
+
+fn merge_split_list_with_inline_tags(
+  blame: Blame,
+  list: PositionedLines,
+  inline_tags: InlineTags,
+  extra: #(String, String, String, Bool, List(String)),
+) -> #(List(VXML), InlineTags) {
+  case list {
+    [] -> #([], inline_tags)
+
+    [#(line, pos), ..rest] -> {
+      let #(tags, rest_tags) = get_inline_tags_before(inline_tags, pos)
+
+      let #(merged, rest_tags) =
+        merge_split_list_with_inline_tags(blame, rest, rest_tags, extra)
+
+      #(
+        tags
+          |> list.append(case string.is_empty(line.content) {
+            True -> []
+            False -> [T(blame, [line])]
+          })
+          |> list.append(merged),
+        rest_tags,
+      )
+    }
+  }
+}
+
+fn append_until_delimiter(
+  blame: Blame,
+  rest: List(Splits),
+  extra: #(String, String, String, Bool, List(String)),
+  output: List(VXML),
+  inline_tags: InlineTags,
+) -> #(List(VXML), List(Splits), InlineTags) {
+  case rest {
+    [] -> #(output, [], inline_tags)
+    [first, ..rest] -> {
+      case first {
+        DelimiterSurrounding(list) -> {
+          let #(vxmls, rest_tags) =
+            merge_split_list_with_inline_tags(blame, list, inline_tags, extra)
+
+          let #(output, rest, rest_tags) =
+            append_until_delimiter(blame, rest, extra, output, rest_tags)
+
+          #(list.append(vxmls, output), rest, rest_tags)
+        }
+        DelimiterContent(_) -> {
+          #(output, [first, ..rest], inline_tags)
+        }
+      }
+    }
+  }
+}
+
+fn map_splits_to_vxml(
+  blame: Blame,
+  splits: List(Splits),
+  inline_tags: InlineTags,
+  extra: #(String, String, String, Bool, List(String)),
+) -> List(VXML) {
+  case splits {
+    [] -> []
+    [first, ..rest] -> {
+      case first {
+        DelimiterSurrounding(list) -> {
+          let #(vxmls, rest_tags) =
+            merge_split_list_with_inline_tags(blame, list, inline_tags, extra)
+
+          let #(output, rest, rest_tags) =
+            append_until_delimiter(blame, rest, extra, [], rest_tags)
+
+          let assembled = assemble_lines(list.append(vxmls, output))
+
+          let #(_, _, _, should_splits_chunks, _) = extra
+          case should_splits_chunks {
+            True -> {
+              case assembled {
+                [] -> []
+                assembled -> {
+                  let chunk = V(blame, "VerticalChunk", [], assembled)
+                  [chunk, ..map_splits_to_vxml(blame, rest, rest_tags, extra)]
+                }
+              }
+            }
+            False -> {
+              list.append(
+                assembled,
+                map_splits_to_vxml(blame, rest, rest_tags, extra),
+              )
+            }
+          }
+        }
+        DelimiterContent(list) -> {
+          let #(vxmls, rest_tags) =
+            merge_split_list_with_inline_tags(blame, list, inline_tags, extra)
+          let assembled = assemble_lines(vxmls)
+          let #(_, _, tag_name, _, _) = extra
+          let new_chunk = V(blame, tag_name, [], assembled)
+          [new_chunk, ..map_splits_to_vxml(blame, rest, rest_tags, extra)]
+        }
+      }
+    }
+  }
+}
+
+fn flatten_chunk_contents(
+  children: List(VXML),
+  iteration: Int,
+) -> #(PositionedLines, InlineTags) {
+  case children {
+    [] -> #([], [])
+    [first, ..rest] -> {
+      let #(res, inline_tags) = flatten_chunk_contents(rest, iteration + 1)
+      case first {
+        V(_, _, _, _) -> {
+          #(res, [#(first, iteration), ..inline_tags])
+        }
+        T(_, contents) -> {
+          let contents_with_position =
+            contents
+            |> list.map(fn(x) { #(x, iteration) })
+            |> list.append(res)
+          #(contents_with_position, inline_tags)
+        }
+      }
+    }
+  }
+}
+
+fn split_chunk_children(
+  children: List(VXML),
+  tag: String,
+  extra: #(String, String, String, Bool, List(String)),
+) -> List(VXML) {
+  case children {
+    [] -> []
+    [first, ..rest] -> {
+      let #(flatten, inline_tags) = flatten_chunk_contents([first, ..rest], 0)
+
+      let mapped_vxml =
+        split_lines_by_delimiter(flatten, extra, 0)
+        |> map_splits_to_vxml(first.blame, _, inline_tags, extra)
+
+      let mapped_vxml =
+        list.map(mapped_vxml, fn(x) {
+          case x {
+            T(_, _) -> x
+            V(_, tag, _, children) -> {
+              let #(_, _, _, _, can_be_nested_inside) = extra
+              case list.contains(can_be_nested_inside, tag) {
+                False -> x
+                True -> {
+                  let assert [updated_vxml] =
+                    children
+                    |> split_chunk_children(tag, extra)
+
+                  updated_vxml
+                }
+              }
+            }
+          }
+        })
+
+      let #(_, _, _, should_splits_chunks, _) = extra
+      case should_splits_chunks {
+        True -> mapped_vxml
+        False -> {
+          [V(first.blame, tag, [], mapped_vxml)]
+        }
+      }
+    }
+  }
+}
+
+/// The idea is as follows :
+/// 1. split all the children into flatten content and inline
+///    tags, flatten content will have all contents followed by
+///    each other ignoring any inline tags in between, inline tags
+///    should save the tags in between with their position so
+///    we can re-merge later
+/// 2. split flattened content by delimiter into splits of what
+///    come before delimiter and the delimiter content and what
+///    comes after , splits should also save the original position
+///    of the line for the re-merge
+/// 3. each split is then merged with tags that comes before it
+///    and give the vxml reltive
+/// 4. if the delimiter can be nested inside other one , we check
+///    the mapped_vxml and call the desugarer recursevly on the
+///    element that accepts nesting
+fn nodemap(
+  node: VXML,
+  inner: InnerParam,
+) -> Result(List(VXML), DesugaringError) {
+  case node {
+    T(_, _) -> Ok([node])
+    V(_, "VerticalChunk", _, children) -> {
+      children
+      |> split_chunk_children("VerticalChunk", inner)
+      |> Ok()
+    }
+    V(_, _, _, _) -> Ok([node])
+  }
+}
+
+fn nodemap_factory(inner: InnerParam) -> n2t.OneToManyNodeMap {
+  nodemap(_, inner)
+}
+
+fn desugarer_factory(inner: InnerParam) -> DesugarerTransform {
+  n2t.one_to_many_nodemap_2_desugarer_transform(nodemap_factory(inner))
+}
+
+fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
+  Ok(param)
+}
+
+type Param = #(String, String, String, Bool, List(String))
+//            ↖       ↖       ↖       ↖     ↖
+//            open    close   tag     split can_be_nested
+//            delim   delim   name    chunks
+
+type InnerParam = Param
+
+const name = "split_delimiters_chunks_desugarer"
+const constructor = split_delimiters_chunks_desugarer
+
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
+// 🏖️🏖️ Desugarer 🏖️🏖️
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
+//------------------------------------------------53
+
+/// splits content within VerticalChunk by delimiters
+pub fn split_delimiters_chunks_desugarer(param: Param) -> Desugarer {
+  Desugarer(
+    description: DesugarerDescription(
+      name: "split_delimiters_chunks_desugarer",
+      stringified_param: option.Some(ins(param)),
+    "/// splits content within VerticalChunk by delimiters",
+    ),
+    case param_to_inner_param(param) {
+      Error(error) -> fn(_) { Error(error) }
+      Ok(inner) -> desugarer_factory(inner)
+    }
+  )
+}
+
+
+// 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
+// 🌊🌊🌊 tests 🌊🌊🌊🌊🌊
+// 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
+fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
+  []
+}
+
+pub fn assertive_tests() {
+  infra.assertive_test_collection_from_data(name, assertive_tests_data(), constructor)
+}

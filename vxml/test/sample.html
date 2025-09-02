@@ -1,0 +1,412 @@
+<html>
+  <head>
+    <link rel="icon" href="data:," />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Berechenbarkeit und Kreativität</title>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link
+      rel="stylesheet"
+      href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css"
+    />
+    <link rel="stylesheet" type="text/css" href="../lecture-notes.css" />
+    <link rel="stylesheet" type="text/css" href="../TI.css" />
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/js/bootstrap.min.js"></script>
+
+    <script>
+      MathJax = {
+        loader: { load: ["ui/lazy"] },
+        tex: {
+          tags: "ams",
+          inlineMath: [
+            ["$", "$"],
+            ["\\(", "\\)"],
+          ],
+        },
+        svg: {
+          fontCache: "global",
+        },
+      };
+    </script>
+
+    <script
+      type="text/javascript"
+      id="MathJax-script"
+      async
+      src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"
+    ></script>
+  </head>
+
+  <body>
+    <div id="mathjax-definitions" style="display: none">
+      \( \newcommand{\floor}[1]{\left\lfloor #1 \right\rfloor}
+      \newcommand{\ceil}[1]{\left\lceil #1 \right\rceil}
+      \newcommand{\R}{\mathbb{R}} \newcommand{\Z}{\mathbb{Z}}
+      \newcommand{\N}{\mathbb{N}} \newcommand{\Q}{\mathbb{Q}}
+      \newcommand{\cin}{c_{\rm in}} \newcommand{\cout}{c_{\rm out}}
+      \newcommand{\maj}{\textnormal{Maj}} \newcommand{\xor}{\oplus}
+      \newcommand{\depth}{\textnormal{depth}}
+      \newcommand{\poly}{\textnormal{poly}} \)
+    </div>
+
+    <div id="rightSideWrapper">
+      <div class="content">
+        <div class="chapter">
+          <div class="subChapter">
+            <h1 class="hidden-title">
+              <span class="subChapterTitle"></span>
+            </h1>
+
+            <p>
+              Noch bevor wir im letzten Teilkapitel den Begriff der
+              Gleichmächtigkeit definiert haben, haben wir zwei Beispiele
+              gesehen: $\N^+ \approx \N \approx \Z$. Alle Mengen sind
+              gleichmächtig. In diesem Teilkapitel werden wir unintuitivere
+              Beispiele sehen: $\N \approx \Q$. Dies scheint absurd! $\N$ und
+              $\Z$ liegen ja schön der Reihe nach sortiert, sodass sich eine
+              Bijektion durch eine einfach Umordnung erreichen ließ. Die
+              Elemente der Menge $\Q$ aber liegen ja nicht säuberlich getrennt,
+              sondern ganz dicht nebeneinander. Aber eins nach dem anderen.
+            </p>
+
+            <div class="well container theorem">
+              <p>
+                <span
+                  class="numbered-title"
+                  id="theorem-N-N^2"
+                  data-label-title="Theorem"
+                  >Theorem</span
+                >
+                Die Mengen $\N$ und $\N^2$ sind gleichmächtig. Mit $\N^2$ (oder
+                auch $\N \times \N$) bezeichnen wir hier das cartesische Produkt
+                von $\N$ mit sich selbst: die Menge aller <em>Paare</em> $(a,b)$
+                von natürlichen Zahlen.
+              </p>
+              <figure>
+                <img
+                  src="../img/infinite-sets/N.svg"
+                  style="width: 60%"
+                /><br />
+                <caption>
+                  Die Menge $\N$ bzw. ein Teil davon.
+                </caption>
+              </figure>
+              <br />
+              <figure>
+                <img
+                  src="../img/infinite-sets/N-times-N.svg"
+                  style="width: 60%"
+                /><br />
+                <caption>
+                  Die Menge $\N \times \N$ bzw. ein Teil davon.
+                </caption>
+              </figure>
+            </div>
+
+            <div class="well container">
+              <p>
+                <strong>Beweis.</strong>
+                Wir skizzieren eine Bijektion $f : \N \times \N \rightarrow \N$,
+                indem wir für jeden Punkt $(x,y) \in \N \times \N$ angeben, auf
+                welche natürliche Zahl er abgebildet werden soll:
+              </p>
+              <figure>
+                <img
+                  src="../img/infinite-sets/N-times-N-to-N.svg"
+                  style="width: 60%"
+                />
+              </figure>
+              <p>
+                Wir zerlegen $\N \times \N$ also in fallende Diagonale und gehen
+                jede Diagonale von rechts unten nach links oben durch. Dadurch
+                können wir die zweidimensionale Gestalt von $\N \times \N$
+                "aufdröseln" und dem eindimensionalen $\N$ zuordnen.
+                <span class="qed">\(\square\)</span>
+              </p>
+            </div>
+
+            <div class="well well-lg numbered-exercise container">
+              <p>
+                <span class="numbered-title">Übungsaufgabe</span>
+                Finden Sie eine explizite Formel für die Funktion $f : \N \times
+                \N$ aus dem obigen Theorem. Achten Sie erst einmal auf die Werte
+                von $f(x,0)$: $f(3,0) = 6$ und $f(4,0) = 10$ beispielsweise.
+                Erkennen Sie die blauen Zahlen auf der $x$-Achse? Haben Sie eine
+                Formel für sie? Finden Sie eine. Dann erweitern Sie die Formel,
+                so dass sie für alle Werte von $(x,y) \in \N \times \N$
+                funktioniert!
+              </p>
+            </div>
+
+            <div class="well well-lg numbered-exercise container">
+              <p>
+                <span class="numbered-title">Übungsaufgabe</span>
+                Zeigen Sie $\Z \times \Z \approx \Z$, indem Sie eine ähnliche
+                Aufdröselung finden, jetzt aber mit negativen Zahlen.
+              </p>
+            </div>
+
+            <div class="well well-lg numbered-exercise container">
+              <p>
+                <span
+                  class="numbered-title"
+                  id="exercise-cartesian-product"
+                  data-label-title="Übungsaufgabe"
+                  >Übungsaufgabe</span
+                >
+                Zeigen Sie ganz allgemein: wenn $A \approx A'$ und $B \approx
+                B'$, dann gilt auch $A \times B \approx A' \times B'$.
+              </p>
+            </div>
+
+            <div class="well well-lg numbered-exercise container">
+              <p>
+                <span class="numbered-title">Übungsaufgabe</span>
+                Zeigen Sie, dass $\N \times \N \times \N \approx \N$ gilt und
+                ganz allgemein: $\N^k \approx \N$.
+              </p>
+            </div>
+
+            <div class="well well-lg numbered-exercise container">
+              <p>
+                <span class="numbered-title">Übungsaufgabe</span>
+                Sei $\N^*$ die Menge aller endlichen Folgen natürlicher Zahlen,
+                also
+              </p>
+              \begin{align*} \N^* := \{\epsilon\} \cup \N \cup \N^2 \cup \N^3
+              \cup \dots \ , \end{align*} wobei $\epsilon$ die leere Folge (mit
+              0 Gliedern) bezeichnet. Zeigen Sie $\N^* \approx \N$.
+            </div>
+
+            <h2>Rationale Zahlen</h2>
+
+            <p>
+              Ich will Sie nun davon überzeugen, dass $\Q \approx \N$ ist, dass
+              es also "gleich viele rationale wie natürliche Zahlen" gibt. Ich
+              beginne mit etwas Einfacherem:
+            </p>
+            <div class="well container theorem">
+              <p>
+                <span class="numbered-title">Beobachtung.</span> Es gibt eine
+                injektive Funktion $f : \Q \rightarrow \N$.
+              </p>
+            </div>
+            <div class="well container">
+              <p>
+                <strong>Beweis.</strong>
+                Falls Sie es vergessen haben: eine Funktion $f: A \rightarrow B$
+                heißt injektiv, wenn für alle verschiedenen $a, a' \in A$ auch
+                $f(a) \ne f(a')$ gilt. Wenn $f$ also "kollisionsfrei" ist.
+              </p>
+              <p>
+                Sei $q \in \Q$ eine rationale Zahl. Wir können $q$ als gekürzten
+                Bruch schreiben, also
+              </p>
+              \begin{align*} q = \frac{a}{b} \end{align*}
+              <p>
+                mit $a \in \Z$ und $b \in \N^+$ und $\gcd(a,b) = 1$. Mit
+                $\gcd(a,b)$ bezeichnen wir den größten gemeinsamen Teiler 
+                (<em>greatest common divisor</em>) von $a$ und $b$. Wir definieren nun also $f_1(q) := (a,b) \in
+                \Z \times \N$. Dies ist injektiv: zwei verschiedene rationale
+                Zahlen $q$ und $q'$ haben verschiedene Darstellung als gekürzter
+                Bruch, und somit gilt auch $f_1(q) \ne f_1(q')$.
+              </p>
+              <p>
+                Wir haben nun also eine Injektion $f_1 : \Q \rightarrow \Z
+                \times \N$. Mit
+                <span
+                  class="reference"
+                  data-ref="exercise-cartesian-product"
+                ></span>
+                und <span class="reference" data-ref="theorem-N-N^2"></span>
+                gilt $\Z \times \N \approx \N \times \N \approx \N$, und somit
+                gibt es eine Bijektion $f_2 : \Z \times \N \rightarrow \N$. Die
+                Verknüpfung $f := f_2 \circ f_1 : \Q \rightarrow \N$ ist nun die
+                gewünschte injektive Funktion $f$ von $\$Q$ nach $\N$.
+              </p>
+              <span class="qed">\(\square\)</span>
+            </div>
+            <p>
+              Dies ist leider keine Bijektion: das Paar $(6,9)$ beispielsweise
+              wird nie vorkommen, weil $\frac{6}{9}$ nicht gekürzt ist.
+            </p>
+            <div class="well container theorem">
+              <p>
+                <span class="numbered-title">Beobachtung:</span> Es gibt eine
+                injektive Funktion $g: \N \rightarrow \Q$.
+              </p>
+            </div>
+            <div class="well container">
+              <p>
+                <strong>Beweis.</strong> Dies ist ganz einach: da $\N \subseteq
+                \Q$ gilt, können wir jedes $n$ einfach bei sich belassen. Die
+                Funktion
+              </p>
+              \begin{align*} g : \N & \rightarrow \Q \\ n & \mapsto n
+              \end{align*}
+              <p>
+                ist die gewünschte Injektion. Man nennt so eine Funktion auch
+                die <em>Einbettung</em> von $\N$ in $\Q$.
+                <span class="qed">\(\square\)</span>
+              </p>
+            </div>
+            <p>
+              Wir sind nun also in der sonderbaren Situation, dass wir eine
+              injektive Funktion $f : \Q \rightarrow \N$ haben, die aber nicht
+              alle $\N$ ausfüllt, also nicht <em>surjektiv</em> ist.
+              Gleichzeitig haben wir $g : \N \rightarrow \Q$, die injektiv ist
+              aber auch nicht surjektiv. Bei $f$ bleiben also manche natürlichen
+              Zahlen ungenutzt, bei $g$ bleiben rationale Zahlen ungenutzt.
+              Können wir $f$ und $g$ irgendwie kombinieren, um eine bijektive
+              Funktion zu erschaffen? Die Antwort lautet
+              <em>ja, das geht immer</em>, ist nicht ganz trivial zu beweisen,
+              heißt
+              <a href="https://en.wikipedia.org/wiki/Schröder–Bernstein_theorem">Schröder-Bernstein-Theorem</a>, und wir werden das im Teilkapitel
+              <a href="...">...</a> beweisen. Vorerst behelfen wir uns mit
+              ad-hoc-Methoden.
+            </p>
+
+            <div class="well container theorem">
+              <p>
+                <span class="numbered-title">Theorem</span> Es gilt $\Q \approx
+                \N$.
+              </p>
+            </div>
+            <div class="well container">
+              <p>
+                <strong>Beweis.</strong>
+                Wir definieren eine Bijektion $f: \N \rightarrow \Q$, indem wir
+                die Beweisidee von
+                <span class="reference" data-ref="theorem-N-N^2"></span>
+                wiederholen. Wir zeichnen $\Z \times \N^+$ schematisch, löschen
+                aber die Paare $(a,b)$, die nicht einem gekürzten Bruch
+                entsprechen.
+              </p>
+              <figure>
+                <img
+                  src="../img/infinite-sets/Z-times-N-removed.svg"
+                  style="width: 90%"
+                />
+              </figure>
+              <p>
+                Die Punkte sind die Elemente von $\Z \times \N^+$. Die schwarzen
+                Punkte sind jene Punkte $(x,y)$ mit $\gcd(x,y)=1$. Diese stehen
+                nun in Bijektion mit den rationalen Zahlen. Die entsprechenden
+                rationalen Zahlen habe ich daneben geschrieben - die negativen
+                habe ich aus Gründen der Übersichtlichkeit weggelassen. Sie
+                befinden sich spiegelverkehrt auf der linken Seite. Wir müssen
+                nun eine Aufzählung der schwarzen Punkte finden, also eine
+                Bijektion von $\N$ in die Menge der schwarzen Punkte:
+              </p>
+              <figure>
+                <img src="../img/infinite-sets/N-to-Q.svg" style="width: 90%" />
+              </figure>
+              <p>
+                Das funktioniert natürlich: wir überspringen einfach die
+                gelöschten Punkte. Wir können allerdings nicht bequem eine
+                geschlossene Formel dafür angeben. Auf dem "fünften Hütchen",
+                das von $\frac{4}{1}$ nach $\frac{-4}{1}$ läuft, sind zum
+                Beispiel alle Punkte bis auf $(0,5)$ schwarz, was daran liegt,
+                dass $5$ eine Primzahl ist und somit alle $(x,y)$ mit $x+y = 5$
+                und $x, y \geq 1$ teilerfremd sind. Streng genommen müssten wir
+                uns davon überzeugen, dass unendlich viele schwarze Punkte
+                übrigbleiben. Das ist aber einfach, weil alle Punkte der Form
+                $(x,1)$ der Zahl $\frac{x}{1}$ entsprechen, und das ist ja ein
+                gekürzter Bruch.<span class="qed">\(\square\)</span>
+              </p>
+            </div>
+
+            <h2>Endliche Strings</h2>
+
+            Erinnern wir uns an $\{0,1\}^*$, die Menge aller endlichen
+            Bitstrings. Die Menge ist ganz klar unendlich, weil sie zum Beispiel
+            $1, 11, 111, 1111, \dots$ enthält. Ist sie
+            <em>abzählbar</em> unendlich?
+
+            <div class="well container theorem">
+              <p>
+                <span class="numbered-title">Theorem</span> Es gilt $\{0,1\}^*
+                \approx \N$.
+              </p>
+            </div>
+            <div class="well container">
+              <p>
+                <strong>Beweis.</strong> Hier ist eine Idee: wir interpretieren
+                den Bitstring $a_1 a_2 \dots a_n$ als $n$-stellige Binärzahl,
+                also
+              </p>
+              \begin{align*}
+              f(a_1 a_2 \dots a_n) := \sum_{i=1}^n a_i 2^{n-i}\.
+              \end{align*}
+              <p>
+                Leider geht das schief, weil $0$, $00$, $000$ etc. alle auf $0$
+                abgebildet werden. Ebenso $1$, $01$, $001$ und so weiter. Wir
+                könnten uns behelfen und dem String eine 1 voranstellen, also
+                beispielsweise
+              </p>
+              \begin{align*} 0011 \mapsto 10011 \mapsto (10011)_2 = 16 + 2 + 1 =
+              19 \ . \end{align*}
+              <p>Formal also</p>
+              \begin{align*} f : \{0,1\}^* & \rightarrow \N \\ a_1 a_2 \dots a_n
+              & \mapsto 2^n + \sum_{i=1}^n a_i 2^{n-i} \ . \end{align*}
+              <p>
+                Eine äquivalente Interpretation: wir sortieren erst einmal die
+                Bitstrings nach ihrer Länge. Dann gehen wir $\{0,1\}^n$
+                lexicographisch durch, also von $00\dots0$ bis $11\dots$. Diese
+                Reihenfolge durchläuft ganz $\{0,1\}^*$ und ordnet jedem
+                Bitstring eine natürliche Zahl zu. Also:
+              </p>
+              \begin{align*} \begin{array}{c|c} \epsilon & 0 & 1 & 00 & 01 & 10
+              & 11 & 000 & 001 & 010 & 011 & 100 & 101 & 110 & 111 \\ \hline 1 &
+              2 & 3 & 4 & 5 & 6 & 7 & 8 & 9 & 10 & 11 & 12 & 13 & 14 & 15
+              \end{array} \end{align*}
+              <p>
+                Das haut nicht ganz hin, weil die $0$ nie drankommt. In der Tat
+                stellt die obige Tabelle eine Bijektion $\{0,1\}^* \rightarrow
+                \N^+$ dar. Dies ist leicht korrigiert, indem wir 1 abziehen: die
+                Funktion
+              </p>
+              \begin{align*} g : \{0,1\}^* & \rightarrow \N \\ a_1 a_2 \dots a_n
+              & \mapsto 2^n - 1 + \sum_{i=1}^n a_i 2^{n-i} \ . \end{align*}
+              <p>ist eine Bijektion von $\{0,1\}^*$ nach $\N$.</p>
+              <span class="qed">\(\square\)</span>
+            </div>
+
+            <p>Geht das auch mit mehr als zwei Symbolen?</p>
+
+            <div class="well well-lg numbered-exercise container">
+              <p>
+                <span class="numbered-title">Übungsaufgabe</span>
+                Definieren Sie eine Bijektion von $\{0,1,2,3\}$^* nach $\N$.
+              </p>
+              <p>
+                Weil das "Alphabet" $\{0,1,2,3\}$ die Größe $4 = 2^2$ hat,
+                können Sie sich mit einem kleinen Taschenspielertrick behelfen.
+                Schwieriger wird es mit $\{0,1,2\}^*$. Zeigen Sie, dass
+                $\{0,1,2\}^* \approx \N$ gilt.
+              </p>
+              <p>
+                Zeigen Sie ganz allgemein: wenn $\Sigma$ eine endliche Menge
+                ist, dann gilt $\Sigma^* \approx \N$.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      var chaptersStartAt = 2;
+      var subChaptersStartAt = 0;
+    </script>
+    <script
+      type="text/javascript"
+      src="../javascript/table-of-contents.js"
+    ></script>
+    <script
+      type="text/javascript"
+      src="../javascript/number-my-theorems.js"
+    ></script>
+  </body>
+</html>

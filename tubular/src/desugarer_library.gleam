@@ -1,0 +1,476 @@
+import infrastructure as infra
+import desugarers/absorb_into_previous_sibling
+import desugarers/add_after_but_not_after_last_child__batch
+import desugarers/add_before
+import desugarers/add_before_but_not_before_first_child
+import desugarers/add_before_but_not_before_first_child__batch
+import desugarers/add_before_but_not_before_first_of_kind
+import desugarers/add_before_but_not_before_first_of_kind__batch
+import desugarers/add_between
+import desugarers/add_between_tag_and_text_node
+import desugarers/add_between_tag_and_text_node__batch
+import desugarers/add_between_tags__batch
+import desugarers/append_attribute
+import desugarers/append_attribute__batch
+import desugarers/append_attribute__outside
+import desugarers/append_attribute_if_child_of
+import desugarers/append_attribute_if_child_of__batch
+import desugarers/append_attribute_to_second_of_kind
+import desugarers/append_class_to_child_if
+import desugarers/append_class_to_child_if__batch
+import desugarers/append_class_to_children_with_class
+import desugarers/append_class_to_children_with_tag
+import desugarers/append_value_to_handle_attribute_if_has_ancestor_else
+import desugarers/associate_counter_by_prepending_incrementing_attribute
+import desugarers/associate_counter_by_prepending_incrementing_attribute__batch
+import desugarers/associate_counter_by_prepending_incrementing_attribute__outside
+import desugarers/auto_generate_child_if_missing_from_attribute
+import desugarers/auto_generate_child_if_missing_from_attribute__outside
+import desugarers/auto_generate_child_if_missing_from_first_descendant_of_type
+import desugarers/break_lines_into_span_tooltips
+import desugarers/change_attribute_value
+import desugarers/change_attribute_value__batch
+import desugarers/check_proper_detokenization
+import desugarers/check_proper_href_detokenization
+import desugarers/check_proper_href_tokenization
+import desugarers/check_proper_tokenization
+import desugarers/check_tags
+import desugarers/compute_max_element_width
+import desugarers/compute_missing_images_width
+import desugarers/concatenate_tags
+import desugarers/concatenate_text_nodes
+import desugarers/convert_int_attributes_to_float
+import desugarers/correct_parsed_html_tags
+import desugarers/counters_substitute_and_assign_handles
+import desugarers/cut_paste_attribute_from_first_child_to_self
+import desugarers/cut_paste_attribute_from_self_to_child
+import desugarers/cut_paste_attribute_from_self_to_child__outside
+import desugarers/delete
+import desugarers/delete_attribute
+import desugarers/delete_attribute__batch
+import desugarers/delete_attribute_of__batch
+import desugarers/delete_empty_lines
+import desugarers/delete_if_empty
+import desugarers/delete_if_empty__batch
+import desugarers/delete_outside_subtrees
+import desugarers/delete_text_nodes_with_singleton_empty_line
+import desugarers/detokenize_all
+import desugarers/detokenize_href_surroundings
+import desugarers/echo_if_see_text
+import desugarers/expand_ti3_carousel
+import desugarers/extract_starting_and_ending_spaces
+import desugarers/filter_nodes_by_attributes
+import desugarers/find_replace__batch__outside
+import desugarers/find_replace__outside
+import desugarers/find_replace_in_descendants_of__batch
+import desugarers/fix_ti2_local_links
+import desugarers/fold_contents_into_text
+import desugarers/fold_contents_into_text__batch
+import desugarers/fold_into_text
+import desugarers/fold_into_text__batch
+import desugarers/free_children
+import desugarers/free_children__batch
+import desugarers/generate_lbp_breadcrumbs
+import desugarers/generate_lbp_prev_next_attributes
+import desugarers/generate_lbp_sections_breadcrumbs
+import desugarers/generate_lbp_table_of_contents
+import desugarers/generate_ti2_table_of_contents
+import desugarers/generate_ti2_table_of_contents_html
+import desugarers/generate_ti3_index
+import desugarers/generate_ti3_menu
+import desugarers/group_consecutive_children__outside
+import desugarers/handles_generate_dictionary
+import desugarers/handles_generate_ids
+import desugarers/handles_substitute
+import desugarers/identity
+import desugarers/insert_bookend_tags
+import desugarers/insert_bookend_text_if_no_attributes
+import desugarers/insert_line_start_end
+import desugarers/insert_text_start_end
+import desugarers/insert_text_start_end_if_else
+import desugarers/insert_ti2_counter_commands
+import desugarers/keep_only_subtrees_and_ancestors_of_nodes_matching_a_key_value_pair
+import desugarers/line_rewrap_no1__outside
+import desugarers/merge_parent_attributes_into_child
+import desugarers/normalize_begin_end_align
+import desugarers/normalize_math_delimiters_inside
+import desugarers/normalize_spaces__outside
+import desugarers/pair
+import desugarers/pair_list_list
+import desugarers/prepend_append_to_text_children_of
+import desugarers/prepend_attribute_as_text
+import desugarers/prepend_text_node
+import desugarers/prepend_text_node__batch
+import desugarers/prepend_text_node__outside
+import desugarers/prepend_text_node_if_has_ancestor_else__batch
+import desugarers/rearrange_links
+import desugarers/rearrange_links__batch
+import desugarers/rearrange_links_4_pre_tokenized_src
+import desugarers/reassign_text_node_blame_to_blame_of_first_nonempty_line_in_text_node
+import desugarers/regex_split_and_replace__batch__outside
+import desugarers/regex_split_and_replace__outside
+import desugarers/reinsert_math_dollar
+import desugarers/remove_chapter_number_from_title
+import desugarers/rename
+import desugarers/rename_attributes
+import desugarers/rename_attributes_by_function
+import desugarers/rename_if_child_of
+import desugarers/rename_if_child_of__batch
+import desugarers/rename_with_appended_attributes_and_prepended_text
+import desugarers/rename_with_attributes
+import desugarers/replace_in_attribute_values
+import desugarers/replace_multiple_spaces_by_one
+import desugarers/split_first_line_after_prefix
+import desugarers/split_last_line_before_suffix
+import desugarers/strip_delimiters_inside
+import desugarers/strip_delimiters_inside_if
+import desugarers/surround_elements_by
+import desugarers/ti2_carousel_component
+import desugarers/ti3_parse_arbitrary_prompt_response_code_block
+import desugarers/ti3_parse_orange_comment_code_block
+import desugarers/ti3_parse_python_prompt_code_block
+import desugarers/timer
+import desugarers/tokenize_href_surroundings
+import desugarers/tokenize_text_children_if
+import desugarers/trim
+import desugarers/trim__batch
+import desugarers/trim_empty_lines
+import desugarers/trim_empty_lines__batch
+import desugarers/trim_ending_spaces_except_last_line
+import desugarers/trim_spaces_around_newlines__outside
+import desugarers/unwrap
+import desugarers/unwrap__batch
+import desugarers/unwrap_if_child_of
+import desugarers/unwrap_if_descendant_of
+import desugarers/unwrap_if_descendant_of__batch
+import desugarers/unwrap_if_no_child_meets_condition
+import desugarers/unwrap_if_no_child_meets_condition__batch
+import desugarers/unwrap_tag_when_parent_of_tag
+import desugarers/unwrap_tags_if_attributes_match
+import desugarers/unwrap_tags_if_no_attributes
+import desugarers/unwrap_tags_with_no_text_child
+import desugarers/unwrap_tags_with_no_text_descendant
+import desugarers/unwrap_when_zero_or_one_children
+import desugarers/wrap
+import desugarers/wrap_adjacent_non_whitespace_text_with
+import desugarers/wrap_children_before_in
+import desugarers/wrap_children_in
+import desugarers/wrap_each_child
+
+pub const absorb_into_previous_sibling = absorb_into_previous_sibling.constructor
+pub const add_after_but_not_after_last_child__batch = add_after_but_not_after_last_child__batch.constructor
+pub const add_before = add_before.constructor
+pub const add_before_but_not_before_first_child = add_before_but_not_before_first_child.constructor
+pub const add_before_but_not_before_first_child__batch = add_before_but_not_before_first_child__batch.constructor
+pub const add_before_but_not_before_first_of_kind = add_before_but_not_before_first_of_kind.constructor
+pub const add_before_but_not_before_first_of_kind__batch = add_before_but_not_before_first_of_kind__batch.constructor
+pub const add_between = add_between.constructor
+pub const add_between_tag_and_text_node = add_between_tag_and_text_node.constructor
+pub const add_between_tag_and_text_node__batch = add_between_tag_and_text_node__batch.constructor
+pub const add_between_tags__batch = add_between_tags__batch.constructor
+pub const append_attribute = append_attribute.constructor
+pub const append_attribute__batch = append_attribute__batch.constructor
+pub const append_attribute__outside = append_attribute__outside.constructor
+pub const append_attribute_if_child_of = append_attribute_if_child_of.constructor
+pub const append_attribute_if_child_of__batch = append_attribute_if_child_of__batch.constructor
+pub const append_attribute_to_second_of_kind = append_attribute_to_second_of_kind.constructor
+pub const append_class_to_child_if = append_class_to_child_if.constructor
+pub const append_class_to_child_if__batch = append_class_to_child_if__batch.constructor
+pub const append_class_to_children_with_class = append_class_to_children_with_class.constructor
+pub const append_class_to_children_with_tag = append_class_to_children_with_tag.constructor
+pub const append_value_to_handle_attribute_if_has_ancestor_else = append_value_to_handle_attribute_if_has_ancestor_else.constructor
+pub const associate_counter_by_prepending_incrementing_attribute = associate_counter_by_prepending_incrementing_attribute.constructor
+pub const associate_counter_by_prepending_incrementing_attribute__batch = associate_counter_by_prepending_incrementing_attribute__batch.constructor
+pub const associate_counter_by_prepending_incrementing_attribute__outside = associate_counter_by_prepending_incrementing_attribute__outside.constructor
+pub const auto_generate_child_if_missing_from_attribute = auto_generate_child_if_missing_from_attribute.constructor
+pub const auto_generate_child_if_missing_from_attribute__outside = auto_generate_child_if_missing_from_attribute__outside.constructor
+pub const auto_generate_child_if_missing_from_first_descendant_of_type = auto_generate_child_if_missing_from_first_descendant_of_type.constructor
+pub const break_lines_into_span_tooltips = break_lines_into_span_tooltips.constructor
+pub const change_attribute_value = change_attribute_value.constructor
+pub const change_attribute_value__batch = change_attribute_value__batch.constructor
+pub const check_proper_detokenization = check_proper_detokenization.constructor
+pub const check_proper_href_detokenization = check_proper_href_detokenization.constructor
+pub const check_proper_href_tokenization = check_proper_href_tokenization.constructor
+pub const check_proper_tokenization = check_proper_tokenization.constructor
+pub const check_tags = check_tags.constructor
+pub const compute_max_element_width = compute_max_element_width.constructor
+pub const compute_missing_images_width = compute_missing_images_width.constructor
+pub const concatenate_tags = concatenate_tags.constructor
+pub const concatenate_text_nodes = concatenate_text_nodes.constructor
+pub const convert_int_attributes_to_float = convert_int_attributes_to_float.constructor
+pub const correct_parsed_html_tags = correct_parsed_html_tags.constructor
+pub const counters_substitute_and_assign_handles = counters_substitute_and_assign_handles.constructor
+pub const cut_paste_attribute_from_first_child_to_self = cut_paste_attribute_from_first_child_to_self.constructor
+pub const cut_paste_attribute_from_self_to_child = cut_paste_attribute_from_self_to_child.constructor
+pub const cut_paste_attribute_from_self_to_child__outside = cut_paste_attribute_from_self_to_child__outside.constructor
+pub const delete = delete.constructor
+pub const delete_attribute = delete_attribute.constructor
+pub const delete_attribute__batch = delete_attribute__batch.constructor
+pub const delete_attribute_of__batch = delete_attribute_of__batch.constructor
+pub const delete_empty_lines = delete_empty_lines.constructor
+pub const delete_if_empty = delete_if_empty.constructor
+pub const delete_if_empty__batch = delete_if_empty__batch.constructor
+pub const delete_outside_subtrees = delete_outside_subtrees.constructor
+pub const delete_text_nodes_with_singleton_empty_line = delete_text_nodes_with_singleton_empty_line.constructor
+pub const detokenize_all = detokenize_all.constructor
+pub const detokenize_href_surroundings = detokenize_href_surroundings.constructor
+pub const echo_if_see_text = echo_if_see_text.constructor
+pub const expand_ti3_carousel = expand_ti3_carousel.constructor
+pub const extract_starting_and_ending_spaces = extract_starting_and_ending_spaces.constructor
+pub const filter_nodes_by_attributes = filter_nodes_by_attributes.constructor
+pub const find_replace__batch__outside = find_replace__batch__outside.constructor
+pub const find_replace__outside = find_replace__outside.constructor
+pub const find_replace_in_descendants_of__batch = find_replace_in_descendants_of__batch.constructor
+pub const fix_ti2_local_links = fix_ti2_local_links.constructor
+pub const fold_contents_into_text = fold_contents_into_text.constructor
+pub const fold_contents_into_text__batch = fold_contents_into_text__batch.constructor
+pub const fold_into_text = fold_into_text.constructor
+pub const fold_into_text__batch = fold_into_text__batch.constructor
+pub const free_children = free_children.constructor
+pub const free_children__batch = free_children__batch.constructor
+pub const generate_lbp_breadcrumbs = generate_lbp_breadcrumbs.constructor
+pub const generate_lbp_prev_next_attributes = generate_lbp_prev_next_attributes.constructor
+pub const generate_lbp_sections_breadcrumbs = generate_lbp_sections_breadcrumbs.constructor
+pub const generate_lbp_table_of_contents = generate_lbp_table_of_contents.constructor
+pub const generate_ti2_table_of_contents = generate_ti2_table_of_contents.constructor
+pub const generate_ti2_table_of_contents_html = generate_ti2_table_of_contents_html.constructor
+pub const generate_ti3_index = generate_ti3_index.constructor
+pub const generate_ti3_menu = generate_ti3_menu.constructor
+pub const group_consecutive_children__outside = group_consecutive_children__outside.constructor
+pub const handles_generate_dictionary = handles_generate_dictionary.constructor
+pub const handles_generate_ids = handles_generate_ids.constructor
+pub const handles_substitute = handles_substitute.constructor
+pub const identity = identity.constructor
+pub const insert_bookend_tags = insert_bookend_tags.constructor
+pub const insert_bookend_text_if_no_attributes = insert_bookend_text_if_no_attributes.constructor
+pub const insert_line_start_end = insert_line_start_end.constructor
+pub const insert_text_start_end = insert_text_start_end.constructor
+pub const insert_text_start_end_if_else = insert_text_start_end_if_else.constructor
+pub const insert_ti2_counter_commands = insert_ti2_counter_commands.constructor
+pub const keep_only_subtrees_and_ancestors_of_nodes_matching_a_key_value_pair = keep_only_subtrees_and_ancestors_of_nodes_matching_a_key_value_pair.constructor
+pub const line_rewrap_no1__outside = line_rewrap_no1__outside.constructor
+pub const merge_parent_attributes_into_child = merge_parent_attributes_into_child.constructor
+pub const normalize_begin_end_align = normalize_begin_end_align.constructor
+pub const normalize_math_delimiters_inside = normalize_math_delimiters_inside.constructor
+pub const normalize_spaces__outside = normalize_spaces__outside.constructor
+pub const pair = pair.constructor
+pub const pair_list_list = pair_list_list.constructor
+pub const prepend_append_to_text_children_of = prepend_append_to_text_children_of.constructor
+pub const prepend_attribute_as_text = prepend_attribute_as_text.constructor
+pub const prepend_text_node = prepend_text_node.constructor
+pub const prepend_text_node__batch = prepend_text_node__batch.constructor
+pub const prepend_text_node__outside = prepend_text_node__outside.constructor
+pub const prepend_text_node_if_has_ancestor_else__batch = prepend_text_node_if_has_ancestor_else__batch.constructor
+pub const rearrange_links = rearrange_links.constructor
+pub const rearrange_links__batch = rearrange_links__batch.constructor
+pub const rearrange_links_4_pre_tokenized_src = rearrange_links_4_pre_tokenized_src.constructor
+pub const reassign_text_node_blame_to_blame_of_first_nonempty_line_in_text_node = reassign_text_node_blame_to_blame_of_first_nonempty_line_in_text_node.constructor
+pub const regex_split_and_replace__batch__outside = regex_split_and_replace__batch__outside.constructor
+pub const regex_split_and_replace__outside = regex_split_and_replace__outside.constructor
+pub const reinsert_math_dollar = reinsert_math_dollar.constructor
+pub const remove_chapter_number_from_title = remove_chapter_number_from_title.constructor
+pub const rename = rename.constructor
+pub const rename_attributes = rename_attributes.constructor
+pub const rename_attributes_by_function = rename_attributes_by_function.constructor
+pub const rename_if_child_of = rename_if_child_of.constructor
+pub const rename_if_child_of__batch = rename_if_child_of__batch.constructor
+pub const rename_with_appended_attributes_and_prepended_text = rename_with_appended_attributes_and_prepended_text.constructor
+pub const rename_with_attributes = rename_with_attributes.constructor
+pub const replace_in_attribute_values = replace_in_attribute_values.constructor
+pub const replace_multiple_spaces_by_one = replace_multiple_spaces_by_one.constructor
+pub const split_first_line_after_prefix = split_first_line_after_prefix.constructor
+pub const split_last_line_before_suffix = split_last_line_before_suffix.constructor
+pub const strip_delimiters_inside = strip_delimiters_inside.constructor
+pub const strip_delimiters_inside_if = strip_delimiters_inside_if.constructor
+pub const surround_elements_by = surround_elements_by.constructor
+pub const ti2_carousel_component = ti2_carousel_component.constructor
+pub const ti3_parse_arbitrary_prompt_response_code_block = ti3_parse_arbitrary_prompt_response_code_block.constructor
+pub const ti3_parse_orange_comment_code_block = ti3_parse_orange_comment_code_block.constructor
+pub const ti3_parse_python_prompt_code_block = ti3_parse_python_prompt_code_block.constructor
+pub const timer = timer.constructor
+pub const tokenize_href_surroundings = tokenize_href_surroundings.constructor
+pub const tokenize_text_children_if = tokenize_text_children_if.constructor
+pub const trim = trim.constructor
+pub const trim__batch = trim__batch.constructor
+pub const trim_empty_lines = trim_empty_lines.constructor
+pub const trim_empty_lines__batch = trim_empty_lines__batch.constructor
+pub const trim_ending_spaces_except_last_line = trim_ending_spaces_except_last_line.constructor
+pub const trim_spaces_around_newlines__outside = trim_spaces_around_newlines__outside.constructor
+pub const unwrap = unwrap.constructor
+pub const unwrap__batch = unwrap__batch.constructor
+pub const unwrap_if_child_of = unwrap_if_child_of.constructor
+pub const unwrap_if_descendant_of = unwrap_if_descendant_of.constructor
+pub const unwrap_if_descendant_of__batch = unwrap_if_descendant_of__batch.constructor
+pub const unwrap_if_no_child_meets_condition = unwrap_if_no_child_meets_condition.constructor
+pub const unwrap_if_no_child_meets_condition__batch = unwrap_if_no_child_meets_condition__batch.constructor
+pub const unwrap_tag_when_parent_of_tag = unwrap_tag_when_parent_of_tag.constructor
+pub const unwrap_tags_if_attributes_match = unwrap_tags_if_attributes_match.constructor
+pub const unwrap_tags_if_no_attributes = unwrap_tags_if_no_attributes.constructor
+pub const unwrap_tags_with_no_text_child = unwrap_tags_with_no_text_child.constructor
+pub const unwrap_tags_with_no_text_descendant = unwrap_tags_with_no_text_descendant.constructor
+pub const unwrap_when_zero_or_one_children = unwrap_when_zero_or_one_children.constructor
+pub const wrap = wrap.constructor
+pub const wrap_adjacent_non_whitespace_text_with = wrap_adjacent_non_whitespace_text_with.constructor
+pub const wrap_children_before_in = wrap_children_before_in.constructor
+pub const wrap_children_in = wrap_children_in.constructor
+pub const wrap_each_child = wrap_each_child.constructor
+
+pub const assertive_tests : List(fn() -> infra.AssertiveTestCollection) = [
+  absorb_into_previous_sibling.assertive_tests,
+  add_after_but_not_after_last_child__batch.assertive_tests,
+  add_before.assertive_tests,
+  add_before_but_not_before_first_child.assertive_tests,
+  add_before_but_not_before_first_child__batch.assertive_tests,
+  add_before_but_not_before_first_of_kind.assertive_tests,
+  add_before_but_not_before_first_of_kind__batch.assertive_tests,
+  add_between.assertive_tests,
+  add_between_tag_and_text_node.assertive_tests,
+  add_between_tag_and_text_node__batch.assertive_tests,
+  add_between_tags__batch.assertive_tests,
+  append_attribute.assertive_tests,
+  append_attribute__batch.assertive_tests,
+  append_attribute__outside.assertive_tests,
+  append_attribute_if_child_of.assertive_tests,
+  append_attribute_if_child_of__batch.assertive_tests,
+  append_attribute_to_second_of_kind.assertive_tests,
+  append_class_to_child_if.assertive_tests,
+  append_class_to_child_if__batch.assertive_tests,
+  append_class_to_children_with_class.assertive_tests,
+  append_class_to_children_with_tag.assertive_tests,
+  append_value_to_handle_attribute_if_has_ancestor_else.assertive_tests,
+  associate_counter_by_prepending_incrementing_attribute.assertive_tests,
+  associate_counter_by_prepending_incrementing_attribute__batch.assertive_tests,
+  associate_counter_by_prepending_incrementing_attribute__outside.assertive_tests,
+  auto_generate_child_if_missing_from_attribute.assertive_tests,
+  auto_generate_child_if_missing_from_attribute__outside.assertive_tests,
+  auto_generate_child_if_missing_from_first_descendant_of_type.assertive_tests,
+  break_lines_into_span_tooltips.assertive_tests,
+  change_attribute_value.assertive_tests,
+  change_attribute_value__batch.assertive_tests,
+  check_proper_detokenization.assertive_tests,
+  check_proper_href_detokenization.assertive_tests,
+  check_proper_href_tokenization.assertive_tests,
+  check_proper_tokenization.assertive_tests,
+  check_tags.assertive_tests,
+  compute_max_element_width.assertive_tests,
+  compute_missing_images_width.assertive_tests,
+  concatenate_tags.assertive_tests,
+  concatenate_text_nodes.assertive_tests,
+  convert_int_attributes_to_float.assertive_tests,
+  correct_parsed_html_tags.assertive_tests,
+  counters_substitute_and_assign_handles.assertive_tests,
+  cut_paste_attribute_from_first_child_to_self.assertive_tests,
+  cut_paste_attribute_from_self_to_child.assertive_tests,
+  cut_paste_attribute_from_self_to_child__outside.assertive_tests,
+  delete.assertive_tests,
+  delete_attribute.assertive_tests,
+  delete_attribute__batch.assertive_tests,
+  delete_attribute_of__batch.assertive_tests,
+  delete_empty_lines.assertive_tests,
+  delete_if_empty.assertive_tests,
+  delete_if_empty__batch.assertive_tests,
+  delete_outside_subtrees.assertive_tests,
+  delete_text_nodes_with_singleton_empty_line.assertive_tests,
+  detokenize_all.assertive_tests,
+  detokenize_href_surroundings.assertive_tests,
+  echo_if_see_text.assertive_tests,
+  expand_ti3_carousel.assertive_tests,
+  extract_starting_and_ending_spaces.assertive_tests,
+  filter_nodes_by_attributes.assertive_tests,
+  find_replace__batch__outside.assertive_tests,
+  find_replace__outside.assertive_tests,
+  find_replace_in_descendants_of__batch.assertive_tests,
+  fix_ti2_local_links.assertive_tests,
+  fold_contents_into_text.assertive_tests,
+  fold_contents_into_text__batch.assertive_tests,
+  fold_into_text.assertive_tests,
+  fold_into_text__batch.assertive_tests,
+  free_children.assertive_tests,
+  free_children__batch.assertive_tests,
+  generate_lbp_breadcrumbs.assertive_tests,
+  generate_lbp_prev_next_attributes.assertive_tests,
+  generate_lbp_sections_breadcrumbs.assertive_tests,
+  generate_lbp_table_of_contents.assertive_tests,
+  generate_ti2_table_of_contents.assertive_tests,
+  generate_ti2_table_of_contents_html.assertive_tests,
+  generate_ti3_index.assertive_tests,
+  generate_ti3_menu.assertive_tests,
+  group_consecutive_children__outside.assertive_tests,
+  handles_generate_dictionary.assertive_tests,
+  handles_generate_ids.assertive_tests,
+  handles_substitute.assertive_tests,
+  identity.assertive_tests,
+  insert_bookend_tags.assertive_tests,
+  insert_bookend_text_if_no_attributes.assertive_tests,
+  insert_line_start_end.assertive_tests,
+  insert_text_start_end.assertive_tests,
+  insert_text_start_end_if_else.assertive_tests,
+  insert_ti2_counter_commands.assertive_tests,
+  keep_only_subtrees_and_ancestors_of_nodes_matching_a_key_value_pair.assertive_tests,
+  line_rewrap_no1__outside.assertive_tests,
+  merge_parent_attributes_into_child.assertive_tests,
+  normalize_begin_end_align.assertive_tests,
+  normalize_math_delimiters_inside.assertive_tests,
+  normalize_spaces__outside.assertive_tests,
+  pair.assertive_tests,
+  pair_list_list.assertive_tests,
+  prepend_append_to_text_children_of.assertive_tests,
+  prepend_attribute_as_text.assertive_tests,
+  prepend_text_node.assertive_tests,
+  prepend_text_node__batch.assertive_tests,
+  prepend_text_node__outside.assertive_tests,
+  prepend_text_node_if_has_ancestor_else__batch.assertive_tests,
+  rearrange_links.assertive_tests,
+  rearrange_links__batch.assertive_tests,
+  rearrange_links_4_pre_tokenized_src.assertive_tests,
+  reassign_text_node_blame_to_blame_of_first_nonempty_line_in_text_node.assertive_tests,
+  regex_split_and_replace__batch__outside.assertive_tests,
+  regex_split_and_replace__outside.assertive_tests,
+  reinsert_math_dollar.assertive_tests,
+  remove_chapter_number_from_title.assertive_tests,
+  rename.assertive_tests,
+  rename_attributes.assertive_tests,
+  rename_attributes_by_function.assertive_tests,
+  rename_if_child_of.assertive_tests,
+  rename_if_child_of__batch.assertive_tests,
+  rename_with_appended_attributes_and_prepended_text.assertive_tests,
+  rename_with_attributes.assertive_tests,
+  replace_in_attribute_values.assertive_tests,
+  replace_multiple_spaces_by_one.assertive_tests,
+  split_first_line_after_prefix.assertive_tests,
+  split_last_line_before_suffix.assertive_tests,
+  strip_delimiters_inside.assertive_tests,
+  strip_delimiters_inside_if.assertive_tests,
+  surround_elements_by.assertive_tests,
+  ti2_carousel_component.assertive_tests,
+  ti3_parse_arbitrary_prompt_response_code_block.assertive_tests,
+  ti3_parse_orange_comment_code_block.assertive_tests,
+  ti3_parse_python_prompt_code_block.assertive_tests,
+  timer.assertive_tests,
+  tokenize_href_surroundings.assertive_tests,
+  tokenize_text_children_if.assertive_tests,
+  trim.assertive_tests,
+  trim__batch.assertive_tests,
+  trim_empty_lines.assertive_tests,
+  trim_empty_lines__batch.assertive_tests,
+  trim_ending_spaces_except_last_line.assertive_tests,
+  trim_spaces_around_newlines__outside.assertive_tests,
+  unwrap.assertive_tests,
+  unwrap__batch.assertive_tests,
+  unwrap_if_child_of.assertive_tests,
+  unwrap_if_descendant_of.assertive_tests,
+  unwrap_if_descendant_of__batch.assertive_tests,
+  unwrap_if_no_child_meets_condition.assertive_tests,
+  unwrap_if_no_child_meets_condition__batch.assertive_tests,
+  unwrap_tag_when_parent_of_tag.assertive_tests,
+  unwrap_tags_if_attributes_match.assertive_tests,
+  unwrap_tags_if_no_attributes.assertive_tests,
+  unwrap_tags_with_no_text_child.assertive_tests,
+  unwrap_tags_with_no_text_descendant.assertive_tests,
+  unwrap_when_zero_or_one_children.assertive_tests,
+  wrap.assertive_tests,
+  wrap_adjacent_non_whitespace_text_with.assertive_tests,
+  wrap_children_before_in.assertive_tests,
+  wrap_children_in.assertive_tests,
+  wrap_each_child.assertive_tests,
+]
