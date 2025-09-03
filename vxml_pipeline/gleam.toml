@@ -1,4 +1,4 @@
-name = "sharknado"
+name = "vxml_pipeline"
 version = "1.0.0"
 
 [dependencies]
