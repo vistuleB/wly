@@ -1,3 +1,4 @@
+import gleam/result
 import gleam/io
 import gleam/list
 import gleam/string.{inspect as ins}
@@ -6,17 +7,19 @@ import vxml
 import io_lines as io_l
 import on
 
-fn html_engine_light() -> Nil {
+fn html_engine_light() -> Result(Nil, String) {
+  io.println("\n### HTML ENGINE LIGHT ###\n")
+
   let path = "samples/sample.html"
 
   use content <- on.error_ok(
     simplifile.read(path),
-    fn(_) { io.println("could not read file " <> path) },
+    fn(e) { Error("html_engine_light i/o error wile reading '" <> path <> "'") },
   )
 
   use vxml <- on.error_ok(
     vxml.xmlm_based_html_parser(content, path),
-    fn(e) { io.println("xmlm_based_html_parser error: " <> ins(e)) },
+    fn(e) { Error("html_engine_light xmlm_based_html_parser error: " <> ins(e)) },
   )
 
   vxml.echo_vxml(vxml, "html_engine_light")
@@ -24,18 +27,22 @@ fn html_engine_light() -> Nil {
   vxml.vxml_to_html_output_lines(vxml, 0, 2)
   |> io_l.echo_output_lines("back to html")
 
-  Nil
+  io.println("[end]")
+  
+  Ok(Nil)
 }
 
-fn vxml_engine_light() {
+fn vxml_engine_light() -> Result(Nil, String) {
+  io.println("\n### VXML ENGINE LIGHT ###\n")
+
   let path = "samples/sample.vxml"
 
   use vxmls <- on.error_ok(
     vxml.parse_file(path),
     fn (e) {
       case e {
-        vxml.IOError(error) -> io.println("there was an IOError: " <> ins(error))
-        vxml.DocumentError(error) -> io.println("there was a parsing error: " <> ins(error))
+        vxml.IOError(error) -> Error("vxml_engine_light i/o error on '" <> path <> "': " <> ins(error))
+        vxml.DocumentError(error) -> Error("vxml_engine_light parsing error: " <> ins(error))
       }
     }
   )
@@ -51,12 +58,31 @@ fn vxml_engine_light() {
     }
   )
 
-  Nil
+  io.println("[end]")
+
+  Ok(Nil)
 }
 
 pub fn main() {
-  io.println("\n### HTML ENGINE LIGHT ###\n")
-  html_engine_light()
-  io.println("\n### VXML ENGINE LIGHT ###\n")
-  vxml_engine_light()
+  let errors = [
+    html_engine_light(),
+    vxml_engine_light(),
+  ] |> list.filter(result.is_error)
+
+  io.println("\n[end all]\n")
+  
+  case errors {
+    [] -> Nil
+    [_one] -> {
+      io.println("1 error:\n")
+    }
+    _ -> {
+      io.println(ins(list.length(errors)) <> " errors:\n")
+    }
+  }
+
+  list.each(
+    errors,
+    fn(error) { io.println(ins(error)) }
+  )
 }

@@ -10,7 +10,7 @@ import gleam/result
 import gleam/regexp
 import gleam/string.{inspect as ins}
 import simplifile
-import vxml.{type Attribute, type TextLine, type VXML, Attribute, TextLine, T, V} as vx
+import vxml.{type Attribute, type TextLine, type VXML, Attribute, TextLine, T, V}
 import dirtree as dt
 import on
 
@@ -854,7 +854,7 @@ pub fn parse_input_lines(
 //* writerly parsing api (string) *
 //*********************************
 
-fn parse_string(
+pub fn parse_string(
   source: String,
   filename: String,
 ) -> Result(List(Writerly), ParseError) {
@@ -1629,128 +1629,8 @@ pub fn vxmls_to_writerlys(vxmls: List(VXML)) -> List(Writerly) {
 }
 
 // ************************************************************
-// tests/main
+// digest (maybe no one uses this)
 // ************************************************************
-
-fn contents_test() {
-  let dirname = "test/contents"
-
-  use #(tree, lines) <- on.error_ok(
-    assemble_input_lines(dirname),
-    fn (error) {
-      io.println("assemble_input_lines error:" <> ins(error))
-    }
-  )
-
-  io.println("\nassembled:\n")
-  tree |> list.map(fn(x) { "" <> x }) |> string.join("\n") |> io.println()
-  io.println("")
-
-  use writerlys <- on.error_ok(
-    parse_input_lines(lines),
-    fn (error) {
-      io.println("parse_input_lines error:" <> ins(error))
-    }
-  )
-
-  let vxmls =
-    writerlys
-    |> list.map(writerly_to_vxml)
-
-  list.index_map(
-    writerlys,
-    fn (writerly, i) {
-      echo_writerly(writerly, "#" <> ins(i + 1))
-      io.println("")
-    }
-  )
-
-  list.index_map(
-    vxmls,
-    fn (vxml, i) {
-      vx.echo_vxml(vxml, "#" <> ins(i + 1))
-      io.println("")
-    }
-  )
-
-  io.println("")
-}
-
-fn html_test() {
-  let path = "test/ch5_ch.xml"
-
-  use content <- on.error_ok(simplifile.read(path), fn(_) {
-    io.println("could not read file " <> path)
-  })
-
-  use vxml <- on.error_ok(vx.xmlm_based_html_parser(content, path), fn(e) {
-    io.println("xmlm_based_html_parser error: " <> ins(e))
-  })
-
-  let writerlys = vxml_to_writerlys(vxml)
-
-  io.println("")
-  io.println("list.length(writerlys) == " <> ins(list.length(writerlys)))
-  io.println("")
-
-  writerlys
-  |> list.index_map(
-    fn (writerly, i) {
-      echo_writerly(writerly, "html_test " <> ins(i + 1))
-      io.println("")
-    }
-  )
-
-  let _ = simplifile.write(
-    "test/ch5_ch.emu",
-    writerlys
-    |> list.map(writerly_to_string)
-    |> string.concat
-  )
-
-  Nil
-}
-
-fn sample_test() {
-  let filename = "test/sample.wly"
-
-  use contents <- on.error_ok(
-    simplifile.read(filename),
-    fn(e) {io.println("there was an io error: " <> ins(e))}
-  )
-
-  use writerlys <- on.error_ok(
-    parse_string(contents, filename),
-    fn(e) {io.println("there was a parsing error: " <> ins(e))}
-  )
-
-  io.println("")
-  io.println("list.length(writerlys) == " <> ins(list.length(writerlys)))
-  io.println("")
-
-  writerlys
-  |> list.index_map(
-    fn (writerly, i) {
-      echo_writerly(writerly, "sample_test writerly " <> ins(i + 1))
-      io.println("")
-    }
-  )
-
-  let vxmls = writerlys |> list.map(writerly_to_vxml)
-
-  io.println("list.length(vxmls) == " <> ins(list.length(vxmls)))
-  io.println("")
-
-  vxmls
-  |> list.index_map(
-    fn (wxml, i) {
-      vx.echo_vxml(wxml, "sample_test vxml" <> ins(i + 1))
-      io.println("")
-    }
-  )
-
-  Nil
-}
 
 pub fn digest(w: Writerly) -> String {
   case w {
@@ -1759,14 +1639,4 @@ pub fn digest(w: Writerly) -> String {
     CodeBlock(_, _, _) -> ins(w)
     Tag(_, _, _, _) -> "Tag " <> w.name
   }
-}
-
-pub fn avoid_linter_complaint_about_unused_functions() {
-  contents_test()
-  sample_test()
-  html_test()
-}
-
-pub fn main() {
-  contents_test()
 }
