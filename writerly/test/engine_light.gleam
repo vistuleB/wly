@@ -58,7 +58,7 @@ fn sample_test() -> Result(Nil, String) {
 
   use contents <- on.error_ok(
     simplifile.read(filename),
-    fn(e) { Error("SAMPLE_TEST error: i/o error while reading " <> filename) }
+    fn(_) { Error("SAMPLE_TEST error: i/o error while reading " <> filename) }
   )
 
   use writerlys <- on.error_ok(

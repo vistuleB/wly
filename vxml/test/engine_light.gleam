@@ -14,7 +14,7 @@ fn html_engine_light() -> Result(Nil, String) {
 
   use content <- on.error_ok(
     simplifile.read(path),
-    fn(e) { Error("html_engine_light i/o error wile reading '" <> path <> "'") },
+    fn(_) { Error("html_engine_light i/o error wile reading '" <> path <> "'") },
   )
 
   use vxml <- on.error_ok(
