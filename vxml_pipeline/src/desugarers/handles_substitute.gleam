@@ -129,6 +129,7 @@ fn matches_2_hyperlinks(
       }
     }
   )
+  |> fn(pair) { #(pair.0 |> list.reverse, pair.1 |> list.reverse) }
   |> Ok
 }
 

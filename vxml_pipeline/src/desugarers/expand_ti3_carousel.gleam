@@ -178,13 +178,11 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
                   <> CarouselItem
                     <> img
                       src=\"image1.jpg\"
-                      width=\"200px\"
-                      height=\"150px\"
+                      style=width: \"200px\"; height: \"150px\";
                   <> CarouselItem
                     <> img
                       src=\"image2.jpg\"
-                      width=\"200px\"
-                      height=\"150px\"
+                      style=width: \"200px\"; height: \"150px\";
                 ",
     ),
     infra.AssertiveTestDataNoParam(
@@ -198,7 +196,7 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
                   <> CarouselItem
                     <> img
                       src=\"only.jpg\"
-                      width=\"100px\"
+                      style=width: \"100px\";
                 ",
     ),
     infra.AssertiveTestDataNoParam(

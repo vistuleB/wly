@@ -137,36 +137,95 @@ pub fn constructor() -> Desugarer {
 fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
   [
     infra.AssertiveTestDataNoParam(
-      source: "
+      source:   "
                 <> CodeBlock
-                  language=orange-comment
+                  language=arbitrary-prompt-response
                   <>
-                    \"def mult(t,x):\"
-                    \"    temp = 0 //= zero(x)\"
-                    \"    for i in range(t):\"
-                    \"        temp = add(temp,x) //= Comp(add, p_0, p2) (temp,i,x)\"
-                    \"    return temp\"
+                    \"user@home:~$ java TestRegex\"
+                    \"Please enter a regular expression: <- (a+)(:a+)*\"
+                    \"Enter words to be matched, one per line\"
+                    \"<- aaaaa:aa:aaaa:a\"
+                    \"true\"
+                    \"<- aaa:aa:\"
+                    \"false\"
                 ",
       expected: "
                 <> pre
-                  <>
-                    \"def mult(t,x):\"
-                    \"    temp = 0 \"
+                  class=well highlight
                   <> span
-                    class=orange-comment
+                    class=terminal-prompt
                     <>
-                      \"= zero(x)\"
+                      \"user@home:~$\"
+                  <> span
+                    class=arbitrary-response
+                    <>
+                      \" java TestRegex\"
                   <>
                     \"\"
-                    \"    for i in range(t):\"
-                    \"        temp = add(temp,x) \"
+                    \"\"
                   <> span
-                    class=orange-comment
+                    class=arbitrary-prompt
                     <>
-                      \"= Comp(add, p_0, p2) (temp,i,x)\"
+                      \"Please enter a regular expression: \"
+                  <> span
+                    class=arbitrary-response
+                    <>
+                      \"(a+)(:a+)*\"
                   <>
                     \"\"
-                    \"    return temp\"
+                    \"\"
+                  <> span
+                    class=arbitrary-prompt
+                    <>
+                      \"Enter words to be matched, one per line\"
+                  <> span
+                    class=arbitrary-response
+                    <>
+                      \"\"
+                  <>
+                    \"\"
+                    \"\"
+                  <> span
+                    class=arbitrary-prompt
+                    <>
+                      \"\"
+                  <> span
+                    class=arbitrary-response
+                    <>
+                      \"aaaaa:aa:aaaa:a\"
+                  <>
+                    \"\"
+                    \"\"
+                  <> span
+                    class=arbitrary-prompt
+                    <>
+                      \"true\"
+                  <> span
+                    class=arbitrary-response
+                    <>
+                      \"\"
+                  <>
+                    \"\"
+                    \"\"
+                  <> span
+                    class=arbitrary-prompt
+                    <>
+                      \"\"
+                  <> span
+                    class=arbitrary-response
+                    <>
+                      \"aaa:aa:\"
+                  <>
+                    \"\"
+                    \"\"
+                  <> span
+                    class=arbitrary-prompt
+                    <>
+                      \"false\"
+                  <> span
+                    class=arbitrary-response
+                    <>
+                      \"\"
                 "
     ),
   ]

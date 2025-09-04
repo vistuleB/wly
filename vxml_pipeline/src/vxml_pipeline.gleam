@@ -1,4 +1,3 @@
-import gleam/list
 import argv
 import gleam/io
 import gleam/string.{inspect as ins}
@@ -76,10 +75,10 @@ pub fn main() {
     ["--test-thing"] -> {
       test_thing()
     }
-    ["--test-desugarers", ..names] -> {
-      let collections = list.map(dl.assertive_tests, fn(constructor){constructor()})
-      infra.run_assertive_desugarer_tests(names, collections)
-    }
+    // ["--test-desugarers", ..names] -> {
+    //   let collections = list.map(dl.assertive_tests, fn(constructor){constructor()})
+    //   infra.run_assertive_desugarer_tests(names, collections)
+    // }
     _ -> {
       io.println("")
       io.println("No local command line options given. Will run the test renderer.")

@@ -138,7 +138,32 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
     infra.AssertiveTestDataNoParam(
       source: "
             <> testing
+              had_href_child=true
               <> bb
+                href=qq
+                <> __StartTokenizedT
+                <> __OneWord
+                  val=first
+                <> __OneSpace
+                <> __OneSpace
+                <> __OneWord
+                  val=line
+                <> __EndTokenizedT
+      ",
+      expected: "
+            <> testing
+              <> bb
+                href=qq
+                <>
+                  \"first  line\"
+      ",
+    ),
+    infra.AssertiveTestDataNoParam(
+      source: "
+            <> testing
+              had_href_child=true
+              <> bb
+                href=qq
                 <> __StartTokenizedT
                 <> __OneWord
                   val=first
@@ -159,6 +184,7 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
       expected: "
           <> testing
             <> bb
+              href=qq
               <>
                 \"first line\"
                 \"second line\"
@@ -166,29 +192,6 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
               <> inside
                 <>
                   \"some text\"
-      ",
-    ),
-    infra.AssertiveTestDataNoParam(
-      source: "
-            <> testing
-              had_href_child=true
-              <> bb
-                href=qq
-                <> __StartTokenizedT
-                <> __OneWord
-                  val=first
-                <> __OneSpace
-                <> __OneSpace
-                <> __OneWord
-                  val=line
-                <> __EndTokenizedT
-      ",
-      expected: "
-            <> testing
-              <> bb
-                href=qq
-                <>
-                  \"first  line\"
       ",
     ),
     infra.AssertiveTestDataNoParam(
@@ -221,6 +224,7 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
             <> testing
               had_href_child=true
               <> bb
+                href=z
                 <> __StartTokenizedT
                 <> __OneWord
                   val=
@@ -232,7 +236,7 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
       expected: "
             <> testing
               <> bb
-                href=qq
+                href=z
                 <>
                   \"\"
                   \"\"

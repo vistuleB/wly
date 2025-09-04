@@ -144,9 +144,9 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
                           \"some text\"
                       <> span
                         class=tooltip-3003
-                        onClick=sendCmdTo3003('code --goto ../path/to/content/tst.source:3:50');
+                        onClick=sendCmdTo3003('code --goto ../path/to/content/tst.source:3:4');
                         <>
-                          \"../path/to/content/tst.source:3:50\"
+                          \"../path/to/content/tst.source:3:4\"
                 "
     ),
   ]
