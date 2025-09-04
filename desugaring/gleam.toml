@@ -1,4 +1,4 @@
-name = "vxml_pipeline"
+name = "desugaring"
 version = "1.0.0"
 
 [dependencies]
