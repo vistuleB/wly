@@ -1,5 +1,4 @@
 import gleam/int
-import gleam/io
 import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/regexp
@@ -10,6 +9,8 @@ import io_lines.{type InputLine, InputLine, type OutputLine, OutputLine} as io_l
 import simplifile
 import xmlm
 import on
+
+pub const ampersand_replacer_pattern = "&(?!(?:[a-z]{2,6};|#\\d{2,4};))"
 
 // ************************************************************
 // Attribute, TextLine, VXML (pretend 'blame' does not exist -> makes it more readable)
@@ -1013,13 +1014,13 @@ fn vxml_to_jsx_output_lines_internal(
 
 pub fn vxml_to_jsx_output_lines(vxml: VXML, indent: Int) -> List(OutputLine) {
   // a regex that matches ampersands that appear outside of html entities:
-  let assert Ok(ampersand_replacer) = regexp.from_string("&(?!(?:[a-z]{2,6};|#\\d{2,4};))")
+  let assert Ok(ampersand_replacer) = regexp.from_string(ampersand_replacer_pattern)
   vxml_to_jsx_output_lines_internal(vxml, indent, ampersand_replacer)
 }
 
 pub fn vxmls_to_jsx_output_lines(vxmls: List(VXML), indent: Int) -> List(OutputLine) {
   // a regex that matches ampersands that appear outside of html entities:
-  let assert Ok(ampersand_replacer) = regexp.from_string("&(?!(?:[a-z]{2,6};|#\\d{2,4};))")
+  let assert Ok(ampersand_replacer) = regexp.from_string(ampersand_replacer_pattern)
   vxmls
   |> list.map(vxml_to_jsx_output_lines_internal(_, indent, ampersand_replacer))
   |> list.flatten
@@ -1388,7 +1389,7 @@ pub fn vxml_to_html_output_lines(
   indent: Int,
   spaces: Int,
 ) -> List(OutputLine) {
-  let assert Ok(ampersand_replacer) = regexp.from_string("&(?!(?:[a-z]{2,6};|#\\d{2,4};))")
+  let assert Ok(ampersand_replacer) = regexp.from_string(ampersand_replacer_pattern)
   vxml_to_html_output_lines_internal(node, indent, spaces, ampersand_replacer)
 }
 
@@ -1397,7 +1398,7 @@ pub fn vxmls_to_html_output_lines(
   indent: Int,
   spaces: Int,
 ) -> List(OutputLine) {
-  let assert Ok(ampersand_replacer) = regexp.from_string("&(?!(?:[a-z]{2,6};|#\\d{2,4};))")
+  let assert Ok(ampersand_replacer) = regexp.from_string(ampersand_replacer_pattern)
   vxmls_to_html_output_lines_internal(vxmls, indent, spaces, ampersand_replacer)
 }
 
@@ -1553,75 +1554,4 @@ pub fn xmlm_based_html_parser(
       input_error |> ins |> XMLMParseError |> Error
     }
   }
-}
-
-// ************************************************************
-// main & tests
-// ************************************************************
-
-fn test_vxml_sample() {
-  let path = "test/sample.vxml"
-
-  use vxmls <- on.error_ok(
-    parse_file(path),
-    fn (e) {
-      case e {
-        IOError(error) -> io.println("there was an IOError: " <> ins(error))
-        DocumentError(error) -> io.println("there was a parsing error: " <> ins(error))
-      }
-    }
-  )
-
-  io.println("")
-  io.println("list.length(vxmls) == " <> ins(list.length(vxmls)))
-  io.println("")
-
-  vxmls
-  |> list.index_map(
-    fn (vxml, i) {
-      echo_vxml(vxml, "test_vxml_sample " <> ins(i + 1))
-      io.println("")
-    }
-  )
-
-  Nil
-}
-
-fn test_html_sample() -> Nil {
-  let path = "test/sample.html"
-
-  use content <- on.error_ok(
-    simplifile.read(path),
-    fn(_) { io.println("could not read file " <> path) },
-  )
-
-  use vxml <- on.error_ok(
-    xmlm_based_html_parser(content, path),
-    fn(e) { io.println("xmlm_based_html_parser error: " <> ins(e)) },
-  )
-
-  echo_vxml(vxml, "test_html_sample")
-
-  vxml_to_html_output_lines(vxml, 0, 2)
-  |> io_l.echo_output_lines("back to html")
-
-  Nil
-}
-
-fn test_regex() {
-  let assert Ok(a) = regexp.from_string("&(?!(?:[a-z]{2,6};|#\\d{2,4};))")
-  echo regexp.replace(a, " &amp;&Gamma; ", "&amp;")
-  echo regexp.replace(a, " &a#a; ", "&amp;")
-}
-
-pub fn make_linter_shut_up() {
-  test_vxml_sample()
-  test_html_sample()
-  test_regex()
-}
-
-pub fn main() {
-  // test_vxml_sample()
-  test_html_sample()
-  // test_regex()
 }

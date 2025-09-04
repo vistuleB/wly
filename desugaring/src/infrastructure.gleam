@@ -1815,6 +1815,13 @@ pub fn is_v_and_tag_is_one_of(vxml: VXML, tags: List(String)) -> Bool {
   }
 }
 
+pub fn is_v_and_tag_is_not_one_of(vxml: VXML, tags: List(String)) -> Bool {
+  case vxml {
+    T(_, _) -> False
+    V(_, tag, _, _) -> !list.contains(tags, tag)
+  }
+}
+
 pub fn is_text_node(node: VXML) -> Bool {
   case node {
     T(_, _) -> True

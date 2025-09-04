@@ -18,6 +18,9 @@ import desugarers/append_attribute_if_child_of__batch
 import desugarers/append_attribute_to_second_of_kind
 import desugarers/append_class_to_child_if
 import desugarers/append_class_to_child_if__batch
+import desugarers/append_class_to_child_if_has_class
+import desugarers/append_class_to_child_if_is_not_one_of
+import desugarers/append_class_to_child_if_is_one_of
 import desugarers/append_class_to_children_with_class
 import desugarers/append_class_to_children_with_tag
 import desugarers/append_value_to_handle_attribute_if_has_ancestor_else
@@ -176,6 +179,9 @@ pub const append_attribute_if_child_of__batch = append_attribute_if_child_of__ba
 pub const append_attribute_to_second_of_kind = append_attribute_to_second_of_kind.constructor
 pub const append_class_to_child_if = append_class_to_child_if.constructor
 pub const append_class_to_child_if__batch = append_class_to_child_if__batch.constructor
+pub const append_class_to_child_if_has_class = append_class_to_child_if_has_class.constructor
+pub const append_class_to_child_if_is_not_one_of = append_class_to_child_if_is_not_one_of.constructor
+pub const append_class_to_child_if_is_one_of = append_class_to_child_if_is_one_of.constructor
 pub const append_class_to_children_with_class = append_class_to_children_with_class.constructor
 pub const append_class_to_children_with_tag = append_class_to_children_with_tag.constructor
 pub const append_value_to_handle_attribute_if_has_ancestor_else = append_value_to_handle_attribute_if_has_ancestor_else.constructor
@@ -335,6 +341,9 @@ pub const assertive_tests : List(fn() -> infra.AssertiveTestCollection) = [
   append_attribute_to_second_of_kind.assertive_tests,
   append_class_to_child_if.assertive_tests,
   append_class_to_child_if__batch.assertive_tests,
+  append_class_to_child_if_has_class.assertive_tests,
+  append_class_to_child_if_is_not_one_of.assertive_tests,
+  append_class_to_child_if_is_one_of.assertive_tests,
   append_class_to_children_with_class.assertive_tests,
   append_class_to_children_with_tag.assertive_tests,
   append_value_to_handle_attribute_if_has_ancestor_else.assertive_tests,
