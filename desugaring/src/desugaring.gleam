@@ -36,10 +36,6 @@ pub type AssemblerDebugOptions {
 // 🌻 default assembler~~ 🌻
 // 🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻
 
-// ************************************************************
-// default assembler
-// ************************************************************
-
 pub fn default_assembler(
   spotlight_paths: List(String),
 ) -> Assembler(wp.AssemblyError) {
@@ -75,10 +71,6 @@ pub type ParserDebugOptions {
 // 🌻 default Writerly parser~~~~ 🌻
 // 🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻
 
-// ************************************************************
-// default writerly parser
-// ************************************************************
-
 pub fn default_writerly_parser(
   only_args: List(#(String, String, String)),
 ) -> Parser(String) {
@@ -105,10 +97,6 @@ pub fn default_writerly_parser(
 // 🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻
 // 🌻 default HTML parser 🌻
 // 🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻
-
-// ************************************************************
-// default html parser
-// ************************************************************
 
 pub fn default_html_parser(
   only_args: List(#(String, String, String)),
@@ -167,10 +155,6 @@ pub type SplitterDebugOptions(d) {
 // 🌻 stub splitter~~~~~~ 🌻
 // 🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻
 
-// ************************************************************
-// stub splitter
-// ************************************************************
-
 /// emits 1 fragment whose 'path' is the tag
 /// of the VXML root concatenated with a provided
 /// suffix, e.g., "<> Book" -> "Book.html"
@@ -199,10 +183,6 @@ pub type EmitterDebugOptions(d) {
 // 🌻 default Writerly emitter~~~ 🌻
 // 🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻
 
-// ************************************************************
-// default writerly emitter
-// ************************************************************
-
 pub fn default_writerly_emitter(
   fragment: OutputFragment(d, VXML),
 ) -> Result(OutputFragment(d, List(OutputLine)), b) {
@@ -218,10 +198,6 @@ pub fn default_writerly_emitter(
 // 🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻
 // 🌻 stub HTML emitter~~ 🌻
 // 🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻
-
-// ************************************************************
-// stub html emitter
-// ************************************************************
 
 pub fn stub_html_emitter(
   fragment: OutputFragment(d, VXML),
@@ -255,10 +231,6 @@ pub fn stub_html_emitter(
 // 🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻
 // 🌻 stub jsx emitter~~~ 🌻
 // 🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻
-
-// ************************************************************
-// stub jsx emitter
-// ************************************************************
 
 pub fn stub_jsx_emitter(
   fragment: OutputFragment(d, VXML),
@@ -348,9 +320,6 @@ pub type PrettifierDebugOptions(d) {
   PrettifierDebugOptions(echo_: fn(GhostOfOutputFragment(d)) -> Bool)
 }
 
-// ************************************************************
-// default & empty prettifier
-// ************************************************************
 // 🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻
 // 🌻 default prettifier~ 🌻
 // 🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻
