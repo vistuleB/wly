@@ -144,7 +144,7 @@ fn at_root(
 ) -> Result(#(VXML, List(DesugaringWarning)), DesugaringError) {
   let #(table_of_contents_tag, chapter_link_component_name) = inner
   let sections = infra.descendants_with_tag(root, "section")
-  use chapter_menu_items <- result.try(
+  use chapter_menu_items <- on.ok(
     sections
     |> list.map_fold(0, fn(acc, chapter: VXML) {
       case get_section_index(chapter, acc) {

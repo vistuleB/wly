@@ -1,10 +1,10 @@
 import gleam/list
 import gleam/option.{type Option}
-import gleam/result
 import gleam/string.{inspect as ins}
 import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError, DesugaringError} as infra
 import nodemaps_2_desugarer_transforms as n2t
 import vxml.{type VXML, T, V}
+import on
 
 fn inside_text_node(node: VXML) -> Result(VXML, DesugaringError) {
   case node {
@@ -75,7 +75,7 @@ fn accumulator(
               //
               // we turn the previous v node into a standalone text node
               // *
-              use text_node <- result.try(inside_text_node(last_v))
+              use text_node <- on.ok(inside_text_node(last_v))
               Ok([text_node, ..already_processed] |> list.reverse)
             }
           }
@@ -99,7 +99,7 @@ fn accumulator(
               //
               // we bundle the t & v, add to already_processed, reverse the list
               // *
-              use text_node <- result.try(inside_text_node(last_v))
+              use text_node <- on.ok(inside_text_node(last_v))
               Ok([
                 infra.t_t_last_to_first_concatenation(
                   last_t,
@@ -138,7 +138,7 @@ fn accumulator(
               //
               // we bundle the v & first, add to already_processed, reset v to None
               // *
-              use text_node <- result.try(inside_text_node(last_v))
+              use text_node <- on.ok(inside_text_node(last_v))
               accumulator(
                 tags,
                 already_processed,
@@ -176,7 +176,7 @@ fn accumulator(
               //
               // we bundle t & v & first and etc
               // *
-              use text_node <- result.try(inside_text_node(last_v))
+              use text_node <- on.ok(inside_text_node(last_v))
               accumulator(
                 tags,
                 already_processed,
@@ -241,7 +241,7 @@ fn accumulator(
                   //
                   // standalone-bundle the previous v node & add first to already processed
                   // *
-                  use text_node <- result.try(inside_text_node(last_v))
+                  use text_node <- on.ok(inside_text_node(last_v))
                   accumulator(
                     tags,
                     [first, text_node, ..already_processed],
@@ -258,7 +258,7 @@ fn accumulator(
                   //
                   // standalone-bundle the previous v node & make 'first' the optional_last_v
                   // *
-                  use text_node <- result.try(inside_text_node(last_v))
+                  use text_node <- on.ok(inside_text_node(last_v))
                   accumulator(
                     tags,
                     already_processed,
@@ -315,7 +315,7 @@ fn accumulator(
                   //
                   // fold t & v, put first & folder t/v into already_processed
                   // *
-                  use text_node <- result.try(inside_text_node(last_v))
+                  use text_node <- on.ok(inside_text_node(last_v))
                   accumulator(
                     tags,
                     [
@@ -339,7 +339,7 @@ fn accumulator(
                   //
                   // fold t & v, put into already_processed, make v the new optional_last_v
                   // *
-                  use text_node <- result.try(inside_text_node(last_v))
+                  use text_node <- on.ok(inside_text_node(last_v))
                   accumulator(
                     tags,
                     already_processed,
@@ -364,7 +364,7 @@ fn nodemap(
   case node {
     T(_, _) -> Ok(node)
     V(blame, tag, attrs, children) -> {
-      use new_children <- result.try(accumulator(inner, [], option.None, option.None, children))
+      use new_children <- on.ok(accumulator(inner, [], option.None, option.None, children))
       Ok(V(blame, tag, attrs, new_children))
     }
   }

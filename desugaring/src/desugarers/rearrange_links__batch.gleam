@@ -706,7 +706,7 @@ fn xmlm_tag_to_link_pattern(
   xmlm_tag: xmlm.Tag,
   children: List(Result(LinkPattern, DesugaringError)),
 ) {
-  use tag_content_patterns <- result.try(children |> result.all)
+  use tag_content_patterns <- on.ok(children |> result.all)
 
   let tag_content_patterns = tag_content_patterns |> list.flatten
 
@@ -715,7 +715,7 @@ fn xmlm_tag_to_link_pattern(
     Ok(tag_content_patterns),
   )
 
-  use href_attribute <- result.try(
+  use href_attribute <- on.ok(
     xmlm_tag.attributes
     |> list.find(xmlm_attribute_equals(_, "href"))
     |> result.map_error(fn(_) {
@@ -725,7 +725,7 @@ fn xmlm_tag_to_link_pattern(
 
   let xmlm.Attribute(_, value) = href_attribute
 
-  use value <- result.try(
+  use value <- on.ok(
     int.parse(value)
     |> result.map_error(fn(_) {
       DesugaringError(bl.no_blame, "<a> pattern 'href' attribute does not parse to an int")
@@ -767,7 +767,7 @@ fn extra_string_to_link_pattern(
     },
   )
 
-  use pattern <- result.try(pattern) // pattern was a Result(TokenPatter, DesugaringError)
+  use pattern <- on.ok(pattern) // pattern was a Result(TokenPatter, DesugaringError)
 
   pattern
   |> insert_start_t_end_t_into_link_pattern
@@ -789,13 +789,13 @@ fn string_pair_to_link_pattern_pair(string_pair: #(String, String)) -> Result(#(
   let assert Ok(re1) = regexp.compile("([a-zA-Z0-9-]+)=([^\"'][^ >]*)", regexp.Options(True, True))
   let assert Ok(re2) = regexp.from_string("(_[0-9]+_)")
 
-  use pattern1 <- result.try(
+  use pattern1 <- on.ok(
     { "<root>" <> s1 <> "</root>" }
     |> make_sure_attributes_are_quoted(re1)
     |> extra_string_to_link_pattern(re2)
   )
 
-  use pattern2 <- result.try(
+  use pattern2 <- on.ok(
     { "<root>" <> s2 <> "</root>" }
     |> make_sure_attributes_are_quoted(re1)
     |> extra_string_to_link_pattern(re2)
@@ -872,24 +872,24 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
   list.try_map(
     param,
     fn(p) {
-      use #(pattern1, pattern2) <- result.try(string_pair_to_link_pattern_pair(p))
+      use #(pattern1, pattern2) <- on.ok(string_pair_to_link_pattern_pair(p))
 
-      use unique_href_vars <- result.try(
+      use unique_href_vars <- on.ok(
         collect_unique_href_vars(pattern1)
         |> result.map_error(fn(var){ DesugaringError(bl.no_blame, "Source pattern " <> p.0 <>" has duplicate declaration of href variable: " <> ins(var)) })
       )
 
-      use unique_content_vars <- result.try(
+      use unique_content_vars <- on.ok(
         collect_unique_content_vars(pattern1)
         |> result.map_error(fn(var){ DesugaringError(bl.no_blame, "Source pattern " <> p.0 <>" has duplicate declaration of content variable: " <> ins(var)) })
       )
 
-      use _ <- result.try(
+      use _ <- on.ok(
         check_each_href_var_is_sourced(pattern2, unique_href_vars)
         |> result.map_error(fn(var){ DesugaringError(bl.no_blame, "Target pattern " <> p.1 <> " has a declaration of unsourced href variable: " <> ins(var)) })
       )
 
-      use _ <- result.try(
+      use _ <- on.ok(
         check_each_content_var_is_sourced(pattern2, unique_content_vars)
         |> result.map_error(fn(var){ DesugaringError(bl.no_blame, "Target pattern " <> p.1 <> " has a declaration of unsourced content variable: " <> ins(var)) })
       )

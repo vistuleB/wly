@@ -157,7 +157,7 @@ fn split_delimiters(
           let #(output, rest) =
             append_until_delimiter(rest, [first], dels_to_ignore)
           // get all lines that follows and do not have delimiter to be in same list
-          use rest <- result.try(split_delimiters(blame, rest, dels_to_ignore))
+          use rest <- on.ok(split_delimiters(blame, rest, dels_to_ignore))
           Ok([T(first.blame, output), ..rest])
         }
         option.Some(del) -> {
@@ -173,7 +173,7 @@ fn split_delimiters(
           let blamed_line_for_del_content =
             Line(first.blame, del_content)
 
-          use nested_delimiters_vxml <- result.try(
+          use nested_delimiters_vxml <- on.ok(
             nodemap(
               T(first.blame, [blamed_line_for_del_content]),
             ),
@@ -185,14 +185,14 @@ fn split_delimiters(
             False, False ->
               split_delimiters(blame, contents, [del, ..dels_to_ignore])
             False, True -> {
-              use rest <- result.try(split_delimiters(blame, rest, []))
+              use rest <- on.ok(split_delimiters(blame, rest, []))
               Ok([
                 T(first.blame, [blamed_line_for_string_before_delimiter]),
                 ..rest
               ])
             }
             True, True -> {
-              use rest <- result.try(split_delimiters(
+              use rest <- on.ok(split_delimiters(
                 blame,
                 rest,
                 dels_to_ignore,
@@ -209,7 +209,7 @@ fn split_delimiters(
               }
             }
             True, False -> {
-              use rest <- result.try(split_delimiters(
+              use rest <- on.ok(split_delimiters(
                 blame,
                 [blamed_line_for_rest_of_string, ..rest],
                 dels_to_ignore,

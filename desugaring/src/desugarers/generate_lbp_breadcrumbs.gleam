@@ -84,7 +84,7 @@ fn generate_sections_list(
   sections: List(VXML),
   exercises: List(VXML),
 ) -> Result(VXML, DesugaringError) {
-  use sections_nodes <- result.try(
+  use sections_nodes <- on.ok(
     list.index_map(sections, map_section)
     |> result.all
   )
@@ -128,7 +128,7 @@ fn map_chapter(child: VXML) -> Result(VXML, DesugaringError) {
     V(b, tag, a, children) if tag == "Chapter" || tag == "Bootcamp" -> {
       let sections = infra.v_children_with_tag(child, "Section")
       let exercises = infra.v_children_with_tag(child, "Exercises")
-      use sections_ul <- result.try(generate_sections_list(sections, exercises))
+      use sections_ul <- on.ok(generate_sections_list(sections, exercises))
       Ok(V(b, tag, a, [sections_ul, ..children |> list.map(remove_breadcrumb_title)]))
     }
     _ -> Ok(child)
@@ -137,7 +137,7 @@ fn map_chapter(child: VXML) -> Result(VXML, DesugaringError) {
 
 fn at_root(root: VXML) -> Result(#(VXML, List(DesugaringWarning)), DesugaringError) {
   let children = infra.v_get_children(root)
-  use updated_children <- result.try(
+  use updated_children <- on.ok(
     children
     |> list.map(map_chapter)
     |> result.all

@@ -98,7 +98,7 @@ fn at_root(
   let #(table_of_contents_tag, chapter_link_component_name) = inner
   let sections = infra.descendants_with_tag(root, "Section")
 
-  use chapter_menu_items <- result.try(
+  use chapter_menu_items <- on.ok(
     sections
     |> list.index_map(fn(chapter: VXML, index) {
       chapter_link(chapter_link_component_name, chapter, index + 1)

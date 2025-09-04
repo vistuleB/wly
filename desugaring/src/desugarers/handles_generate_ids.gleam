@@ -1,5 +1,4 @@
 import gleam/list
-import gleam/result
 import gleam/option.{Some, None}
 import gleam/string.{inspect as ins}
 import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError, DesugaringError} as infra
@@ -51,14 +50,14 @@ fn nodemap(
       let assert True = id != ""
       let assert True = id == string.trim(id)
 
-      use attributes <- result.try(
+      use attributes <- on.ok(
         attributes
         |> list.try_map(
           fn(att) {
             case att.key == "handle" {
               False -> Ok(att)
               True -> {
-                use #(handle_name, handle_value) <- result.try(
+                use #(handle_name, handle_value) <- on.ok(
                     case string.split_once(att.value |> infra.normalize_spaces, " ") {
                     Ok(#(first, second)) -> {
                       case string.contains(first, "|") || string.contains(second, "|") {

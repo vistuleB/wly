@@ -147,7 +147,7 @@ fn one_to_one_nodemap_recursive_application(
   case node {
     T(_, _) -> nodemap(node)
     V(_, _, _, children) -> {
-      use children <- result.try(
+      use children <- on.ok(
         children |> list.try_map(one_to_one_nodemap_recursive_application(_, nodemap))
       )
 
@@ -177,7 +177,7 @@ fn one_to_one_nodemap_recursive_application_with_forbidden(
     V(_, tag, _, children) -> case list.contains(forbidden, tag) {
       True -> Ok(node)
       False -> {
-        use children <- result.try(
+        use children <- on.ok(
           children
           |> list.try_map(one_to_one_nodemap_recursive_application_with_forbidden(_, nodemap, forbidden))
         )
@@ -285,7 +285,7 @@ fn one_to_many_nodemap_recursive_application(
   case node {
     T(_, _) -> nodemap(node)
     V(_, _, _, children) -> {
-      use children <- result.try(
+      use children <- on.ok(
         children
         |> list.try_map(one_to_many_nodemap_recursive_application(_, nodemap))
         |> result.map(list.flatten)
@@ -300,7 +300,7 @@ pub fn one_to_many_nodemap_2_desugarer_transform(
 ) -> DesugarerTransform {
   fn (vxml) {
     one_to_many_nodemap_recursive_application(vxml, nodemap)
-    |> result.try(infra.get_root_with_desugaring_error)
+    |> on.ok(infra.get_root_with_desugaring_error)
     |> result.map(add_no_warnings)
   }
 }
@@ -317,7 +317,7 @@ fn one_to_many_nodemap_recursive_application_with_forbidden(
     V(_, tag, _, children) -> case list.contains(forbidden, tag) {
       True -> Ok([node])
       False -> {
-        use children <- result.try(
+        use children <- on.ok(
           children
           |> list.try_map(one_to_many_nodemap_recursive_application_with_forbidden(_, nodemap, forbidden))
           |> result.map(list.flatten)
@@ -336,7 +336,7 @@ pub fn one_to_many_nodemap_2_desugarer_transform_with_forbidden(
 
   fn (vxml) {
     one_to_many_nodemap_recursive_application_with_forbidden(vxml, nodemap, forbidden)
-    |> result.try(infra.get_root_with_desugaring_error)
+    |> on.ok(infra.get_root_with_desugaring_error)
     |> result.map(add_no_warnings)
   }
 }
@@ -430,7 +430,7 @@ fn fancy_one_to_one_nodemap_recursive_application(
       )
     V(blame, tag, attrs, children) -> {
       let children_ancestors = [node, ..ancestors]
-      use children <- result.try(
+      use children <- on.ok(
         list.try_fold(
           children,
           #([], [], list.drop(children, 1)),
@@ -573,7 +573,7 @@ fn fancy_one_to_many_nodemap_recursive_application(
       )
     V(_, _, _, children) -> {
       let children_ancestors = [node, ..ancestors]
-      use children <- result.try(
+      use children <- on.ok(
         list.try_fold(
           children,
           #([], [], list.drop(children, 1)),
@@ -622,7 +622,7 @@ pub fn fancy_one_to_many_nodemap_2_desugarer_transform(
       [],
       nodemap
     )
-    |> result.try(infra.get_root_with_desugaring_error)
+    |> on.ok(infra.get_root_with_desugaring_error)
     |> result.map(add_no_warnings)
   }
 }
@@ -642,7 +642,7 @@ fn one_to_one_stateful_nodemap_recursive_application(
   case node {
     T(_, _) -> nodemap(node, state)
     V(_, _, _, children) -> {
-      use #(children, state) <- result.try(
+      use #(children, state) <- on.ok(
         children
         |> infra.try_map_fold(
           state,
@@ -697,7 +697,7 @@ fn fancy_one_to_one_stateful_nodemap_recursive_application(
       )
     V(_, _, _, children) -> {
       let children_ancestors = [node, ..ancestors]
-      use #(children, state) <- result.try(
+      use #(children, state) <- on.ok(
         list.try_fold(
           children,
           #([], [], list.drop(children, 1), state),
@@ -838,14 +838,14 @@ fn one_to_one_before_and_after_stateful_nodemap_recursive_application(
   case node {
     T(_, _) -> nodemap.t_nodemap(node, original_state)
     V(_, _, _, _) -> {
-      use #(node, latest_state) <- result.try(
+      use #(node, latest_state) <- on.ok(
         nodemap.v_before_transforming_children(
           node,
           original_state,
         ),
       )
       let assert V(_, _, _, children) = node
-      use #(children, latest_state) <- result.try(
+      use #(children, latest_state) <- on.ok(
         infra.try_map_fold(
           children,
           latest_state,
@@ -866,7 +866,7 @@ pub fn one_to_one_before_and_after_stateful_nodemap_2_desugarer_transform(
   initial_state: a,
 ) -> DesugarerTransform {
   fn(vxml) {
-    use #(vxml, _) <- result.try(
+    use #(vxml, _) <- on.ok(
       one_to_one_before_and_after_stateful_nodemap_recursive_application(
         initial_state,
         vxml,
@@ -911,7 +911,7 @@ fn fancy_one_to_one_before_and_after_stateful_nodemap_recursive_application(
       original_state,
     )
     V(_, _, _, _) -> {
-      use #(node, latest_state) <- result.try(
+      use #(node, latest_state) <- on.ok(
         nodemap.v_before_transforming_children(
           node,
           ancestors,
@@ -923,12 +923,12 @@ fn fancy_one_to_one_before_and_after_stateful_nodemap_recursive_application(
       )
       let assert V(_, _, _, children) = node
       let children_ancestors = [node, ..ancestors]
-      use #(children, latest_state) <- result.try(
+      use #(children, latest_state) <- on.ok(
         list.try_fold(
           children,
           #([], [], list.drop(children, 1), latest_state),
           fn (acc, child) {
-            use #(mapped_child, state) <- result.try(fancy_one_to_one_before_and_after_stateful_nodemap_recursive_application(
+            use #(mapped_child, state) <- on.ok(fancy_one_to_one_before_and_after_stateful_nodemap_recursive_application(
               acc.3,
               child,
               children_ancestors,
@@ -966,7 +966,7 @@ pub fn fancy_one_to_one_before_and_after_stateful_nodemap_2_desugarer_transform(
   initial_state: a,
 ) -> DesugarerTransform {
   fn(vxml) {
-    use #(vxml, _) <- result.try(
+    use #(vxml, _) <- on.ok(
       fancy_one_to_one_before_and_after_stateful_nodemap_recursive_application(
         initial_state,
         vxml,
@@ -1003,19 +1003,19 @@ fn one_to_many_before_and_after_stateful_nodemap_recursive_application(
 ) -> Result(#(List(VXML), a), DesugaringError) {
    case node {
     V(_, _, _, _) -> {
-      use #(node, latest_state) <- result.try(
+      use #(node, latest_state) <- on.ok(
         nodemap.v_before_transforming_children(
           node,
           original_state,
         ),
       )
       let assert V(_, _, _, children) = node
-      use #(children, latest_state) <- result.try(
+      use #(children, latest_state) <- on.ok(
         children
         |> list.try_fold(
           #([], latest_state),
           fn (acc, child) {
-            use #(shat_children, latest_state) <- result.try(one_to_many_before_and_after_stateful_nodemap_recursive_application(
+            use #(shat_children, latest_state) <- on.ok(one_to_many_before_and_after_stateful_nodemap_recursive_application(
               acc.1,
               child,
               nodemap,
@@ -1045,7 +1045,7 @@ pub fn one_to_many_before_and_after_stateful_nodemap_2_desufarer_transform(
   fn(vxml) {
     one_to_many_before_and_after_stateful_nodemap_recursive_application(initial_state, vxml, nodemap)
     |> result.map(fn(pair){pair.0})
-    |> result.try(infra.get_root_with_desugaring_error)
+    |> on.ok(infra.get_root_with_desugaring_error)
     |> result.map(add_no_warnings)
   }
 }
@@ -1073,7 +1073,7 @@ fn one_to_many_before_and_after_stateful_nodemap_with_warnings_recursive_applica
 ) -> Result(#(List(VXML), a, List(DesugaringWarning)), DesugaringError) {
    case node {
     V(_, _, _, _) -> {
-      use #(node, latest_state, warnings) <- result.try(
+      use #(node, latest_state, warnings) <- on.ok(
         nodemap.v_before_transforming_children(
           node,
           original_state,
@@ -1081,12 +1081,12 @@ fn one_to_many_before_and_after_stateful_nodemap_with_warnings_recursive_applica
       )
       let collected_warnings = infra.pour(warnings, collected_warnings)
       let assert V(_, _, _, children) = node
-      use #(children, latest_state, collected_warnings) <- result.try(
+      use #(children, latest_state, collected_warnings) <- on.ok(
         children
         |> list.try_fold(
           #([], latest_state, collected_warnings),
           fn (acc, child) {
-            use #(shat_children, latest_state, collected_warnings) <- result.try(
+            use #(shat_children, latest_state, collected_warnings) <- on.ok(
               one_to_many_before_and_after_stateful_nodemap_with_warnings_recursive_application(
                 acc.2,
                 acc.1,
@@ -1103,7 +1103,7 @@ fn one_to_many_before_and_after_stateful_nodemap_with_warnings_recursive_applica
         )
         |> result.map(fn(acc) {#(acc.0 |> list.reverse, acc.1, acc.2)})
       )
-      use #(node, latest_state, warnings) <- result.try(
+      use #(node, latest_state, warnings) <- on.ok(
         nodemap.v_after_transforming_children(
           node |> infra.v_replace_children_with(children),
           original_state,
@@ -1113,7 +1113,7 @@ fn one_to_many_before_and_after_stateful_nodemap_with_warnings_recursive_applica
       Ok(#(node, latest_state, infra.pour(warnings, collected_warnings)))
     }
     T(_, _) -> {
-      use #(vxml, latest_state, warnings) <- result.try(
+      use #(vxml, latest_state, warnings) <- on.ok(
         nodemap.t_nodemap(node, original_state)
       )
 
@@ -1127,7 +1127,7 @@ pub fn one_to_many_before_and_after_stateful_nodemap_with_warnings_2_desufarer_t
   initial_state: a,
 ) -> DesugarerTransform {
   fn(vxml) {
-    use #(vxmls, _, warnings) <- result.try(
+    use #(vxmls, _, warnings) <- on.ok(
       one_to_many_before_and_after_stateful_nodemap_with_warnings_recursive_application(
         [],
         initial_state,
@@ -1135,7 +1135,7 @@ pub fn one_to_many_before_and_after_stateful_nodemap_with_warnings_2_desufarer_t
         nodemap,
       )
     )
-    use vxml <- result.try(infra.get_root_with_desugaring_error(vxmls))
+    use vxml <- on.ok(infra.get_root_with_desugaring_error(vxmls))
     Ok(#(vxml, warnings |> list.reverse))
   }
 }

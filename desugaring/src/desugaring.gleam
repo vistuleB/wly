@@ -317,7 +317,7 @@ pub fn default_prettier_prettifier(
         create_dirs_on_path_to_file(dest_path),
         fn(e) {Error(#(0, "error creating directories on path: " <> ins(e)))},
       )
-      use _ <- result.try(
+      use _ <- on.ok(
         case source_path != dest_path {
           True -> shellout.command(run: "cp", in: ".", with: [source_path, dest_path], opt: [])
           False -> Ok("")
@@ -601,7 +601,7 @@ pub fn process_command_line_arguments(
       result: Result(CommandLineAmendments, CommandLineError),
       pair: #(String, List(String)),
     ) {
-      use amendments <- result.try(result)
+      use amendments <- on.ok(result)
       let #(option, values) = pair
       case option {
         "--help" -> {
@@ -635,7 +635,7 @@ pub fn process_command_line_arguments(
           }
 
         "--track" -> {
-          use pipeline_mod <- result.try(parse_track_args(values))
+          use pipeline_mod <- on.ok(parse_track_args(values))
           Ok(
             CommandLineAmendments(
               ..amendments,
@@ -648,7 +648,7 @@ pub fn process_command_line_arguments(
         }
 
         "--track-steps" -> {
-          use pipeline_mod <- result.try(parse_show_change_at_steps_args(values))
+          use pipeline_mod <- on.ok(parse_show_change_at_steps_args(values))
           Ok(
             CommandLineAmendments(
               ..amendments,
@@ -869,7 +869,7 @@ fn cleanup_step_numbers(
 fn parse_step_numbers(
   values: List(String),
 ) -> Result(#(List(Int), List(Int)), CommandLineError) {
-  use #(restrict, force) <- result.try(
+  use #(restrict, force) <- on.ok(
     list.try_fold(values, #([], []), fn(acc, val) {
       let original_val = val
       let #(forced, val) = case string.starts_with(val, "!") {
@@ -886,7 +886,7 @@ fn parse_step_numbers(
           False -> x
         }
       }
-      use ints <- result.try(case string.split_once(val, "-") {
+      use ints <- on.ok(case string.split_once(val, "-") {
         Ok(#(before, after)) ->
           case int.parse(before), int.parse(after) {
             Ok(lo), Ok(hi) -> Ok(lo_hi_ints(lo |> multiply_first, hi))
@@ -949,7 +949,7 @@ fn parse_track_args(
     |> infra.extend_selector_up(plus_minus.minus)
     |> infra.extend_selector_down(plus_minus.plus)
 
-  use #(restrict, force) <- result.try(
+  use #(restrict, force) <- on.ok(
     parse_step_numbers(values)
   )
 
@@ -963,7 +963,7 @@ fn parse_track_args(
 fn parse_show_change_at_steps_args(
   values: List(String),
 ) -> Result(PipelineTrackingModifier, CommandLineError) {
-  use #(restrict, force) <- result.try(
+  use #(restrict, force) <- on.ok(
     parse_step_numbers(values)
   )
 
@@ -1296,8 +1296,8 @@ fn create_dirs_on_path_to_file(path_to_file: String) -> Result(Nil, simplifile.F
   let pieces = infra.drop_last(pieces)
   list.try_fold(pieces, ".", fn(acc, piece) {
     let acc = acc <> "/" <> piece
-    use exists <- result.try(simplifile.is_directory(acc))
-    use _ <- result.try(
+    use exists <- on.ok(simplifile.is_directory(acc))
+    use _ <- on.ok(
       case exists {
         True  -> Ok(Nil)
         False -> simplifile.create_directory(acc)
@@ -1316,7 +1316,7 @@ fn output_dir_local_path_printer(
   let assert False = string.starts_with(local_path, "/")
   let assert False = string.ends_with(output_dir, "/")
   let path = output_dir <> "/" <> local_path
-  use _ <- result.try(create_dirs_on_path_to_file(path))
+  use _ <- on.ok(create_dirs_on_path_to_file(path))
   simplifile.write(path, content)
 }
 
@@ -1632,7 +1632,7 @@ pub fn run_renderer(
   let fragments =
     fragments
     |> list.map(fn(result) {
-      use fr <- result.try(result)
+      use fr <- on.ok(result)
       let brackets = "[" <> output_dir <> "/]"
       case output_dir_local_path_printer(output_dir, fr.path, fr.payload) {
         Ok(Nil) -> {
@@ -1657,7 +1657,7 @@ pub fn run_renderer(
   let fragments =
     fragments
     |> list.map(fn(result) {
-      use fr <- result.try(result)
+      use fr <- on.ok(result)
       use <- on.true_false(prettifier_mode == PrettifierOff, result)
       let dest_dir = case prettifier_mode {
         PrettifierOff -> panic as "bug"

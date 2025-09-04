@@ -1,5 +1,4 @@
 import gleam/list
-import gleam/result
 import simplifile
 import gleam/float
 import gleam/int
@@ -92,7 +91,7 @@ fn nodemap(
           on_none: Error(DesugaringError(blame, "Image tag must have a src attribute")),
         )
        
-        use width <- result.try(get_image_width(attr.blame, "../../../MrChaker/little-bo-peep-solid/public" <> attr.value))
+        use width <- on.ok(get_image_width(attr.blame, "../../../MrChaker/little-bo-peep-solid/public" <> attr.value))
         Ok(V(..node, attributes: [Attribute(blame, "width", ins(width) <> "px"), ..attributes]))
       }
     _ -> Ok(node)

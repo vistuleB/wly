@@ -1,7 +1,6 @@
 import gleam/dict.{type Dict}
 import gleam/list
 import gleam/option.{type Option, Some, None}
-import gleam/result
 import gleam/string
 import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError, DesugaringError} as infra
 import nodemaps_2_desugarer_transforms as n2t
@@ -100,12 +99,12 @@ fn update_handles(
     fn(){ Error(DesugaringError(first.blame, "no '" <> inner <> "' attribute found leading up to to handle '" <> first.handle_name <> "'")) },
   )
 
-  use handles <- result.try(
+  use handles <- on.ok(
     handle_infos
     |> list.try_fold(
       state.handles,
       fn(acc, info) {
-        use _ <- result.try(
+        use _ <- on.ok(
           check_handle_already_defined(info.handle_name, acc, info.blame)
         )
         Ok(dict.insert(acc, info.handle_name, #(info.value, info.id, path)))
@@ -143,7 +142,7 @@ fn v_before_transforming_children(
   let assert V(b, t, attributes, c) = vxml
   let #(attributes, handle_infos) = extract_handles_attribute_infos(attributes)
   let state = update_path(state, vxml, inner)
-  use state <- result.try(update_handles(state, handle_infos, inner))
+  use state <- on.ok(update_handles(state, handle_infos, inner))
   Ok(#(V(b, t, attributes, c), state))
 }
 

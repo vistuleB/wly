@@ -62,7 +62,7 @@ pub fn parse_number_and_optional_css_unit(
   s: String
 ) -> Result(#(Float, Option(CSSUnit)), Nil) {
   let #(before_unit, unit) = extract_css_unit(s)
-  use number <- result.try(parse_to_float(before_unit))
+  use number <- on.ok(parse_to_float(before_unit))
   Ok(#(number, unit))
 }
 
@@ -290,8 +290,8 @@ pub fn try_map_fold(
   case ze_list {
     [] -> Ok(#([], state))
     [first, ..rest] -> {
-      use #(mapped_first, state) <- result.try(f(state, first))
-      use #(mapped_rest, state) <- result.try(try_map_fold(rest, state, f))
+      use #(mapped_first, state) <- on.ok(f(state, first))
+      use #(mapped_rest, state) <- on.ok(try_map_fold(rest, state, f))
       Ok(#([mapped_first, ..mapped_rest], state))
     }
   }

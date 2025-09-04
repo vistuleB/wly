@@ -21,11 +21,11 @@ pub fn run_assertive_test(name: String, tst: AssertiveTest) -> Result(Nil, Asser
     name != desugarer.name,
     Error(NonMatchingDesugarerName(desugarer.name)),
   )
-  use vxmls <- result.try(vxml.parse_string(tst.source, "tst.source") |> result.map_error(fn(e) { VXMLParseError(e) }))
+  use vxmls <- on.ok(vxml.parse_string(tst.source, "tst.source") |> result.map_error(fn(e) { VXMLParseError(e) }))
   let assert [input] = vxmls
-  use vxmls <- result.try(vxml.parse_string(tst.expected, "tst.expect") |> result.map_error(fn(e) { VXMLParseError(e) }))
+  use vxmls <- on.ok(vxml.parse_string(tst.expected, "tst.expect") |> result.map_error(fn(e) { VXMLParseError(e) }))
   let assert [expected] = vxmls
-  use #(output, _) <- result.try(
+  use #(output, _) <- on.ok(
     desugarer.transform(input)
     |> result.map_error(fn(e) { TestDesugaringError(e) })
   )

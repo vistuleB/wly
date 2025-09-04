@@ -1468,7 +1468,7 @@ pub fn assemble_input_lines_advanced_mode(
         )
         |> list.sort(lexicographic_sort_but_parent_comes_first)
 
-      use _ <- result.try(check_no_duplicate_files(sorted))
+      use _ <- on.ok(check_no_duplicate_files(sorted))
 
       let tree = 
         sorted
@@ -1476,7 +1476,7 @@ pub fn assemble_input_lines_advanced_mode(
         |> dt.directory_tree_from_dir_and_paths(dirname, _, False)
         |> dt.pretty_printer
 
-      use lines <- result.try(
+      use lines <- on.ok(
         sorted
         |> list.map(add_tree_depth(_, dirname))
         |> list.map(
@@ -1626,17 +1626,4 @@ pub fn vxmls_to_writerlys(vxmls: List(VXML)) -> List(Writerly) {
   vxmls
   |> list.map(vxml_to_writerlys)
   |> list.flatten
-}
-
-// ************************************************************
-// digest (maybe no one uses this)
-// ************************************************************
-
-pub fn digest(w: Writerly) -> String {
-  case w {
-    BlankLine(_) -> "BlankLine"
-    Blurb(_, _) -> ins(w)
-    CodeBlock(_, _, _) -> ins(w)
-    Tag(_, _, _, _) -> "Tag " <> w.name
-  }
 }

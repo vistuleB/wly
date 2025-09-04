@@ -95,7 +95,7 @@ fn nodemap(
   case node {
     T(_, _) -> Ok(node)
     V(blame, tag, attrs, children) -> {
-      use new_children <- result.try(pair_double_dollars_even(children))
+      use new_children <- on.ok(pair_double_dollars_even(children))
       Ok(V(blame, tag, attrs, new_children))
     }
   }

@@ -118,7 +118,7 @@ fn handle_counter_expressions(
         Ok(info) -> {
           let info = update_info(info, mutation)
           let counters = dict.insert(counters, counter_name, info)
-          use #(rest_handles_value, rest_string_output, counters) <- result.try(
+          use #(rest_handles_value, rest_string_output, counters) <- on.ok(
             handle_counter_expressions(rest, counters),
           )
           let split_char = case split_char {
@@ -162,7 +162,7 @@ fn handle_matches(
       let counter_expressions =
         get_all_counters_from_match_content(content, regexes)
 
-      use #(handles_value, expressions_output, updated_counters) <- result.try(
+      use #(handles_value, expressions_output, updated_counters) <- on.ok(
         handle_counter_expressions(counter_expressions, counters),
       )
 
@@ -182,7 +182,7 @@ fn handle_matches(
       let assert [first_split, _, _, _, _, _, _, _, _, _, _, _, ..rest_splits] =
         splits
 
-      use #(rest_output, updated_counters, rest_handle_assignments) <- result.try(
+      use #(rest_output, updated_counters, rest_handle_assignments) <- on.ok(
         handle_matches(rest, rest_splits, updated_counters, regexes),
       )
 
@@ -279,7 +279,7 @@ fn update_lines(
     #([], counters, []),
     fn(acc, content) {
       let #(lines, counters, handles) = acc
-      use #(updated_line, updated_counters, new_handles) <- result.try(
+      use #(updated_line, updated_counters, new_handles) <- on.ok(
         update_line(content, counters, regexes)
       )
       Ok(#(
@@ -379,11 +379,11 @@ fn read_counter_definition(
 
   case counter_type {
     Unary(_) -> {
-      use #(counter_name, unary_char) <- result.try(handle_unary_att_value(attribute))
+      use #(counter_name, unary_char) <- on.ok(handle_unary_att_value(attribute))
       Ok(Some(#(counter_name, CounterInfo(Unary(unary_char), 0, 1))))
     }
     _ -> {
-      use #(counter_name, initial_value, step) <- result.try(handle_non_unary_att_value(attribute))
+      use #(counter_name, initial_value, step) <- on.ok(handle_non_unary_att_value(attribute))
       Ok(Some(#(counter_name, CounterInfo(counter_type, initial_value, step))))
     }
   }
@@ -397,7 +397,7 @@ fn fancy_one_attribute_processor(
   #(Attribute, CounterDict, List(HandleAssignment)),
   DesugaringError,
 ) {
-  use #(key, counters, assignments1) <- result.try(
+  use #(key, counters, assignments1) <- on.ok(
     result.map_error(
       substitute_counters_and_generate_handle_assignments(
         to_process.key,
@@ -418,7 +418,7 @@ fn fancy_one_attribute_processor(
     )),
   )
 
-  use #(value, counters, assignments2) <- result.try(
+  use #(value, counters, assignments2) <- on.ok(
     result.map_error(
       substitute_counters_and_generate_handle_assignments(
         to_process.value,
@@ -445,7 +445,7 @@ fn fancy_attribute_processor(
   case yet_to_be_processed {
     [] -> Ok(#(already_processed |> list.reverse, counters))
     [next, ..rest] -> {
-      use #(next, counters, assignments) <- result.try(
+      use #(next, counters, assignments) <- on.ok(
         fancy_one_attribute_processor(next, counters, regexes),
       )
 
@@ -455,7 +455,7 @@ fn fancy_attribute_processor(
           Attribute(next.blame, "handle", handle_name <> " " <> handle_value)
         })
 
-      use new_counter <- result.try(read_counter_definition(next))
+      use new_counter <- on.ok(read_counter_definition(next))
       let counters = case new_counter {
         None -> counters
         Some(#(key, value)) -> dict.insert(counters, key, value)
@@ -488,7 +488,7 @@ fn v_before_transforming_children(
   let assert V(b, t, attributes, c) = vxml
   let #(counters, handles) = state
 
-  use #(attributes, counters) <- result.try(fancy_attribute_processor(
+  use #(attributes, counters) <- on.ok(fancy_attribute_processor(
     [],
     attributes,
     counters,
@@ -506,7 +506,7 @@ fn t_nodemap(
   let assert T(blame, contents) = vxml
   let #(counters, old_handles) = state
 
-  use #(contents, updated_counters, new_handles) <- result.try(
+  use #(contents, updated_counters, new_handles) <- on.ok(
     update_lines(contents, counters, regexes),
   )
 

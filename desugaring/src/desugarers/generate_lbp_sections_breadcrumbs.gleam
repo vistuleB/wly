@@ -120,7 +120,7 @@ fn map_section(section: VXML, index: Int) -> Result(VXML, DesugaringError) {
 }
 
 fn generate_sections_list(sections: List(VXML), exercises: List(VXML)) -> Result(VXML, DesugaringError) {
-  use sections_nodes <- result.try(
+  use sections_nodes <- on.ok(
     list.index_map(sections, map_section)
     |> result.all
   )
@@ -151,13 +151,13 @@ fn map_chapter(child: VXML) -> Result(VXML, DesugaringError) {
     V(b, "Chapter", a, children) -> {
       let sections = infra.v_children_with_tag(child, "Section")
       let exercises = infra.v_children_with_tag(child, "Exercises")
-      use sections_ul <- result.try(generate_sections_list(sections, exercises))
+      use sections_ul <- on.ok(generate_sections_list(sections, exercises))
       Ok(V(b, "Chapter", a, [sections_ul, ..children]))
     }
     V(b, "Bootcamp", a, children) -> {
       let sections = infra.v_children_with_tag(child, "Section")
       let exercises = infra.v_children_with_tag(child, "Exercises")
-      use sections_ul <- result.try(generate_sections_list(sections, exercises))
+      use sections_ul <- on.ok(generate_sections_list(sections, exercises))
       Ok(V(b, "Bootcamp", a, [sections_ul, ..children]))
     }
     _ -> Ok(child)
@@ -166,7 +166,7 @@ fn map_chapter(child: VXML) -> Result(VXML, DesugaringError) {
 
 fn at_root(root: VXML) -> Result(#(VXML, List(DesugaringWarning)), DesugaringError) {
   let assert V(_, _, _, children) = root
-  use children <- result.try(
+  use children <- on.ok(
     children
     |> list.map(map_chapter)
     |> result.all

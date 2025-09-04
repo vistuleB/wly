@@ -84,13 +84,13 @@ fn at_root(root: VXML, param: InnerParam) -> Result(#(VXML, List(DesugaringWarni
     maybe_spacer,
   ) = param
 
-  use chapter_menu_items <- result.try(
+  use chapter_menu_items <- on.ok(
     infra.v_children_with_tag(root, "Chapter")
     |> list.index_map(fn(chapter: VXML, index) { chapter_link(chapter_link_component_name, chapter, index + 1) })
     |> result.all
   )
 
-  use bootcamp_menu_items <- result.try(
+  use bootcamp_menu_items <- on.ok(
     infra.v_children_with_tag(root, "Bootcamp")
     |> list.index_map(fn(bootcamp: VXML, index) { chapter_link(chapter_link_component_name, bootcamp, index + 1) })
     |> result.all

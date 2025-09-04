@@ -187,7 +187,7 @@ fn process_line(
   let TextLine(blame, content) = line
   let matches = regexp.scan(handle_regexp, content)
   let splits = regexp.split(handle_regexp, content)
-  use #(hyperlinks, warnings) <- result.try(
+  use #(hyperlinks, warnings) <- on.ok(
     matches_2_hyperlinks(matches, blame, state, inner)
   )
   let text_nodes = splits_2_ts(splits, blame)
@@ -200,7 +200,7 @@ fn process_lines(
   inner: InnerParam,
   handle_regexp: Regexp,
 ) -> Result(#(List(VXML), List(DesugaringWarning)), DesugaringError) {
-  use big_list <- result.try(
+  use big_list <- on.ok(
     lines
     |> list.map(process_line(_, state, inner, handle_regexp))
     |> result.all
@@ -289,7 +289,7 @@ fn t_transform(
   handles_regexp: Regexp,
 ) -> Result(#(List(VXML), State, List(DesugaringWarning)), DesugaringError) {
   let assert T(_, lines)  = vxml
-  use #(updated_lines, warnings) <- result.try(
+  use #(updated_lines, warnings) <- on.ok(
     process_lines(
       lines,
       state,
