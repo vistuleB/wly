@@ -32,6 +32,10 @@ pub type AssemblerDebugOptions {
   AssemblerDebugOptions(echo_: Bool)
 }
 
+// 🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻
+// 🌻 default assembler~~ 🌻
+// 🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻
+
 // ************************************************************
 // default assembler
 // ************************************************************
@@ -67,6 +71,10 @@ pub type ParserDebugOptions {
   ParserDebugOptions(echo_: Bool)
 }
 
+// 🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻
+// 🌻 default Writerly parser~~~~ 🌻
+// 🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻
+
 // ************************************************************
 // default writerly parser
 // ************************************************************
@@ -93,6 +101,10 @@ pub fn default_writerly_parser(
     Ok(filtered_vxml)
   }
 }
+
+// 🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻
+// 🌻 default HTML parser 🌻
+// 🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻
 
 // ************************************************************
 // default html parser
@@ -151,6 +163,10 @@ pub type SplitterDebugOptions(d) {
   SplitterDebugOptions(echo_: fn(OutputFragment(d, VXML)) -> Bool)
 }
 
+// 🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻
+// 🌻 stub splitter~~~~~~ 🌻
+// 🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻
+
 // ************************************************************
 // stub splitter
 // ************************************************************
@@ -167,7 +183,7 @@ pub fn stub_splitter(suffix: String) -> Splitter(Nil, Nil) {
 
 // ************************************************************
 // Emitter(d, f)                                               // where 'd' is fragment type & 'f' is emitter error type
-// OutputFragment(d) -> #(String, List(OutputLine), d)         // #(local_path, output_lines, fragment_type)
+// OutputFragment(d, VXML) -> OutputFragment(d, List(OutputLine))
 // ************************************************************
 
 pub type Emitter(d, f) =
@@ -179,11 +195,15 @@ pub type EmitterDebugOptions(d) {
   )
 }
 
+// 🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻
+// 🌻 default Writerly emitter~~~ 🌻
+// 🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻
+
 // ************************************************************
-// stub writerly emitter
+// default writerly emitter
 // ************************************************************
 
-pub fn stub_writerly_emitter(
+pub fn default_writerly_emitter(
   fragment: OutputFragment(d, VXML),
 ) -> Result(OutputFragment(d, List(OutputLine)), b) {
   let lines =
@@ -194,6 +214,10 @@ pub fn stub_writerly_emitter(
 
   Ok(OutputFragment(..fragment, payload: lines))
 }
+
+// 🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻
+// 🌻 stub HTML emitter~~ 🌻
+// 🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻
 
 // ************************************************************
 // stub html emitter
@@ -228,6 +252,10 @@ pub fn stub_html_emitter(
   Ok(OutputFragment(..fragment, payload: lines))
 }
 
+// 🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻
+// 🌻 stub jsx emitter~~~ 🌻
+// 🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻
+
 // ************************************************************
 // stub jsx emitter
 // ************************************************************
@@ -257,11 +285,47 @@ pub fn stub_jsx_emitter(
 }
 
 // ************************************************************
-// Writer (the thing that prints to files; no type or function supplied; only a debug option)
+// Writer(d, g)                                                // 'd' is fragment classifier type, 'g' is writer error type
+// String, OutputFragment(d, String) -> GhostOfOutputFragment(d)
 // ************************************************************
+
+pub type Writer(d, g) =
+  fn(String, OutputFragment(d, String)) -> Result(GhostOfOutputFragment(d), g)
 
 pub type WriterDebugOptions(d) {
   WriterDebugOptions(echo_: fn(OutputFragment(d, String)) -> Bool)
+}
+
+// 🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻
+// 🌻 default writer~~~~~ 🌻
+// 🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻
+
+fn output_dir_local_path_printer(
+  output_dir: String,
+  local_path: String,
+  content: String,
+) -> Result(Nil, simplifile.FileError) {
+  let assert False = string.starts_with(local_path, "/")
+  let assert False = string.ends_with(output_dir, "/")
+  let path = output_dir <> "/" <> local_path
+  use _ <- on.ok(create_dirs_on_path_to_file(path))
+  simplifile.write(path, content)
+}
+
+pub fn default_writer(
+  output_dir: String,
+  fragment: OutputFragment(d, String),
+) -> Result(GhostOfOutputFragment(d), String) {
+  let brackets = "[" <> output_dir <> "/]"
+  case output_dir_local_path_printer(output_dir, fragment.path, fragment.payload) {
+    Ok(Nil) -> {
+      io.println("  wrote " <> brackets <> fragment.path)
+      Ok(GhostOfOutputFragment(fragment.classifier, fragment.path))
+    }
+    Error(file_error) -> {
+      Error(ins(file_error) <> " on path " <> output_dir <> "/" <> fragment.path)
+    }
+  }
 }
 
 // ************************************************************
@@ -287,6 +351,9 @@ pub type PrettifierDebugOptions(d) {
 // ************************************************************
 // default & empty prettifier
 // ************************************************************
+// 🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻
+// 🌻 default prettifier~ 🌻
+// 🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻
 
 pub fn run_prettier(in: String, path: String, check: Bool) -> Result(String, #(Int, String)) {
   shellout.command(
@@ -335,6 +402,10 @@ pub fn default_prettier_prettifier(
   }
 }
 
+// 🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻
+// 🌻 empty prettifier~~~ 🌻
+// 🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻🌻
+
 pub fn empty_prettifier(
   _: String,
   _: GhostOfOutputFragment(d),
@@ -353,6 +424,7 @@ pub type Renderer(
   d, // VXML Fragment enum type
   e, // Splitter error type
   f, // Emitter error type
+  g, // Writer error type
   h, // Prettifier error type
 ) {
   Renderer(
@@ -361,6 +433,7 @@ pub type Renderer(
     pipeline: Pipeline,                  // VXML -> ... -> VXML                                                  Result w/ error type InSituDesugaringError
     splitter: Splitter(d, e),            // VXML -> List(OutputFragment(d, VXML))                                Result w/ error type e
     emitter: Emitter(d, f),              // OutputFragment(d, VXML) -> OutputFragment(d, String)                 Result w/ error type f
+    writer: Writer(d, g),                // output_dir, OutputFragment(d, String) -> GhostOfOutputFragment(d)    Result w/ error type g
     prettifier: Prettifier(d, h),        // output_dir, GhostOfOutputFragment(d), Option(prettifier_dir) -> Nil  Result w/ error type h
   )
 }
@@ -1090,18 +1163,15 @@ pub fn db_amend_prettifier_debug_options(
 }
 
 pub fn amend_renderer_by_command_line_amendments(
-  renderer: Renderer(a, c, d, e, f, h),
+  renderer: Renderer(a, c, d, e, f, g, h),
   amendments: CommandLineAmendments,
-) -> Renderer(a, c, d, e, f, h) {
+) -> Renderer(a, c, d, e, f, g, h) {
   case amendments.track {
     None -> renderer
     Some(cli) ->
       Renderer(
         ..renderer,
-        pipeline: apply_pipeline_tracking_modifier(
-          renderer.pipeline,
-          cli,
-        ),
+        pipeline: renderer.pipeline |> apply_pipeline_tracking_modifier(cli),
       )
   }
 }
@@ -1308,18 +1378,6 @@ fn create_dirs_on_path_to_file(path_to_file: String) -> Result(Nil, simplifile.F
   |> result.map(fn(_) { Nil })
 }
 
-fn output_dir_local_path_printer(
-  output_dir: String,
-  local_path: String,
-  content: String,
-) -> Result(Nil, simplifile.FileError) {
-  let assert False = string.starts_with(local_path, "/")
-  let assert False = string.ends_with(output_dir, "/")
-  let path = output_dir <> "/" <> local_path
-  use _ <- on.ok(create_dirs_on_path_to_file(path))
-  simplifile.write(path, content)
-}
-
 // ************************************************************
 // run_renderer return type(s)
 // ************************************************************
@@ -1330,12 +1388,12 @@ pub type ThreePossibilities(f, g, h) {
   P3(h)
 }
 
-pub type RendererError(a, c, e, f, h) {
+pub type RendererError(a, c, e, f, g, h) {
   FileOrParseError(a)
   SourceParserError(Blame, c)
   PipelineError(InSituDesugaringError)
   SplitterError(e)
-  EmittingOrPrintingOrPrettifyingErrors(List(ThreePossibilities(f, String, h)))
+  EmittingOrWritingOrPrettifyingErrors(List(ThreePossibilities(f, g, h)))
 }
 
 // ************************************************************
@@ -1343,10 +1401,10 @@ pub type RendererError(a, c, e, f, h) {
 // ************************************************************
 
 pub fn run_renderer(
-  renderer: Renderer(a, c, d, e, f, h),
+  renderer: Renderer(a, c, d, e, f, g, h),
   parameters: RendererParameters,
   debug_options: RendererDebugOptions(d),
-) -> Result(Nil, RendererError(a, c, e, f, h)) {
+) -> Result(Nil, RendererError(a, c, e, f, g, h)) {
   io.println("")
 
   let parameters = sanitize_output_dir(parameters)
@@ -1590,7 +1648,7 @@ pub fn run_renderer(
   // 🌸 writing (to file)~~ 🌸
   // 🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸
 
-  io.println("• converting output line fragments to string fragments")
+  io.println("• writing string fragments to files")
 
   let fragments = {
     fragments
@@ -1620,29 +1678,19 @@ pub fn run_renderer(
             io.println(fr.payload)
             io.println(pr.dashes(string.length(header)))
             io.println("")
-
           }
         }
       }
     }
   })
 
-  io.println("• writing string fragments to files")
-
   let fragments =
     fragments
     |> list.map(fn(result) {
       use fr <- on.ok(result)
-      let brackets = "[" <> output_dir <> "/]"
-      case output_dir_local_path_printer(output_dir, fr.path, fr.payload) {
-        Ok(Nil) -> {
-          io.println("  wrote " <> brackets <> fr.path)
-          Ok(GhostOfOutputFragment(fr.classifier, fr.path))
-        }
-        Error(file_error) ->
-          Error(P2(
-            { file_error |> ins } <> " on path " <> output_dir <> "/" <> fr.path,
-          ))
+      case renderer.writer(output_dir, fr) {
+        Error(e) -> Error(P2(e))
+        Ok(z) -> Ok(z)
       }
     })
 
@@ -1732,7 +1780,7 @@ pub fn run_renderer(
 
   case list.length(errors) > 0 {
     True -> {
-      Error(EmittingOrPrintingOrPrettifyingErrors(errors))
+      Error(EmittingOrWritingOrPrettifyingErrors(errors))
     }
     False -> Ok(Nil)
   }

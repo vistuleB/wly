@@ -1627,3 +1627,11 @@ pub fn vxmls_to_writerlys(vxmls: List(VXML)) -> List(Writerly) {
   |> list.map(vxml_to_writerlys)
   |> list.flatten
 }
+
+pub fn vxml_to_writerly(vxml: VXML) -> Result(Writerly, Nil) {
+  case vxml |> vxml_to_writerlys {
+    [one] -> Ok(one)
+    [] -> Error(Nil)
+    _ -> panic as "expecting 0 or 1 writerlys"
+  }
+}
