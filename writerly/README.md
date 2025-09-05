@@ -55,8 +55,8 @@ This is a sample Writerly file:
     This document contains three top-level nodes: 'SomeTag',
     'ASecondTag', as well as...
 
-...this paragraph.
-A sibling of 'SomeTag' and 'ASecondTag'.
+...this last paragraph, which is
+a sibling of 'SomeTag' and 'ASecondTag'.
 ```
 
 In particular:
