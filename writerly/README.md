@@ -11,10 +11,9 @@ Here is a sample document:
 
     A paragraph with one line.
 
-    A second paragraph, with
-    two lines.
+    A second paragraph.
 
-    |> Child1
+    |> AnotherTag
         attr3=val3
 
     |> ol
@@ -50,17 +49,14 @@ Here is a sample document:
     Writerly considers whitespace at the end of a
     text line to have semantic value, and will not trim
     that whitespace: To insert spaces at the beginning
-    of a line, start the line with a backslash followed
+    of a line, start the line with a backslash:
+    \        followed
     by the number of spaces you want.
-
-    Also start lines with the sequence '\|>' in order to
-    encode the sequence '|>'. Use '\\|>' to get the sequence
-    '\|>` or '\\\|>` to get the sequence '\\|>', etc.
 ```
 
 Note that:
 
-- Writerly is indentation-based, with 4 spaces of indentation.
 - The Writerly equivalent of an XML `<tag ...>...</tag>` node is `|> tag`.
 - XML tag attributes are listed (indented) below the `|> tag` as lines of the form `key=val`; a line that does not parse as an attribute key-value pair is interpreted as text (unless it starts in which case it is interpreted as such); a non-semantic blank line can also be used to separate the last key-value pair from the first paragraph child (or tag child) of a tag.
 - Spaces and Writerly character sequences only need to be escaped at the beginning of text lines, but do not need to be escaped within text lines; the escape character is `\`.
+- Writerly is indentation-based, with 4 spaces of indentation.
