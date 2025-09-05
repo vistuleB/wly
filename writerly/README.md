@@ -37,7 +37,7 @@ Here is a sample document:
     !! contents of the code block look
     !! like Writerly in this case, but they will not 
     !! parse as such; since they are inside a code block
-    !! they will just be loaded as verbatim strings:
+    !! (they will just parse as verbatim strings):
 
     ```writerly
     |> SomeTag
