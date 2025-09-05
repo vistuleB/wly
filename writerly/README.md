@@ -44,18 +44,18 @@ Here is a sample document:
 
     Writerly considers whitespace at the end of a
     text line to have semantic value, and will not trim
-    that whitespace: To insert spaces at the beginning
+    that whitespace. To insert spaces at the beginning
     of a line, start the line with a backslash:
     \        followed
     by the number of spaces you want.
 ```
 
-One can note that:
+In particular:
 
-- The Writerly equivalent of an XML `<tag ...>...</tag>` node is `|> tag`.
-- XML tag attributes are listed (indented) below the `|> tag` as lines of the form `key=val`; a line that does not parse as an attribute key-value pair is interpreted as text (unless it starts with `|>` in which case it is interpreted as a tag, of course); a blank line can also be used to separate the last key-value pair from the first paragraph child (or tag child) of a tag.
-- Spaces and Writerly character sequences only need to be escaped at the beginning of text lines, but do not need to be escaped within text lines; the escape character is `\`.
-- Writerly is indentation-based, with 4 spaces of indentation.
+- Writerly uses `|> tag` to encode an XML `<tag ...>...</tag>`.
+- Writerly parent-child relationships are indentation-based using 4 spaces of indentation.
+- Writerly separates paragraphs by blank lines.
+- Writerly tag attributes (the equivalent of HTML and XML tag attributes) are listed indented below the `|> tag` as lines of the form `key=val`; a line that does not parse as an attribute key-value pair is interpreted as text (unless it starts with `|>` in which case it is interpreted as a tag, of course); a blank line can also be used to separate the last key-value pair from the first paragraph child (or tag child) of a tag.
 
 Writerly documents take extension `.wly`.
 
