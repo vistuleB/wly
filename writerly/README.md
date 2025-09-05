@@ -1,5 +1,7 @@
 # writerly
 
+## Introduction
+
 'Writerly' is a syntax-only derivative of [Elm-Markup](https://github.com/mdgriffith/elm-markup). It encodes a superset of XML in human-readable and -writeable form.
 
 Here is a sample document:
@@ -57,44 +59,18 @@ One can note that:
 
 Writerly documents take extension `.wly`.
 
+## Multi-file loading
+
 Writerly documents can be broken across multiple files for large projects. Consider the following directory structure:
 
 ```
-some_dir
-├─ __parent.wly
-├─ chapter1.wly
-├─ chapter2.wly
-└─ chapter3.wly
+./some_dir
+  ├─ __parent.wly
+  ├─ chapter1.wly
+  ├─ chapter2.wly
+  └─ chapter3.wly
 ```
 
 The loader will indent the contents of `chapter1.wly`, `chapter2.wly` and `chapter3.wly` 
 by 4 spaces and then append the concatenated contents of those files (according to the lexicographic order
-of the filenames) to the contents `__parent.wly`. This process is pursued recursively with subdirectories.
-This is an example directory structure:
-
-```
-some_dir
-├─ __parent.wly
-├─ tome1
-│  ├─ __parent.wly
-│  ├─ 01-ALongAwaitedParty.wly
-│  ├─ 02-AnUnexpectedVisit.wly
-│  └─ 03-OverHillAndUnderhill.wly
-├─ tome2
-│  ├─ __parent.wly
-│  ├─ 01-TheCloudsGather.wly
-│  ├─ 02-TheCloudsBurst.wly
-│  ├─ 03-AnUnexpectedVisitInTome2.wly
-│  └─ 04-OverHillAndUnderhillInTome2.wly
-└─ tome3
-   ├─ __parent.wly
-   ├─ 01-primitive-recursion-definitions.wly
-   ├─ 02-primitive-recursion-constructions.wly
-   ├─ 03-ackermann.wly
-   └─ 04-mu-recursion.wly
-```
-
-Here the contents of `tome1`, `tome2` and `tome3` will be individually by the same process as described above,
-then indented and collated to the topmost `__parent.wly` file.
-
-Writerly files or directories starting with `#` are "commented out" and ignored by the loader.
+of the filenames) to the contents `__parent.wly`. This process is pursued recursively through subdirectories.
