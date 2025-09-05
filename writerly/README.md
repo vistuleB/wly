@@ -2,19 +2,7 @@
 
 'Writerly' is a syntax-only derivative of [Elm-Markup](https://github.com/mdgriffith/elm-markup). It encodes a superset of XML in human-readable and -writeable form.
 
-It is comprised of three primitives:
-
-- xml-like nodes with key-value attribute pairs and children, where the children may be selfsame nodes or:
-- multi-line text blurbs, or:
-- triple-backquoted ```` ``` ```` code blocks
-
-Parent-child relationships are indicated by indentation, with four spaces of indentation.
-
-Key-value attributes in the form `key=val` are defined on the lines immediately following the node tag, which has the form `|> Tag`.
-
-Lines of whitespace are used to separate text blurbs from one another
-
-Sample:
+Here is a sample document:
 
 ```
 |> SomeTag
@@ -23,10 +11,8 @@ Sample:
 
     A paragraph with one line.
 
-    A paragraph
-    with
-    four small
-    lines.
+    A second paragraph.
+    With a second line.
 
     |> Child1
         attr3=val3
@@ -37,26 +23,44 @@ Sample:
 
             Hello world. The 'li'
             to which I, this paragraph, belongs, is
-            the granchild of 'SomeTag', and the child
-            of 'ol'.
+            the granchild of 'SomeTag'.
 
         |> li
             This text does not parse as a
             key-value pair, though it directly follows
             a tag; so it will become the
-            first paragraph child this node.
+            first line of the first paragraph child of this node.
 
     !! lines starting with "!!"
     !! are comments
 
-    !! here is a code block:
+    !! here is a code block; the
+    !! contents of the code block look
+    !! like Writerly in this case, but they will not 
+    !! parse as such; since they are inside a code block
+    !! they will just be loaded as verbatim strings:
 
-    ```python
-    j
-     |> FakeTag
-      ```python
-      lll
-    qqq
+    ```writerly
+    |> SomeTag
+        |> Child1
+            |> Grandchild1
+                attr1=val1
     ```
+
+    Writerly considers whitespace at the end of a
+    text line to have semantic value, and will not trim
+    that whitespace: To insert spaces at the beginning
+    of a line, start the line with a backslash followed
+    by the number of spaces you want.
+
+    Also start lines with the sequence '\|>' in order to
+    encode the sequence '|>'. Use '\\|>' to get the sequence
+    '\|>` or '\\\|>` to get the sequence '\\|>', etc.
 ```
-...
+
+Note that:
+
+- Writerly is indentation-based, with 4 spaces of indentation.
+- The Writerly equivalent of an XML `<tag ...>...</tag>` node is `|> tag`.
+- XML tag attributes are listed (indented) below the `|> tag` as lines of the form `key=val`; a line that does not parse as an attribute key-value pair is interpreted as text (unless it starts in which case it is interpreted as such); a non-semantic blank line can also be used to separate the last key-value pair from the first paragraph child (or tag child) of a tag.
+- Spaces and Writerly character sequences only need to be escaped at the beginning of text lines, but do not need to be escaped within text lines; the escape character is `\`.
