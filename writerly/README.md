@@ -29,10 +29,7 @@ Here is a sample document:
             The first line of this paragraph does not parse as a
             key-value pair, though it directly follows
             a tag; so it will be interpreted as a text, and these
-            four lines of text are a the first paragraph child
-            of the second 'li' child of 'ol'.
-
-            Second paragraph child of the second 'li' child of 'ol'.
+            four lines of text become one paragraph.
 
     !! lines starting with "!!"
     !! are comments
