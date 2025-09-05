@@ -30,7 +30,7 @@ fn convert_handles_to_attributes(
     fn (key, values) {
       let #(value, id, filename) = values
       Attribute(
-        blame: desugarer_blame(34),
+        blame: desugarer_blame(33),
         key: "handle",
         value: key <> "|" <> value <> "|" <> id <> "|" <> filename,
       )
@@ -157,7 +157,7 @@ fn v_after_transforming_children(
     False -> Ok(#(vxml, state))
     True -> {
       let grand_wrapper = V(
-        desugarer_blame(161),
+        desugarer_blame(160),
         "GrandWrapper",
         convert_handles_to_attributes(state.handles),
         [vxml],

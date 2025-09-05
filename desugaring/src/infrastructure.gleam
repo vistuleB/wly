@@ -1859,6 +1859,16 @@ pub fn has_text_child(node: VXML) {
 // class
 // ************************************************************
 
+pub fn remove_class(
+  classes: String,
+  class: String,
+) -> String {
+  classes
+  |> string.split(" ")
+  |> list.filter(fn(c) {c != class})
+  |> string.join(" ")
+}
+
 pub fn has_class(vxml: VXML, class: String) -> Bool {
   case vxml {
     T(_, _) -> False
@@ -1898,6 +1908,64 @@ pub fn append_to_class_attribute(attrs: List(Attribute), blame: Blame, classes: 
     True -> list_set(attrs, index, new_attribute)
     False -> list.append(attrs, [Attribute(blame, "class", concatenate_classes("", classes))])
   }
+}
+
+pub fn substitute_in_attributes(
+  attrs: List(Attribute),
+  key: String,
+  from: String,
+  to: String,
+) -> List(Attribute) {
+  list.map(
+    attrs,
+    fn (attr) {
+      case attr.key == key {
+        False -> attr
+        True -> Attribute(..attr, value: string.replace(attr.value, from, to))
+      }
+    }
+  )
+}
+
+pub fn substitute_in_class_attribute(
+  attrs: List(Attribute),
+  from: String,
+  to: String,
+) -> List(Attribute) {
+  list.map(
+    attrs,
+    fn (attr) {
+      case attr.key == "class" {
+        False -> attr
+        True -> Attribute(..attr, value: case string.contains(attr.value, to) {
+          True -> remove_class(attr.value, from)         // if 'to' is already there we just remove the 'from'
+          False -> string.replace(attr.value, from, to)  // ...otherwise we substitute
+        })
+      }
+    }
+  )
+}
+
+pub fn supplement_in_class_attribute(
+  attrs: List(Attribute),
+  if_this_is_there: String,
+  then_add: String,
+) -> List(Attribute) {
+  list.map(
+    attrs,
+    fn (attr) {
+      case attr.key == "class" {
+        False -> attr
+        True -> Attribute(..attr, value: case string.contains(attr.value, if_this_is_there) {
+          True -> case string.contains(attr.value, then_add) {
+            False -> attr.value <> " " <> then_add
+            True -> attr.value
+          }
+          False -> attr.value
+        })
+      }
+    }
+  )
 }
 
 // ************************************************************

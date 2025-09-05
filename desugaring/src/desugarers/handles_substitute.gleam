@@ -319,8 +319,8 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
     param.0,
     param.1,
     param.2,
-    param.3 |> infra.string_pairs_2_attributes(desugarer_blame(321)),
-    param.4 |> infra.string_pairs_2_attributes(desugarer_blame(322)),
+    param.3 |> infra.string_pairs_2_attributes(desugarer_blame(322)),
+    param.4 |> infra.string_pairs_2_attributes(desugarer_blame(323)),
   )
   |> Ok
 }

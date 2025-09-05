@@ -115,10 +115,12 @@ import desugarers/regex_split_and_replace__outside
 import desugarers/reinsert_math_dollar
 import desugarers/remove_chapter_number_from_title
 import desugarers/rename
+import desugarers/rename_and_delete_children_if_has_singleton_class_attribute
 import desugarers/rename_attributes
 import desugarers/rename_attributes_by_function
 import desugarers/rename_if_child_of
 import desugarers/rename_if_child_of__batch
+import desugarers/rename_if_has_singleton_class_attribute
 import desugarers/rename_with_appended_attributes_and_prepended_text
 import desugarers/rename_with_attributes
 import desugarers/replace_in_attribute_values
@@ -127,8 +129,11 @@ import desugarers/split_first_line_after_prefix
 import desugarers/split_last_line_before_suffix
 import desugarers/strip_delimiters_inside
 import desugarers/strip_delimiters_inside_if
+import desugarers/substitute_class
+import desugarers/supplement_class
 import desugarers/surround_elements_by
 import desugarers/ti2_carousel_component
+import desugarers/ti2_class_well_container_theorem_2_statement
 import desugarers/ti3_parse_arbitrary_prompt_response_code_block
 import desugarers/ti3_parse_orange_comment_code_block
 import desugarers/ti3_parse_python_prompt_code_block
@@ -143,12 +148,12 @@ import desugarers/trim_ending_spaces_except_last_line
 import desugarers/trim_spaces_around_newlines__outside
 import desugarers/unwrap
 import desugarers/unwrap__batch
-import desugarers/unwrap_if_child_of
+import desugarers/unwrap_if_child_of__batch
 import desugarers/unwrap_if_descendant_of
 import desugarers/unwrap_if_descendant_of__batch
 import desugarers/unwrap_if_no_child_meets_condition
 import desugarers/unwrap_if_no_child_meets_condition__batch
-import desugarers/unwrap_tag_when_parent_of_tag
+import desugarers/unwrap_if_unique_child_is
 import desugarers/unwrap_tags_if_attributes_match
 import desugarers/unwrap_tags_if_no_attributes
 import desugarers/unwrap_tags_with_no_text_child
@@ -159,6 +164,7 @@ import desugarers/wrap_adjacent_non_whitespace_text_with
 import desugarers/wrap_children_before_in
 import desugarers/wrap_children_in
 import desugarers/wrap_each_child
+import desugarers/wrap_with_if_child_of
 
 pub const absorb_into_previous_sibling = absorb_into_previous_sibling.constructor
 pub const add_after_but_not_after_last_child__batch = add_after_but_not_after_last_child__batch.constructor
@@ -276,10 +282,12 @@ pub const regex_split_and_replace__outside = regex_split_and_replace__outside.co
 pub const reinsert_math_dollar = reinsert_math_dollar.constructor
 pub const remove_chapter_number_from_title = remove_chapter_number_from_title.constructor
 pub const rename = rename.constructor
+pub const rename_and_delete_children_if_has_singleton_class_attribute = rename_and_delete_children_if_has_singleton_class_attribute.constructor
 pub const rename_attributes = rename_attributes.constructor
 pub const rename_attributes_by_function = rename_attributes_by_function.constructor
 pub const rename_if_child_of = rename_if_child_of.constructor
 pub const rename_if_child_of__batch = rename_if_child_of__batch.constructor
+pub const rename_if_has_singleton_class_attribute = rename_if_has_singleton_class_attribute.constructor
 pub const rename_with_appended_attributes_and_prepended_text = rename_with_appended_attributes_and_prepended_text.constructor
 pub const rename_with_attributes = rename_with_attributes.constructor
 pub const replace_in_attribute_values = replace_in_attribute_values.constructor
@@ -288,8 +296,11 @@ pub const split_first_line_after_prefix = split_first_line_after_prefix.construc
 pub const split_last_line_before_suffix = split_last_line_before_suffix.constructor
 pub const strip_delimiters_inside = strip_delimiters_inside.constructor
 pub const strip_delimiters_inside_if = strip_delimiters_inside_if.constructor
+pub const substitute_class = substitute_class.constructor
+pub const supplement_class = supplement_class.constructor
 pub const surround_elements_by = surround_elements_by.constructor
 pub const ti2_carousel_component = ti2_carousel_component.constructor
+pub const ti2_class_well_container_theorem_2_statement = ti2_class_well_container_theorem_2_statement.constructor
 pub const ti3_parse_arbitrary_prompt_response_code_block = ti3_parse_arbitrary_prompt_response_code_block.constructor
 pub const ti3_parse_orange_comment_code_block = ti3_parse_orange_comment_code_block.constructor
 pub const ti3_parse_python_prompt_code_block = ti3_parse_python_prompt_code_block.constructor
@@ -304,12 +315,12 @@ pub const trim_ending_spaces_except_last_line = trim_ending_spaces_except_last_l
 pub const trim_spaces_around_newlines__outside = trim_spaces_around_newlines__outside.constructor
 pub const unwrap = unwrap.constructor
 pub const unwrap__batch = unwrap__batch.constructor
-pub const unwrap_if_child_of = unwrap_if_child_of.constructor
+pub const unwrap_if_child_of__batch = unwrap_if_child_of__batch.constructor
 pub const unwrap_if_descendant_of = unwrap_if_descendant_of.constructor
 pub const unwrap_if_descendant_of__batch = unwrap_if_descendant_of__batch.constructor
 pub const unwrap_if_no_child_meets_condition = unwrap_if_no_child_meets_condition.constructor
 pub const unwrap_if_no_child_meets_condition__batch = unwrap_if_no_child_meets_condition__batch.constructor
-pub const unwrap_tag_when_parent_of_tag = unwrap_tag_when_parent_of_tag.constructor
+pub const unwrap_if_unique_child_is = unwrap_if_unique_child_is.constructor
 pub const unwrap_tags_if_attributes_match = unwrap_tags_if_attributes_match.constructor
 pub const unwrap_tags_if_no_attributes = unwrap_tags_if_no_attributes.constructor
 pub const unwrap_tags_with_no_text_child = unwrap_tags_with_no_text_child.constructor
@@ -320,6 +331,7 @@ pub const wrap_adjacent_non_whitespace_text_with = wrap_adjacent_non_whitespace_
 pub const wrap_children_before_in = wrap_children_before_in.constructor
 pub const wrap_children_in = wrap_children_in.constructor
 pub const wrap_each_child = wrap_each_child.constructor
+pub const wrap_with_if_child_of = wrap_with_if_child_of.constructor
 
 pub const assertive_tests : List(fn() -> infra.AssertiveTestCollection) = [
   absorb_into_previous_sibling.assertive_tests,
@@ -438,10 +450,12 @@ pub const assertive_tests : List(fn() -> infra.AssertiveTestCollection) = [
   reinsert_math_dollar.assertive_tests,
   remove_chapter_number_from_title.assertive_tests,
   rename.assertive_tests,
+  rename_and_delete_children_if_has_singleton_class_attribute.assertive_tests,
   rename_attributes.assertive_tests,
   rename_attributes_by_function.assertive_tests,
   rename_if_child_of.assertive_tests,
   rename_if_child_of__batch.assertive_tests,
+  rename_if_has_singleton_class_attribute.assertive_tests,
   rename_with_appended_attributes_and_prepended_text.assertive_tests,
   rename_with_attributes.assertive_tests,
   replace_in_attribute_values.assertive_tests,
@@ -450,8 +464,11 @@ pub const assertive_tests : List(fn() -> infra.AssertiveTestCollection) = [
   split_last_line_before_suffix.assertive_tests,
   strip_delimiters_inside.assertive_tests,
   strip_delimiters_inside_if.assertive_tests,
+  substitute_class.assertive_tests,
+  supplement_class.assertive_tests,
   surround_elements_by.assertive_tests,
   ti2_carousel_component.assertive_tests,
+  ti2_class_well_container_theorem_2_statement.assertive_tests,
   ti3_parse_arbitrary_prompt_response_code_block.assertive_tests,
   ti3_parse_orange_comment_code_block.assertive_tests,
   ti3_parse_python_prompt_code_block.assertive_tests,
@@ -466,12 +483,12 @@ pub const assertive_tests : List(fn() -> infra.AssertiveTestCollection) = [
   trim_spaces_around_newlines__outside.assertive_tests,
   unwrap.assertive_tests,
   unwrap__batch.assertive_tests,
-  unwrap_if_child_of.assertive_tests,
+  unwrap_if_child_of__batch.assertive_tests,
   unwrap_if_descendant_of.assertive_tests,
   unwrap_if_descendant_of__batch.assertive_tests,
   unwrap_if_no_child_meets_condition.assertive_tests,
   unwrap_if_no_child_meets_condition__batch.assertive_tests,
-  unwrap_tag_when_parent_of_tag.assertive_tests,
+  unwrap_if_unique_child_is.assertive_tests,
   unwrap_tags_if_attributes_match.assertive_tests,
   unwrap_tags_if_no_attributes.assertive_tests,
   unwrap_tags_with_no_text_child.assertive_tests,
@@ -482,4 +499,5 @@ pub const assertive_tests : List(fn() -> infra.AssertiveTestCollection) = [
   wrap_children_before_in.assertive_tests,
   wrap_children_in.assertive_tests,
   wrap_each_child.assertive_tests,
+  wrap_with_if_child_of.assertive_tests,
 ]
