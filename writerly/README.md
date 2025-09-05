@@ -72,8 +72,8 @@ Writerly documents can be broken across multiple files for large projects. Consi
 ```
 
 The loader will indent the contents of `chapter1.wly`, `chapter2.wly` and `chapter3.wly` 
-by 4 spaces and then append the concatenated contents of those files (according to the lexicographic order
-of the filenames) to the contents `__parent.wly`. This process is pursued recursively through subdirectories.
+by 4 spaces and then append the concatenated contents of those files, according to the lexicographic order
+of the filenames, to the contents of `__parent.wly`. This process is pursued recursively through subdirectories.
 
 <!-- This is an example directory structure: -->
 
