@@ -48,6 +48,10 @@ This is a sample Writerly file:
     of a line, start the line with a backslash:
     \        followed
     by the number of spaces you want.
+
+|> ASecondTag
+
+    Writerly files can have multiple root-level tags.
 ```
 
 In particular:
