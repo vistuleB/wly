@@ -1,8 +1,9 @@
-# vxml
+# VXML
 
-## Intro
+An document format for encoding generic XML in a minimalist human-readable form while
+treating text as a first-class citizen.
 
-VXML looks like this (text & tag nodes only; tag nodes can have attributes); 2 spaces of indentation:
+This is a sample document:
 
 ```
 <> vxmlSample
@@ -11,14 +12,21 @@ VXML looks like this (text & tag nodes only; tag nodes can have attributes); 2 s
   <>
     "this is a text child"
     "with two lines"
+  <>
+    "this a second text child"
+    "second line of the second text child"
+    "third line of text of the second text child"
+    "etc"
   <> html
     <> header
       charset=utf-8
     <> body
       <> div
-        <>
-          "some text"
-          "more text"
+        style=padding:10px
+        <> p
+          <>
+            "some text"
+            "more text"
     <> baz
       <> child1
       <> child2
@@ -27,5 +35,6 @@ VXML looks like this (text & tag nodes only; tag nodes can have attributes); 2 s
         "but the first text child of baz"
       <> child4
 <>
-  "yello"
+  "I am not a child of vxmlSample"
+  "this document is therefore a list of 2 VXML nodes"
 ```
