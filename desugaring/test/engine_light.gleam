@@ -40,6 +40,7 @@ pub fn main() {
       pipeline: pipeline(),
       splitter: ds.stub_splitter(".tsx"),
       emitter: ds.stub_jsx_emitter,
+      writer: ds.default_writer,
       prettifier: ds.default_prettier_prettifier,
     )
     |> ds.amend_renderer_by_command_line_amendments(amendments)

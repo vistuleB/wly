@@ -5,6 +5,7 @@ import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type 
 import nodemaps_2_desugarer_transforms as n2t
 import vxml.{type TextLine, type VXML, Attribute, TextLine, T, V}
 import blame as bl
+import on
 
 const t_1_empty_line = T(
   bl.Des([], name, 11),
@@ -48,7 +49,11 @@ fn nodemap(
 ) -> VXML {
   case vxml {
     V(blame, "CodeBlock", _, [T(_, lines)]) -> {
-      case infra.v_has_key_value(vxml, "language", "orange-comment") {
+      use language <- on.none_some(
+        infra.v_value_of_first_attribute_with_key(vxml, "language"),
+        vxml,
+      )
+      case language == "orange-comment" || language == "orange-comments" {
         True ->
           V(
             blame,

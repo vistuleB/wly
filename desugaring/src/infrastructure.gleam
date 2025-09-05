@@ -1612,6 +1612,18 @@ pub fn v_first_attribute_with_key(
   }
 }
 
+pub fn v_value_of_first_attribute_with_key(
+  vxml: VXML,
+  key: String,
+) -> Option(String) {
+  let assert V(_, _, attrs, _) = vxml
+  case list.find(attrs, fn(b) { b.key == key })
+  {
+    Error(Nil) -> None
+    Ok(thing) -> Some(thing.value)
+  }
+}
+
 pub fn v_attributes_with_key(
   vxml: VXML,
   key: String,
