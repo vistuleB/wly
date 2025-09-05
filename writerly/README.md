@@ -4,7 +4,7 @@
 
 'Writerly' is a syntax-only derivative of [Elm-Markup](https://github.com/mdgriffith/elm-markup). It encodes a superset of XML in human-readable and -writeable form.
 
-This is a sample Writerly file:
+The following is a sample Writerly file:
 
 ```
 |> SomeTag
