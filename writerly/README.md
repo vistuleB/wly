@@ -60,9 +60,9 @@ In particular:
 
 Writerly documents take extension `.wly`.
 
-## Multi-file loading
+## Multi-file documents
 
-Writerly documents can be broken across multiple files for large projects. Consider the following directory structure:
+Writerly documents are designed to be broken across multiple files for large projects. Consider the following directory contents:
 
 ```
 ./some_dir
