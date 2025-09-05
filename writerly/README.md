@@ -33,17 +33,11 @@ Here is a sample document:
     !! lines starting with "!!"
     !! are comments
 
-    !! here is a code block; the
-    !! contents of the code block look
-    !! like Writerly in this case, but they will not 
-    !! parse as such; since they are inside a code block
-    !! (they will just parse as verbatim strings):
+    !! here is a code block:
 
-    ```writerly
-    |> SomeTag
-        |> Child1
-            |> Grandchild1
-                attr1=val1
+    ```python
+    def fn(x):
+        return x + 1
     ```
 
     Writerly considers whitespace at the end of a
