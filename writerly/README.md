@@ -1,10 +1,12 @@
-# Writerly
+# writerly
 
-A derivative of Elm-Markup. It encodes a superset of XML. It is built on three primitives:
+'Writerly' is a syntax-only derivative of [Elm-Markup](https://github.com/mdgriffith/elm-markup). It encodes a superset of XML in human-readable and -writeable form.
+
+It is comprised of three primitives:
 
 - xml-like nodes with key-value attribute pairs and children, where the children may be selfsame nodes or:
 - multi-line text blurbs, or:
-- triple-backquoted code blocks
+- triple-backquoted ```` ``` ```` code blocks
 
 Parent-child relationships are indicated by indentation, with four spaces of indentation.
 
