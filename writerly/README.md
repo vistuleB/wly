@@ -55,7 +55,8 @@ In particular:
 - Writerly uses `|> tag` to encode an XML `<tag ...>...</tag>`.
 - Writerly parent-child relationships are indentation-based using 4 spaces of indentation.
 - Writerly separates paragraphs by blank lines. Note that XML does not have a primitive concept of a "paragraph"—this is a Writerly-only concept.
-- Writerly tag attributes (the equivalent of HTML and XML tag attributes) are listed directly below the `|> tag` as lines of the form `key=val` with 4 spaces of indentation. A line that does not parse as an attribute key-value pair is either interpreted as text or as a new node. A blank line can also be used to separate the last key-value pair from the first text child, allowing the first text child to start with text of the form `key=val`, that would otherwise be parsed as a tag attribute.
+- Writerly tag attributes (the equivalent of HTML and XML tag attributes) are listed directly below the `|> tag` as lines of the form `key=val` with 4 spaces of indentation. A line that does not parse as an attribute key-value pair is either interpreted as text or as a new node, depending on whether the line starts with `|>` or not. A blank line can also be used to separate the last key-value pair from the first text child, allowing the first text child to start with text of the form `key=val`, that would otherwise be parsed as a tag attribute.
+- Blank lines are _bona fide_ semantic elements of the document. Introducing a blank line between two adjacent tags or not may produce different results, depending on the _desugaring_ process used to process the Writerly document into a target document of a different format.
 
 Writerly documents take extension `.wly`.
 
