@@ -51,7 +51,12 @@ This is a sample Writerly file:
 
 |> ASecondTag
 
-    Writerly files can have multiple root-level tags.
+    Writerly files can have multiple top-level nodes.
+    This document contains three top-level nodes: 'SomeTag',
+    'ASecondTag', as well as...
+
+...this paragraph.
+A sibling of 'SomeTag' and 'ASecondTag'.
 ```
 
 In particular:
