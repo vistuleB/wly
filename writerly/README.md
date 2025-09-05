@@ -11,8 +11,8 @@ Here is a sample document:
 
     A paragraph with one line.
 
-    A second paragraph.
-    With a second line.
+    A second paragraph, with
+    two lines.
 
     |> Child1
         attr3=val3
@@ -26,10 +26,13 @@ Here is a sample document:
             the granchild of 'SomeTag'.
 
         |> li
-            This text does not parse as a
+            The first line of this paragraph does not parse as a
             key-value pair, though it directly follows
-            a tag; so it will become the
-            first line of the first paragraph child of this node.
+            a tag; so it will be interpreted as a text, and these
+            four lines of text are a the first paragraph child
+            of the second 'li' child of 'ol'.
+
+            Second paragraph child of the second 'li' child of 'ol'.
 
     !! lines starting with "!!"
     !! are comments
