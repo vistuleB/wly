@@ -97,4 +97,4 @@ some_dir
 Here the contents of `tome1`, `tome2` and `tome3` will be individually by the same process as described above,
 then indented and collated to the topmost `__parent.wly` file.
 
-Writerly files or directories starting with `#` are ignored by the loader.
+Writerly files or directories starting with `#` are "commented out" and ignored by the loader.
