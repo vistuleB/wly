@@ -57,6 +57,6 @@ Here is a sample document:
 Note that:
 
 - The Writerly equivalent of an XML `<tag ...>...</tag>` node is `|> tag`.
-- XML tag attributes are listed (indented) below the `|> tag` as lines of the form `key=val`; a line that does not parse as an attribute key-value pair is interpreted as text (unless it starts in which case it is interpreted as such); a non-semantic blank line can also be used to separate the last key-value pair from the first paragraph child (or tag child) of a tag.
+- XML tag attributes are listed (indented) below the `|> tag` as lines of the form `key=val`; a line that does not parse as an attribute key-value pair is interpreted as text (unless it starts with `|>` in which case it is interpreted as a tag, of course); a blank line can also be used to separate the last key-value pair from the first paragraph child (or tag child) of a tag.
 - Spaces and Writerly character sequences only need to be escaped at the beginning of text lines, but do not need to be escaped within text lines; the escape character is `\`.
 - Writerly is indentation-based, with 4 spaces of indentation.
