@@ -1289,7 +1289,12 @@ fn file_is_not_parent_or_has_selected_descendant_or_is_selected(
   || list.any(path_selectors, string.contains(path, _))
   || list.any(
     selected_with_unwanted_parents,
-    fn(x) { !is_parent(x) && string.starts_with(x, path |> string.drop_end(string.length("__parent.emu"))) }
+    fn(x) {
+      // is a descendant of ours:
+      string.starts_with(x, path |> string.drop_end(string.length("__parent.wly"))) &&
+      // ...and is selected:
+      list.any(path_selectors, string.contains(x, _))
+    }
   )
 }
 

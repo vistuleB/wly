@@ -1167,7 +1167,7 @@ fn attributes_to_sticky_lines(
 }
 
 const sticky_tags = [
-  "NumberedTitle", "a", "span", "i", "b", "strong", "em", "code", "tt", "br"
+  "NumberedTitle", "a", "span", "i", "b", "strong", "em", "code", "tt", "br", "img",
 ]
 
 const self_closing_tags = ["img", "br", "hr"]
