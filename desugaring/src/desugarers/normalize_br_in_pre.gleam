@@ -1,68 +1,37 @@
 import gleam/list
 import gleam/option.{None}
-import gleam/string
 import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as infra
 import nodemaps_2_desugarer_transforms as n2t
-import vxml.{type TextLine, type VXML, Attribute, TextLine, T, V}
+import vxml.{type VXML, T, V, TextLine}
 import blame as bl
-import on
 
-const t_1_empty_line = T(
-  bl.Des([], name, 11),
-  [TextLine(bl.Des([], name, 12), "")]
-)
-const orange =
-  V(
-    bl.Des([], name, 16),
-    "span",
-    [Attribute(bl.Des([], name, 18), "class", "orange-comment")],
-    [],
+const newline_t =
+  T(
+    bl.Des([], name, 11),
+    [
+      TextLine(bl.Des([], name, 13), ""),
+      TextLine(bl.Des([], name, 14), ""),
+    ]
   )
-
-fn line_2_t(line: TextLine) -> VXML {
-  T(line.blame, [line])
-}
-
-fn elements_for_line(line: TextLine) -> List(VXML) {
-  case string.split_once(line.content, "//") {
-    Error(_) -> [line_2_t(line)]
-    Ok(#(before, after)) -> {
-      let after_blame = bl.advance(line.blame, string.length(before) + 2)
-      let before = line_2_t(TextLine(line.blame, before))
-      let orange = orange |> infra.v_prepend_child(line_2_t(TextLine(after_blame, after)))
-      [before, orange, t_1_empty_line]
-    }
-  }
-}
-
-fn process_orange_comment_lines(
-  lines: List(TextLine),
-) -> List(VXML) {
-  lines
-  |> list.fold([], fn(acc, line) { infra.pour(elements_for_line(line), acc)})
-  |> list.reverse
-  |> infra.plain_concatenation_in_list
-}
 
 fn nodemap(
   vxml: VXML,
 ) -> VXML {
   case vxml {
-    V(blame, "CodeBlock", _, [T(_, lines)]) -> {
-      use language <- on.none_some(
-        infra.v_value_of_first_attribute_with_key(vxml, "language"),
-        vxml,
+    V(_, "pre", _, children) -> {
+      let children = list.map(
+        children,
+        fn(c) {
+          case c {
+            V(_, "br", _, _) -> {
+              newline_t
+            }
+            _ -> c
+          }
+        }
       )
-      case language == "orange-comment" || language == "orange-comments" {
-        True ->
-          V(
-            blame,
-            "pre",
-            [],
-            process_orange_comment_lines(lines, ),
-          )
-        _ -> vxml
-      }
+      |> infra.last_to_first_concatenation
+      V(..vxml, children: children)
     }
     _ -> vxml
   }
@@ -81,7 +50,7 @@ fn param_to_inner_param(_param: Param) -> Result(InnerParam, DesugaringError) {
   Ok(Nil)
 }
 
-pub const name = "ti3_parse_orange_comment_code_block"
+pub const name = "normalize_br_in_pre"
 
 type Param = Nil
 type InnerParam = Nil

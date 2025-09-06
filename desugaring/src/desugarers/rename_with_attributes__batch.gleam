@@ -1,9 +1,9 @@
+import gleam/dict.{type Dict}
 import gleam/list
 import gleam/option
-import gleam/string.{inspect as ins}
 import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as infra
 import nodemaps_2_desugarer_transforms as n2t
-import vxml.{type VXML, V, type Attribute, Attribute}
+import vxml.{type VXML, V, T}
 import blame as bl
 
 fn nodemap(
@@ -11,9 +11,17 @@ fn nodemap(
   inner: InnerParam,
 ) -> Result(VXML, DesugaringError) {
   case vxml {
-    V(_, tag, attrs, _) if tag == inner.0 ->
-      Ok(V(..vxml, tag: inner.1, attributes: list.append(attrs, inner.2)))
-    _ -> Ok(vxml)
+    T(_, _) -> Ok(vxml)
+    V(blame, tag, attrs, children) -> {
+      case dict.get(inner, tag) {
+        Error(Nil) -> Ok(vxml)
+        Ok(new_tag_info) -> {
+          let #(new_tag, new_attrs) = new_tag_info
+          let new_attributes = list.append(attrs, new_attrs)
+          Ok(V(blame, new_tag, new_attributes, children))
+        }
+      }
+    }
   }
 }
 
@@ -26,18 +34,25 @@ fn transform_factory(inner: InnerParam) -> DesugarerTransform {
 }
 
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
-  let attrs = param.2
-    |> list.map(fn(x) { Attribute(desugarer_blame(30), x.0, x.1) })
-  Ok(#(param.0, param.1, attrs))
+  let inner_param = param
+    |> list.map(fn(renaming: #(String, String, List(#(String, String)))) {
+      let #(old_tag, new_tag, attrs) = renaming
+      let attrs_converted = list.map(attrs, fn(attr) {
+        let #(key, value) = attr
+        vxml.Attribute(desugarer_blame(42), key, value)
+      })
+      #(old_tag, #(new_tag, attrs_converted))
+    })
+    |> dict.from_list
+  Ok(inner_param)
 }
 
-type Param = #(String,   String,   List(#(String, String)))
-//             ↖         ↖         ↖
-//             old_tag   new_tag   list of attributes 
-//                                 as key value pairs
-type InnerParam = #(String, String, List(Attribute))
+type Param = List(#(String, String, List(#(String, String))))
+//                  ↖       ↖       ↖
+//                  old_tag new_tag list of attributes as key value pairs
+type InnerParam = Dict(String, #(String, List(vxml.Attribute)))
 
-pub const name = "rename_with_attributes"
+pub const name = "rename_with_attributes__batch"
 fn desugarer_blame(line_no: Int) {bl.Des([], name, line_no)}
 
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
@@ -48,7 +63,7 @@ fn desugarer_blame(line_no: Int) {bl.Des([], name, line_no)}
 pub fn constructor(param: Param) -> Desugarer {
   Desugarer(
     name: name,
-    stringified_param: option.Some(ins(param)),
+    stringified_param: option.Some(param |> infra.list_param_stringifier),
     stringified_outside: option.None,
     transform: case param_to_inner_param(param) {
       Error(error) -> fn(_) { Error(error) }

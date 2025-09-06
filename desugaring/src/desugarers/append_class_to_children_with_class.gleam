@@ -17,7 +17,7 @@ fn update_child(
       infra.v_append_classes_if(
         acc,
         target_and_classes_to_append.1,
-        infra.has_class(_, target_and_classes_to_append.0),
+        infra.is_v_and_has_class(_, target_and_classes_to_append.0),
       )
     }
   )

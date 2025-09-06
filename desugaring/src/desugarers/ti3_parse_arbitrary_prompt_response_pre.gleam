@@ -78,14 +78,19 @@ fn nodemap(
   vxml: VXML,
 ) -> VXML {
   case vxml {
-    V(blame, "CodeBlock", _, [T(_, lines)]) -> {
+    V(blame, "pre", attrs, [T(_, lines)]) -> {
       case infra.v_has_key_value(vxml, "language", "arbitrary-prompt-response") {
-        True -> V(
-          blame,
-          "pre",
-          [Attribute(desugarer_blame(86), "class", "well highlight")],
-          process_lines(lines),
-        )
+        True -> {
+          let children = process_lines(lines)
+          V(
+            blame,
+            "pre",
+            attrs
+            |> infra.attributes_delete("language")
+            |> infra.append_to_class_attribute(desugarer_blame(127), "arbitrary-prompt-response"),
+            children,
+          )
+        }
         _ -> vxml
       }
     }
@@ -106,7 +111,7 @@ fn param_to_inner_param(_param: Param) -> Result(InnerParam, DesugaringError) {
   Ok(Nil)
 }
 
-pub const name = "ti3_parse_arbitrary_prompt_response_code_block"
+pub const name = "ti3_parse_arbitrary_prompt_response_pre"
 fn desugarer_blame(line_no) {bl.Des([], name, line_no)}
 
 type Param = Nil
@@ -116,9 +121,8 @@ type InnerParam = Nil
 // 🏖️🏖️ Desugarer 🏖️🏖️
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 //------------------------------------------------53
-/// Processes CodeBlock elements with language=orange-comment
-/// and converts them to pre elements with orange
-/// comment highlighting for text after // markers
+/// Processes pre elements with language=arbitrary-prompt-response
+/// and...
 pub fn constructor() -> Desugarer {
   Desugarer(
     name,

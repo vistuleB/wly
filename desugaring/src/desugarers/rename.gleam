@@ -2,31 +2,26 @@ import gleam/option
 import gleam/string.{inspect as ins}
 import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError, DesugaringError} as infra
 import nodemaps_2_desugarer_transforms as n2t
-import vxml.{type VXML, T, V}
+import vxml.{type VXML, V}
 import blame as bl
 
 fn nodemap(
   vxml: VXML,
   inner: InnerParam,
-) -> Result(VXML, DesugaringError) {
+) -> VXML {
   case vxml {
-    T(_, _) -> Ok(vxml)
-    V(blame, tag, attrs, children) -> {
-      let #(from, to) = inner
-      case from == tag {
-        False -> Ok(vxml)
-        True -> Ok(V(blame, to, attrs, children))
-      }
-    }
+    V(_, tag, _, _) if tag == inner.0 -> V(..vxml, tag: inner.1)
+    _ -> vxml
   }
 }
 
-fn nodemap_factory(inner: InnerParam) -> n2t.OneToOneNodeMap {
+fn nodemap_factory(inner: InnerParam) -> n2t.OneToOneNoErrorNodeMap {
   nodemap(_, inner)
 }
 
 fn transform_factory(inner: InnerParam) -> DesugarerTransform {
-  n2t.one_to_one_nodemap_2_desugarer_transform(nodemap_factory(inner))
+  nodemap_factory(inner)
+  |> n2t.one_to_one_no_error_nodemap_2_desugarer_transform
 }
 
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
@@ -37,8 +32,10 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
   }
 }
 
-type Param = #(String, String)
-
+type Param = #(String,   String)
+//             ↖         ↖      
+//             old tag   new tag
+//             name      name
 type InnerParam = Param
 
 pub const name = "rename"

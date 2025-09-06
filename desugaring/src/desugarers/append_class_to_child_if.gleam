@@ -91,7 +91,7 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
                 "
     ),
     infra.AssertiveTestData(
-      param: #("container", "active", infra.has_class(_, "highlight")),
+      param: #("container", "active", infra.is_v_and_has_class(_, "highlight")),
       source:   "
                 <> root
                   <> container

@@ -1,29 +1,20 @@
-import gleam/list
 import gleam/option
 import gleam/string.{inspect as ins}
 import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as infra
 import nodemaps_2_desugarer_transforms as n2t
-import vxml.{type Attribute, Attribute, type VXML, T, V}
+import vxml.{type VXML, V}
+import blame as bl
 
-fn replacer(attr: Attribute, inner: InnerParam) -> Attribute {
-  Attribute(
-    attr.blame,
-    attr.key,
-    list.fold(inner, attr.value, fn(current, pair) {
-      let #(from, to) = pair
-      string.replace(current, from, to)
-    }),
-  )
-}
+const our_blame = bl.Des([], name, 8)
 
 fn nodemap(
   vxml: VXML,
   inner: InnerParam,
 ) -> VXML {
   case vxml {
-    T(_, _) -> vxml
-    V(_, _, attrs, _) ->
-      V(..vxml, attributes: attrs |> list.map(replacer(_, inner)))
+    V(_, tag, attrs, _) if tag == inner.0 ->
+      V(..vxml, tag: inner.1, attributes: infra.append_to_class_attribute(attrs, our_blame, inner.2))
+    _ -> vxml
   }
 }
 
@@ -40,20 +31,18 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
   Ok(param)
 }
 
-type Param = List(#(String, String))
-//                  ↖       ↖
-//                  from    to
+type Param = #(String,  String,  String)
+//             ↖        ↖        ↖
+//             old_tag  new_tag  class
 type InnerParam = Param
 
-pub const name = "replace_in_attribute_values"
+pub const name = "rename_with_class"
 
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 // 🏖️🏖️ Desugarer 🏖️🏖️
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 //------------------------------------------------53
-/// performs exact match find-replace in every
-/// attribute value of every node using the
-/// 'string.replace' function
+/// renames tags and adds attributes to them
 pub fn constructor(param: Param) -> Desugarer {
   Desugarer(
     name: name,

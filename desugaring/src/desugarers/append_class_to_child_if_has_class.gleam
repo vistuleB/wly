@@ -30,7 +30,7 @@ pub fn constructor(param: Param) -> Desugarer {
     stringified_outside: option.None,
     transform: case param_to_inner_param(param) {
       Error(error) -> fn(_) { Error(error) }
-      Ok(inner) -> append_class_to_child_if(#(inner.0, inner.1, infra.has_class(_, inner.2))).transform
+      Ok(inner) -> append_class_to_child_if(#(inner.0, inner.1, infra.is_v_and_has_class(_, inner.2))).transform
     }
   )
 }

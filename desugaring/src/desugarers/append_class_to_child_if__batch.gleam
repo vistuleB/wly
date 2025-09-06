@@ -118,7 +118,7 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
                 "
     ),
     infra.AssertiveTestData(
-      param: [#("container", "active", infra.has_class(_, "highlight"))],
+      param: [#("container", "active", infra.is_v_and_has_class(_, "highlight"))],
       source:   "
                 <> root
                   <> container
@@ -143,7 +143,7 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
     infra.AssertiveTestData(
       param: [
         #("parent", "new", infra.is_v_and_tag_equals(_, "child")),
-        #("other", "different", infra.has_class(_, "special"))
+        #("other", "different", infra.is_v_and_has_class(_, "special"))
       ],
       source:   "
                 <> root

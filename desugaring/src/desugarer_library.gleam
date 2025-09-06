@@ -96,6 +96,7 @@ import desugarers/keep_only_subtrees_and_ancestors_of_nodes_matching_a_key_value
 import desugarers/line_rewrap_no1__outside
 import desugarers/merge_parent_attributes_into_child
 import desugarers/normalize_begin_end_align
+import desugarers/normalize_br_in_pre
 import desugarers/normalize_math_delimiters_inside
 import desugarers/normalize_spaces__outside
 import desugarers/pair
@@ -123,8 +124,11 @@ import desugarers/rename_if_child_of__batch
 import desugarers/rename_if_has_singleton_class_attribute
 import desugarers/rename_with_appended_attributes_and_prepended_text
 import desugarers/rename_with_attributes
+import desugarers/rename_with_attributes__batch
+import desugarers/rename_with_class
 import desugarers/replace_in_attribute_values
 import desugarers/replace_multiple_spaces_by_one
+import desugarers/replace_with_arbitrary
 import desugarers/split_first_line_after_prefix
 import desugarers/split_last_line_before_suffix
 import desugarers/strip_delimiters_inside
@@ -134,9 +138,12 @@ import desugarers/supplement_class
 import desugarers/surround_elements_by
 import desugarers/ti2_carousel_component
 import desugarers/ti2_class_well_container_theorem_2_statement
-import desugarers/ti3_parse_arbitrary_prompt_response_code_block
-import desugarers/ti3_parse_orange_comment_code_block
-import desugarers/ti3_parse_python_prompt_code_block
+import desugarers/ti3_add_listing_bol_spans
+import desugarers/ti3_code_block_to_pre
+import desugarers/ti3_parse_arbitrary_prompt_response_pre
+import desugarers/ti3_parse_orange_comments_pre
+import desugarers/ti3_parse_python_prompt_pre
+import desugarers/ti3_parse_redyellow_pre
 import desugarers/timer
 import desugarers/tokenize_href_surroundings
 import desugarers/tokenize_text_children_if
@@ -263,6 +270,7 @@ pub const keep_only_subtrees_and_ancestors_of_nodes_matching_a_key_value_pair = 
 pub const line_rewrap_no1__outside = line_rewrap_no1__outside.constructor
 pub const merge_parent_attributes_into_child = merge_parent_attributes_into_child.constructor
 pub const normalize_begin_end_align = normalize_begin_end_align.constructor
+pub const normalize_br_in_pre = normalize_br_in_pre.constructor
 pub const normalize_math_delimiters_inside = normalize_math_delimiters_inside.constructor
 pub const normalize_spaces__outside = normalize_spaces__outside.constructor
 pub const pair = pair.constructor
@@ -290,8 +298,11 @@ pub const rename_if_child_of__batch = rename_if_child_of__batch.constructor
 pub const rename_if_has_singleton_class_attribute = rename_if_has_singleton_class_attribute.constructor
 pub const rename_with_appended_attributes_and_prepended_text = rename_with_appended_attributes_and_prepended_text.constructor
 pub const rename_with_attributes = rename_with_attributes.constructor
+pub const rename_with_attributes__batch = rename_with_attributes__batch.constructor
+pub const rename_with_class = rename_with_class.constructor
 pub const replace_in_attribute_values = replace_in_attribute_values.constructor
 pub const replace_multiple_spaces_by_one = replace_multiple_spaces_by_one.constructor
+pub const replace_with_arbitrary = replace_with_arbitrary.constructor
 pub const split_first_line_after_prefix = split_first_line_after_prefix.constructor
 pub const split_last_line_before_suffix = split_last_line_before_suffix.constructor
 pub const strip_delimiters_inside = strip_delimiters_inside.constructor
@@ -301,9 +312,12 @@ pub const supplement_class = supplement_class.constructor
 pub const surround_elements_by = surround_elements_by.constructor
 pub const ti2_carousel_component = ti2_carousel_component.constructor
 pub const ti2_class_well_container_theorem_2_statement = ti2_class_well_container_theorem_2_statement.constructor
-pub const ti3_parse_arbitrary_prompt_response_code_block = ti3_parse_arbitrary_prompt_response_code_block.constructor
-pub const ti3_parse_orange_comment_code_block = ti3_parse_orange_comment_code_block.constructor
-pub const ti3_parse_python_prompt_code_block = ti3_parse_python_prompt_code_block.constructor
+pub const ti3_add_listing_bol_spans = ti3_add_listing_bol_spans.constructor
+pub const ti3_code_block_to_pre = ti3_code_block_to_pre.constructor
+pub const ti3_parse_arbitrary_prompt_response_pre = ti3_parse_arbitrary_prompt_response_pre.constructor
+pub const ti3_parse_orange_comments_pre = ti3_parse_orange_comments_pre.constructor
+pub const ti3_parse_python_prompt_pre = ti3_parse_python_prompt_pre.constructor
+pub const ti3_parse_redyellow_pre = ti3_parse_redyellow_pre.constructor
 pub const timer = timer.constructor
 pub const tokenize_href_surroundings = tokenize_href_surroundings.constructor
 pub const tokenize_text_children_if = tokenize_text_children_if.constructor
@@ -431,6 +445,7 @@ pub const assertive_tests : List(fn() -> infra.AssertiveTestCollection) = [
   line_rewrap_no1__outside.assertive_tests,
   merge_parent_attributes_into_child.assertive_tests,
   normalize_begin_end_align.assertive_tests,
+  normalize_br_in_pre.assertive_tests,
   normalize_math_delimiters_inside.assertive_tests,
   normalize_spaces__outside.assertive_tests,
   pair.assertive_tests,
@@ -458,8 +473,11 @@ pub const assertive_tests : List(fn() -> infra.AssertiveTestCollection) = [
   rename_if_has_singleton_class_attribute.assertive_tests,
   rename_with_appended_attributes_and_prepended_text.assertive_tests,
   rename_with_attributes.assertive_tests,
+  rename_with_attributes__batch.assertive_tests,
+  rename_with_class.assertive_tests,
   replace_in_attribute_values.assertive_tests,
   replace_multiple_spaces_by_one.assertive_tests,
+  replace_with_arbitrary.assertive_tests,
   split_first_line_after_prefix.assertive_tests,
   split_last_line_before_suffix.assertive_tests,
   strip_delimiters_inside.assertive_tests,
@@ -469,9 +487,12 @@ pub const assertive_tests : List(fn() -> infra.AssertiveTestCollection) = [
   surround_elements_by.assertive_tests,
   ti2_carousel_component.assertive_tests,
   ti2_class_well_container_theorem_2_statement.assertive_tests,
-  ti3_parse_arbitrary_prompt_response_code_block.assertive_tests,
-  ti3_parse_orange_comment_code_block.assertive_tests,
-  ti3_parse_python_prompt_code_block.assertive_tests,
+  ti3_add_listing_bol_spans.assertive_tests,
+  ti3_code_block_to_pre.assertive_tests,
+  ti3_parse_arbitrary_prompt_response_pre.assertive_tests,
+  ti3_parse_orange_comments_pre.assertive_tests,
+  ti3_parse_python_prompt_pre.assertive_tests,
+  ti3_parse_redyellow_pre.assertive_tests,
   timer.assertive_tests,
   tokenize_href_surroundings.assertive_tests,
   tokenize_text_children_if.assertive_tests,

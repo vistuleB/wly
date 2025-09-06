@@ -229,7 +229,7 @@ pub fn descendants_with_key_value(vxml: VXML, attr_key: String, attr_value: Stri
 }
 
 pub fn descendants_with_class(vxml: VXML, class: String) -> List(VXML) {
-  filter_descendants(vxml, has_class(_, class))
+  filter_descendants(vxml, is_v_and_has_class(_, class))
 }
 
 // ************************************************************
@@ -1169,6 +1169,18 @@ pub fn plain_concatenation_in_list(nodes: List(VXML)) -> List(VXML) {
   )
 }
 
+pub fn delete_singleton_empty_lines_in_list(nodes: List(VXML)) -> List(VXML) {
+  list.filter(
+    nodes,
+    fn (node) { 
+      case node {
+        T(_, [TextLine(_, "")]) -> False
+        _ -> True
+      }    
+    }
+  )
+}
+
 // ************************************************************
 // t
 // ************************************************************
@@ -1675,7 +1687,7 @@ pub fn v_children_with_tags(vxml: VXML, tags: List(String)) -> List(VXML) {
 }
 
 pub fn v_children_with_class(vxml: VXML, class: String) -> List(VXML) {
-  v_filter_children(vxml, has_class(_, class))
+  v_filter_children(vxml, is_v_and_has_class(_, class))
 }
 
 pub fn v_tag_is_one_of(vxml: VXML, tags: List(String)) -> Bool {
@@ -1753,6 +1765,13 @@ pub fn keys(attrs: List(Attribute)) -> List(String) {
   attrs |> list.map(fn(attr) { attr.key })
 }
 
+pub fn attributes_delete(
+  attrs: List(Attribute),
+  key: String,
+) -> List(Attribute) {
+  attrs |> list.filter(fn(x) { x.key != key })
+}
+
 pub fn attributes_have_key(
   attrs: List(Attribute),
   key: String,
@@ -1773,6 +1792,22 @@ pub fn string_pairs_2_attributes(
 ) {
   pairs
   |> list.map(string_pair_2_attribute(_, blame))
+}
+
+pub fn attributes_have_class(
+  attributes: List(Attribute),
+  class: String,
+) -> Bool {
+  case attributes {
+    [] -> False
+    [first, ..rest] -> case first {
+      Attribute(_, "class", value) ->
+        value
+        |> string.split(" ")
+        |> list.contains(class)
+      _ -> attributes_have_class(rest, class)
+    }
+  }
 }
 
 // ************************************************************
@@ -1869,19 +1904,15 @@ pub fn remove_class(
   |> string.join(" ")
 }
 
-pub fn has_class(vxml: VXML, class: String) -> Bool {
+pub fn v_has_class(vxml: VXML, class: String) -> Bool {
+  let assert V(_, _, attrs, _) = vxml
+  attributes_have_class(attrs, class)
+}
+
+pub fn is_v_and_has_class(vxml: VXML, class: String) -> Bool {
   case vxml {
     T(_, _) -> False
-    _ -> {
-      case v_first_attribute_with_key(vxml, "class") {
-        Some(Attribute(_, "class", vals)) -> {
-          vals
-          |> string.split(" ")
-          |> list.contains(class)
-        }
-        _ -> False
-      }
-    }
+    _ -> v_has_class(vxml, class)
   }
 }
 

@@ -1,59 +1,45 @@
-import gleam/list
 import gleam/option
 import gleam/string.{inspect as ins}
 import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as infra
 import nodemaps_2_desugarer_transforms as n2t
-import vxml.{type Attribute, Attribute, type VXML, T, V}
-
-fn replacer(attr: Attribute, inner: InnerParam) -> Attribute {
-  Attribute(
-    attr.blame,
-    attr.key,
-    list.fold(inner, attr.value, fn(current, pair) {
-      let #(from, to) = pair
-      string.replace(current, from, to)
-    }),
-  )
-}
+import vxml.{type VXML, V}
 
 fn nodemap(
   vxml: VXML,
   inner: InnerParam,
-) -> VXML {
+) -> List(VXML) {
   case vxml {
-    T(_, _) -> vxml
-    V(_, _, attrs, _) ->
-      V(..vxml, attributes: attrs |> list.map(replacer(_, inner)))
+    V(_, tag, _, _) if tag == inner.0 -> inner.1
+    _ -> [vxml]
   }
 }
 
-fn nodemap_factory(inner: InnerParam) -> n2t.OneToOneNoErrorNodeMap {
+fn nodemap_factory(inner: InnerParam) -> n2t.OneToManyNoErrorNodeMap {
   nodemap(_, inner)
 }
 
 fn transform_factory(inner: InnerParam) -> DesugarerTransform {
   nodemap_factory(inner)
-  |> n2t.one_to_one_no_error_nodemap_2_desugarer_transform
+  |> n2t.one_to_many_no_error_nodemap_2_desugarer_transform
 }
 
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
   Ok(param)
 }
 
-type Param = List(#(String, String))
-//                  ↖       ↖
-//                  from    to
+type Param = #(String, List(VXML))
+//             ↖       ↖      
+//             tag     replacement
 type InnerParam = Param
 
-pub const name = "replace_in_attribute_values"
+pub const name = "replace_with_arbitrary"
 
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 // 🏖️🏖️ Desugarer 🏖️🏖️
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 //------------------------------------------------53
-/// performs exact match find-replace in every
-/// attribute value of every node using the
-/// 'string.replace' function
+/// replaces all occurrences of a given tag with a
+/// given list of nodes
 pub fn constructor(param: Param) -> Desugarer {
   Desugarer(
     name: name,
