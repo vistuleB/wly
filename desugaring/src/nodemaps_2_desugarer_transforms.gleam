@@ -777,7 +777,7 @@ fn one_to_one_before_and_after_no_error_stateful_nodemap_recursive_application(
   case node {
     T(_, _) -> nodemap.t_nodemap(node, original_state)
     V(_, _, _, _) -> {
-      let assert #(V(_, _, _, children), latest_state) =
+      let assert #(V(_, _, _, children) as node, latest_state) =
         nodemap.v_before_transforming_children(
           node,
           original_state,
@@ -792,7 +792,7 @@ fn one_to_one_before_and_after_no_error_stateful_nodemap_recursive_application(
           }
         )
       nodemap.v_after_transforming_children(
-        node |> infra.v_replace_children_with(children),
+        V(..node, children: children),
         original_state,
         latest_state,
       )
@@ -809,7 +809,7 @@ pub fn one_to_one_before_and_after_no_error_stateful_nodemap_2_desugarer_transfo
       one_to_one_before_and_after_no_error_stateful_nodemap_recursive_application(
         initial_state,
         vxml,
-        nodemap
+        nodemap,
       )
     Ok(#(vxml, []))
   }
@@ -870,7 +870,7 @@ pub fn one_to_one_before_and_after_stateful_nodemap_2_desugarer_transform(
       one_to_one_before_and_after_stateful_nodemap_recursive_application(
         initial_state,
         vxml,
-        nodemap
+        nodemap,
       )
     )
     Ok(#(vxml, []))

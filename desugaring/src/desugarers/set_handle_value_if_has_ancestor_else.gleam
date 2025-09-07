@@ -5,14 +5,12 @@ import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type 
 import nodemaps_2_desugarer_transforms as n2t
 import vxml.{ type VXML, V, type Attribute, Attribute}
 
-type State = Bool
-
 fn map_attribute(attr: Attribute, state: State, inner: InnerParam) -> Attribute {
   case attr.key {
     "handle" -> {
       case attr.value |> string.split_once(" ") {
         Ok(#(_, handle_value)) -> {
-          let assert True = string.trim(handle_value) != ""
+          assert string.trim(handle_value) != ""
           attr
         }
         Error(Nil) -> {
@@ -61,13 +59,15 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
   |> Ok
 }
 
-type Param = #(String, String,    String,      String)
+type AncestorHasBeenSeen = Bool
+type State = AncestorHasBeenSeen
+
+type Param = #(String,    String,    String,      String)
 //                ↖       ↖          ↖            ↖
 //                tag     ancestor   if_version   else_version
-
 type InnerParam = Param
 
-pub const name = "append_value_to_handle_attribute_if_has_ancestor_else"
+pub const name = "set_handle_value_if_has_ancestor_else"
 
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 // 🏖️🏖️ Desugarer 🏖️🏖️

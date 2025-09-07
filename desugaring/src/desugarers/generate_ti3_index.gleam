@@ -2,72 +2,85 @@ import gleam/list
 import gleam/option.{Some,None}
 import gleam/result
 import gleam/string.{inspect as ins}
-import infrastructure.{type Desugarer, Desugarer, type DesugaringError, type DesugaringWarning} as infra
+import gleam/regexp
+import infrastructure.{
+  type Desugarer, 
+  type DesugaringError, 
+  type DesugaringWarning,
+  Desugarer,
+  DesugaringError, 
+} as infra
 import vxml.{type VXML, type TextLine, Attribute, TextLine, V, T}
-import blame as bl
 import nodemaps_2_desugarer_transforms as n2t
+import blame as bl
+import on
 
 type ChapterNo = Int
 type SubChapterNo = Int
-type ChapterTitle = String
-type SubchapterTitle = String
+type TitleElements = List(VXML)
+type ChapterTitle = List(VXML)
+type SubchapterTitle = List(VXML)
 
 fn format_chapter_link(chapter_no: Int, sub_no: Int) -> String {
   "./" <> ins(chapter_no) <> "-" <> ins(sub_no) <> ".html"
 }
 
-fn extract_chapter_title(chapter: VXML) -> ChapterTitle {
-  chapter
-  |> infra.v_unique_child_with_tag("ChapterTitle")
-  |> result.map(fn(chapter_title) {
-    let assert V(_, _, _, children) = chapter_title
-    let assert [T(_, contents), ..] = children
+fn extract_title(chapter_or_subchapter ch: VXML, title_tag t: String) -> Result(TitleElements, DesugaringError) {
+  use title_element <- on.error_ok(
+    infra.v_unique_child_with_tag(ch, t),
+    fn(e) {
+      case e {
+        infra.MoreThanOne -> Error(DesugaringError(infra.v_blame(ch), "more than one '" <> t <> "' element"))
+        infra.LessThanOne -> Error(DesugaringError(infra.v_blame(ch), "did not find '" <> t <> "' element"))
+      }
+    }
+  )
+  let assert V(_, _, _, children) = title_element
+  let assert [T(blame, contents), ..rest] = children
+  let assert Ok(re) = regexp.from_string("^(\\d+)(\\.(\\d+)?)?\\s")
+  let without_number =
     contents
     |> list.map(fn(line: TextLine) { line.content })
     |> string.join("")
-  })
-  |> result.unwrap("no chapter title")
+    |> regexp.replace(re, _, "")
+  Ok([T(blame, [TextLine(blame, without_number)]), ..rest])
 }
 
-fn chapters_number_title(root: VXML) -> List(#(VXML, ChapterNo, ChapterTitle)) {
+fn chapters_number_title(root: VXML) -> Result(List(#(VXML, ChapterNo, ChapterTitle)), DesugaringError) {
   root
   |> infra.v_index_children_with_tag("Chapter")
-  |> list.map(fn(tup: #(VXML, Int)) {
-    #(tup.0, tup.1 + 1, extract_chapter_title(tup.0))
+  |> list.try_map(
+    fn(tup: #(VXML, Int)) {
+      use title <- on.ok(extract_title(tup.0, "ChapterTitle"))
+      Ok(#(tup.0, tup.1 + 1, title))
   })
 }
 
-fn extract_subchapter_title(chapter: VXML) -> List(#(SubChapterNo, SubchapterTitle)) {
+fn extract_subchapter_titles(chapter: VXML) -> Result(List(#(SubChapterNo, SubchapterTitle)), DesugaringError) {
   chapter
   |> infra.v_index_children_with_tag("Sub")
-  |> list.map(fn(sub: #(VXML, Int)) {
-      let subchapter_title =
-        sub.0
-        |> infra.v_unique_child_with_tag("SubTitle")
-        |> result.map(fn(subtitle) {
-          let assert V(_, _, _, children) = subtitle
-          let assert [T(_, contents), ..] = children
-          contents
-          |> list.map(fn(line: TextLine) { line.content })
-          |> string.join("")
-        })
-        |> result.unwrap("No subchapter title")
-      #(sub.1 + 1, subchapter_title)
+  |> list.try_map(
+    fn(sub: #(VXML, Int)) {
+      use subchapter_title <- on.ok(extract_title(sub.0, "SubTitle"))
+      Ok(#(sub.1 + 1, subchapter_title))
   })
 }
 
-fn all_subchapters(chapters: List(#(VXML, ChapterNo, ChapterTitle))) -> List(#(ChapterNo, ChapterTitle, List(#(SubChapterNo, SubchapterTitle)))) {
+fn all_subchapters(
+  chapters: List(#(VXML, ChapterNo, ChapterTitle))
+) -> Result(
+  List(#(ChapterNo, ChapterTitle, List(#(SubChapterNo, SubchapterTitle)))),
+  DesugaringError,
+) {
   chapters
-  |> list.map(fn(chapter: #(VXML, Int, String)) {
-    chapter.0
-    |> extract_subchapter_title
-    |> fn(subchapters) {
-      #(chapter.1, chapter.2, subchapters)
-    }
- })
+  |> list.try_map(
+    fn(chapter: #(VXML, Int, SubchapterTitle)) {
+      use subchapter_titles <- on.ok(chapter.0 |> extract_subchapter_titles)
+      Ok(#(chapter.1, chapter.2, subchapter_titles))
+  })
 }
 
-fn construct_subchapter_item(subchapter_title: String, subchapter_number: Int, chapter_number: Int) -> VXML {
+fn construct_subchapter_item(subchapter_title: SubchapterTitle, subchapter_number: Int, chapter_number: Int) -> VXML {
   let blame = desugarer_blame(71)
   V(
     blame,
@@ -79,15 +92,14 @@ fn construct_subchapter_item(subchapter_title: String, subchapter_number: Int, c
         blame,
         "a",
         [Attribute(blame, "href", format_chapter_link(chapter_number, subchapter_number))],
-        [T(blame, [TextLine(blame, subchapter_title)])]
+        subchapter_title,
       )
     ]
   )
 }
 
-fn construct_chapter_item(chapter_number: Int, chapter_title: String, subchapters: List(#(SubChapterNo, SubchapterTitle))) -> VXML {
+fn construct_chapter_item(chapter_number: Int, chapter_title: ChapterTitle, subchapters: List(#(SubChapterNo, SubchapterTitle))) -> VXML {
   let blame = desugarer_blame(89)
-
   let subchapters_ol = case subchapters {
     [] -> []
     _ -> [
@@ -95,10 +107,13 @@ fn construct_chapter_item(chapter_number: Int, chapter_title: String, subchapter
         blame,
         "ol",
         [Attribute(blame, "class", "index__list__subchapter")],
-        list.map(subchapters, fn(subchapter) {
-          let #(subchapter_number, subchapter_title) = subchapter
-          construct_subchapter_item(subchapter_title, subchapter_number, chapter_number)
-        })
+        list.map(
+          subchapters,
+          fn(subchapter) {
+            let #(subchapter_number, subchapter_title) = subchapter
+            construct_subchapter_item(subchapter_title, subchapter_number, chapter_number)
+          }
+        )
       )
     ]
   }
@@ -114,7 +129,7 @@ fn construct_chapter_item(chapter_number: Int, chapter_title: String, subchapter
           blame,
           "a",
           [Attribute(blame, "href", "./" <> ins(chapter_number) <> "-0" <> ".html")],
-          [T(blame, [TextLine(blame, chapter_title)])]
+          chapter_title,
         )
       ],
       subchapters_ol
@@ -261,19 +276,15 @@ fn at_root(root: VXML) -> Result(#(VXML, List(DesugaringWarning)), DesugaringErr
   let assert V(_, "Document", _attrs, _children) = root
   let menu_node = construct_menu(root)
   let header_node = construct_header(root)
-  let index_list_node =
-        root
-          |> chapters_number_title
-          |> all_subchapters
-          |> construct_index
-
+  use chapters <- on.ok(chapters_number_title(root))
+  use subchapters <- on.ok(all_subchapters(chapters))
+  let index_list_node = construct_index(subchapters)
   let index_node = V(
     desugarer_blame(271),
     "Index",
     [],
     [menu_node, header_node, index_list_node]
   )
-
   infra.v_prepend_child(root, index_node)
   |> n2t.add_no_warnings
   |> Ok

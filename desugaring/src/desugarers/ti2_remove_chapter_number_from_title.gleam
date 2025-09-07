@@ -1,7 +1,13 @@
 import gleam/list
 import gleam/option
 import gleam/regexp
-import infrastructure.{ type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as infra
+import infrastructure.{
+  type Desugarer,
+  type DesugarerTransform,
+  type DesugaringError,
+  Desugarer,
+  DesugaringError,
+} as infra
 import nodemaps_2_desugarer_transforms as n2t
 import vxml.{type VXML, TextLine, T, V}
 import on
@@ -11,33 +17,34 @@ fn nodemap(
 ) -> Result(VXML, DesugaringError) {
   case vxml {
     V(blame, t, atts, children) -> {
-      // remove carousel buttons
       use <- on.false_true(
         infra.v_has_key_value(vxml, "class", "chapterTitle") ||
         infra.v_has_key_value(vxml, "class", "subChapterTitle"),
         on_false: Ok(vxml),
       )
 
-      let assert [
-        T(
-          t_blame,
-          [TextLine(l_blame, first_text_node_line), ..rest_contents],
-        ),
-        ..rest_children
-      ] = children
-      let assert Ok(re) = regexp.from_string("^(\\d+)(\\.(\\d+)?)?\\s")
-      regexp.check(re, first_text_node_line)
-
-      use <- on.false_true(
-        regexp.check(re, first_text_node_line),
-        on_false: Ok(vxml),
-      )
-
-      let new_line = regexp.replace(re, first_text_node_line, "")
-      let contents = T(t_blame, [TextLine(l_blame, new_line), ..list.drop(rest_contents, 1)])
-      let children = [contents, ..list.drop(rest_children, 1)]
-
-      Ok(V(blame, t, atts, children))
+      case children {
+        [
+          T(
+            t_blame,
+            [TextLine(l_blame, first_text_node_line), ..rest_contents],
+          ),
+          ..rest_children,
+        ] -> {
+          let assert Ok(re) = regexp.from_string("^(\\d+)(\\.(\\d+)?)?\\s")
+          use <- on.false_true(
+            regexp.check(re, first_text_node_line),
+            on_false: Ok(vxml),
+          )
+          let new_line = regexp.replace(re, first_text_node_line, "")
+          let contents = T(t_blame, [TextLine(l_blame, new_line), ..list.drop(rest_contents, 1)])
+          let children = [contents, ..list.drop(rest_children, 1)]
+          Ok(V(blame, t, atts, children))
+        }
+        _ -> {
+          Error(DesugaringError(blame, "could not find T(_,_) element"))
+        }
+      }
     }
     _ -> Ok(vxml)
   }
@@ -58,7 +65,7 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
 type Param = Nil
 type InnerParam = Nil
 
-pub const name = "remove_chapter_number_from_title"
+pub const name = "ti2_remove_chapter_number_from_title"
 
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 // 🏖️🏖️ Desugarer 🏖️🏖️

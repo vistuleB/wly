@@ -1,4 +1,3 @@
-import gleam/list
 import gleam/option
 import gleam/string.{inspect as ins}
 import infrastructure.{
@@ -25,7 +24,7 @@ fn nodemap(
   case vxml {
     V(_, tag, attrs, _) if tag == inner.0 -> {
       #(
-        V(..vxml, attributes: list.append(attrs, [inner.1])),
+        V(..vxml, attributes: [inner.1, ..attrs]),
         inner.2,
       )
     }
@@ -55,14 +54,14 @@ type Param = #(String, String, String, TrafficLight)
 //             tag     attr    value   return-early-or-not-after-finding-tag
 type InnerParam = #(String, Attribute, TrafficLight)
 
-pub const name = "append_attribute"
+pub const name = "prepend_attribute"
 fn desugarer_blame(line_no: Int) {bl.Des([], name, line_no)}
 
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 // 🏖️🏖️ Desugarer 🏖️🏖️
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 //------------------------------------------------53
-/// append to list of attributes of a given tag
+/// prepend to list of attributes of a given tag
 pub fn constructor(param: Param) -> Desugarer {
   Desugarer(
     name: name,

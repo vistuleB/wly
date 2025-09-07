@@ -1445,6 +1445,13 @@ pub fn extract_first_word_from_t_node_if_t(vxml: VXML) -> #(Option(VXML), VXML) 
 // v
 // ************************************************************
 
+pub fn v_blame(
+  vxml: VXML,
+) -> Blame {
+  let assert V(blame, _, _, _) = vxml
+  blame
+}
+
 pub fn v_attrs_constructor(
   blame: Blame,
   tag: String,

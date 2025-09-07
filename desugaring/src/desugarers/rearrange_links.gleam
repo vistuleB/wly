@@ -90,19 +90,18 @@ fn detokenize_maybe(
           detokenize_maybe(rest, [], [T(blame, accumulated_lines |> list.reverse), ..accumulated_nodes])
         }
 
-        T(_, _) -> {
-          let assert [] = accumulated_lines
-          panic as "how did T not become tokenized"
+        V(_, _, _, children) -> case infra.v_has_attribute_with_key(first, "href") {
+          True -> {
+            let children = detokenize_maybe(children, [], [])
+            detokenize_maybe(rest, [], [V(..first, children: children), ..accumulated_nodes])
+          }
+          False -> detokenize_maybe(rest, [], [first, ..accumulated_nodes])
         }
 
-        V(_, _, _, children) -> {
-          case infra.v_has_attribute_with_key(first, "href") {
-            True -> {
-              let children = detokenize_maybe(children, [], [])
-              detokenize_maybe(rest, [], [V(..first, children: children), ..accumulated_nodes])
-            }
-            False -> detokenize_maybe(rest, [], [first, ..accumulated_nodes])
-          }
+        T(_, _) -> {
+          let assert [] = accumulated_lines
+          vxml.echo_vxmls(children, "children")
+          panic as "how did T not become tokenized"
         }
       }
     }
@@ -411,14 +410,16 @@ fn tokenize_t(vxml: VXML) -> List(VXML) {
   |> list.append([end_node(blame)])
 }
 
-fn tokenize_if_t_or_href_tag_with_single_t_child(vxml: VXML) -> List(VXML) {
+fn tokenize_if_t_or_has_href_tag_recursive(vxml: VXML) -> List(VXML) {
   case vxml {
     T(_, _) -> tokenize_t(vxml)
-    V(_, _, _, [T(_, _) as t]) -> case infra.v_has_attribute_with_key(vxml, "href") {
+    V(_, _, _, children) -> case infra.v_has_attribute_with_key(vxml, "href") {
+      True -> {
+        let children = list.flat_map(children, tokenize_if_t_or_has_href_tag_recursive)
+        [V(..vxml, children: children)]
+      }
       False -> [vxml]
-      True -> [V(..vxml, children: tokenize_t(t))]
     }
-    _ -> [vxml]
   }
 }
 
@@ -426,7 +427,7 @@ fn tokenize_maybe(children: List(VXML)) -> Option(List(VXML)) {
   case list.any(children, infra.is_v_and_has_attribute_with_key(_, "href")) {
     True -> {
       children
-      |> list.map(tokenize_if_t_or_href_tag_with_single_t_child)
+      |> list.map(tokenize_if_t_or_has_href_tag_recursive)
       |> list.flatten
       |> Some
     }

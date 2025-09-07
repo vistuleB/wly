@@ -146,18 +146,73 @@ pub fn print_lines_at_indent(
 pub fn name_and_param_string(
   desugarer: Desugarer,
   step_no: Int,
-) -> String {
-  ins(step_no)
-  <> ". "
-  <> desugarer.name
-  <> case desugarer.stringified_param {
-    Some(desc) ->
-      " "
-      <> ins(desc)
-      |> string.drop_start(1)
-      |> string.drop_end(1)
-      |> string.replace("\\\"", "\"")
-    None -> ""
+) -> List(String) {
+  let #(first_line, batch_params) = {
+    let start =
+      ins(step_no)
+      <> ". "
+      <> desugarer.name
+    let #(end, more) = {
+      case desugarer.stringified_param {
+        None -> #(
+          case desugarer.stringified_outside {
+            None -> ""
+            _ -> " []"
+          },
+          [],
+        )
+        Some(desc) -> case string.split(desc, "\n") {
+          [desc] -> {
+            let end =
+              " " <> {
+                ins(desc)
+                |> string.drop_start(1)
+                |> string.drop_end(1)
+                |> string.replace("\\\"", "\"")
+              }
+            #(end, [])
+          }
+          [first, ..rest] -> {
+            assert string.starts_with(first, "[ ")
+            let first = string.drop_start(first, 2)
+            let assert [last, ..rest] = [first, ..rest] |> list.reverse
+            assert string.ends_with(last, " ]")
+            let last = string.drop_end(last, 2)
+            let more = [last, ..rest] |> list.reverse
+            #(" [", more)
+          }
+          _ -> panic as "not expecting the non-None stringified_param to be the empty string"
+        }
+      }
+    }
+    #(start <> end, more)
+  }
+
+  let so_far =
+    case batch_params {
+      [] -> [first_line]
+      _ -> {
+        [
+          [first_line],
+          list.index_map(
+            batch_params,
+            fn (b, i) { "  " <> string.drop_start(b, case i > 0 {
+              True -> 2
+              False -> 0
+            }) <> "," },
+          ),
+          ["]"]
+        ]
+        |> list.flatten
+      }
+    }
+
+  case desugarer.stringified_outside {
+    None -> so_far
+    Some(x) -> {
+      let assert [last, ..rest] = list.reverse(so_far)
+      [last <> " " <> x, ..rest] |> list.reverse
+    }
   }
 }
 

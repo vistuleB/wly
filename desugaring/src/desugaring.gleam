@@ -623,6 +623,8 @@ pub type CommandLineError {
   ExpectedDoubleDashString(String)
   UnwantedOptionArgument(String)
   UnexpectedArgumentsToOption(String)
+  MissingArgumentToOption(String)
+  TooManyArgumentsToOption(String)
   SelectorValues(String)
   StepNoValues(String)
 }
@@ -652,6 +654,22 @@ pub fn process_command_line_arguments(
           case list.is_empty(values) {
             True -> Ok(CommandLineAmendments(..amendments, help: True))
             False -> Error(UnexpectedArgumentsToOption("option"))
+          }
+        }
+
+        "--input-dir" -> {
+          case values {
+            [one] -> Ok(CommandLineAmendments(..amendments, input_dir: Some(one)))
+            [] -> Error(MissingArgumentToOption("--input-dir"))
+            _ -> Error(TooManyArgumentsToOption("--input-dir"))
+          }
+        }
+
+        "--output-dir" -> {
+          case values {
+            [one] -> Ok(CommandLineAmendments(..amendments, output_dir: Some(one)))
+            [] -> Error(MissingArgumentToOption("--output-dir"))
+            _ -> Error(TooManyArgumentsToOption("--output-dir"))
           }
         }
 
@@ -1297,7 +1315,10 @@ fn run_pipeline(
       let must_print = mode == TrackingForced || { mode == TrackingOnChange && next_tracking_output != last_tracking_output }
       let got_arrow = case must_print {
         True -> {
-          io.println("    " <> pr.name_and_param_string(desugarer, step_no))
+          list.each(
+            pr.name_and_param_string(desugarer, step_no),
+            fn(s) { io.println("    " <> s) },
+          )
           io.println("    💠")
           selected
           |> infra.s_lines_annotated_table("", False, 2)

@@ -10,7 +10,11 @@ fn nodemap(
 ) -> VXML {
   case vxml {
     V(_, "div", _, children) -> {
-      case infra.v_has_class(vxml, "theorem") || infra.v_has_class(vxml, "numbered-exercise") {
+      case {
+        infra.v_has_class(vxml, "theorem") ||
+        infra.v_has_class(vxml, "numbered-exercise") ||
+        infra.v_has_class(vxml, "numbered-title")
+      } {
         True -> case children {
           [V(_, "span", _, span_children) as span, ..rest] -> {
             case infra.v_has_key_value(span, "class", "numbered-title") {

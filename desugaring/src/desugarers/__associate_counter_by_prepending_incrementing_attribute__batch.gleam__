@@ -76,9 +76,7 @@ type Param = List(#(String, String, TrafficLight))
 //                  ↖       ↖        ↖
 //                  tag     counter   traffic_light
 //                          name
-
-type InnerParam =
-  Dict(String, List(String))
+type InnerParam = Dict(String, List(String))
 
 pub const name = "associate_counter_by_prepending_incrementing_attribute__batch"
 
@@ -86,23 +84,22 @@ pub const name = "associate_counter_by_prepending_incrementing_attribute__batch"
 // 🏖️🏖️ Desugarer 🏖️🏖️
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 //------------------------------------------------53
-/// For each #(tag, counter_name, traffic_light) tuple in the 
-/// parameter list, this desugarer adds an
-/// attribute of the form
+/// For each #(tag, counter_name, traffic_light) 
+/// tuple in the parameter list, this desugarer adds 
+/// an attribute of the form
 /// ```
 /// .=counter_name ::++counter_name
 /// ```
-/// to each node of tag 'tag', where the key is
-/// a period '.' and the value is the string 
-/// '<counter_name> ::++<counter_name>'. As 
-/// counters are evaluated and substitued also
-/// inside of key-value pairs, adding this 
-/// key-value pair causes the counter <counter_name>
-/// to increment at each occurrence of a node
-/// of tag 'tag'. Also assigns unassigned 
-/// handles of the attribute list of node 'tag'
-/// to the first counter being incremented in
-/// this fashion, by this desugarer.
+/// to each node of tag 'tag', where the key is a 
+/// period '.' and the value is the string 
+/// '<counter_name> ::++<counter_name>'. As counters
+/// are evaluated and substitued also inside of 
+/// key-value pairs, adding this key-value pair 
+/// causes the counter <counter_name> to increment at
+/// each occurrence of a node of tag 'tag'. Also 
+/// assigns unassigned  handles of the attribute list
+/// of node 'tag' to the first counter being incremented
+/// in this fashion, by this desugarer.
 pub fn constructor(
   param: Param,
 ) -> Desugarer {
