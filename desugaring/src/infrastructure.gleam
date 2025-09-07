@@ -1765,7 +1765,7 @@ pub fn v_assert_pop_attribute_value(vxml: VXML, key: String) -> #(VXML, String) 
 }
 
 // ************************************************************
-// Attribute
+// attributes
 // ************************************************************
 
 pub fn keys(attrs: List(Attribute)) -> List(String) {
@@ -1815,6 +1815,23 @@ pub fn attributes_have_class(
       _ -> attributes_have_class(rest, class)
     }
   }
+}
+
+pub fn substitute_in_attributes(
+  attrs: List(Attribute),
+  key: String,
+  from: String,
+  to: String,
+) -> List(Attribute) {
+  list.map(
+    attrs,
+    fn (attr) {
+      case attr.key == key {
+        False -> attr
+        True -> Attribute(..attr, value: string.replace(attr.value, from, to))
+      }
+    }
+  )
 }
 
 // ************************************************************
@@ -1948,23 +1965,6 @@ pub fn append_to_class_attribute(attrs: List(Attribute), blame: Blame, classes: 
   }
 }
 
-pub fn substitute_in_attributes(
-  attrs: List(Attribute),
-  key: String,
-  from: String,
-  to: String,
-) -> List(Attribute) {
-  list.map(
-    attrs,
-    fn (attr) {
-      case attr.key == key {
-        False -> attr
-        True -> Attribute(..attr, value: string.replace(attr.value, from, to))
-      }
-    }
-  )
-}
-
 pub fn substitute_in_class_attribute(
   attrs: List(Attribute),
   from: String,
@@ -1982,6 +1982,30 @@ pub fn substitute_in_class_attribute(
       }
     }
   )
+}
+
+pub fn remove_in_class_attribute(
+  attrs: List(Attribute),
+  to_be_removed: String,
+) -> List(Attribute) {
+  list.fold(
+    attrs,
+    [],
+    fn (acc, attr) {
+      case attr.key == "class" {
+        False -> [attr, ..acc]
+        True -> {
+          let new_value = remove_class(attr.value, to_be_removed)
+          assert new_value == string.trim(new_value)
+          case new_value == "" {
+            True -> acc
+            False -> [Attribute(attr.blame, "class", new_value), ..acc]
+          }
+        }
+      }
+    }
+  )
+  |> list.reverse
 }
 
 pub fn supplement_in_class_attribute(
