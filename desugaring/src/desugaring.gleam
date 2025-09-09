@@ -94,46 +94,28 @@ pub fn default_writerly_parser(
   }
 }
 
-// 🌅🌅🌅🌅🌅🌅🌅🌅🌅🌅🌅🌅🌅🌅🌅
-// 🌅 default HTML parser 🌅
-// 🌅🌅🌅🌅🌅🌅🌅🌅🌅🌅🌅🌅🌅🌅🌅
+// 🌅🌅🌅🌅🌅🌅🌅🌅🌅🌅🌅🌅🌅🌅🌅🌅🌅🌅🌅🌅
+// 🌅 default XML & HTML parser~~ 🌅
+// 🌅🌅🌅🌅🌅🌅🌅🌅🌅🌅🌅🌅🌅🌅🌅🌅🌅🌅🌅🌅
 
-pub fn default_html_parser(
+pub fn default_xml_parser(
+  lines: List(InputLine),
   only_args: List(#(String, String, String)),
-) -> Parser(String) {
-  fn(lines: List(InputLine)) {
-    // we don't have our own html parser that can give
-    // proper blames, we have to resort to this nonsense
-    let assert [first_line, ..] = lines
-    let path = case first_line.blame {
-      bl.Src(_, path, _, _) -> path
-      _ -> "vr::default_html_parser"
-    }
+) -> Result(VXML, #(Blame, String)) {
+  use vxml <- on.error_ok(
+    vp.streaming_based_xml_parser(lines),
+    fn(xmlm_parse_error) { Error(#(bl.no_blame, "xmlm parse error: " <> ins(xmlm_parse_error))) }
+  )
 
-    let content =
-      lines
-      |> io_l.input_lines_to_output_lines
-      |> io_l.output_lines_to_string
-      |> string.trim
+  use #(vxml, _) <- on.error_ok(
+    dl.filter_nodes_by_attributes(only_args).transform(vxml),
+    fn(_) { Error(#(bl.no_blame, "empty document after filtering nodes by: " <> ins(only_args))) },
+  )
 
-    use <- on.true_false(
-      content == "",
-      Error(#(first_line.blame, "empty content")),
-    )
-
-    use vxml <- on.error_ok(
-      content |> vp.xmlm_based_html_parser(path),
-      fn(xmlm_parse_error) { Error(#(bl.no_blame, "xmlm parse error: " <> ins(xmlm_parse_error))) },
-    )
-
-    use #(vxml, _) <- on.error_ok(
-      dl.filter_nodes_by_attributes(only_args).transform(vxml),
-      fn(_) { Error(#(bl.no_blame, "empty document after filtering nodes by: " <> ins(only_args))) },
-    )
-
-    Ok(vxml)
-  }
+  Ok(vxml)
 }
+
+pub const default_html_parser = default_xml_parser
 
 // ************************************************************
 // Splitter(d, e)                                              // 'd' is fragment classifier type, 'e' is splitter error type

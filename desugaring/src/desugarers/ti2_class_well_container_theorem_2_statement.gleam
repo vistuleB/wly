@@ -22,10 +22,10 @@ fn nodemap(
                 [T(_, [one_line]), ..] -> {
                   let title = one_line.content |> string.trim
                   V(
-                    desugarer_blame(21),
+                    desugarer_blame(25),
                     "Statement",
                     [
-                      Attribute(desugarer_blame(24), "title", "*" <> title <> "*"),
+                      Attribute(desugarer_blame(28), "title", "*" <> title <> "*"),
                     ],
                     rest,
                   )

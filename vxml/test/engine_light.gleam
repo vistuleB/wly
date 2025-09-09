@@ -5,7 +5,53 @@ import gleam/string.{inspect as ins}
 import simplifile
 import vxml
 import io_lines as io_l
+import blame as bl
+import xml_streamer as xs
 import on
+
+fn streaming_parser_engine_light() -> Result(Nil, String) {
+  io.println("\n### STREAMING PARSER ENGINE LIGHT ###\n")
+
+  let path = "samples/sample2.html"
+
+  use content <- on.error_ok(
+    simplifile.read(path),
+    fn(_) { Error("streaming_parser_engine_light i/o error wile reading '" <> path <> "'") },
+  )
+
+  let events =
+    content
+    |> xs.string_streamer(path)
+
+  use units <- on.error_ok(
+    events
+    |> vxml.xml_streaming_logical_units(),
+    on_error: fn(e) {
+      let #(blame, msg) = e
+      io.println("")
+      io.println("got error going from events to units:")
+      io.println("- msg:   " <> msg)
+      io.println("- blame: " <> bl.blame_digest(blame))
+      Error("streaming_parser_engine_light pt1")
+    }
+  )
+
+  use vxml <- on.error_ok(
+    vxml.vxml_from_streaming_logical_units(units),
+    fn(e) {
+      let #(blame, msg) = e
+      io.println("")
+      io.println("got error going from units to events:")
+      io.println("- msg:   " <> msg)
+      io.println("- blame: " <> bl.blame_digest(blame))
+      Error("streaming_parser_engine_light pt2")
+    }
+  )
+
+  vxml.echo_vxml(vxml, "streamer success!")
+
+  Ok(Nil)
+}
 
 fn html_engine_light() -> Result(Nil, String) {
   io.println("\n### HTML ENGINE LIGHT ###\n")
@@ -63,10 +109,17 @@ fn vxml_engine_light() -> Result(Nil, String) {
   Ok(Nil)
 }
 
+pub fn make_linter_shut_up() {
+  let _ = html_engine_light()
+  let _ = vxml_engine_light()
+  let _ = streaming_parser_engine_light()
+}
+
 pub fn main() {
   let errors = [
     html_engine_light(),
     vxml_engine_light(),
+    streaming_parser_engine_light(),
   ] |> list.filter(result.is_error)
 
   io.println("\n[end all]\n")

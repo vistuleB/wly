@@ -81,7 +81,7 @@ fn all_subchapters(
 }
 
 fn construct_subchapter_item(subchapter_title: SubchapterTitle, subchapter_number: Int, chapter_number: Int) -> VXML {
-  let blame = desugarer_blame(71)
+  let blame = desugarer_blame(84)
   V(
     blame,
     "li",
@@ -99,7 +99,7 @@ fn construct_subchapter_item(subchapter_title: SubchapterTitle, subchapter_numbe
 }
 
 fn construct_chapter_item(chapter_number: Int, chapter_title: ChapterTitle, subchapters: List(#(SubChapterNo, SubchapterTitle))) -> VXML {
-  let blame = desugarer_blame(89)
+  let blame = desugarer_blame(102)
   let subchapters_ol = case subchapters {
     [] -> []
     _ -> [
@@ -138,7 +138,7 @@ fn construct_chapter_item(chapter_number: Int, chapter_title: ChapterTitle, subc
 }
 
 fn construct_header(document: VXML) -> VXML {
-  let blame = desugarer_blame(126)
+  let blame = desugarer_blame(141)
 
   let title =
     case infra.v_first_attribute_with_key(document, "title") {
@@ -192,7 +192,7 @@ fn construct_header(document: VXML) -> VXML {
 }
 
 fn construct_right_menu(document: VXML) -> VXML {
-  let blame = desugarer_blame(180)
+  let blame = desugarer_blame(195)
 
   let first_chapter_title =
     document
@@ -223,7 +223,7 @@ fn construct_right_menu(document: VXML) -> VXML {
 }
 
 fn construct_menu(document: VXML) -> VXML {
-  let blame = desugarer_blame(211)
+  let blame = desugarer_blame(226)
 
   let course_homepage_link =
     case infra.v_first_attribute_with_key(document, "course_homepage") {
@@ -252,7 +252,7 @@ fn construct_menu(document: VXML) -> VXML {
 }
 
 fn construct_index(chapters: List(#(ChapterNo, ChapterTitle, List(#(SubChapterNo, SubchapterTitle))))) -> VXML {
-  let blame = desugarer_blame(240)
+  let blame = desugarer_blame(255)
 
   V(
     blame,
@@ -280,7 +280,7 @@ fn at_root(root: VXML) -> Result(#(VXML, List(DesugaringWarning)), DesugaringErr
   use subchapters <- on.ok(all_subchapters(chapters))
   let index_list_node = construct_index(subchapters)
   let index_node = V(
-    desugarer_blame(271),
+    desugarer_blame(283),
     "Index",
     [],
     [menu_node, header_node, index_list_node]

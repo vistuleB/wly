@@ -118,25 +118,25 @@ fn generate_replacement_vxml_internal(
     [p, ..pattern_rest] -> {
       case p {
         StartT -> generate_replacement_vxml_internal(
-          [start_node(desugarer_blame(122)), ..already_ready],
+          [start_node(desugarer_blame(121)), ..already_ready],
           pattern_rest,
           match_data,
         )
 
         EndT -> generate_replacement_vxml_internal(
-          [end_node(desugarer_blame(128)), ..already_ready],
+          [end_node(desugarer_blame(127)), ..already_ready],
           pattern_rest,
           match_data,
         )
 
         Space -> generate_replacement_vxml_internal(
-          [space_node(desugarer_blame(134)), ..already_ready],
+          [space_node(desugarer_blame(133)), ..already_ready],
           pattern_rest,
           match_data,
         )
 
         Word(word) -> generate_replacement_vxml_internal(
-          [word_node(desugarer_blame(140), word), ..already_ready],
+          [word_node(desugarer_blame(139), word), ..already_ready],
           pattern_rest,
           match_data,
         )
@@ -354,7 +354,7 @@ fn start_node(blame: Blame) {
 }
 
 fn word_node(blame: Blame, word: String) {
-  V(blame, "__OneWord", [Attribute(desugarer_blame(358), "val", word)], [])
+  V(blame, "__OneWord", [Attribute(desugarer_blame(357), "val", word)], [])
 }
 
 fn space_node(blame: Blame) {
@@ -873,22 +873,22 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
 
   use unique_href_vars <- on.ok(
     collect_unique_href_vars(pattern1)
-    |> result.map_error(fn(var){ DesugaringError(desugarer_blame(875), "Source pattern " <> param.0 <>" has duplicate declaration of href variable: " <> ins(var) ) })
+    |> result.map_error(fn(var){ DesugaringError(desugarer_blame(876), "Source pattern " <> param.0 <>" has duplicate declaration of href variable: " <> ins(var) ) })
   )
 
   use unique_content_vars <- on.ok(
     collect_unique_content_vars(pattern1)
-    |> result.map_error(fn(var){ DesugaringError(desugarer_blame(880), "Source pattern " <> param.0 <>" has duplicate declaration of content variable: " <> ins(var)) })
+    |> result.map_error(fn(var){ DesugaringError(desugarer_blame(881), "Source pattern " <> param.0 <>" has duplicate declaration of content variable: " <> ins(var)) })
   )
 
   use _ <- on.ok(
     check_each_href_var_is_sourced(pattern2, unique_href_vars)
-    |> result.map_error(fn(var){ DesugaringError(desugarer_blame(885), "Target pattern " <> param.1 <> " has a declaration of unsourced href variable: " <> ins(var)) })
+    |> result.map_error(fn(var){ DesugaringError(desugarer_blame(886), "Target pattern " <> param.1 <> " has a declaration of unsourced href variable: " <> ins(var)) })
   )
 
   use _ <- on.ok(
     check_each_content_var_is_sourced(pattern2, unique_content_vars)
-    |> result.map_error(fn(var){ DesugaringError(desugarer_blame(890), "Target pattern " <> param.1 <> " has a declaration of unsourced content variable: " <> ins(var)) })
+    |> result.map_error(fn(var){ DesugaringError(desugarer_blame(891), "Target pattern " <> param.1 <> " has a declaration of unsourced content variable: " <> ins(var)) })
   )
 
   Ok(#(pattern1, pattern2))

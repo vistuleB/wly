@@ -1,4 +1,5 @@
 import gleam/option
+import gleam/list
 import gleam/string.{inspect as ins}
 import infrastructure.{
   type Desugarer,
@@ -15,7 +16,25 @@ import vxml.{
   Attribute,
   V,
 }
-import blame as bl
+
+fn map_attribute(
+  attr: Attribute,
+  inner: InnerParam,
+) -> Attribute {
+  case attr.key {
+    "handle" -> {
+      case attr.value |> string.split_once(" ") {
+        Ok(#(_, handle_value)) -> {
+          assert string.trim(handle_value) != ""
+          attr
+        }
+        _ ->
+          Attribute(..attr, value: attr.value <> " " <> inner.1)
+      }
+    }
+    _ -> attr
+  }
+}
 
 fn nodemap(
   vxml: VXML,
@@ -24,7 +43,7 @@ fn nodemap(
   case vxml {
     V(_, tag, attrs, _) if tag == inner.0 ->
       #(
-        V(..vxml, attributes: [inner.1, ..attrs]),
+        V(..vxml, attributes: list.map(attrs, map_attribute(_, inner))),
         inner.2,
       )
     _ -> #(vxml, Continue)
@@ -35,33 +54,32 @@ fn nodemap_factory(inner: InnerParam) -> n2t.EarlyReturnOneToOneNoErrorNodeMap {
   nodemap(_, inner)
 }
 
-fn transform_factory(inner: InnerParam) -> DesugarerTransform {
+fn transform_factory(
+  inner: InnerParam,
+) -> DesugarerTransform {
   nodemap_factory(inner)
   |> n2t.early_return_one_to_one_no_error_nodemap_2_desugarer_transform
 }
 
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
-  #(
-    param.0,
-    Attribute(desugarer_blame(46), param.1, param.2),
-    param.3,
-  )
-  |> Ok
+  Ok(param)
 }
 
-type Param = #(String, String, String, TrafficLight)
-//             ↖       ↖       ↖       ↖    
-//             tag     attr    value   return-early-or-not-after-finding-tag
-type InnerParam = #(String, Attribute, TrafficLight)
+type Param = #(String, String, TrafficLight)
+//             ↖       ↖       ↖
+//             tag     value   return-early-or-not
+type InnerParam = Param
 
-pub const name = "prepend_attribute"
-fn desugarer_blame(line_no: Int) {bl.Des([], name, line_no)}
+pub const name = "set_hand_value"
 
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 // 🏖️🏖️ Desugarer 🏖️🏖️
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 //------------------------------------------------53
-/// prepend to list of attributes of a given tag
+/// add a specific key-value pair to all tags of a
+/// given name and possibl early-return after
+/// attribute is added, depending on TrafficLight
+/// instructions
 pub fn constructor(param: Param) -> Desugarer {
   Desugarer(
     name: name,

@@ -132,6 +132,18 @@ fn truncate_with_suffix_or_pad(
   }
 }
 
+fn truncate_with_prefix_or_pad(
+  content: String,
+  desired_length: Int,
+  truncation_prefix: String,
+) -> String {
+  let l = string.length(content)
+  case l > desired_length {
+    True -> truncation_prefix <> string.drop_start(content, l - {desired_length - string.length(truncation_prefix)})
+    False -> content <> spaces(desired_length - l)
+  }
+}
+
 fn glue_columns_3(
   table_lines: List(#(String, String, String)),
   min_max_col1: #(Int, Int),
@@ -157,7 +169,7 @@ fn glue_columns_3(
     list.map(
       table_lines,
       fn (tuple) {
-        truncate_with_suffix_or_pad(tuple.0, col1_size, truncation_suffix_col1)
+        truncate_with_prefix_or_pad(tuple.0, col1_size, truncation_suffix_col1)
         <> truncate_with_suffix_or_pad(tuple.1, col2_size, truncation_suffix_col2)
         <> tuple.2
       }

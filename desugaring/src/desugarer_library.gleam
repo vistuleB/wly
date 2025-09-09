@@ -23,7 +23,6 @@ import desugarers/append_class_to_child_if_is_not_one_of
 import desugarers/append_class_to_child_if_is_one_of
 import desugarers/append_class_to_children_with_class
 import desugarers/append_class_to_children_with_tag
-import desugarers/associate_counter_by_prepending_incrementing_attribute
 import desugarers/auto_generate_child_if_missing_from_attribute
 import desugarers/auto_generate_child_if_missing_from_attribute__outside
 import desugarers/auto_generate_child_if_missing_from_first_descendant_of_type
@@ -101,6 +100,7 @@ import desugarers/pair
 import desugarers/pair_list_list
 import desugarers/prepend_append_to_text_children_of
 import desugarers/prepend_attribute
+import desugarers/prepend_attribute__outside
 import desugarers/prepend_attribute_as_text
 import desugarers/prepend_counter_incrementing_attribute
 import desugarers/prepend_counter_incrementing_attribute__outside
@@ -129,6 +129,8 @@ import desugarers/rename_with_class
 import desugarers/replace_in_attribute_values
 import desugarers/replace_multiple_spaces_by_one
 import desugarers/replace_with_arbitrary
+import desugarers/set_handle_value
+import desugarers/set_handle_value__outside
 import desugarers/set_handle_value_if_has_ancestor_else
 import desugarers/split_first_line_after_prefix
 import desugarers/split_last_line_before_suffix
@@ -199,7 +201,6 @@ pub const append_class_to_child_if_is_not_one_of = append_class_to_child_if_is_n
 pub const append_class_to_child_if_is_one_of = append_class_to_child_if_is_one_of.constructor
 pub const append_class_to_children_with_class = append_class_to_children_with_class.constructor
 pub const append_class_to_children_with_tag = append_class_to_children_with_tag.constructor
-pub const associate_counter_by_prepending_incrementing_attribute = associate_counter_by_prepending_incrementing_attribute.constructor
 pub const auto_generate_child_if_missing_from_attribute = auto_generate_child_if_missing_from_attribute.constructor
 pub const auto_generate_child_if_missing_from_attribute__outside = auto_generate_child_if_missing_from_attribute__outside.constructor
 pub const auto_generate_child_if_missing_from_first_descendant_of_type = auto_generate_child_if_missing_from_first_descendant_of_type.constructor
@@ -277,6 +278,7 @@ pub const pair = pair.constructor
 pub const pair_list_list = pair_list_list.constructor
 pub const prepend_append_to_text_children_of = prepend_append_to_text_children_of.constructor
 pub const prepend_attribute = prepend_attribute.constructor
+pub const prepend_attribute__outside = prepend_attribute__outside.constructor
 pub const prepend_attribute_as_text = prepend_attribute_as_text.constructor
 pub const prepend_counter_incrementing_attribute = prepend_counter_incrementing_attribute.constructor
 pub const prepend_counter_incrementing_attribute__outside = prepend_counter_incrementing_attribute__outside.constructor
@@ -305,6 +307,8 @@ pub const rename_with_class = rename_with_class.constructor
 pub const replace_in_attribute_values = replace_in_attribute_values.constructor
 pub const replace_multiple_spaces_by_one = replace_multiple_spaces_by_one.constructor
 pub const replace_with_arbitrary = replace_with_arbitrary.constructor
+pub const set_handle_value = set_handle_value.constructor
+pub const set_handle_value__outside = set_handle_value__outside.constructor
 pub const set_handle_value_if_has_ancestor_else = set_handle_value_if_has_ancestor_else.constructor
 pub const split_first_line_after_prefix = split_first_line_after_prefix.constructor
 pub const split_last_line_before_suffix = split_last_line_before_suffix.constructor
@@ -376,7 +380,6 @@ pub const assertive_tests : List(fn() -> infra.AssertiveTestCollection) = [
   append_class_to_child_if_is_one_of.assertive_tests,
   append_class_to_children_with_class.assertive_tests,
   append_class_to_children_with_tag.assertive_tests,
-  associate_counter_by_prepending_incrementing_attribute.assertive_tests,
   auto_generate_child_if_missing_from_attribute.assertive_tests,
   auto_generate_child_if_missing_from_attribute__outside.assertive_tests,
   auto_generate_child_if_missing_from_first_descendant_of_type.assertive_tests,
@@ -454,6 +457,7 @@ pub const assertive_tests : List(fn() -> infra.AssertiveTestCollection) = [
   pair_list_list.assertive_tests,
   prepend_append_to_text_children_of.assertive_tests,
   prepend_attribute.assertive_tests,
+  prepend_attribute__outside.assertive_tests,
   prepend_attribute_as_text.assertive_tests,
   prepend_counter_incrementing_attribute.assertive_tests,
   prepend_counter_incrementing_attribute__outside.assertive_tests,
@@ -482,6 +486,8 @@ pub const assertive_tests : List(fn() -> infra.AssertiveTestCollection) = [
   replace_in_attribute_values.assertive_tests,
   replace_multiple_spaces_by_one.assertive_tests,
   replace_with_arbitrary.assertive_tests,
+  set_handle_value.assertive_tests,
+  set_handle_value__outside.assertive_tests,
   set_handle_value_if_has_ancestor_else.assertive_tests,
   split_first_line_after_prefix.assertive_tests,
   split_last_line_before_suffix.assertive_tests,

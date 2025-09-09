@@ -120,7 +120,7 @@ fn nodemap(
             "pre",
             attrs
             |> infra.attributes_delete("language")
-            |> infra.append_to_class_attribute(desugarer_blame(127), "python-prompt"),
+            |> infra.append_to_class_attribute(desugarer_blame(123), "python-prompt"),
             children,
           )
         }

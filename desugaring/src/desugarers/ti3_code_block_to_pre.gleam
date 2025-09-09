@@ -46,16 +46,16 @@ fn nodemap(
       )
 
       let class = case listing {
-        True -> [vxml.Attribute(desugarer_blame(34), "class", "listing")]
+        True -> [vxml.Attribute(desugarer_blame(49), "class", "listing")]
         False -> []
       }
       
       let style = case line_no {
-        Some(line_no) -> [vxml.Attribute(desugarer_blame(34), "style", "counter-set:listing " <> line_no)]
+        Some(line_no) -> [vxml.Attribute(desugarer_blame(54), "style", "counter-set:listing " <> line_no)]
         None -> []
       }
 
-      let language = [vxml.Attribute(desugarer_blame(35), "language", language)]
+      let language = [vxml.Attribute(desugarer_blame(58), "language", language)]
       
       V(
         ..vxml,

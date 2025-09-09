@@ -41,14 +41,16 @@ pub fn string_to_input_lines(
   string.split(source, "\n")
   |> list.index_map(
     fn (s, i) {
-      let suffix = string.trim_start(s)
+      let suffix =
+        string.trim_start(s)
+        |> string.replace("\r", "")
       let indent = len(s) - len(suffix)
       InputLine(
         blame: bl.Src(
           comments: [],
           path: path,
           line_no: i + 1,
-          char_no: indent,
+          char_no: indent + 1, // ...to match VSCode numbering
         ),
         indent: indent + added_indentation,
         suffix: suffix,

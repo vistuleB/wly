@@ -1,3 +1,4 @@
+import gleam/io
 import gleam/int
 import gleam/list
 import gleam/option.{type Option, None, Some}
@@ -8,6 +9,7 @@ import blame.{type Blame, Src, prepend_comment as pc} as bl
 import io_lines.{type InputLine, InputLine, type OutputLine, OutputLine} as io_l
 import simplifile
 import xmlm
+import xml_streamer as xs
 import on
 
 pub const ampersand_replacer_pattern = "&(?!(?:[a-z]{2,6};|#\\d{2,4};))"
@@ -1447,11 +1449,6 @@ pub fn parse_file(
 // XMLM parser
 // ************************************************************
 
-pub type XMLMParseError {
-  XMLMIOError(String)
-  XMLMParseError(String)
-}
-
 fn xmlm_attribute_to_vxml_attributes(
   filename: String,
   line_no: Int,
@@ -1464,24 +1461,22 @@ fn xmlm_attribute_to_vxml_attributes(
 pub fn xmlm_based_html_parser(
   content: String,
   filename: String,
-) -> Result(VXML, XMLMParseError) {
+) -> Result(VXML, xmlm.InputError) {
   // some preliminary cleanup that avoids complaints
   // from the xmlm parser:
+  let content = string.replace(content, "\r\n", "\n")
   let content = string.replace(content, "async ", "async=\"\"")
   let content = string.replace(content, "async\n", "async=\"\"\n")
+  let content = string.replace(content, "& ", "&amp;")
+  let content = string.replace(content, "&\n", "&amp;\n")
+  let content = string.replace(content, " &", "&amp;")
   let content = string.replace(content, "\\,<", "\\,&lt;")
   let content = string.replace(content, " < ", " &lt; ")
   let content = string.replace(content, "\\rt{0.1}<", "\\rt{0.1}&lt;")
-  let content = string.replace(content, "& ", "&amp;")
-  let content = string.replace(content, "&\n", "&amp;\n")
-  let content = string.replace(content, "\r\n", "\n")
-  let content = string.replace(content, " &", "&amp;")
-  let content = string.replace(content, "{", "&#123;")
-  let content = string.replace(content, "}", "&#125;")
-  let content = string.replace(content, "|", "&#124;")
 
   // close img tags
-  let assert Ok(re) = regexp.from_string("(<img)(\\b(?![^>]*\\/\\s*>)[^>]*)(>)")
+  // let assert Ok(re) = regexp.from_string("(<img)(\\b(?![^>]*/\\s*>)[^>]*)(>)") // (old complicated regex... simplified Sep 2025)
+  let assert Ok(re) = regexp.from_string("(<img)(\\b[^>]*[^\\/])(>)")
   let content =
     regexp.match_map(re, content, fn(match) {
       let regexp.Match(_, sub) = match
@@ -1500,10 +1495,6 @@ pub fn xmlm_based_html_parser(
       regexp.replace(re, content_str, "</" <> tag <> ">")
     })
 
-  // content
-  // |> string.split("\n")
-  // |> list.each(io.println)
-
   let input = xmlm.from_string(content)
 
   // **********
@@ -1516,7 +1507,7 @@ pub fn xmlm_based_html_parser(
   // //   Ok(#(signals, _)) -> {
   // //     list.each(
   // //       signals,
-  // //       fn(signal) {io.println(signal |> xmlm.signal_to_string)}
+  // //       fn(signal) { io.println(signal |> xmlm.signal_to_string) }
   // //     )
   // //   }
   // //   Error(input_error) -> {
@@ -1547,11 +1538,658 @@ pub fn xmlm_based_html_parser(
       },
     )
   {
-    Ok(#(_, vxml, _)) -> {
-      vxml |> Ok
-    }
-    Error(input_error) -> {
-      input_error |> ins |> XMLMParseError |> Error
+    Ok(#(_, vxml, _)) -> Ok(vxml)
+    Error(input_error) -> Error(input_error)
+  }
+}
+
+// ************************************************************
+// XML streaming-based parser
+// ************************************************************
+
+pub type XMLStreamingParserLogicalUnit {
+  XMLStreamingParserText(List(TextLine))
+  XMLStreamingParserOpeningTag(Blame, String, List(Attribute))
+  XMLStreamingParserSelfClosingTag(Blame, String, List(Attribute))
+  XMLStreamingParserXMLVersion(Blame, String, List(Attribute))
+  XMLStreamingParserDoctype(Blame, String, List(Attribute), Bool)
+  XMLStreamingParserClosingTag(Blame, String)
+  XMLStreamingParserComment(List(TextLine))
+}
+
+fn take_while_text_or_newline_acc(
+  previous: List(xs.Event),
+  remaining: List(xs.Event),
+) -> #(List(xs.Event), List(xs.Event)) {
+  // returns reversed list on purpose!!!
+  case remaining {
+    [] -> #(previous, [])
+    [first, ..rest] -> case first {
+      xs.Text(_, _) | xs.Newline(_) -> 
+        take_while_text_or_newline_acc(
+          [first, ..previous],
+          rest,
+        )
+      _ -> #(previous, remaining)
     }
   }
+}
+
+fn take_while_text_or_newline(
+  events: List(xs.Event)
+) -> #(List(xs.Event), List(xs.Event)) {
+  // returns reversed list on purpose!!!
+  take_while_text_or_newline_acc([], events)
+}
+
+type Return(a, b) {
+  Return(a)
+  Passthrough(b)
+}
+
+fn on_passthrough(
+  thing: Return(a, b),
+  f: fn(b) -> a,
+) -> a {
+  case thing {
+    Return(a) -> a
+    Passthrough(b) -> f(b)
+  }
+}
+
+type TriWay {
+  NoMoreEvents
+  TagEnd(xs.Event, List(xs.Event))
+  SomethingElse(xs.Event, List(xs.Event), Bool)
+}
+
+fn tri_way(
+  events: List(xs.Event),
+) -> TriWay {
+  case events {
+    [] -> NoMoreEvents
+    [first, ..rest] -> {
+      case first {
+        xs.TagEndOrdinary(_) -> TagEnd(first, rest)
+        xs.TagEndSelfClosing(_) -> TagEnd(first, rest)
+        xs.TagEndXMLVersion(_) -> TagEnd(first, rest)
+        xs.InTagSpaces(_, _) | xs.Newline(_) -> case tri_way(rest) {
+          SomethingElse(first, rest, _) ->
+            SomethingElse(first, rest, True)
+          x -> x
+        }
+        _ -> SomethingElse(first, rest, False)
+      }
+    }
+  }
+}
+
+fn get_attributes_and_tag_end(
+  tag_start: xs.Event,
+  rest: List(xs.Event),
+) -> Result(
+  #(List(Attribute), xs.Event, List(xs.Event)), 
+  #(Blame, String),
+) {
+  let prepend_attribute_if_ok = fn(
+    result: Result(#(List(Attribute), xs.Event, List(xs.Event)), #(Blame, String)),
+    attr: Attribute
+  ) {
+    case result {
+      Error(e) -> Error(e)
+      Ok(#(attrs, end, rest)) -> Ok(#([attr, ..attrs], end, rest))
+    }
+  }
+
+  use #(first, rest) <- on_passthrough(
+    case tri_way(rest) {
+      TagEnd(tag_end, rest) ->
+        Return(Ok(#([], tag_end, rest)))
+
+      NoMoreEvents ->
+        Return(Error(#(tag_start.blame, "ran out of events while waiting for end of tag")))
+
+      SomethingElse(first, rest, _) ->
+        Passthrough(#(first, rest))
+    }
+  )
+
+  use #(key_blame, key_name) <- on.ok(
+    case first {
+      xs.Key(b, k) -> Ok(#(b, k))
+      _ -> Error(#(
+        first.blame,
+        "expecting tag end or valid key after tag name; tag_start" <> xs.event_digest(tag_start) <> "; had " <> xs.event_digest(first) <> " instead",
+      ))
+    }
+  )
+
+  // we accept a solitary key, or solitary key with '='
+  // (e.g. 'async' or 'async=') as an assignment to the
+  // empty string; but if the '=' is not followed by a 
+  // space or by tag end then whatever follows the '='
+  // will only be considered as a possible attribute value,
+  // and not as a possible next key (while considering the
+  // current assignment as empty)
+  let proto = Attribute(key_blame, key_name, "")
+
+  use #(second, rest) <- on_passthrough(
+    case tri_way(rest) {
+      TagEnd(tag_end, rest) ->
+        Return(Ok(#([proto], tag_end, rest)))
+
+      NoMoreEvents ->
+        Return(Error(#(tag_start.blame, "ran out of events while waiting for end of tag")))
+
+      SomethingElse(second, rest, _) ->
+        Passthrough(#(second, rest))
+    }
+  )
+
+  use _ <- on_passthrough(
+    case second {
+      xs.Assignment(_) -> Passthrough(Nil)
+      _ -> Return(
+        // if the key wasn't followed by '=' then it can only
+        // be followed by spaces or by tag end, and either way
+        // (tag end or spaces and no '=') it is fine for us to
+        // keep attributes parsing from scratch:
+        get_attributes_and_tag_end(tag_start, [second, ..rest])
+        |> prepend_attribute_if_ok(proto)
+      )
+    }
+  )
+
+  // 'key=' or 'key  ='
+
+  use #(third, rest, had_spaces) <- on_passthrough(
+    case tri_way(rest) {
+      TagEnd(tag_end, rest) ->
+        Return(Ok(#([proto], tag_end, rest)))
+
+      NoMoreEvents ->
+        Return(Error(#(tag_start.blame, "ran out of events while waiting for end of tag")))
+
+      SomethingElse(third, rest, had_spaces) ->
+        Passthrough(#(third, rest, had_spaces))
+    }
+  )
+
+  case third {
+    xs.ValueDoubleQuoted(_, value) | xs.ValueSingleQuoted(_, value) -> {
+      get_attributes_and_tag_end(tag_start, rest)
+      |> prepend_attribute_if_ok(Attribute(..proto, value: value))
+    }
+
+    xs.ValueMalformed(blame, value) ->
+      Error(#(blame, "malformed attribute value: " <> value))
+
+    _ -> {
+      case get_attributes_and_tag_end(tag_start, rest) {
+        Error(e) -> Error(e)
+        Ok(#(attrs, end, rest)) -> case had_spaces, attrs {
+          False, [some, ..] ->
+            Error(#(some.blame, "expecting attribute value after '='"))
+          _, _ ->
+            Ok(#([proto, ..attrs], end, rest))
+        }
+      }
+    }
+  }
+}
+
+fn reach_end_of_comments(
+  comment_start: xs.Event,
+  rest: List(xs.Event),
+) -> Result(#(List(xs.Event), List(xs.Event)), #(Blame, String)) {
+  case rest {
+    [xs.CommentEndSequence(_), ..rest] -> {
+      Ok(#([], rest))
+    }
+    [xs.CommentContents(_, _) as first, ..rest] -> {
+      use #(before, after) <- on.ok(reach_end_of_comments(comment_start, rest))
+      Ok(#([first, ..before], after))
+    }
+    [xs.Newline(_), ..rest] -> {
+      // just ignore it:
+      reach_end_of_comments(comment_start, rest)
+    }
+    [] -> {
+      Error(#(comment_start.blame, "unclosed comment"))
+    }
+    [some, ..] -> {
+      let msg = "non-comment Event after comment start; start: " <> bl.blame_digest(comment_start.blame) <> "; Event: " <> xs.event_digest(some)
+      panic as msg
+    }
+  } 
+}
+
+fn xml_streaming_get_next_logical_unit(
+  events: List(xs.Event)
+) -> Result(#(XMLStreamingParserLogicalUnit, List(xs.Event)), #(Blame, String)) {
+  let assert [first, ..rest] = events
+
+  // io.println("first: " <> xs.event_digest(first))
+
+  case first {
+    // XMLStreamingParserText
+    xs.Text(_, _) | xs.Newline(_) -> {
+      let #(guys, remaining) = take_while_text_or_newline(events)
+      let assert [last, ..] = guys
+      let guys = case last {
+        xs.Newline(b) -> [xs.Text(b, ""), ..guys]
+        _ -> guys
+      }
+      let guys = guys |> list.reverse
+      let guys = case first {
+        xs.Newline(b) -> [xs.Text(b, ""), ..guys]
+        _ -> guys
+      }
+      let lines = list.map(
+        guys,
+        fn(x) { case x {
+          xs.Newline(_) -> None
+          xs.Text(b, c) -> Some(TextLine(b, c))
+          _ -> panic
+        }}
+      )
+      |> option.values
+      Ok(#(XMLStreamingParserText(lines), remaining))
+    }
+
+    // construction of: 
+    //   - XMLStreamingParserOpeningTag
+    //   - XMLStreamingParserSelfClosingTag
+    xs.TagStartOrdinary(blame, tag) -> {
+      use #(attributes, end, remaining) <- on.ok(get_attributes_and_tag_end(first, rest))
+      case end {
+        xs.TagEndOrdinary(_) ->
+          Ok(#(XMLStreamingParserOpeningTag(blame, tag, attributes), remaining))
+        xs.TagEndSelfClosing(_) ->
+          Ok(#(XMLStreamingParserSelfClosingTag(blame, tag, attributes), remaining))
+        xs.TagEndXMLVersion(b) ->
+          Error(#(b, "unexpected '?>' tag ending"))
+        _ -> panic
+      }
+    }
+
+    // construction of XMLStreamingParserXMLVersion
+    xs.TagStartXMLVersion(blame, tag) -> {
+      assert tag == "xml" || tag == "XML"
+      use #(attributes, end, remaining) <- on.ok(get_attributes_and_tag_end(first, rest))
+      case end {
+        xs.TagEndXMLVersion(_) -> 
+          Ok(#(XMLStreamingParserXMLVersion(blame, tag, attributes), remaining))
+        xs.TagEndOrdinary(b) -> 
+          Error(#(b, "expecting '?>' tag ending"))
+        xs.TagEndSelfClosing(b) ->
+          Error(#(b, "expecting '?>' tag ending"))
+        _ -> panic
+      }
+    }
+
+    // construction of XMLStreamingParserDoctype
+    xs.TagStartDoctype(blame, tag) -> {
+      use #(attributes, end, remaining) <- on.ok(get_attributes_and_tag_end(first, rest))
+      case end {
+        xs.TagEndOrdinary(_) ->
+          Ok(#(XMLStreamingParserDoctype(blame, tag, attributes, False), remaining))
+        xs.TagEndSelfClosing(_) ->
+          Ok(#(XMLStreamingParserDoctype(blame, tag, attributes, True), remaining))
+        xs.TagEndXMLVersion(b) ->
+          Error(#(b, "unexpected '?>' tag ending"))
+        _ -> panic
+      }
+    }
+
+    // construction of XMLStreamingParserClosingTag
+    xs.TagStartClosing(blame, tag) -> {
+      use #(attributes, end, remaining) <- on.ok(get_attributes_and_tag_end(first, rest))
+      use <- on.nonempty_empty(
+        attributes,
+        fn(_, _) { Error(#(blame, "attributes in closing tag")) }
+      )
+      case end {
+        xs.TagEndOrdinary(_) ->
+          Ok(#(XMLStreamingParserClosingTag(blame, tag), remaining))
+        xs.TagEndSelfClosing(b) ->
+          Error(#(b, "unexpected '/>' in closing tag"))
+        xs.TagEndXMLVersion(b) ->
+          Error(#(b, "unexpected '?>' in closing tag"))
+        _ -> panic
+      }
+    }
+
+    // construction of XMLS
+    xs.CommentStartSequence(_) -> {
+      use #(events, remaining) <- on.ok(reach_end_of_comments(first, rest))
+      let lines = list.map(events, fn(e) {
+        let assert xs.CommentContents(b, l) = e
+        TextLine(b, l)
+      })
+      Ok(#(XMLStreamingParserComment(lines), remaining))
+    }
+
+    // ...this completes everything we can construct!
+    // ...everything else is out of place!
+
+    _ -> {
+      let msg = "inner tag content (?) when ostensibly out-of-tag: " <> ins(first)
+      panic as msg
+    }
+  }
+}
+
+fn xml_streaming_logical_units_acc(
+  remaining: List(xs.Event),
+  acc: List(XMLStreamingParserLogicalUnit),
+) -> Result(List(XMLStreamingParserLogicalUnit), #(Blame, String)) {
+  case remaining {
+    [] -> acc |> list.reverse |> Ok
+    _ -> case xml_streaming_get_next_logical_unit(remaining) {
+      Error(error) -> Error(error)
+      Ok(#(unit, remaining)) ->
+        xml_streaming_logical_units_acc(
+          remaining,
+          [unit, ..acc],
+        )
+    }
+  }
+}
+
+pub fn xml_streaming_logical_units(
+  events: List(xs.Event)
+) -> Result(List(XMLStreamingParserLogicalUnit), #(Blame, String)) {
+  xml_streaming_logical_units_acc(events, [])
+}
+
+fn list_of_digest(
+  l: List(a),
+  d: fn(a) -> String
+) -> String {
+  "[" <> { list.map(l, d) |> string.join(", ") } <> "]"
+}
+
+fn attribute_digest(
+  attr: Attribute
+) -> String {
+  attr.key <> "=" <> attr.value
+}
+
+fn attributes_digest(
+  attrs: List(Attribute)
+) -> String {
+  list_of_digest(attrs, attribute_digest)
+}
+
+pub fn lines_digest(
+  lines: List(TextLine)
+) -> String {
+  list_of_digest(lines, fn(l) { ins(l.content) })
+}
+
+pub fn unit_digest(
+  unit: XMLStreamingParserLogicalUnit
+) -> String {
+  case unit {
+    XMLStreamingParserText(lines) ->
+      "Text(" <> lines_digest(lines) <> ")"
+
+    XMLStreamingParserOpeningTag(_, tag, attrs) ->
+      "OpeningTag(" <> tag <> ", " <> attributes_digest(attrs) <> ")"
+
+    XMLStreamingParserSelfClosingTag(_, tag, attrs) ->
+      "SelfClosingTag(" <> tag <> ", " <> attributes_digest(attrs) <> ")"
+
+    XMLStreamingParserXMLVersion(_, tag, attrs) ->
+      "XMLVersion(" <> tag <> ", " <> attributes_digest(attrs) <> ")"
+
+    XMLStreamingParserDoctype(_, tag, attrs, _) ->
+      "Doctype(" <> tag <> ", " <> attributes_digest(attrs) <> ")"
+
+    XMLStreamingParserClosingTag(_, tag) ->
+      "ClosingTag(" <> tag <> ")"
+
+    XMLStreamingParserComment(lines) ->
+      "Comment(" <> lines_digest(lines) <> ")"
+  }
+}
+
+pub fn units_digest(
+  units: List(XMLStreamingParserLogicalUnit),
+) -> String {
+  list_of_digest(units, unit_digest)
+}
+
+fn v_digest(
+  node: VXML
+) -> String {
+  let assert V(bl, tag, attrs, children) = node
+  "V(" <>
+  { bl.blame_digest(bl) } <>
+  ", " <> tag <>
+  ", " <> attributes_digest(attrs) <>
+  ", " <> "[" <>
+  case children {
+    [_] -> "1 child]"
+    _ -> ins(list.length(children)) <> " children]"
+  }
+  <> ")"
+}
+
+fn vxmls_from_streaming_logical_units_acc(
+  units: List(XMLStreamingParserLogicalUnit),
+  stack: List(VXML),
+  previously_completed: List(VXML),
+  filter_out_doctype_nodes: Bool,
+  filter_out_root_level_text: Bool,
+) -> Result(List(VXML), #(Blame, String)) {
+  case units {
+    [] -> {
+      case stack {
+        [] -> Ok(previously_completed |> list.reverse)
+        [last, ..] -> {
+          let assert V(blame, tag, _, _) = last
+          list.each(
+            stack,
+            fn(s) {
+              io.println(v_digest(s))
+            }
+          )
+          Error(#(blame, "unclosed '" <> tag <> "' at end of document"))
+        }
+      }
+    }
+
+    [first, ..rest] -> {
+      case first {
+        XMLStreamingParserDoctype(b, tag, attrs, _) -> {
+          let v = V(b, tag, attrs, [])
+          case stack {
+            [] -> vxmls_from_streaming_logical_units_acc(
+              rest,
+              [],
+              case filter_out_doctype_nodes {
+                True -> previously_completed
+                False -> [v, ..previously_completed]
+              },
+              filter_out_doctype_nodes,
+              filter_out_root_level_text,
+            )
+            _ -> Error(#(b, "found !DOCTYPE node at non-root level"))
+          }
+        }
+
+        XMLStreamingParserXMLVersion(b, tag, attrs) -> {
+          let v = V(b, tag, attrs, [])
+          case stack {
+            [] -> vxmls_from_streaming_logical_units_acc(
+              rest,
+              [],
+              case filter_out_doctype_nodes {
+                True -> previously_completed
+                False -> [v, ..previously_completed]
+              },
+              filter_out_doctype_nodes,
+              filter_out_root_level_text,
+            )
+            _ -> Error(#(b, "found XML version-node at non-root level"))
+          }
+        }
+
+        XMLStreamingParserOpeningTag(b, tag, attrs) -> {
+          let v = V(b, tag, attrs, [])
+          vxmls_from_streaming_logical_units_acc(
+            rest,
+            [v, ..stack],
+            previously_completed,
+            filter_out_doctype_nodes,
+            filter_out_root_level_text,
+          )
+        }
+
+        XMLStreamingParserText(lines) -> {
+          let assert [first_line, ..] = lines
+          let t = T(first_line.blame, lines)
+          let #(stack, previously_completed) = case stack {
+            [last, ..others] -> {
+              let assert V(_, _, _, _) = last
+              let last = V(..last, children: [t, ..last.children])
+              #([last, ..others], previously_completed)
+            }
+            _ -> case filter_out_root_level_text {
+              True -> #(stack, previously_completed)
+              False -> #(stack, [t, ..previously_completed])
+            }
+          }
+          vxmls_from_streaming_logical_units_acc(
+            rest,
+            stack,
+            previously_completed,
+            filter_out_doctype_nodes,
+            filter_out_root_level_text,
+          )
+        }
+
+        XMLStreamingParserComment(_) -> {
+          vxmls_from_streaming_logical_units_acc(
+            rest,
+            stack,
+            previously_completed,
+            filter_out_doctype_nodes,
+            filter_out_root_level_text,
+          )
+        }
+
+        XMLStreamingParserClosingTag(b, tag) -> {
+          case stack {
+            [] -> Error(#(b, "closing '</" <> tag <> ">' on empty stack"))
+            [last, ..others] -> {
+              let assert V(_, last_tag, _, _) = last
+              case last_tag == tag {
+                False -> Error(#(b, "expected closing '" <> last_tag <> "' tag, found '" <> tag <> "' instead"))
+                True -> {
+                  let last = V(
+                    ..last,
+                    children: last.children |> list.reverse,
+                  )
+                  case others {
+                    [] -> vxmls_from_streaming_logical_units_acc(
+                      rest,
+                      [],
+                      [last, ..previously_completed],
+                      filter_out_doctype_nodes,
+                      filter_out_root_level_text,
+                    )
+                    [parent, ..older] -> {
+                      let assert V(_, _, _, _) = parent
+                      let parent = V(..parent, children: [last, ..parent.children])
+                      vxmls_from_streaming_logical_units_acc(
+                        rest,
+                        [parent, ..older],
+                        [],
+                        filter_out_doctype_nodes,
+                        filter_out_root_level_text,
+                      )
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+
+        XMLStreamingParserSelfClosingTag(b, tag, attrs) -> {
+          let v = V(b, tag, attrs, [])
+          case stack {
+            [last, ..others] -> {
+              let assert V(_, _, _, _) = last
+              let last = V(..last, children: [v, ..last.children])
+              vxmls_from_streaming_logical_units_acc(
+                rest,
+                [last, ..others],
+                previously_completed,
+                filter_out_doctype_nodes,
+                filter_out_root_level_text,
+              )
+            }
+            [] -> {
+              vxmls_from_streaming_logical_units_acc(
+                rest,
+                [],
+                [v, ..previously_completed],
+                filter_out_doctype_nodes,
+                filter_out_root_level_text,
+              )
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+fn vxmls_from_streaming_logical_units(
+  units: List(XMLStreamingParserLogicalUnit),
+  filter_out_doctype_nodes: Bool,
+  filter_out_root_level_text: Bool,
+) -> Result(List(VXML), #(Blame, String)) {
+  vxmls_from_streaming_logical_units_acc(
+    units,
+    [],
+    [],
+    filter_out_doctype_nodes,
+    filter_out_root_level_text,
+  )
+}
+
+pub fn vxml_from_streaming_logical_units(
+  units: List(XMLStreamingParserLogicalUnit)
+) -> Result(VXML, #(Blame, String)) {
+  use vxmls <- on.ok(vxmls_from_streaming_logical_units(units, True, True))
+  case vxmls {
+    [] -> Error(#(bl.no_blame, "empty document (?)"))
+    [one] -> Ok(one)
+    [_, second, ..] -> {
+      Error(#(second.blame, "found >1 root-level nodes"))
+    }
+  }
+}
+
+pub fn streaming_based_xml_parser(
+  lines: List(InputLine),
+) -> Result(VXML, #(Blame, String)) {
+  lines
+  |> xs.input_lines_streamer
+  |> xml_streaming_logical_units
+  |> on.ok(vxml_from_streaming_logical_units)
+}
+
+pub fn streaming_based_xml_parser_string_version(
+  content: String,
+  filename: String,
+) -> Result(VXML, #(Blame, String)) {
+  content
+  |> io_l.string_to_input_lines(filename, 0)
+  |> streaming_based_xml_parser
 }

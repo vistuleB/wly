@@ -42,7 +42,7 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
   |> list.map(fn(triple) { 
     #(
       triple.0, 
-      #(Attribute(desugarer_blame(0), ".", triple.1 <> " ::++" <> triple.1), triple.2)
+      #(Attribute(desugarer_blame(45), ".", triple.1 <> " ::++" <> triple.1), triple.2)
     ) 
   })
   |> infra.dict_from_list_with_desugaring_error

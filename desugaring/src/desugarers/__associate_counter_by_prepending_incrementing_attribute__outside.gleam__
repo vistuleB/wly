@@ -65,7 +65,7 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
     param.0,
     param.1,
     Attribute(
-      desugarer_blame(61),
+      desugarer_blame(68),
       ".",
       "::++" <> param.1,
     ),
