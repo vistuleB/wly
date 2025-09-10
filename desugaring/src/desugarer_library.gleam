@@ -66,6 +66,7 @@ import desugarers/find_replace_in_descendants_of__batch
 import desugarers/fix_ti2_local_links
 import desugarers/fold_contents_into_text
 import desugarers/fold_contents_into_text__batch
+import desugarers/fold_custom_into_text
 import desugarers/fold_into_text
 import desugarers/fold_into_text__batch
 import desugarers/free_children
@@ -245,6 +246,7 @@ pub const find_replace_in_descendants_of__batch = find_replace_in_descendants_of
 pub const fix_ti2_local_links = fix_ti2_local_links.constructor
 pub const fold_contents_into_text = fold_contents_into_text.constructor
 pub const fold_contents_into_text__batch = fold_contents_into_text__batch.constructor
+pub const fold_custom_into_text = fold_custom_into_text.constructor
 pub const fold_into_text = fold_into_text.constructor
 pub const fold_into_text__batch = fold_into_text__batch.constructor
 pub const free_children = free_children.constructor
@@ -425,6 +427,7 @@ pub const assertive_tests : List(fn() -> infra.AssertiveTestCollection) = [
   fix_ti2_local_links.assertive_tests,
   fold_contents_into_text.assertive_tests,
   fold_contents_into_text__batch.assertive_tests,
+  fold_custom_into_text.assertive_tests,
   fold_into_text.assertive_tests,
   fold_into_text__batch.assertive_tests,
   free_children.assertive_tests,

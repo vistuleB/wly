@@ -483,6 +483,7 @@ pub type CommandLineAmendments {
     only_key_values: List(#(String, String, String)),
     prettier: Option(PrettifierMode),
     track: Option(PipelineTrackingModifier),
+    peek: Option(List(Int)),
     table: Option(Bool),
     echo_assembled: Bool,
     vxml_fragments_local_paths_to_echo: Option(List(String)),
@@ -505,6 +506,7 @@ pub fn empty_command_line_amendments() -> CommandLineAmendments {
     output_dir: None,
     echo_assembled: False,
     track: None,
+    peek: None,
     vxml_fragments_local_paths_to_echo: None,
     output_lines_fragments_local_paths_to_echo: None,
     printed_string_fragments_local_paths_to_echo: None,
@@ -539,6 +541,11 @@ pub fn basic_cli_usage() {
   io.println(margin <> "--table")
   io.println(margin <> "  -> include a printout of the pipeline table in the rendering")
   io.println(margin <> "     output")
+  io.println("")
+  io.println(margin <> "--peek <step numbers>")
+  io.println(margin <> "  -> show entire document at given pipeline step numbers; leave")
+  io.println(margin <> "     step numbers empty to output document at all steps; use")
+  io.println(margin <> "     negative indices to indicate steps from end of document")
   io.println("")
   io.println(margin <> "--track <string> +<p>-<m> [<step numbers>]")
   io.println(margin <> "  -> track changes near the document fragment given by <string>,")
@@ -690,7 +697,7 @@ pub fn process_command_line_arguments(
         }
 
         "--track-steps" -> {
-          use pipeline_mod <- on.ok(parse_show_change_at_steps_args(values))
+          use pipeline_mod <- on.ok(parse_track_steps_args(values))
           Ok(
             CommandLineAmendments(
               ..amendments,
@@ -699,6 +706,13 @@ pub fn process_command_line_arguments(
                 pipeline_mod,
               )),
             ),
+          )
+        }
+
+        "--peek" -> {
+          use numbers <- on.ok(parse_peek_args(values))
+          Ok(
+            CommandLineAmendments(..amendments, peek: Some(numbers))
           )
         }
 
@@ -802,14 +816,19 @@ fn amend_only_args(
 ) -> CommandLineAmendments {
   CommandLineAmendments(
     ..amendments,
-    only_key_values: list.append(amendments.only_key_values, args),
+    only_key_values: list.append(
+      amendments.only_key_values,
+      args
+      |> list.filter(fn(a) {a.1 != "" || a.2 != ""})
+    ),
     only_paths: list.append(
       amendments.only_paths,
       args
         |> list.map(fn(a) {
           let #(path, _, _) = a
           path
-        }),
+        })
+        |> list.filter(fn(p){p != ""})
     ),
   )
 }
@@ -1002,7 +1021,7 @@ fn parse_track_args(
   ))
 }
 
-fn parse_show_change_at_steps_args(
+fn parse_track_steps_args(
   values: List(String),
 ) -> Result(PipelineTrackingModifier, CommandLineError) {
   use #(restrict, force) <- on.ok(
@@ -1037,6 +1056,15 @@ fn join_pipeline_modifiers(
     steps_with_tracking_on_change: restrict,
     steps_with_tracking_forced: force,
   )
+}
+
+fn parse_peek_args(
+  values: List(String)
+) {
+  use #(restrict, force) <- on.ok(parse_step_numbers(values))
+  list.append(restrict, force)
+  |> unique_ints
+  |> Ok
 }
 
 // ************************************************************
@@ -1135,14 +1163,15 @@ pub fn amend_renderer_by_command_line_amendments(
   renderer: Renderer(a, c, d, e, f, g, h),
   amendments: CommandLineAmendments,
 ) -> Renderer(a, c, d, e, f, g, h) {
-  case amendments.track {
-    None -> renderer
-    Some(cli) ->
-      Renderer(
-        ..renderer,
-        pipeline: renderer.pipeline |> apply_pipeline_tracking_modifier(cli),
-      )
-  }
+  let pipeline =
+    renderer.pipeline
+    |> apply_pipeline_tracking_modifier(amendments.track)
+    |> apply_peeking(amendments.peek)
+
+  Renderer(
+    ..renderer,
+    pipeline: pipeline
+  )
 }
 
 pub fn amend_renderer_debug_options_by_command_line_amendments(
@@ -1174,14 +1203,44 @@ pub fn amend_renderer_debug_options_by_command_line_amendments(
   )
 }
 
+fn apply_peeking(
+  pipeline: Pipeline,
+  mod: Option(List(Int)),
+) -> Pipeline {
+  use mod <- on.none_some(mod, pipeline)
+  let num_steps = list.length(pipeline)
+  let wraparound = fn(x: Int) {
+    case x < 0 {
+      True -> num_steps + x + 1
+      False -> x
+    }
+  }
+  let apply_to_all = mod == []
+  let peek_steps = list.map(mod, wraparound)
+  case apply_to_all {
+    True -> list.map(
+      pipeline,
+      fn(pipe) { Pipe(..pipe, peek: True) }
+    )
+    False -> list.index_map(
+      pipeline,
+      fn(pipe, i) {
+        let step_no = i + 1
+        Pipe(..pipe, peek: list.contains(peek_steps, step_no) )
+      }
+    )
+  }
+}
+
 // ************************************************************
 // Pipeline + PipelineTrackingModifier -> Pipeline (used by above)
 // ************************************************************
 
-pub fn apply_pipeline_tracking_modifier(
+fn apply_pipeline_tracking_modifier(
   pipeline: Pipeline,
-  mod: PipelineTrackingModifier,
+  mod: Option(PipelineTrackingModifier),
 ) -> Pipeline {
+  use mod <- on.none_some(mod, pipeline)
   let num_steps = list.length(pipeline)
   let wraparound = fn(x: Int) {
     case x < 0 {
@@ -1201,6 +1260,7 @@ pub fn apply_pipeline_tracking_modifier(
             desugarer: pipe.desugarer,
             selector: option.unwrap(mod.selector, pipe.selector),
             tracking_mode: TrackingOnChange,
+            peek: pipe.peek,
           )
         }
       )
@@ -1219,6 +1279,7 @@ pub fn apply_pipeline_tracking_modifier(
           desugarer: pipe.desugarer,
           selector: option.unwrap(mod.selector, pipe.selector),
           tracking_mode: mode,
+          peek: pipe.peek,
         )
       })
     }
@@ -1259,7 +1320,7 @@ fn run_pipeline(
     #(vxml, 1, "", [], [], False),
     fn(acc, pipe) {
       let #(vxml, step_no, last_tracking_output, times, warnings, got_arrow) = acc
-      let Pipe(desugarer, selector, mode) = pipe
+      let Pipe(desugarer, selector, mode, peek) = pipe
       let times = case desugarer.name == "timer" {
         True -> [#(step_no, timestamp.system_time()), ..times]
         False -> times
@@ -1287,14 +1348,19 @@ fn run_pipeline(
           message: warning.message,
         )
       })
-      let #(selected, next_tracking_output) = case mode == TrackingOff {
+      let #(selected_2_print, next_tracking_output) = case mode == TrackingOff && !peek {
         True -> #([], last_tracking_output)
         False -> {
-          let selected = vxml |> infra.vxml_to_s_lines |> selector
-          #(selected, selected |> infra.s_lines_annotated_table("", True, 0))
+          let selected_2_print = vxml |> infra.vxml_to_s_lines |> selector
+          let next_tracking_output = selected_2_print |> infra.s_lines_annotated_table("", True, 0)
+          let selected_2_print = case peek {
+            True -> vxml |> infra.vxml_to_s_lines |> sl.all()
+            False -> selected_2_print
+          }
+          #(selected_2_print, next_tracking_output)
         }
       }
-      let must_print = mode == TrackingForced || { mode == TrackingOnChange && next_tracking_output != last_tracking_output }
+      let must_print = peek || mode == TrackingForced || { mode == TrackingOnChange && next_tracking_output != last_tracking_output }
       let got_arrow = case must_print {
         True -> {
           list.each(
@@ -1302,7 +1368,7 @@ fn run_pipeline(
             fn(s) { io.println("    " <> s) },
           )
           io.println("    💠")
-          selected
+          selected_2_print
           |> infra.s_lines_annotated_table("", False, 2)
           |> io.println
           False

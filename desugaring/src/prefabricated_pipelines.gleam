@@ -15,6 +15,7 @@ import infrastructure.{
   BeginAlignStar,
   EndAlignStar,
 } as infra
+import vxml.{type VXML, V, Attribute}
 import desugarer_library as dl
 
 //******************
@@ -218,8 +219,42 @@ pub fn barbaric_symmetric_delim_splitting(
   [
     dl.regex_split_and_replace__outside(opening_or_closing_grs, forbidden),
     dl.pair(#("OpeningOrClosingSymmetricDelim", "OpeningOrClosingSymmetricDelim", tag)),
-    dl.fold_into_text(#("OpeningOrClosingSymmetricDelim", delim_ordinary_form))
+    dl.fold_into_text(#("OpeningOrClosingSymmetricDelim", delim_ordinary_form)),
   ]
+}
+
+pub fn annotated_backtick_splitting(
+  tag: String,
+  annotation_key: String,
+  forbidden: List(String),
+) -> List(Desugarer) {
+  let text_folder = fn(v: VXML) -> String {
+    let assert V(_, _, [Attribute(_, z, value)], _) = v
+    assert z == annotation_key
+    "`{" <> value <> "}"
+  }
+  let start_tag = "AnnotatedBackticksOpening"
+  let end_tag = "AnnotatedBackticksClosing"
+  let start_splitter = grs.unescaped_suffix_replacement_splitter("`", start_tag)
+  let end_splitter = grs.for_groups([
+    #("`{", grs.Trash),
+    #("[a-zA-Z0-9\\-\\.#_]*", grs.TagWithAttribute(end_tag, annotation_key)),
+    #("}", grs.Trash),
+  ])
+  [
+    [
+      dl.regex_split_and_replace__outside(end_splitter, forbidden),
+      dl.regex_split_and_replace__outside(start_splitter, forbidden),
+      dl.pair(#(start_tag, end_tag, "AnnotatedBackticks")),
+      dl.fold_into_text(#("AnnotatedBackticksOpening", "`")),
+      dl.fold_custom_into_text(#("AnnotatedBackticksClosing", text_folder)),
+    ],
+    case tag == "AnnotatedBackticks" {
+      True -> []
+      False -> [dl.rename(#("AnnotatedBackticks", tag))]
+    }
+  ]
+  |> list.flatten
 }
 
 //***************
