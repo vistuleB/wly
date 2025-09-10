@@ -148,6 +148,7 @@ import desugarers/ti3_parse_arbitrary_prompt_response_pre
 import desugarers/ti3_parse_orange_comments_pre
 import desugarers/ti3_parse_python_prompt_pre
 import desugarers/ti3_parse_redyellow_pre
+import desugarers/ti3_parse_xml_pre
 import desugarers/timer
 import desugarers/tokenize_href_surroundings
 import desugarers/tokenize_text_children_if
@@ -326,6 +327,7 @@ pub const ti3_parse_arbitrary_prompt_response_pre = ti3_parse_arbitrary_prompt_r
 pub const ti3_parse_orange_comments_pre = ti3_parse_orange_comments_pre.constructor
 pub const ti3_parse_python_prompt_pre = ti3_parse_python_prompt_pre.constructor
 pub const ti3_parse_redyellow_pre = ti3_parse_redyellow_pre.constructor
+pub const ti3_parse_xml_pre = ti3_parse_xml_pre.constructor
 pub const timer = timer.constructor
 pub const tokenize_href_surroundings = tokenize_href_surroundings.constructor
 pub const tokenize_text_children_if = tokenize_text_children_if.constructor
@@ -505,6 +507,7 @@ pub const assertive_tests : List(fn() -> infra.AssertiveTestCollection) = [
   ti3_parse_orange_comments_pre.assertive_tests,
   ti3_parse_python_prompt_pre.assertive_tests,
   ti3_parse_redyellow_pre.assertive_tests,
+  ti3_parse_xml_pre.assertive_tests,
   timer.assertive_tests,
   tokenize_href_surroundings.assertive_tests,
   tokenize_text_children_if.assertive_tests,
