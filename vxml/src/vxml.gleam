@@ -1613,7 +1613,7 @@ fn tri_way(
         xs.TagEndOrdinary(_) -> TagEnd(first, rest)
         xs.TagEndSelfClosing(_) -> TagEnd(first, rest)
         xs.TagEndXMLVersion(_) -> TagEnd(first, rest)
-        xs.InTagSpaces(_, _) | xs.Newline(_) -> case tri_way(rest) {
+        xs.InTagWhitespace(_, _) | xs.Newline(_) -> case tri_way(rest) {
           SomethingElse(first, rest, _) ->
             SomethingElse(first, rest, True)
           x -> x

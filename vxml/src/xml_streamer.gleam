@@ -1,4 +1,5 @@
 import gleam/list
+import gleam/io
 import gleam/string.{inspect as ins}
 import gleam/regexp
 import splitter as sp
@@ -13,12 +14,13 @@ pub fn event_digest(
 ) -> String {
   case e {
     Newline(b) -> "Newline(" <> bd(b) <> ")"
+
     TagStartOrdinary(b, load) -> "TagStartOrdinary(" <> load <> ", " <> bd(b) <> ")"
     TagStartXMLVersion(b, load) -> "TagStartXMLVersion(" <> load <> ", " <> bd(b) <> ")"
     TagStartDoctype(b, load) -> "TagStartDoctype(" <> load <> ", " <> bd(b) <> ")"
     TagStartClosing(b, load) -> "TagStartClosing(" <> load <> ", " <> bd(b) <> ")"
 
-    InTagSpaces(b, load) -> "InTagSpaces(" <> ins(load) <> ", " <> bd(b) <> ")"
+    InTagWhitespace(b, load) -> "InTagWhitespace(" <> load <> ", " <> bd(b) <> ")"
 
     Key(b, load) -> "Key(" <> ins(load) <> ", " <> bd(b) <> ")"
     KeyMalformed(b, load) -> "KeyMalformed(" <> ins(load) <> ", " <> bd(b) <> ")"
@@ -47,7 +49,7 @@ pub type Event {
   TagStartDoctype(blame: Blame, load: String)        // "<!DOCTYPE " or "<!Doctype " or "<!doctype "
   TagStartClosing(blame: Blame, load: String)        // "</name"
 
-  InTagSpaces(blame: Blame, load: Int)               // spaces that occur outside of a tag go directly into Text
+  InTagWhitespace(blame: Blame, load: String)        // whitespace that occur outside of a tag go directly into Text
 
   Key(blame: Blame, load: String)        
   KeyMalformed(blame: Blame, load: String)        
@@ -121,7 +123,7 @@ pub fn is_ordinary_tag(input: String) -> Bool {
 }
 
 pub fn is_valid_key(input: String) -> Bool {
-  let pattern = "^[a-zA-Z][a-zA-Z0-9._-]*$"
+  let pattern = "^[a-zA-Z][:a-zA-Z0-9._-]*$"
   let assert Ok(re) = regexp.from_string(pattern)
   regexp.check(re, input)
 }
@@ -133,11 +135,11 @@ fn check_for_tag_after_lt(
   let #(before, _, _) = sp.split(s, after)
   use <- on.true_false(
     before == "?xml" || before == "?XML",
-    XMLDoc(before),
+    XMLDoc(before |> string.drop_start(1)),
   )
   use <- on.true_false(
     before == "!DOCTYPE" || before == "!Doctype" || before == "!doctype",
-    Doctype(before),
+    Doctype(before |> string.drop_start(1)),
   )
   use <- on.true_false(
     is_ordinary_tag(before),
@@ -249,15 +251,24 @@ fn event_stream_internal(
         },
       )
       let #(tag_event, z, tag, new_state) = case tag_or_not {
-        XMLDoc(tag) -> #(TagStartXMLVersion(end_of_text_blame, tag), "<", tag, InsideOpeningTagExpectingNextKey)
-        Doctype(tag) -> #(TagStartDoctype(end_of_text_blame, tag), "<", tag, InsideOpeningTagExpectingNextKey)
+        XMLDoc(tag) -> #(TagStartXMLVersion(end_of_text_blame, tag), "<?", tag, InsideOpeningTagExpectingNextKey)
+        Doctype(tag) -> #(TagStartDoctype(end_of_text_blame, tag), "<!", tag, InsideOpeningTagExpectingNextKey)
         Ordinary(tag) -> #(TagStartOrdinary(end_of_text_blame, tag), "<", tag, InsideOpeningTagExpectingNextKey)
         OrdinaryClosing(tag) -> #(TagStartClosing(end_of_text_blame, tag), "</", tag, InsideClosingTag)
         CommentStart -> #(CommentStartSequence(end_of_text_blame), "<!--", "", InsideComment)
         _ -> panic as "should have escaped NoTag earlier"
       }
       let length = string.length(text <> z <> tag)
-      assert string.length(first.content) >= length
+      case string.length(first.content) < length {
+        True -> {
+          io.println("first.content: %" <> first.content <> "%")
+          io.println("text: %" <> text <> "%")
+          io.println("z: %" <> z <> "%")
+          io.println("tag: %" <> tag <> "%")
+          panic
+        }
+        False -> Nil
+      }
       event_stream_internal(
         [tag_event, ..previous],
         new_state,
@@ -314,8 +325,9 @@ fn event_stream_internal(
   use <- on.lazy_true_false(
     num_whitespace > 0,
     fn() {
+      let whitespace = string.slice(first.content, 0, num_whitespace)
       event_stream_internal(
-        [InTagSpaces(first.blame, num_whitespace), ..previous],
+        [InTagWhitespace(first.blame, whitespace), ..previous],
         state,
         [advance_line(first, num_whitespace), ..rest],
       )
@@ -440,14 +452,19 @@ fn input_lines_to_content_lines(
   list.map(lines, input_line_to_content_line)
 }
 
+pub fn pairs_streamer(
+  lines: List(#(Blame, String))
+) -> List(Event) {
+  lines
+  |> list.map(fn(x) { ContentLine(x.0, x.1) })
+  |> event_stream_internal([], OutsideTag, _)
+}
+
 pub fn input_lines_streamer(
   lines: List(InputLine)
 ) -> List(Event) {
-  let content_lines =
-    lines
-    |> input_lines_to_content_lines
-
-  content_lines
+  lines
+  |> input_lines_to_content_lines
   |> event_stream_internal([], OutsideTag, _)
 }
 
