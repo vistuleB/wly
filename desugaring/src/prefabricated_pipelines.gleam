@@ -276,13 +276,14 @@ pub fn markdown_link_splitting(
   let start_tag = "MDLinkOpening"
   let end_tag = "MDLinkClosing"
   let start_splitter = grs.unescaped_suffix_replacement_splitter("\\[", start_tag)
-  let end_splitter = grs.for_groups([
-    #("]\\(", grs.Trash),
-    #(">>[a-zA-Z0-9\\-_]*|[a-zA-Z0-9\\-\\.#_\\/:&=~\\(\\)\\\\]*", grs.TagWithAttributeAndReplace(end_tag, "href", "\\)", ")")),
-    #(grs.unescaped_suffix("\\)"), grs.Trash),
-  ])
+  // let end_splitter = grs.for_groups([
+  //   #("]\\(", grs.Trash),
+  //   #(">>[a-zA-Z0-9\\-_]*|[a-zA-Z0-9\\-\\.#_\\/:&=~]*", grs.TagWithAttributeAndReplace(end_tag, "href", "\\)", ")")),
+  //   #("\\)", grs.Trash),
+  // ])
   [
-    dl.regex_split_and_replace__outside(end_splitter, forbidden),
+    dl.markdown_link_closing_handrolled_splitter(end_tag, forbidden),
+    // dl.regex_split_and_replace__outside(end_splitter, forbidden),
     dl.regex_split_and_replace__outside(start_splitter, forbidden),
     dl.pair(#(start_tag, end_tag, "MDLink")),
     dl.fold_into_text(#("MDLinkOpening", "[")),
