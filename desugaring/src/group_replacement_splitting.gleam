@@ -13,6 +13,7 @@ pub type GroupReplacementInstruction {
   DropLast
   Tag(String)
   TagWithAttribute(String, String)
+  TagWithAttributeAndReplace(String, String, String, String)
   TagWithTextChild(String)
   TagFwdText(String, String)
   TagBwdText(String, String)
@@ -66,6 +67,12 @@ pub fn split_content_with_replacement(
           updated_blame,
           tag,
           [Attribute(updated_blame, key, split)],
+          [],
+        )])
+        TagWithAttributeAndReplace(tag, key, seq1, seq2) -> Some([V(
+          updated_blame,
+          tag,
+          [Attribute(updated_blame, key, split |> string.replace(seq1, seq2))],
           [],
         )])
         TagWithTextChild(tag) -> Some([V(
