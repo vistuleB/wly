@@ -1,6 +1,5 @@
 import gleam/dict.{type Dict}
 import gleam/int
-import gleam/io
 import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/regexp
@@ -9,7 +8,6 @@ import gleam/string.{inspect as ins}
 import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError, DesugaringError} as infra
 import nodemaps_2_desugarer_transforms as n2t
 import vxml.{type VXML, T, V, Attribute, type TextLine, TextLine}
-import xmlm
 import blame.{type Blame} as bl
 import on
 
@@ -119,25 +117,25 @@ fn generate_replacement_vxml_internal(
     [p, ..pattern_rest] -> {
       case p {
         StartT -> generate_replacement_vxml_internal(
-          [start_node(desugarer_blame(121)), ..already_ready],
+          [start_node(desugarer_blame(120)), ..already_ready],
           pattern_rest,
           match_data,
         )
 
         EndT -> generate_replacement_vxml_internal(
-          [end_node(desugarer_blame(127)), ..already_ready],
+          [end_node(desugarer_blame(126)), ..already_ready],
           pattern_rest,
           match_data,
         )
 
         Space -> generate_replacement_vxml_internal(
-          [space_node(desugarer_blame(133)), ..already_ready],
+          [space_node(desugarer_blame(132)), ..already_ready],
           pattern_rest,
           match_data,
         )
 
         Word(word) -> generate_replacement_vxml_internal(
-          [word_node(desugarer_blame(139), word), ..already_ready],
+          [word_node(desugarer_blame(138), word), ..already_ready],
           pattern_rest,
           match_data,
         )
@@ -355,7 +353,7 @@ fn start_node(blame: Blame) {
 }
 
 fn word_node(blame: Blame, word: String) {
-  V(blame, "__OneWord", [Attribute(desugarer_blame(357), "val", word)], [])
+  V(blame, "__OneWord", [Attribute(desugarer_blame(356), "val", word)], [])
 }
 
 fn space_node(blame: Blame) {
@@ -641,18 +639,6 @@ fn check_target_pattern_substitutable_for_source_pattern(
   Nil
 }
 
-fn xmlm_tag_name(t: xmlm.Tag) -> String {
-  let xmlm.Tag(xmlm.Name(_, ze_name), _) = t
-  ze_name
-}
-
-fn xmlm_attribute_equals(t: xmlm.Attribute, name: String) -> Bool {
-  case t {
-    xmlm.Attribute(xmlm.Name(_, ze_name), _) if ze_name == name -> True
-    _ -> False
-  }
-}
-
 fn pseudoword_to_pattern_tokens(word: String, re: regexp.Regexp) -> List(PatternToken) {
   // this is what it means to be a pseudoword:
   assert word == " " || {!string.contains(word, " ") && word != ""}
@@ -682,80 +668,6 @@ fn pseudoword_to_pattern_tokens(word: String, re: regexp.Regexp) -> List(Pattern
     }
   )
   |> option.values
-}
-
-fn xlml_text_to_link_pattern(content: String, re: regexp.Regexp) -> Result(LinkPattern, DesugaringError) {
-  content
-  |> string.split(" ")
-  |> list.intersperse(" ")
-  |> list.filter(fn(s){s != ""})
-  |> list.flat_map(pseudoword_to_pattern_tokens(_, re))
-  |> Ok
-}
-
-fn xmlm_tag_to_link_pattern(
-  xmlm_tag: xmlm.Tag,
-  children: List(Result(LinkPattern, DesugaringError)),
-) {
-  use tag_content_patterns <- on.ok(children |> result.all)
-
-  let tag_content_patterns = tag_content_patterns |> list.flatten
-
-  use <- on.true_false(
-    xmlm_tag_name(xmlm_tag) == "root",
-    Ok(tag_content_patterns),
-  )
-
-  use href_attribute <- on.ok(
-    xmlm_tag.attributes
-    |> list.find(xmlm_attribute_equals(_, "href"))
-    |> result.map_error(fn(_) {
-      DesugaringError(bl.no_blame, "<a> pattern tag missing 'href' attribute")
-    }),
-  )
-
-  let xmlm.Attribute(_, value) = href_attribute
-
-  use value <- on.ok(
-    int.parse(value)
-    |> result.map_error(fn(_) {
-      DesugaringError(bl.no_blame, "<a> pattern 'href' attribute does not parse to an int")
-    }),
-  )
-
-  let class_attribute =
-    xmlm_tag.attributes
-    |> list.find(xmlm_attribute_equals(_, "class"))
-
-  let classes = case class_attribute {
-    Ok(x) -> {
-      let xmlm.Attribute(_, value) = x
-      value
-    }
-    Error(_) -> ""
-  }
-
-  Ok([A(
-    tag: xmlm_tag_name(xmlm_tag),
-    classes: classes,
-    href: value,
-    children: tag_content_patterns,
-  )])
-}
-
-type Return(a, b) {
-  Return(a)
-  NotReturn(b)
-}
-
-fn on_not_return(
-  thing: Return(a, b),
-  f: fn(b) -> a,
-) -> a {
-  case thing {
-    Return(a) -> a
-    NotReturn(b) -> f(b)
-  }
 }
 
 fn text_to_link_pattern(content: String, re: regexp.Regexp) -> Result(LinkPattern, DesugaringError) {
@@ -804,11 +716,11 @@ fn vxml_to_link_pattern(
         fn(_) { Error(DesugaringError(bl.no_blame, "could not parse <a>-href attribute as integer: " <> href_attribute.value)) },
       )
 
-      use classes <- on_not_return(
+      use classes <- on.ok(
         case infra.attributes_with_key(attrs, "class") {
-          [] -> NotReturn("")
-          [one] -> NotReturn(one.value)
-          _ -> Return(Error(DesugaringError(bl.no_blame, "more than one class attribute inside <a> tag")))
+          [] -> Ok("")
+          [one] -> Ok(one.value)
+          _ -> Error(DesugaringError(bl.no_blame, "more than one class attribute inside <a> tag"))
         }
       )
 
@@ -821,25 +733,12 @@ fn parse_link_pattern(
   s: String,
   re: regexp.Regexp,
 ) -> Result(LinkPattern, DesugaringError) {
-  use #(_, pattern, _) <- on.error_ok(
-    xmlm.document_tree(
-      xmlm.from_string(s),
-      xmlm_tag_to_link_pattern,
-      xlml_text_to_link_pattern(_, re),
-    ),
-    fn(e) {Error(DesugaringError(bl.no_blame, "xmlm input error: " <> ins(e)))},
-  )
-
-  use pattern <- on.ok(pattern) // pattern was a Result(TokenPatter, DesugaringError)
-
   use root <- on.error_ok(
     vxml.streaming_based_xml_parser_string_version(s, "r4l"),
     fn(e) { Error(DesugaringError(bl.no_blame, "could not parse link pattern '" <> s <> "': " <> ins(e))) }
   )
 
-  use pattern2 <- on.ok(vxml_to_link_pattern(root, re))
-
-  io.println("hello: " <> ins(pattern == pattern2))
+  use pattern <- on.ok(vxml_to_link_pattern(root, re))
 
   pattern
   |> insert_start_t_end_t_into_link_pattern
@@ -945,22 +844,22 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
 
   use unique_href_vars <- on.ok(
     collect_unique_href_vars(pattern1)
-    |> result.map_error(fn(var){ DesugaringError(desugarer_blame(876), "Source pattern " <> param.0 <>" has duplicate declaration of href variable: " <> ins(var) ) })
+    |> result.map_error(fn(var){ DesugaringError(desugarer_blame(847), "Source pattern " <> param.0 <>" has duplicate declaration of href variable: " <> ins(var) ) })
   )
 
   use unique_content_vars <- on.ok(
     collect_unique_content_vars(pattern1)
-    |> result.map_error(fn(var){ DesugaringError(desugarer_blame(881), "Source pattern " <> param.0 <>" has duplicate declaration of content variable: " <> ins(var)) })
+    |> result.map_error(fn(var){ DesugaringError(desugarer_blame(852), "Source pattern " <> param.0 <>" has duplicate declaration of content variable: " <> ins(var)) })
   )
 
   use _ <- on.ok(
     check_each_href_var_is_sourced(pattern2, unique_href_vars)
-    |> result.map_error(fn(var){ DesugaringError(desugarer_blame(886), "Target pattern " <> param.1 <> " has a declaration of unsourced href variable: " <> ins(var)) })
+    |> result.map_error(fn(var){ DesugaringError(desugarer_blame(857), "Target pattern " <> param.1 <> " has a declaration of unsourced href variable: " <> ins(var)) })
   )
 
   use _ <- on.ok(
     check_each_content_var_is_sourced(pattern2, unique_content_vars)
-    |> result.map_error(fn(var){ DesugaringError(desugarer_blame(891), "Target pattern " <> param.1 <> " has a declaration of unsourced content variable: " <> ins(var)) })
+    |> result.map_error(fn(var){ DesugaringError(desugarer_blame(862), "Target pattern " <> param.1 <> " has a declaration of unsourced content variable: " <> ins(var)) })
   )
 
   Ok(#(pattern1, pattern2))

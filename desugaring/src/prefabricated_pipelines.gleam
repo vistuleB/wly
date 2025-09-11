@@ -277,7 +277,7 @@ pub fn markdown_link_splitting(
   let start_splitter = grs.unescaped_suffix_replacement_splitter("\\[", start_tag)
   let end_splitter = grs.for_groups([
     #("]\\(", grs.Trash),
-    #("[a-zA-Z0-9\\-\\.#_\\/:&=~]*", grs.TagWithAttribute(end_tag, "href")),
+    #(">>[a-zA-Z0-9\\-\\.#_\\/:&=~]*", grs.TagWithAttribute(end_tag, "href")),
     #("\\)", grs.Trash),
   ])
   [

@@ -117,6 +117,7 @@ import desugarers/regex_split_and_replace__batch__outside
 import desugarers/regex_split_and_replace__outside
 import desugarers/reinsert_math_dollar
 import desugarers/rename
+import desugarers/rename__batch
 import desugarers/rename_and_delete_children_if_has_singleton_class_attribute
 import desugarers/rename_attributes
 import desugarers/rename_attributes_by_function
@@ -298,6 +299,7 @@ pub const regex_split_and_replace__batch__outside = regex_split_and_replace__bat
 pub const regex_split_and_replace__outside = regex_split_and_replace__outside.constructor
 pub const reinsert_math_dollar = reinsert_math_dollar.constructor
 pub const rename = rename.constructor
+pub const rename__batch = rename__batch.constructor
 pub const rename_and_delete_children_if_has_singleton_class_attribute = rename_and_delete_children_if_has_singleton_class_attribute.constructor
 pub const rename_attributes = rename_attributes.constructor
 pub const rename_attributes_by_function = rename_attributes_by_function.constructor
@@ -480,6 +482,7 @@ pub const assertive_tests : List(fn() -> infra.AssertiveTestCollection) = [
   regex_split_and_replace__outside.assertive_tests,
   reinsert_math_dollar.assertive_tests,
   rename.assertive_tests,
+  rename__batch.assertive_tests,
   rename_and_delete_children_if_has_singleton_class_attribute.assertive_tests,
   rename_attributes.assertive_tests,
   rename_attributes_by_function.assertive_tests,

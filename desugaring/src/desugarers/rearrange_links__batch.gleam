@@ -1,6 +1,5 @@
 import gleam/dict.{type Dict}
 import gleam/int
-import gleam/io
 import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/regexp
@@ -9,7 +8,6 @@ import gleam/string.{inspect as ins}
 import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError, DesugaringError} as infra
 import nodemaps_2_desugarer_transforms as n2t
 import vxml.{type VXML, T, V, Attribute, type TextLine, TextLine}
-import xmlm
 import blame.{type Blame} as bl
 import on
 
@@ -117,25 +115,25 @@ fn generate_replacement_vxml_internal(
     [p, ..pattern_rest] -> {
       case p {
         StartT -> generate_replacement_vxml_internal(
-          [start_node(desugarer_blame(119)), ..already_ready],
+          [start_node(desugarer_blame(118)), ..already_ready],
           pattern_rest,
           match_data,
         )
 
         EndT -> generate_replacement_vxml_internal(
-          [end_node(desugarer_blame(125)), ..already_ready],
+          [end_node(desugarer_blame(124)), ..already_ready],
           pattern_rest,
           match_data,
         )
 
         Space -> generate_replacement_vxml_internal(
-          [space_node(desugarer_blame(131)), ..already_ready],
+          [space_node(desugarer_blame(130)), ..already_ready],
           pattern_rest,
           match_data,
         )
 
         Word(word) -> generate_replacement_vxml_internal(
-          [word_node(desugarer_blame(137), word), ..already_ready],
+          [word_node(desugarer_blame(136), word), ..already_ready],
           pattern_rest,
           match_data,
         )
@@ -352,7 +350,7 @@ fn start_node(blame: Blame) {
 }
 
 fn word_node(blame: Blame, word: String) {
-  V(blame, "__OneWord", [Attribute(desugarer_blame(354), "val", word)], [])
+  V(blame, "__OneWord", [Attribute(desugarer_blame(353), "val", word)], [])
 }
 
 fn space_node(blame: Blame) {
@@ -640,18 +638,6 @@ fn check_target_pattern_substitutable_for_source_pattern(
   Nil
 }
 
-fn xmlm_tag_name(t: xmlm.Tag) -> String {
-  let xmlm.Tag(xmlm.Name(_, ze_name), _) = t
-  ze_name
-}
-
-fn xmlm_attribute_equals(t: xmlm.Attribute, name: String) -> Bool {
-  case t {
-    xmlm.Attribute(xmlm.Name(_, ze_name), _) if ze_name == name -> True
-    _ -> False
-  }
-}
-
 fn pseudoword_to_pattern_tokens(word: String, re: regexp.Regexp) -> List(PatternToken) {
   // this is what it means to be a pseudoword:
   let assert True = word == " " || {!string.contains(word, " ") && word != ""}
@@ -681,92 +667,6 @@ fn pseudoword_to_pattern_tokens(word: String, re: regexp.Regexp) -> List(Pattern
     }
   )
   |> option.values
-}
-
-fn pseudowords_to_pattern_tokens(words: List(String), re: regexp.Regexp) -> List(PatternToken) {
-  list.fold(
-    words,
-    [],
-    fn(acc, word) {
-      pseudoword_to_pattern_tokens(word, re)
-      |> infra.pour(acc)
-    }
-  )
-  |> list.reverse
-}
-
-fn xlml_text_to_link_pattern(content: String, re: regexp.Regexp) -> Result(LinkPattern, DesugaringError) {
-  content
-  |> string.split(" ")
-  |> list.intersperse(" ")
-  |> list.filter(fn(s){s != ""})
-  |> pseudowords_to_pattern_tokens(re)
-  |> Ok
-}
-
-fn xmlm_tag_to_link_pattern(
-  xmlm_tag: xmlm.Tag,
-  children: List(Result(LinkPattern, DesugaringError)),
-) {
-  use tag_content_patterns <- on.ok(children |> result.all)
-
-  let tag_content_patterns = tag_content_patterns |> list.flatten
-
-  use <- on.true_false(
-    xmlm_tag_name(xmlm_tag) == "root",
-    Ok(tag_content_patterns),
-  )
-
-  use href_attribute <- on.ok(
-    xmlm_tag.attributes
-    |> list.find(xmlm_attribute_equals(_, "href"))
-    |> result.map_error(fn(_) {
-      DesugaringError(bl.no_blame, "<a> pattern tag missing 'href' attribute")
-    }),
-  )
-
-  let xmlm.Attribute(_, value) = href_attribute
-
-  use value <- on.ok(
-    int.parse(value)
-    |> result.map_error(fn(_) {
-      DesugaringError(bl.no_blame, "<a> pattern 'href' attribute does not parse to an int")
-    }),
-  )
-
-  let class_attribute =
-    xmlm_tag.attributes
-    |> list.find(xmlm_attribute_equals(_, "class"))
-
-  let classes = case class_attribute {
-    Ok(x) -> {
-      let xmlm.Attribute(_, value) = x
-      value
-    }
-    Error(_) -> ""
-  }
-
-  Ok([A(
-    tag: xmlm_tag_name(xmlm_tag),
-    classes: classes,
-    href: value,
-    children: tag_content_patterns,
-  )])
-}
-
-type Return(a, b) {
-  Return(a)
-  NotReturn(b)
-}
-
-fn on_not_return(
-  thing: Return(a, b),
-  f: fn(b) -> a,
-) -> a {
-  case thing {
-    Return(a) -> a
-    NotReturn(b) -> f(b)
-  }
 }
 
 fn text_to_link_pattern(content: String, re: regexp.Regexp) -> Result(LinkPattern, DesugaringError) {
@@ -815,11 +715,11 @@ fn vxml_to_link_pattern(
         fn(_) { Error(DesugaringError(bl.no_blame, "could not parse <a>-href attribute as integer: " <> href_attribute.value)) },
       )
 
-      use classes <- on_not_return(
+      use classes <- on.ok(
         case infra.attributes_with_key(attrs, "class") {
-          [] -> NotReturn("")
-          [one] -> NotReturn(one.value)
-          _ -> Return(Error(DesugaringError(bl.no_blame, "more than one class attribute inside <a> tag")))
+          [] -> Ok("")
+          [one] -> Ok(one.value)
+          _ -> Error(DesugaringError(bl.no_blame, "more than one class attribute inside <a> tag"))
         }
       )
 
@@ -832,26 +732,12 @@ fn parse_link_pattern(
   s: String,
   re: regexp.Regexp,
 ) -> Result(LinkPattern, DesugaringError) {
-  use #(_, pattern, _) <- on.error_ok(
-    xmlm.document_tree(
-      xmlm.from_string(s),
-      xmlm_tag_to_link_pattern,
-      xlml_text_to_link_pattern(_, re),
-    ),
-    fn(input_error) {
-      Error(DesugaringError(bl.no_blame, "xmlm input error: " <> ins(input_error)))
-    },
-  )
-
-  use pattern <- on.ok(pattern) // pattern was a Result(TokenPatter, DesugaringError)
   use root <- on.error_ok(
-    vxml.streaming_based_xml_parser_string_version(s, "r4l"),
+    vxml.streaming_based_xml_parser_string_version(s, "plp"),
     fn(e) { Error(DesugaringError(bl.no_blame, "could not parse link pattern '" <> s <> "': " <> ins(e))) }
   )
 
-  use pattern2 <- on.ok(vxml_to_link_pattern(root, re))
-
-  io.println("hello2: " <> ins(pattern == pattern2))
+  use pattern <- on.ok(vxml_to_link_pattern(root, re))
 
   pattern
   |> insert_start_t_end_t_into_link_pattern

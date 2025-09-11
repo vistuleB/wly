@@ -22,13 +22,19 @@ type State {
   )
 }
 
-fn extract_handle_name(match) {
+fn extract_handle_name(match) -> #(String, Bool) {
   let assert Match(_, [_, option.Some(handle_name)]) = match
-  handle_name
+  case string.ends_with(handle_name, ":page") {
+    True -> {
+      #(handle_name |> string.drop_end(5), True)
+    }
+    False -> #(handle_name, False)
+  }
 }
 
 fn hyperlink_constructor(
     handle: #(String, String, String),
+    page: Bool,
     blame: Blame,
     state: State,
     inner: InnerParam,
@@ -42,8 +48,12 @@ fn hyperlink_constructor(
     True -> #(inner.1, inner.3)
     False -> #(inner.2, inner.4)
   }
+  let target_path = case page {
+    True -> target_path
+    False -> target_path <> "#" <> id
+  }
   let attrs = [
-    Attribute(blame, "href", target_path <> "#" <> id),
+    Attribute(blame, "href", target_path),
     ..attrs
   ]
   Ok(V(
@@ -65,21 +75,22 @@ fn warning_element(
   blame: Blame,
 ) -> VXML {
   V(
-    desugarer_blame(68),
+    desugarer_blame(78),
     "span",
-    [Attribute(desugarer_blame(70), "style", "color:red;background-color:yellow;")],
-    [T(desugarer_blame(71), [TextLine(desugarer_blame(71), "undefined handle at " <> bl.blame_digest(blame) <> ": " <> handle_name)])],
+    [Attribute(desugarer_blame(80), "style", "color:red;background-color:yellow;")],
+    [T(desugarer_blame(81), [TextLine(desugarer_blame(81), "undefined handle at " <> bl.blame_digest(blame) <> ": " <> handle_name)])],
   )
 }
 
 fn hyperlink_maybe(
-  handle_name: String,
+  handle_and_page: #(String, Bool),
   blame: Blame,
   state: State,
   inner: InnerParam,
 ) -> TripleThreat(VXML, #(VXML, DesugaringWarning), DesugaringError) {
+  let #(handle_name, page) = handle_and_page
   case dict.get(state.handles, handle_name) {
-    Ok(triple) -> case hyperlink_constructor(triple, blame, state, inner) {
+    Ok(triple) -> case hyperlink_constructor(triple, page, blame, state, inner) {
       Ok(vxml) -> Success(vxml)
       Error(e) -> Failure(e)
     }
@@ -182,11 +193,10 @@ fn process_line(
   line: TextLine,
   state: State,
   inner: InnerParam,
-  handle_regexp: Regexp,
 ) -> Result(#(List(VXML), List(DesugaringWarning)), DesugaringError) {
   let TextLine(blame, content) = line
-  let matches = regexp.scan(handle_regexp, content)
-  let splits = regexp.split(handle_regexp, content)
+  let matches = regexp.scan(inner.5, content)
+  let splits = regexp.split(inner.5, content)
   use #(hyperlinks, warnings) <- on.ok(
     matches_2_hyperlinks(matches, blame, state, inner)
   )
@@ -198,11 +208,10 @@ fn process_lines(
   lines: List(TextLine),
   state: State,
   inner: InnerParam,
-  handle_regexp: Regexp,
 ) -> Result(#(List(VXML), List(DesugaringWarning)), DesugaringError) {
   use big_list <- on.ok(
     lines
-    |> list.map(process_line(_, state, inner, handle_regexp))
+    |> list.map(process_line(_, state, inner))
     |> result.all
   )
 
@@ -230,6 +239,54 @@ fn get_handles_instances_from_grand_wrapper(
     fn(acc, att) {
       let assert [handle_name, value, id, path] = att.value |> string.split("|")
       dict.insert(acc, handle_name, #(value, id, path))
+    }
+  )
+}
+
+fn substitute_in_href(
+  attr: Attribute,
+  state: State,
+) -> Result(Attribute, DesugaringWarning) {
+  use <- on.false_true(
+    attr.key == "href",
+    Ok(attr),
+  )
+  use <- on.false_true(
+    attr.value |> string.starts_with(">>"),
+    Ok(attr),
+  )
+  let handle_name = attr.value |> string.drop_start(2)
+  let page = handle_name |> string.ends_with(":page")
+  let handle_name = case page {
+    True -> handle_name |> string.drop_end(5)
+    False -> handle_name
+  }
+  case dict.get(state.handles, handle_name) {
+    Ok(#(_, id, target_path)) -> {
+      case page {
+        True -> Ok(Attribute(..attr, value: target_path))
+        False -> case target_path == option.unwrap(state.path, "") {
+          True -> Ok(Attribute(..attr, value: "#" <> id))
+          False -> Ok(Attribute(..attr, value: target_path <> "#" <> id))
+        }
+      }
+    }
+    _ -> Error(DesugaringWarning(attr.blame, "handle '" <> handle_name <> "' is not assigned"))
+  }
+}
+
+fn substitute_in_hrefs(
+  attrs: List(Attribute),
+  state: State,
+) -> #(List(Attribute), List(DesugaringWarning)) {
+  list.fold(
+    attrs,
+    #([], []),
+    fn(acc, attr) {
+      case substitute_in_href(attr, state) {
+        Ok(attr) -> #([attr, ..acc.0], acc.1)
+        Error(z) -> #([attr, ..acc.0], [z, ..acc.1])
+      }
     }
   )
 }
@@ -262,10 +319,13 @@ fn v_before_transform(
   state: State,
   inner: InnerParam,
 ) -> Result(#(VXML, State, List(DesugaringWarning)), DesugaringError) {
-  let state = state
+  let state =
+    state
     |> update_path(vxml, inner)
     |> update_handles(vxml)
-  Ok(#(vxml, state, []))
+  let assert V(_, _, attributes, _) = vxml
+  let #(attributes, warnings) = substitute_in_hrefs(attributes, state)
+  Ok(#(V(..vxml, attributes: attributes), state, warnings))
 }
 
 fn v_after_transform(
@@ -286,7 +346,6 @@ fn t_transform(
   vxml: VXML,
   state: State,
   inner: InnerParam,
-  handles_regexp: Regexp,
 ) -> Result(#(List(VXML), State, List(DesugaringWarning)), DesugaringError) {
   let assert T(_, lines)  = vxml
   use #(updated_lines, warnings) <- on.ok(
@@ -294,18 +353,16 @@ fn t_transform(
       lines,
       state,
       inner,
-      handles_regexp,
     )
   )
   Ok(#(updated_lines, state, warnings))
 }
 
 fn nodemap_factory(inner: InnerParam) -> n2t.OneToManyBeforeAndAfterStatefulNodeMapWithWarnings(State) {
-  let assert Ok(handles_regexp) = regexp.from_string("(>>)([\\w\\^-]+)")
   n2t.OneToManyBeforeAndAfterStatefulNodeMapWithWarnings(
     v_before_transforming_children: fn(vxml, state) {v_before_transform(vxml, state, inner)},
     v_after_transforming_children: fn(vxml, _, new) {v_after_transform(vxml, new)},
-    t_nodemap: fn(vxml, state) { t_transform(vxml, state, inner, handles_regexp) },
+    t_nodemap: fn(vxml, state) { t_transform(vxml, state, inner) },
   )
 }
 
@@ -315,12 +372,14 @@ fn transform_factory(inner: InnerParam) -> DesugarerTransform {
 }
 
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
+  let assert Ok(handles_regexp) = regexp.from_string("(>>)([\\w\\^-]+(?:\\:page))")
   #(
     param.0,
     param.1,
     param.2,
-    param.3 |> infra.string_pairs_2_attributes(desugarer_blame(322)),
-    param.4 |> infra.string_pairs_2_attributes(desugarer_blame(323)),
+    param.3 |> infra.string_pairs_2_attributes(desugarer_blame(380)),
+    param.4 |> infra.string_pairs_2_attributes(desugarer_blame(381)),
+    handles_regexp, // inner.5
   )
   |> Ok
 }
@@ -331,7 +390,7 @@ type Param = #(String,            String,                 String,               
 //             to update the      when handle path        when handle path       pairs for former case      pairs for latter case
 //             local path         equals local path       !equals local path
 //                                at point of insertion   at point of insertion
-type InnerParam = #(String, String, String, List(Attribute), List(Attribute))
+type InnerParam = #(String, String, String, List(Attribute), List(Attribute), Regexp)
 
 pub const name = "handles_substitute"
 fn desugarer_blame(line_no: Int) {bl.Des([], name, line_no)}
