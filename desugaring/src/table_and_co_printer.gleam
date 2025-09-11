@@ -99,16 +99,26 @@ pub fn four_column_table(
 ) -> List(String) {
   let maxes = four_column_maxes(lines)
   let padding = #(1, 2, 1, 1)
+  let total_width = 9 + maxes.0 + padding.0 + maxes.1 + padding.1 + maxes.2 + padding.2 + maxes.3 + padding.3
   let one_line = fn(tuple: #(String, String, String, String), index: Int) -> String {
-    "│ " <> tuple.0 <> spaces(maxes.0 - string.length(tuple.0) + padding.0) <>
-    "│ " <> tuple.1 <> case index % 2 {
-      1 -> dots(maxes.1 - string.length(tuple.1) + padding.1)
-      _ if index >= 0 -> twodots(maxes.1 - string.length(tuple.1) + padding.1)
-      _ -> spaces(maxes.1 - string.length(tuple.1) + padding.1)
-    } <>
-    "│ " <> tuple.2 <> spaces(maxes.2 - string.length(tuple.2) + padding.2) <>
-    "│ " <> tuple.3 <> spaces(maxes.3 - string.length(tuple.3) + padding.3) <>
-    "│"
+    case string.starts_with(tuple.1, "table_marker") {
+      True -> {
+        let starter = string.repeat("er>██████████<mark", total_width / 10)
+        let starter_length = string.length(starter)
+        starter |> string.drop_start(starter_length - total_width)
+      }
+      False -> {
+        "│ " <> tuple.0 <> spaces(maxes.0 - string.length(tuple.0) + padding.0) <>
+        "│ " <> tuple.1 <> case index % 2 {
+          1 -> dots(maxes.1 - string.length(tuple.1) + padding.1)
+          _ if index >= 0 -> twodots(maxes.1 - string.length(tuple.1) + padding.1)
+          _ -> spaces(maxes.1 - string.length(tuple.1) + padding.1)
+        } <>
+        "│ " <> tuple.2 <> spaces(maxes.2 - string.length(tuple.2) + padding.2) <>
+        "│ " <> tuple.3 <> spaces(maxes.3 - string.length(tuple.3) + padding.3) <>
+        "│"
+      }
+    }
   }
   let sds = #(
     solid_dashes(maxes.0 + padding.0),
@@ -295,6 +305,19 @@ fn desugarer_to_list_lines(
 ) -> List(#(String, String, String, String)) {
   let number = ins(index + 1) <> "."
   let name = desugarer.name
+  // use <- on.lazy_true_false(
+  //   name == "table_marker",
+  //   on_true: fn() {
+  //     [
+  //       #(
+  //         number,
+  //         "table_marker██████████████",
+  //         "██████████████████████████",
+  //         "██████████████████████████",
+  //       )
+  //     ]
+  //   }
+  // )
   let param_lines = case desugarer.stringified_param {
     None -> [none_string]
     Some(thing) ->

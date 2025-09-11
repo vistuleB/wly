@@ -69,18 +69,14 @@ fn tokenize_t(vxml: VXML) -> List(VXML) {
   |> list.append([end_node(blame)])
 }
 
-fn tokenize_if_t_or_has_href_attr(vxml: VXML) -> List(VXML) {
+fn tokenize_if_t_or_has_href_attr_and_recurse(vxml: VXML) -> List(VXML) {
   case vxml {
     T(_, _) -> tokenize_t(vxml)
     V(_, _, attrs, children) -> case infra.attributes_have_key(attrs, "href") {
-      True -> [V(..vxml, children: tokenize_children(children))]
+      True -> [V(..vxml, children: list.flat_map(children, tokenize_if_t_or_has_href_attr_and_recurse))]
       False -> [vxml]
     }
   }
-}
-
-fn tokenize_children(children: List(VXML)) -> List(VXML) {
-  list.map(children, tokenize_if_t_or_has_href_attr) |> list.flatten
 }
 
 fn nodemap(
@@ -93,7 +89,7 @@ fn nodemap(
         False -> vxml
         True -> {
           let attrs = [had_href_child, ..attrs]
-          let children = tokenize_children(children)
+          let children = list.flat_map(children, tokenize_if_t_or_has_href_attr_and_recurse)
           V(..vxml, attributes: attrs, children: children)
         }
       }

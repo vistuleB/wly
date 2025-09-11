@@ -1,5 +1,6 @@
 import gleam/dict.{type Dict}
 import gleam/int
+import gleam/io
 import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/regexp
@@ -654,7 +655,7 @@ fn xmlm_attribute_equals(t: xmlm.Attribute, name: String) -> Bool {
 
 fn pseudoword_to_pattern_tokens(word: String, re: regexp.Regexp) -> List(PatternToken) {
   // this is what it means to be a pseudoword:
-  let assert True = word == " " || {!string.contains(word, " ") && word != ""}
+  assert word == " " || {!string.contains(word, " ") && word != ""}
 
   // case 1: a space
   use <- on.lazy_true_false(word == " ", fn(){[Space]})
@@ -683,24 +684,12 @@ fn pseudoword_to_pattern_tokens(word: String, re: regexp.Regexp) -> List(Pattern
   |> option.values
 }
 
-fn pseudowords_to_pattern_tokens(words: List(String), re: regexp.Regexp) -> List(PatternToken) {
-  list.fold(
-    words,
-    [],
-    fn(acc, word) {
-      pseudoword_to_pattern_tokens(word, re)
-      |> infra.pour(acc)
-    }
-  )
-  |> list.reverse
-}
-
 fn xlml_text_to_link_pattern(content: String, re: regexp.Regexp) -> Result(LinkPattern, DesugaringError) {
   content
   |> string.split(" ")
   |> list.intersperse(" ")
   |> list.filter(fn(s){s != ""})
-  |> pseudowords_to_pattern_tokens(re)
+  |> list.flat_map(pseudoword_to_pattern_tokens(_, re))
   |> Ok
 }
 
@@ -754,7 +743,81 @@ fn xmlm_tag_to_link_pattern(
   )])
 }
 
-fn extra_string_to_link_pattern(
+type Return(a, b) {
+  Return(a)
+  NotReturn(b)
+}
+
+fn on_not_return(
+  thing: Return(a, b),
+  f: fn(b) -> a,
+) -> a {
+  case thing {
+    Return(a) -> a
+    NotReturn(b) -> f(b)
+  }
+}
+
+fn text_to_link_pattern(content: String, re: regexp.Regexp) -> Result(LinkPattern, DesugaringError) {
+  content
+  |> string.split(" ")
+  |> list.intersperse(" ")
+  |> list.filter(fn(s){s != ""})
+  |> list.flat_map(pseudoword_to_pattern_tokens(_, re))
+  |> Ok
+}
+
+fn vxml_to_link_pattern(
+  vxml: VXML,
+  re: regexp.Regexp,
+) -> Result(LinkPattern, DesugaringError) {
+  case vxml {
+    T(_, [TextLine(_, content)]) ->
+      text_to_link_pattern(content, re)
+
+    T(_, lines) ->
+      Error(DesugaringError(bl.no_blame, "T-node in parsed link pattern contains more than " <> ins(list.length(lines)) <> " != 1 line"))
+
+    V(_, tag, attrs, children) -> {
+      use children <- on.ok(
+        children
+        |> list.map(vxml_to_link_pattern(_, re))
+        |> result.all
+        |> result.map(list.flatten)
+      )
+
+      use <- on.true_false(
+        tag == "root",
+        Ok(children),
+      )
+
+      assert tag == "a"
+
+      use href_attribute <- on.lazy_empty_gt1_singleton(
+        infra.attributes_with_key(attrs, "href"),
+        fn() { Error(DesugaringError(bl.no_blame, "<a>-tag missing 'href' attribute")) },
+        fn(_, _, _) { Error(DesugaringError(bl.no_blame, "<a>-tag with >1 'href' attribute")) },
+      )
+
+      use href_value <- on.error_ok(
+        int.parse(href_attribute.value),
+        fn(_) { Error(DesugaringError(bl.no_blame, "could not parse <a>-href attribute as integer: " <> href_attribute.value)) },
+      )
+
+      use classes <- on_not_return(
+        case infra.attributes_with_key(attrs, "class") {
+          [] -> NotReturn("")
+          [one] -> NotReturn(one.value)
+          _ -> Return(Error(DesugaringError(bl.no_blame, "more than one class attribute inside <a> tag")))
+        }
+      )
+
+      Ok([A(tag: tag, classes: classes, href: href_value, children: children)])
+    }
+  }
+}
+
+fn parse_link_pattern(
   s: String,
   re: regexp.Regexp,
 ) -> Result(LinkPattern, DesugaringError) {
@@ -768,6 +831,15 @@ fn extra_string_to_link_pattern(
   )
 
   use pattern <- on.ok(pattern) // pattern was a Result(TokenPatter, DesugaringError)
+
+  use root <- on.error_ok(
+    vxml.streaming_based_xml_parser_string_version(s, "r4l"),
+    fn(e) { Error(DesugaringError(bl.no_blame, "could not parse link pattern '" <> s <> "': " <> ins(e))) }
+  )
+
+  use pattern2 <- on.ok(vxml_to_link_pattern(root, re))
+
+  io.println("hello: " <> ins(pattern == pattern2))
 
   pattern
   |> insert_start_t_end_t_into_link_pattern
@@ -792,13 +864,13 @@ fn string_pair_to_link_pattern_pair(string_pair: #(String, String)) -> Result(#(
   use pattern1 <- on.ok(
     { "<root>" <> s1 <> "</root>" }
     |> make_sure_attributes_are_quoted(re1)
-    |> extra_string_to_link_pattern(re2)
+    |> parse_link_pattern(re2)
   )
 
   use pattern2 <- on.ok(
     { "<root>" <> s2 <> "</root>" }
     |> make_sure_attributes_are_quoted(re1)
-    |> extra_string_to_link_pattern(re2)
+    |> parse_link_pattern(re2)
   )
 
   let pattern2 = make_target_pattern_substitutable_for_source_pattern(pattern1, pattern2)

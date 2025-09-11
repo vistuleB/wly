@@ -223,6 +223,10 @@ pub fn barbaric_symmetric_delim_splitting(
   ]
 }
 
+// **************
+// annotated backticks
+// **************
+
 pub fn annotated_backtick_splitting(
   tag: String,
   annotation_key: String,
@@ -255,6 +259,35 @@ pub fn annotated_backtick_splitting(
     }
   ]
   |> list.flatten
+}
+
+// **************
+// markdown-style links
+// **************
+
+pub fn markdown_link_splitting(
+  forbidden: List(String),
+) -> List(Desugarer) {
+  let text_folder = fn(v: VXML) -> String {
+    let assert V(_, _, [Attribute(_, "href", value)], _) = v
+    "]\\(" <> value <> "\\)"
+  }
+  let start_tag = "MDLinkOpening"
+  let end_tag = "MDLinkClosing"
+  let start_splitter = grs.unescaped_suffix_replacement_splitter("\\[", start_tag)
+  let end_splitter = grs.for_groups([
+    #("]\\(", grs.Trash),
+    #("[a-zA-Z0-9\\-\\.#_\\/:&=~]*", grs.TagWithAttribute(end_tag, "href")),
+    #("\\)", grs.Trash),
+  ])
+  [
+    dl.regex_split_and_replace__outside(end_splitter, forbidden),
+    dl.regex_split_and_replace__outside(start_splitter, forbidden),
+    dl.pair(#(start_tag, end_tag, "MDLink")),
+    dl.fold_into_text(#("MDLinkOpening", "[")),
+    dl.fold_custom_into_text(#("MDLinkClosing", text_folder)),
+    dl.rename(#("MDLink", "a")),
+  ]
 }
 
 //***************

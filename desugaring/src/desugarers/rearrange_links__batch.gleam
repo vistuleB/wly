@@ -1,5 +1,6 @@
 import gleam/dict.{type Dict}
 import gleam/int
+import gleam/io
 import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/regexp
@@ -407,24 +408,25 @@ fn tokenize_t(vxml: VXML) -> List(VXML) {
   |> list.append([end_node(blame)])
 }
 
-fn tokenize_if_t_or_href_tag_with_single_t_child(vxml: VXML) -> List(VXML) {
+fn tokenize_if_t_or_has_href_tag_recursive(vxml: VXML) -> List(VXML) {
   case vxml {
     T(_, _) -> tokenize_t(vxml)
-    V(_, _, _, [T(_, _) as t]) -> case infra.v_has_attribute_with_key(vxml, "href") {
+    V(_, _, _, children) -> case infra.v_has_attribute_with_key(vxml, "href") {
+      True -> [V(..vxml, children: list.flat_map(children, tokenize_if_t_or_has_href_tag_recursive))]
       False -> [vxml]
-      True -> [V(..vxml, children: tokenize_t(t))]
     }
-    _ -> [vxml]
   }
 }
+
+// fn tokenize_in_list(nodes: List(VXML)) -> List(VXML) {
+//   list.flat_map(nodes, tokenize_if_t_or_has_href_tag_recursive)
+// }
 
 fn tokenize_maybe(children: List(VXML)) -> Option(List(VXML)) {
   case list.any(children, infra.is_v_and_has_attribute_with_key(_, "href")) {
     True -> {
       children
-      |> list.map(tokenize_if_t_or_href_tag_with_single_t_child)
-      // |> list.map(tokenize_if_t)
-      |> list.flatten
+      |> list.flat_map(tokenize_if_t_or_has_href_tag_recursive)
       |> Some
     }
     False -> None
@@ -752,7 +754,81 @@ fn xmlm_tag_to_link_pattern(
   )])
 }
 
-fn extra_string_to_link_pattern(
+type Return(a, b) {
+  Return(a)
+  NotReturn(b)
+}
+
+fn on_not_return(
+  thing: Return(a, b),
+  f: fn(b) -> a,
+) -> a {
+  case thing {
+    Return(a) -> a
+    NotReturn(b) -> f(b)
+  }
+}
+
+fn text_to_link_pattern(content: String, re: regexp.Regexp) -> Result(LinkPattern, DesugaringError) {
+  content
+  |> string.split(" ")
+  |> list.intersperse(" ")
+  |> list.filter(fn(s){s != ""})
+  |> list.flat_map(pseudoword_to_pattern_tokens(_, re))
+  |> Ok
+}
+
+fn vxml_to_link_pattern(
+  vxml: VXML,
+  re: regexp.Regexp,
+) -> Result(LinkPattern, DesugaringError) {
+  case vxml {
+    T(_, [TextLine(_, content)]) ->
+      text_to_link_pattern(content, re)
+
+    T(_, lines) ->
+      Error(DesugaringError(bl.no_blame, "T-node in parsed link pattern contains more than " <> ins(list.length(lines)) <> " != 1 line"))
+
+    V(_, tag, attrs, children) -> {
+      use children <- on.ok(
+        children
+        |> list.map(vxml_to_link_pattern(_, re))
+        |> result.all
+        |> result.map(list.flatten)
+      )
+
+      use <- on.true_false(
+        tag == "root",
+        Ok(children),
+      )
+
+      assert tag == "a"
+
+      use href_attribute <- on.lazy_empty_gt1_singleton(
+        infra.attributes_with_key(attrs, "href"),
+        fn() { Error(DesugaringError(bl.no_blame, "<a>-tag missing 'href' attribute")) },
+        fn(_, _, _) { Error(DesugaringError(bl.no_blame, "<a>-tag with >1 'href' attribute")) },
+      )
+
+      use href_value <- on.error_ok(
+        int.parse(href_attribute.value),
+        fn(_) { Error(DesugaringError(bl.no_blame, "could not parse <a>-href attribute as integer: " <> href_attribute.value)) },
+      )
+
+      use classes <- on_not_return(
+        case infra.attributes_with_key(attrs, "class") {
+          [] -> NotReturn("")
+          [one] -> NotReturn(one.value)
+          _ -> Return(Error(DesugaringError(bl.no_blame, "more than one class attribute inside <a> tag")))
+        }
+      )
+
+      Ok([A(tag: tag, classes: classes, href: href_value, children: children)])
+    }
+  }
+}
+
+fn parse_link_pattern(
   s: String,
   re: regexp.Regexp,
 ) -> Result(LinkPattern, DesugaringError) {
@@ -768,6 +844,14 @@ fn extra_string_to_link_pattern(
   )
 
   use pattern <- on.ok(pattern) // pattern was a Result(TokenPatter, DesugaringError)
+  use root <- on.error_ok(
+    vxml.streaming_based_xml_parser_string_version(s, "r4l"),
+    fn(e) { Error(DesugaringError(bl.no_blame, "could not parse link pattern '" <> s <> "': " <> ins(e))) }
+  )
+
+  use pattern2 <- on.ok(vxml_to_link_pattern(root, re))
+
+  io.println("hello2: " <> ins(pattern == pattern2))
 
   pattern
   |> insert_start_t_end_t_into_link_pattern
@@ -792,13 +876,13 @@ fn string_pair_to_link_pattern_pair(string_pair: #(String, String)) -> Result(#(
   use pattern1 <- on.ok(
     { "<root>" <> s1 <> "</root>" }
     |> make_sure_attributes_are_quoted(re1)
-    |> extra_string_to_link_pattern(re2)
+    |> parse_link_pattern(re2)
   )
 
   use pattern2 <- on.ok(
     { "<root>" <> s2 <> "</root>" }
     |> make_sure_attributes_are_quoted(re1)
-    |> extra_string_to_link_pattern(re2)
+    |> parse_link_pattern(re2)
   )
 
   let pattern2 = make_target_pattern_substitutable_for_source_pattern(pattern1, pattern2)

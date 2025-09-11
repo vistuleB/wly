@@ -1817,6 +1817,13 @@ pub fn attributes_have_class(
   }
 }
 
+pub fn attributes_with_key(
+  attrs: List(Attribute),
+  key: String,
+) -> List(Attribute) {
+  list.filter(attrs, fn(x) { x.key == key })
+}
+
 pub fn substitute_in_attributes(
   attrs: List(Attribute),
   key: String,

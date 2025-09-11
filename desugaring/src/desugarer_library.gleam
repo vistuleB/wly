@@ -140,6 +140,7 @@ import desugarers/strip_delimiters_inside_if
 import desugarers/substitute_class
 import desugarers/supplement_class
 import desugarers/surround_elements_by
+import desugarers/table_marker
 import desugarers/ti2_carousel_component
 import desugarers/ti2_class_well_container_theorem_2_statement
 import desugarers/ti2_remove_chapter_number_from_title
@@ -320,6 +321,7 @@ pub const strip_delimiters_inside_if = strip_delimiters_inside_if.constructor
 pub const substitute_class = substitute_class.constructor
 pub const supplement_class = supplement_class.constructor
 pub const surround_elements_by = surround_elements_by.constructor
+pub const table_marker = table_marker.constructor
 pub const ti2_carousel_component = ti2_carousel_component.constructor
 pub const ti2_class_well_container_theorem_2_statement = ti2_class_well_container_theorem_2_statement.constructor
 pub const ti2_remove_chapter_number_from_title = ti2_remove_chapter_number_from_title.constructor
@@ -501,6 +503,7 @@ pub const assertive_tests : List(fn() -> infra.AssertiveTestCollection) = [
   substitute_class.assertive_tests,
   supplement_class.assertive_tests,
   surround_elements_by.assertive_tests,
+  table_marker.assertive_tests,
   ti2_carousel_component.assertive_tests,
   ti2_class_well_container_theorem_2_statement.assertive_tests,
   ti2_remove_chapter_number_from_title.assertive_tests,
