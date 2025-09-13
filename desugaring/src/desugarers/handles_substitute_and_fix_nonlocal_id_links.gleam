@@ -280,11 +280,14 @@ fn substitute_id_in_href(
 ) -> Result(#(Attribute, Option(DesugaringWarning)), DesugaringError) {
   assert attr.value |> string.starts_with("#")
   let id = attr.value |> string.drop_start(1)
+  let #(id, page) = case id |> string.ends_with(":page") {
+    True -> #(id |> string.drop_end(5), True)
+    False -> #(id, False)
+  }
   use path <- on.none_some(
     state.path,
     Error(DesugaringError(attr.blame, "id appearing outside outside of path context")),
   )
-
   use paths <- on.error_ok(
     dict.get(state.ids, id),
     fn(_) {
@@ -292,16 +295,22 @@ fn substitute_id_in_href(
       Ok(#(attr, Some(warning)))
     }
   )
-
   case list.contains(paths, path) {
     True -> {
       // the page we're pointing to is
       // the current page, nothing to do
-      Ok(#(attr, None))
+      case page {
+        True -> Ok(#(Attribute(..attr, value: path), None)) // (this case is a bit weird but whatever the user says...)
+        False -> Ok(#(attr, None))
+      }
+      
     }
     False -> case paths {
       [] -> panic as "each id should have at least 1 path?"
-      [one] -> Ok(#(Attribute(..attr, value: one <> attr.value), None))
+      [one] -> case page {
+        True -> Ok(#(Attribute(..attr, value: one), None))
+        False -> Ok(#(Attribute(..attr, value: one <> attr.value), None))
+      }
       _ -> Error(DesugaringError(attr.blame, "unresolved id '" <> id <> "' appearing out-of-own-page but with several target pages to choose from"))
     }
   }

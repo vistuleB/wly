@@ -82,8 +82,10 @@ fn try_insert_id(
         attr.blame,
         "redefinition id '" <> id <> "' on page '" <> path <> "' (previously defined at " <> bl.blame_digest(x.2) <> ")"
       ))
-    Error(_) ->
+    Error(_) -> {
+
       Ok([#(id, path, attr.blame), ..ids])
+    }
   }
 }
 

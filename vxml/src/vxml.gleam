@@ -1584,16 +1584,16 @@ fn take_while_text_or_newline(
 
 type Return(a, b) {
   Return(a)
-  NotReturn(b)
+  Continuation(b)
 }
 
-fn on_not_return(
+fn on_continuation(
   thing: Return(a, b),
   f: fn(b) -> a,
 ) -> a {
   case thing {
     Return(a) -> a
-    NotReturn(b) -> f(b)
+    Continuation(b) -> f(b)
   }
 }
 
@@ -1641,7 +1641,7 @@ fn get_attributes_and_tag_end(
     }
   }
 
-  use #(first, rest) <- on_not_return(
+  use #(first, rest) <- on_continuation(
     case tri_way(rest) {
       TagEnd(tag_end, rest) ->
         Return(Ok(#([], tag_end, rest)))
@@ -1650,7 +1650,7 @@ fn get_attributes_and_tag_end(
         Return(Error(#(tag_start.blame, "ran out of events while waiting for end of tag")))
 
       SomethingElse(first, rest, _) ->
-        NotReturn(#(first, rest))
+        Continuation(#(first, rest))
     }
   )
 
@@ -1673,7 +1673,7 @@ fn get_attributes_and_tag_end(
   // current assignment as empty)
   let proto = Attribute(key_blame, key_name, "")
 
-  use #(second, rest) <- on_not_return(
+  use #(second, rest) <- on_continuation(
     case tri_way(rest) {
       TagEnd(tag_end, rest) ->
         Return(Ok(#([proto], tag_end, rest)))
@@ -1682,13 +1682,13 @@ fn get_attributes_and_tag_end(
         Return(Error(#(tag_start.blame, "ran out of events while waiting for end of tag")))
 
       SomethingElse(second, rest, _) ->
-        NotReturn(#(second, rest))
+        Continuation(#(second, rest))
     }
   )
 
-  use _ <- on_not_return(
+  use _ <- on_continuation(
     case second {
-      xs.Assignment(_) -> NotReturn(Nil)
+      xs.Assignment(_) -> Continuation(Nil)
       _ -> Return(
         // if the key wasn't followed by '=' then it can only
         // be followed by spaces or by tag end, and either way
@@ -1702,7 +1702,7 @@ fn get_attributes_and_tag_end(
 
   // 'key=' or 'key  ='
 
-  use #(third, rest, had_spaces) <- on_not_return(
+  use #(third, rest, had_spaces) <- on_continuation(
     case tri_way(rest) {
       TagEnd(tag_end, rest) ->
         Return(Ok(#([proto], tag_end, rest)))
@@ -1711,7 +1711,7 @@ fn get_attributes_and_tag_end(
         Return(Error(#(tag_start.blame, "ran out of events while waiting for end of tag")))
 
       SomethingElse(third, rest, had_spaces) ->
-        NotReturn(#(third, rest, had_spaces))
+        Continuation(#(third, rest, had_spaces))
     }
   )
 
