@@ -57,7 +57,7 @@ type InnerParam =
   Dict(String, #(String, String, List(vxml.Attribute)))
 
 pub const name = "rename_with_appended_attributes_and_prepended_text"
-fn desugarer_blame(line_no: Int) {bl.Des([], name, line_no)}
+fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
 
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 // 🏖️🏖️ Desugarer 🏖️🏖️

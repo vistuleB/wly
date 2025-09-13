@@ -2,7 +2,13 @@ import gleam/list
 import gleam/option
 import gleam/result
 import gleam/string.{inspect as ins}
-import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError, type DesugaringWarning, DesugaringError} as infra
+import infrastructure.{
+  type Desugarer,
+  type DesugarerTransform,
+  type DesugaringError,
+  Desugarer,
+  DesugaringError,
+} as infra
 import nodemaps_2_desugarer_transforms as n2t
 import vxml.{type VXML, Attribute, V}
 import blame as bl
@@ -73,7 +79,7 @@ fn chapter_link(
           "number",
           number_attribute.value,
         ),
-        Attribute(desugarer_blame(76), "href", link),
+        Attribute(desugarer_blame(82), "href", link),
       ],
       [],
     ),
@@ -81,11 +87,11 @@ fn chapter_link(
 }
 
 fn div_with_id_title_and_menu_items(id: String, menu_items: List(VXML)) -> VXML {
-  V(desugarer_blame(84), "div", [Attribute(desugarer_blame(84), "id", id)], [
+  V(desugarer_blame(90), "div", [Attribute(desugarer_blame(90), "id", id)], [
     V(
-      desugarer_blame(86),
+      desugarer_blame(92),
       "ul",
-      [Attribute(desugarer_blame(88), "style", "list-style: none")],
+      [Attribute(desugarer_blame(94), "style", "list-style: none")],
       menu_items,
     ),
   ])
@@ -94,10 +100,10 @@ fn div_with_id_title_and_menu_items(id: String, menu_items: List(VXML)) -> VXML 
 fn at_root(
   root: VXML,
   inner: InnerParam,
-) -> Result(#(VXML, List(DesugaringWarning)), DesugaringError) {
+) -> Result(VXML, DesugaringError) {
+  let assert V(_, _, _, children) = root
   let #(table_of_contents_tag, chapter_link_component_name) = inner
   let sections = infra.descendants_with_tag(root, "Section")
-
   use chapter_menu_items <- on.ok(
     sections
     |> list.index_map(fn(chapter: VXML, index) {
@@ -105,20 +111,16 @@ fn at_root(
     })
     |> result.all
   )
-
   let chapters_div =
     div_with_id_title_and_menu_items("Chapters", chapter_menu_items)
-
-  infra.v_prepend_child(
-    root,
-    V(desugarer_blame(114), table_of_contents_tag, [], [chapters_div]),
-  )
-  |> n2t.add_no_warnings
-  |> Ok
+  let toc =
+    V(desugarer_blame(117), table_of_contents_tag, [], [chapters_div])
+  Ok(V(..root, children: [toc, ..children]))
 }
 
 fn transform_factory(inner: InnerParam) -> infra.DesugarerTransform {
   at_root(_, inner)
+  |> n2t.at_root_2_desugarer_transform
 }
 
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
@@ -132,7 +134,7 @@ type Param = #(String,         String)
 type InnerParam = Param
 
 pub const name = "generate_ti2_table_of_contents"
-fn desugarer_blame(line_no: Int) {bl.Des([], name, line_no)}
+fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
 
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 // 🏖️🏖️ Desugarer 🏖️🏖️

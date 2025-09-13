@@ -5,7 +5,13 @@ import gleam/option
 import gleam/pair
 import gleam/result
 import gleam/string.{inspect as ins}
-import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError, type DesugaringWarning, DesugaringError} as infra
+import infrastructure.{
+  type Desugarer,
+  type DesugarerTransform,
+  type DesugaringError,
+  Desugarer,
+  DesugaringError,
+} as infra
 import nodemaps_2_desugarer_transforms as n2t
 import vxml.{type VXML, Attribute, TextLine, T, V}
 import on
@@ -72,10 +78,10 @@ fn chapter_link(
   let number_span =
     V(item_blame, "span", [], [
       T(
-        desugarer_blame(75),
+        desugarer_blame(81),
         [
           TextLine(
-            desugarer_blame(78),
+            desugarer_blame(84),
             chapter_number <> "." <> ins(section_index) <> " - ",
           ),
         ]
@@ -87,7 +93,7 @@ fn chapter_link(
       item_blame,
       "a",
       [
-        Attribute(desugarer_blame(90), "href", link)
+        Attribute(desugarer_blame(96), "href", link)
       ],
       [
         T(item_blame, [TextLine(item_blame, label_attr.value)]),
@@ -99,7 +105,7 @@ fn chapter_link(
     on.true_false(sub_chapter_number == "0", "0", fn() { "40px" })
 
   let style_attr =
-    Attribute(desugarer_blame(102), "style", "margin-left: " <> margin_left)
+    Attribute(desugarer_blame(108), "style", "margin-left: " <> margin_left)
 
   Ok(V(item_blame, chapter_link_component_name, [style_attr], [number_span, a]))
 }
@@ -128,11 +134,11 @@ fn get_section_index(item: VXML, count: Int) -> Result(Int, DesugaringError) {
 }
 
 fn div_with_id_title_and_menu_items(id: String, menu_items: List(VXML)) -> VXML {
-  V(desugarer_blame(131), "div", [Attribute(desugarer_blame(131), "id", id)], [
+  V(desugarer_blame(137), "div", [Attribute(desugarer_blame(137), "id", id)], [
     V(
-      desugarer_blame(133),
+      desugarer_blame(139),
       "ul",
-      [Attribute(desugarer_blame(135), "style", "list-style: none")],
+      [Attribute(desugarer_blame(141), "style", "list-style: none")],
       menu_items,
     ),
   ])
@@ -141,20 +147,24 @@ fn div_with_id_title_and_menu_items(id: String, menu_items: List(VXML)) -> VXML 
 fn at_root(
   root: VXML,
   inner: InnerParam,
-) -> Result(#(VXML, List(DesugaringWarning)), DesugaringError) {
-  let #(table_of_contents_tag, chapter_link_component_name) = inner
+) -> Result(VXML, DesugaringError) {
+  let assert V(_, _, _, _) = root
+  let #(toc_tag, chapter_link_component_name) = inner
   let sections = infra.descendants_with_tag(root, "section")
   use chapter_menu_items <- on.ok(
     sections
-    |> list.map_fold(0, fn(acc, chapter: VXML) {
-      case get_section_index(chapter, acc) {
-        Ok(section_index) -> #(
-          section_index,
-          chapter_link(chapter_link_component_name, chapter, section_index),
-        )
-        Error(error) -> #(acc, Error(error))
+    |> list.map_fold(
+      0, 
+      fn(acc, chapter: VXML) {
+        case get_section_index(chapter, acc) {
+          Ok(section_index) -> #(
+            section_index,
+            chapter_link(chapter_link_component_name, chapter, section_index),
+          )
+          Error(error) -> #(acc, Error(error))
+        }
       }
-    })
+    )
     |> pair.second
     |> result.all
   )
@@ -162,16 +172,16 @@ fn at_root(
   let chapters_div =
     div_with_id_title_and_menu_items("Chapters", chapter_menu_items)
 
-  infra.v_prepend_child(
-    root,
-    V(desugarer_blame(167), table_of_contents_tag, [], [chapters_div]),
-  )
-  |> n2t.add_no_warnings
+  let toc =
+    V(desugarer_blame(176), toc_tag, [], [chapters_div])
+
+  infra.v_prepend_child(root, toc)
   |> Ok
 }
 
 fn transform_factory(inner: InnerParam) -> infra.DesugarerTransform {
   at_root(_, inner)
+  |> n2t.at_root_2_desugarer_transform
 }
 
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
@@ -185,7 +195,7 @@ type Param = #(String,              String)
 type InnerParam = Param
 
 pub const name = "generate_ti2_table_of_contents_html"
-fn desugarer_blame(line_no: Int) {bl.Des([], name, line_no)}
+fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
 
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 // 🏖️🏖️ Desugarer 🏖️🏖️

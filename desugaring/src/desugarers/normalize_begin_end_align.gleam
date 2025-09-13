@@ -302,7 +302,7 @@ type InnerParam =
   #(List(String), String, List(String), String)
 
 pub const name = "normalize_begin_end_align"
-fn desugarer_blame(line_no: Int) {bl.Des([], name, line_no)}
+fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
 
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 // 🏖️🏖️ Desugarer 🏖️🏖️

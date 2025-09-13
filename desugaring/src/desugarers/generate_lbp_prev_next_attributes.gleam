@@ -2,7 +2,12 @@ import on
 import gleam/list
 import gleam/option
 import gleam/string.{inspect as ins}
-import infrastructure.{type Desugarer, Desugarer, type DesugaringError, DesugaringError, type DesugaringWarning} as infra
+import infrastructure.{
+  type Desugarer,
+  type DesugaringError,
+  Desugarer,
+  DesugaringError,
+} as infra
 import vxml.{type VXML, Attribute, V}
 import nodemaps_2_desugarer_transforms as n2t
 
@@ -54,7 +59,7 @@ fn add_links_to_toc(vxml: VXML, num_bootcamps: Int, num_chapters: Int) -> VXML {
   |> prepend_link(prev_link, "prev-page")
 }
 
-fn at_root(root: VXML) -> Result(#(VXML, List(DesugaringWarning)), DesugaringError) {
+fn at_root(root: VXML) -> Result(VXML, DesugaringError) {
   let assert V(_, _, _, children) = root
   let chapters = infra.v_children_with_tag(root, "Chapter")
   let bootcamps = infra.v_children_with_tag(root, "Bootcamp")
@@ -69,13 +74,12 @@ fn at_root(root: VXML) -> Result(#(VXML, List(DesugaringWarning)), DesugaringErr
   let bootcamps = list.index_map(bootcamps, fn(c, i) {add_links_to_bootcamp(c, i + 1, num_bootcamps)})
   let toc = add_links_to_toc(toc, num_bootcamps, num_chapters)
   let other_children = list.filter(children, fn(c) { !infra.is_v_and_tag_is_one_of(c, ["TOC", "Chapter", "Bootcamp"]) })
-  V(..root, children: list.flatten([other_children, [toc], chapters, bootcamps]))
-  |> n2t.add_no_warnings
-  |> Ok
+  Ok(V(..root, children: list.flatten([other_children, [toc], chapters, bootcamps])))
 }
 
 fn transform_factory(_: InnerParam) -> infra.DesugarerTransform {
   at_root
+  |> n2t.at_root_2_desugarer_transform
 }
 
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {

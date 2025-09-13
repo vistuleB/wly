@@ -67,7 +67,7 @@ type Param = #(String,   List(String))
 type InnerParam = #(String, List(String), Blame)
 
 pub const name = "group_consecutive_children__outside"
-fn desugarer_blame(line_no: Int) {bl.Des([], name, line_no)}
+fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
 
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 // 🏖️🏖️ Desugarer 🏖️🏖️

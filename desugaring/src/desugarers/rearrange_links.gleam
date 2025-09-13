@@ -873,7 +873,7 @@ type Param = #(String,   String)
 type InnerParam = #(LinkPattern, LinkPattern)
 
 pub const name = "rearrange_links"
-fn desugarer_blame(line_no: Int) {bl.Des([], name, line_no)}
+fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
 
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 // 🏖️🏖️ Desugarer 🏖️🏖️

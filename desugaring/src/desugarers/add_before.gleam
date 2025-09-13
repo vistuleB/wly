@@ -56,7 +56,7 @@ type Param = #(String,        String,          List(#(String, String)))
 type InnerParam = #(String, VXML)
 
 pub const name = "add_before"
-fn desugarer_blame(line_no: Int) {bl.Des([], name, line_no)}
+fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
 
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 // 🏖️🏖️ Desugarer 🏖️🏖️

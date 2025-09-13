@@ -51,7 +51,7 @@ type Param = #(String, String, String)
 type InnerParam = #(String, Attribute)
 
 pub const name = "append_attribute__outside"
-fn desugarer_blame(line_no: Int) {bl.Des([], name, line_no)}
+fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
 
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 // 🏖️🏖️ Desugarer 🏖️🏖️

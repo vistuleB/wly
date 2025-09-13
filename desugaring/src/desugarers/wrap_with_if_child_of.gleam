@@ -54,7 +54,7 @@ type Param = #(String, String,     List(String))
 type InnerParam = Param
 
 pub const name = "wrap_with_if_child_of"
-fn desugarer_blame(line_no: Int) {bl.Des([], name, line_no)}
+fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
 
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 // 🏖️🏖️ Desugarer 🏖️🏖️

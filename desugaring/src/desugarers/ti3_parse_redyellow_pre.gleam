@@ -39,7 +39,7 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
 }
 
 pub const name = "ti3_parse_redyellow_pre"
-fn desugarer_blame(line_no: Int) {bl.Des([], name, line_no)}
+fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
 
 type Param = Nil
 type InnerParam = Param

@@ -6,113 +6,84 @@ import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type 
 import nodemaps_2_desugarer_transforms as n2t
 import vxml.{type Attribute, type VXML, Attribute, V}
 import blame.{type Blame} as bl
+import splitter as sp
 import on
 
-type HandlesDict =
-  Dict(String, #(String,       String,     String))
-//     ↖         ↖             ↖           ↖
-//     handle    string value  handle id   page path
-//     name      of handle     on page     for handle
-
-type State {
-  State(
-    handles: HandlesDict,
-    path: Option(String),
-  )
-}
-
-fn convert_handles_to_attributes(
+fn grand_wrapper_attributes(
   handles: HandlesDict,
 ) -> List(Attribute) {
-  list.map2(
-    dict.keys(handles),
-    dict.values(handles),
-    fn (key, values) {
-      let #(value, id, filename) = values
-      Attribute(
-        blame: desugarer_blame(33),
-        key: "handle",
-        value: key <> "|" <> value <> "|" <> id <> "|" <> filename,
-      )
+  handles
+  |> dict.map_values(
+    fn (key, value) {
+      let #(value, id, path, _) = value
+      Attribute(desugarer_blame(19), "handle", key <> "|" <> value <> "|" <> id <> "|" <> path)
     }
   )
+  |> dict.values
 }
 
-fn check_handle_already_defined(
-  new_handle_name: String,
-  handles: HandlesDict,
-  blame: Blame,
-) -> Result(Nil, DesugaringError) {
-  case dict.get(handles, new_handle_name) {
-    Ok(_) ->
-      Error(DesugaringError(
-        blame: blame,
-        message: "Handle " <> new_handle_name <> " has already been used",
-      ))
-    Error(_) -> Ok(Nil)
+fn try_read_handle(
+  attr: Attribute
+) -> Result(#(String, String, String), DesugaringError) {
+  assert attr.key == "handle"
+  case string.split(attr.value, "|") {
+    [name, value, id] -> Ok(#(name, value, id))
+    _ -> Error(DesugaringError(attr.blame, "handle attribute not in form <name>|<value>|<id>; found: “" <> attr.value <> "”"))
   }
 }
 
-type HandleAttributeInfo {
-  HandleAttributeInfo(
-    handle_name: String,
-    id: String,
-    value: String,
-    blame: Blame,
-  )
+fn try_insert_handle(
+  handles: HandlesDict,
+  name: String,
+  value: String,
+  id: String,
+  path: String,
+  blame: Blame,
+) -> Result(HandlesDict, DesugaringError) {
+  case dict.get(handles, name) {
+    Ok(entry) ->
+      Error(DesugaringError(blame, "redefinition of '" <> name <> "' (previously defined at " <> bl.blame_digest(entry.3) <> ")"))
+    Error(_) ->
+      Ok(dict.insert(handles, name, #(value, id, path, blame)))
+  }
 }
 
-fn extract_handles_attribute_infos(
-  attributes: List(Attribute),
-) -> #(List(Attribute), List(HandleAttributeInfo)) {
-  let #(handle_attributes, other_attributes) =
-    attributes
-    |> list.partition(fn(att){att.key == "handle"})
+fn attributes_fold(
+  not_handles_acc: List(Attribute),
+  remaining: List(Attribute),
+  handles: HandlesDict,
+  path: String,
+) -> Result(#(HandlesDict, List(Attribute)), DesugaringError) {
+  use first, rest <- on.empty_nonempty(
+    remaining,
+    Ok(#(handles, not_handles_acc |> list.reverse))
+  )
 
-  let infos =
-    handle_attributes
-    |> list.map(fn(att) {
-      let assert [handle_name, value, id] = string.split(att.value, "|")
-      HandleAttributeInfo(
-        handle_name: handle_name,
-        id: id,
-        value: value,
-        blame: att.blame,
-      )
-    })
-
-  #(other_attributes, infos)
+  case first.key {
+    "handle" -> {
+      use #(name, value, id) <- on.ok(try_read_handle(first))
+      use handles <- on.ok(try_insert_handle(handles, name, value, id, path, first.blame))
+      attributes_fold(not_handles_acc, rest, handles, path)
+    }
+    _ -> attributes_fold([first, ..not_handles_acc], rest, handles, path)
+  }
 }
 
-fn update_handles(
-  state: State,
-  handle_infos: List(HandleAttributeInfo),
-  inner: InnerParam,
-) -> Result(State, DesugaringError) {
-  use first, _ <- on.empty_nonempty(
-    handle_infos,
-    Ok(state),
-  )
-
-  use path <- on.lazy_none_some(
-    state.path,
-    fn(){ Error(DesugaringError(first.blame, "no '" <> inner <> "' attribute found leading up to to handle '" <> first.handle_name <> "'")) },
-  )
-
-  use handles <- on.ok(
-    handle_infos
-    |> list.try_fold(
-      state.handles,
-      fn(acc, info) {
-        use _ <- on.ok(
-          check_handle_already_defined(info.handle_name, acc, info.blame)
-        )
-        Ok(dict.insert(acc, info.handle_name, #(info.value, info.id, path)))
+fn check_no_handles(
+  attrs: List(Attribute)
+) -> Result(List(Nil), DesugaringError) {
+  list.try_map(
+    attrs,
+    fn(attr) {
+      case attr.key == "handle" {
+        True -> {
+          let #(name, _, _) = sp.split(sp.new(["|"]), attr.value)
+          Error(DesugaringError(attr.blame, "no page path at handle '" <> name <> "'"))
+        }
+        False -> Ok(Nil)
       }
-    )
+    }
   )
-
-  Ok(State(..state, handles: handles))
 }
 
 fn update_path(
@@ -139,27 +110,34 @@ fn v_before_transforming_children(
   state: State,
   inner: InnerParam,
 ) -> Result(#(VXML, State), DesugaringError) {
-  let assert V(b, t, attributes, c) = vxml
-  let #(attributes, handle_infos) = extract_handles_attribute_infos(attributes)
+  let assert V(_, _, attrs, _) = vxml
   let state = update_path(state, vxml, inner)
-  use state <- on.ok(update_handles(state, handle_infos, inner))
-  Ok(#(V(b, t, attributes, c), state))
+  case state.path {
+    None -> {
+      use _ <- on.ok(check_no_handles(attrs))
+      Ok(#(vxml, state))
+    }
+    Some(path) -> {
+      use #(handles, attrs) <- on.ok(attributes_fold([], attrs, state.handles, path))
+      Ok(#(V(..vxml, attributes: attrs), State(..state, handles: handles)))
+    }
+  }
 }
 
 fn v_after_transforming_children(
   vxml: VXML,
   ancestors: List(VXML),
   original_state: State,
-  latest_state: State,
+  state: State,
 ) -> Result(#(VXML, State), DesugaringError) {
-  let state = State(latest_state.handles, original_state.path)
+  let state = State(..state, path: original_state.path)
   case list.is_empty(ancestors) {
     False -> Ok(#(vxml, state))
     True -> {
       let grand_wrapper = V(
-        desugarer_blame(160),
+        desugarer_blame(138),
         "GrandWrapper",
-        convert_handles_to_attributes(state.handles),
+        grand_wrapper_attributes(state.handles),
         [vxml],
       )
       Ok(#(grand_wrapper, state))
@@ -184,7 +162,7 @@ fn nodemap_factory(inner: InnerParam) -> n2t.FancyOneToOneBeforeAndAfterStateful
 fn transform_factory(inner: InnerParam) -> infra.DesugarerTransform {
   n2t.fancy_one_to_one_before_and_after_stateful_nodemap_2_desugarer_transform(
     nodemap_factory(inner),
-    State(dict.new(), None)
+   State(dict.new(), None),
   )
 }
 
@@ -192,14 +170,26 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
   Ok(param)
 }
 
+type HandlesDict = Dict(String, #(String,       String,     String,      Blame))
+//                      ↖         ↖             ↖           ↖
+//                      handle    string value  handle id   page path
+//                      name      of handle     on page     for handle
+
+type State {
+  State(
+    handles: HandlesDict,
+    path: Option(String),
+  )
+}
+
 type Param = String
 //           ↖
 //           key of attribute
-//           holding the
+//           holding the local path (could be 'path' or 'page', etc)
 type InnerParam = Param
 
-pub const name = "handles_generate_dictionary"
-fn desugarer_blame(line_no: Int) {bl.Des([], name, line_no)}
+pub const name = "handles_and_ids_generate_dictionary"
+fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
 
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 // 🏖️🏖️ Desugarer 🏖️🏖️
@@ -208,7 +198,7 @@ fn desugarer_blame(line_no: Int) {bl.Des([], name, line_no)}
 /// Looks for `handle` attributes in the V nodes
 /// that are expected to be in form
 ///
-/// `handle=handle_name | id | value`
+/// `handle=name | value | id`
 ///
 /// (Panics if not in this form.)
 ///
@@ -231,7 +221,7 @@ fn desugarer_blame(line_no: Int) {bl.Des([], name, line_no)}
 ///
 /// Throws error if
 /// 1. there are multiple handles with same
-///    handle_name
+///    name
 /// 2. no node found with Param.0 tag Param.1
 ///    attribute_key
 pub fn constructor(param: Param) -> Desugarer {

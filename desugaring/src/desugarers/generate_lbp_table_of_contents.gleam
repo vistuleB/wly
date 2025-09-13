@@ -2,7 +2,13 @@ import gleam/list
 import gleam/option.{type Option, Some}
 import gleam/result
 import gleam/string.{inspect as ins}
-import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError, type DesugaringWarning, DesugaringError} as infra
+import infrastructure.{
+  type Desugarer,
+  type DesugarerTransform,
+  type DesugaringError,
+  Desugarer,
+  DesugaringError,
+} as infra
 import vxml.{type VXML, Attribute, V}
 import blame as bl
 import nodemaps_2_desugarer_transforms as n2t
@@ -37,8 +43,8 @@ fn chapter_link(
       blame,
       chapter_link_component_name,
       [
-        Attribute(desugarer_blame(40), "article_type", ins(count)),
-        Attribute(desugarer_blame(41), "href", tp <> ins(count)),
+        Attribute(desugarer_blame(46), "article_type", ins(count)),
+        Attribute(desugarer_blame(47), "href", tp <> ins(count)),
       ],
       title_element.children,
     ),
@@ -50,9 +56,9 @@ fn type_of_chapters_title(
   label: String,
 ) -> VXML {
   V(
-    desugarer_blame(53),
+    desugarer_blame(59),
     type_of_chapters_title_component_name,
-    [Attribute(desugarer_blame(55), "label", label)],
+    [Attribute(desugarer_blame(61), "label", label)],
     [],
   )
 }
@@ -64,34 +70,38 @@ fn div_with_id_title_and_menu_items(
   menu_items: List(VXML),
 ) -> VXML {
   V(
-    desugarer_blame(67),
+    desugarer_blame(73),
     "div",
     [
-      Attribute(desugarer_blame(70), "id", id)
+      Attribute(desugarer_blame(76), "id", id),
     ],
     [
       type_of_chapters_title(type_of_chapters_title_component_name, title_label),
-      V(desugarer_blame(74), "ul", [], menu_items),
+      V(desugarer_blame(80), "ul", [], menu_items),
     ],
   )
 }
 
-fn at_root(root: VXML, param: InnerParam) -> Result(#(VXML, List(DesugaringWarning)), DesugaringError) {
+fn at_root(root: VXML, param: InnerParam) -> Result(VXML, DesugaringError) {
+  let assert V(_, _, _, children) = root
+
   let #(
-    table_of_contents_tag,
+    toc_tag,
     type_of_chapters_title_component_name,
     chapter_link_component_name,
     maybe_spacer,
   ) = param
 
   use chapter_menu_items <- on.ok(
-    infra.v_children_with_tag(root, "Chapter")
+    children
+    |> list.filter(infra.is_v_and_tag_equals(_, "Chapter"))
     |> list.index_map(fn(chapter: VXML, index) { chapter_link(chapter_link_component_name, chapter, index + 1) })
     |> result.all
   )
 
   use bootcamp_menu_items <- on.ok(
-    infra.v_children_with_tag(root, "Bootcamp")
+    children
+    |> list.filter(infra.is_v_and_tag_equals(_, "Bootcamp"))
     |> list.index_map(fn(bootcamp: VXML, index) { chapter_link(chapter_link_component_name, bootcamp, index + 1) })
     |> result.all
   )
@@ -115,28 +125,30 @@ fn at_root(root: VXML, param: InnerParam) -> Result(#(VXML, List(DesugaringWarni
   let exists_bootcamps = !list.is_empty(bootcamp_menu_items)
   let exists_chapters = !list.is_empty(chapter_menu_items)
 
-  let children = list.flatten([
+  let toc_children = [
     case exists_chapters {
       True -> [chapters_div]
       False -> []
     },
     case exists_bootcamps, exists_chapters, maybe_spacer {
-      True, True, Some(spacer_tag) -> [V(desugarer_blame(124), spacer_tag, [], [])]
+      True, True, Some(spacer_tag) -> [V(desugarer_blame(134), spacer_tag, [], [])]
       _, _, _ -> []
     },
     case exists_bootcamps {
       True -> [bootcamps_div]
       False -> []
     },
-  ])
+  ]
+  |> list.flatten
 
-  infra.v_prepend_child(root, V(desugarer_blame(133), table_of_contents_tag, [], children))
-  |> n2t.add_no_warnings
-  |> Ok
+  let toc = V(desugarer_blame(144), toc_tag, [], toc_children)
+
+  Ok(V(..root, children: [toc, ..children]))
 }
 
-fn desugarer_factory(param: InnerParam) -> infra.DesugarerTransform {
-  at_root(_, param)
+fn desugarer_factory(inner: InnerParam) -> infra.DesugarerTransform {
+  at_root(_, inner)
+  |> n2t.at_root_2_desugarer_transform
 }
 
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
@@ -151,7 +163,7 @@ type Param = #(String,   String,                String,        Option(String))
 type InnerParam = Param
 
 pub const name = "generate_lbp_table_of_contents"
-fn desugarer_blame(line_no: Int) {bl.Des([], name, line_no)}
+fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
 
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 // 🏖️🏖️ Desugarer 🏖️🏖️
@@ -171,7 +183,7 @@ pub fn constructor(param: Param) -> Desugarer {
     stringified_outside: option.None,
     transform: case param_to_inner_param(param) {
       Error(error) -> fn(_) { Error(error) }
-      Ok(param) -> desugarer_factory(param)
+      Ok(inner) -> desugarer_factory(inner)
     }
   )
 }

@@ -1,7 +1,13 @@
 import gleam/string.{inspect as ins}
 import gleam/result
 import gleam/list
-import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError, type DesugaringWarning, DesugaringError} as infra
+import infrastructure.{
+  type Desugarer,
+  type DesugarerTransform,
+  type DesugaringError,
+  Desugarer,
+  DesugaringError,
+} as infra
 import gleam/option
 import vxml.{type VXML, V, T, TextLine, Attribute}
 import blame as bl
@@ -88,18 +94,18 @@ fn transform_children(children: List(VXML)) -> List(VXML){
 
 fn construct_breadcrumb(children: List(VXML), target_id: String, index: Int) -> VXML {
   let link = V(
-    desugarer_blame(91),
+    desugarer_blame(97),
     "InChapterLink",
-    [Attribute(desugarer_blame(93), "href", "?id=" <> target_id)],
+    [Attribute(desugarer_blame(99), "href", "?id=" <> target_id)],
     children
   )
 
   V(
-    desugarer_blame(98),
+    desugarer_blame(104),
     "BreadcrumbItem",
     [
-      Attribute(desugarer_blame(101), "class", "breadcrumb"),
-      Attribute(desugarer_blame(102), "id", "breadcrumb-" <> ins(index)),
+      Attribute(desugarer_blame(107), "class", "breadcrumb"),
+      Attribute(desugarer_blame(108), "id", "breadcrumb-" <> ins(index)),
     ],
     [
       link
@@ -139,7 +145,7 @@ fn generate_sections_list(sections: List(VXML), exercises: List(VXML)) -> Result
   }
 
   Ok(V(
-    desugarer_blame(142),
+    desugarer_blame(148),
     "SectionsBreadcrumbs",
     [],
     list.flatten([sections_nodes, exercises_node])
@@ -164,22 +170,15 @@ fn map_chapter(child: VXML) -> Result(VXML, DesugaringError) {
   }
 }
 
-fn at_root(root: VXML) -> Result(#(VXML, List(DesugaringWarning)), DesugaringError) {
+fn at_root(root: VXML) -> Result(VXML, DesugaringError) {
   let assert V(_, _, _, children) = root
-  use children <- on.ok(
-    children
-    |> list.map(map_chapter)
-    |> result.all
-  )
-
-  root
-  |> infra.v_replace_children_with(children)
-  |> n2t.add_no_warnings
-  |> Ok
+  use children <- on.ok(children |> list.try_map(map_chapter))
+  Ok(V(..root, children: children))
 }
 
 fn transform_factory(_: InnerParam) -> DesugarerTransform {
   at_root
+  |> n2t.at_root_2_desugarer_transform
 }
 
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
@@ -190,7 +189,7 @@ type Param = Nil
 type InnerParam = Nil
 
 pub const name = "generate_lbp_sections_breadcrumbs"
-fn desugarer_blame(line_no: Int) {bl.Des([], name, line_no)}
+fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
 
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 // 🏖️🏖️ Desugarer 🏖️🏖️

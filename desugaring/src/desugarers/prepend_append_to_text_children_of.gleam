@@ -111,7 +111,7 @@ type InnerParam =
   Dict(String, #(VXML, VXML))
 
 pub const name = "prepend_append_to_text_children_of"
-fn desugarer_blame(line_no: Int) {bl.Des([], name, line_no)}
+fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
 
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 // 🏖️🏖️ Desugarer 🏖️🏖️

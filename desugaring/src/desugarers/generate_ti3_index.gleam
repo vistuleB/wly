@@ -6,7 +6,6 @@ import gleam/regexp
 import infrastructure.{
   type Desugarer, 
   type DesugaringError, 
-  type DesugaringWarning,
   Desugarer,
   DesugaringError, 
 } as infra
@@ -81,7 +80,7 @@ fn all_subchapters(
 }
 
 fn construct_subchapter_item(subchapter_title: SubchapterTitle, subchapter_number: Int, chapter_number: Int) -> VXML {
-  let blame = desugarer_blame(84)
+  let blame = desugarer_blame(83)
   V(
     blame,
     "li",
@@ -99,7 +98,7 @@ fn construct_subchapter_item(subchapter_title: SubchapterTitle, subchapter_numbe
 }
 
 fn construct_chapter_item(chapter_number: Int, chapter_title: ChapterTitle, subchapters: List(#(SubChapterNo, SubchapterTitle))) -> VXML {
-  let blame = desugarer_blame(102)
+  let blame = desugarer_blame(101)
   let subchapters_ol = case subchapters {
     [] -> []
     _ -> [
@@ -138,7 +137,7 @@ fn construct_chapter_item(chapter_number: Int, chapter_title: ChapterTitle, subc
 }
 
 fn construct_header(document: VXML) -> VXML {
-  let blame = desugarer_blame(141)
+  let blame = desugarer_blame(140)
 
   let title =
     case infra.v_first_attribute_with_key(document, "title") {
@@ -192,7 +191,7 @@ fn construct_header(document: VXML) -> VXML {
 }
 
 fn construct_right_menu(document: VXML) -> VXML {
-  let blame = desugarer_blame(195)
+  let blame = desugarer_blame(194)
 
   let first_chapter_title =
     document
@@ -223,7 +222,7 @@ fn construct_right_menu(document: VXML) -> VXML {
 }
 
 fn construct_menu(document: VXML) -> VXML {
-  let blame = desugarer_blame(226)
+  let blame = desugarer_blame(225)
 
   let course_homepage_link =
     case infra.v_first_attribute_with_key(document, "course_homepage") {
@@ -252,7 +251,7 @@ fn construct_menu(document: VXML) -> VXML {
 }
 
 fn construct_index(chapters: List(#(ChapterNo, ChapterTitle, List(#(SubChapterNo, SubchapterTitle))))) -> VXML {
-  let blame = desugarer_blame(255)
+  let blame = desugarer_blame(254)
 
   V(
     blame,
@@ -272,26 +271,25 @@ fn construct_index(chapters: List(#(ChapterNo, ChapterTitle, List(#(SubChapterNo
   )
 }
 
-fn at_root(root: VXML) -> Result(#(VXML, List(DesugaringWarning)), DesugaringError) {
-  let assert V(_, "Document", _attrs, _children) = root
+fn at_root(root: VXML) -> Result(VXML, DesugaringError) {
+  let assert V(_, "Document", _, children) = root
   let menu_node = construct_menu(root)
   let header_node = construct_header(root)
   use chapters <- on.ok(chapters_number_title(root))
   use subchapters <- on.ok(all_subchapters(chapters))
   let index_list_node = construct_index(subchapters)
   let index_node = V(
-    desugarer_blame(283),
+    desugarer_blame(282),
     "Index",
-    [],
+    [Attribute(desugarer_blame(284), "path", "./index.html")],
     [menu_node, header_node, index_list_node]
   )
-  infra.v_prepend_child(root, index_node)
-  |> n2t.add_no_warnings
-  |> Ok
+  Ok(V(..root, children: [index_node, ..children]))
 }
 
 fn transform_factory(_: InnerParam) -> infra.DesugarerTransform {
   at_root
+  |> n2t.at_root_2_desugarer_transform
 }
 
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
@@ -302,7 +300,7 @@ type Param = Nil
 type InnerParam = Nil
 
 pub const name = "generate_ti3_index"
-fn desugarer_blame(line_no: Int) {bl.Des([], name, line_no)}
+fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
 
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 // 🏖️🏖️ Desugarer 🏖️🏖️

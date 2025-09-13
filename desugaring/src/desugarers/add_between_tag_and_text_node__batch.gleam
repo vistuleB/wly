@@ -60,7 +60,7 @@ type Param = List(#(String,                   String,          List(#(String, St
 type InnerParam = Dict(String, VXML)
 
 pub const name = "add_between_tag_and_text_node__batch"
-fn desugarer_blame(line_no: Int) {bl.Des([], name, line_no)}
+fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
 
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 // 🏖️🏖️ Desugarer 🏖️🏖️

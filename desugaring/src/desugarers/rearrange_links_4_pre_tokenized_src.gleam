@@ -724,7 +724,7 @@ type Param = #(String,   String)
 type InnerParam = #(LinkPattern, LinkPattern)
 
 pub const name = "rearrange_links_4_pre_tokenized_src"
-fn desugarer_blame(line_no: Int) {bl.Des([], name, line_no)}
+fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
 
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 // 🏖️🏖️ Desugarer 🏖️🏖️

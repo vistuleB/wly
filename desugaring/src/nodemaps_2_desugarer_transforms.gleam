@@ -1,12 +1,33 @@
 import gleam/result
 import gleam/list
 import vxml.{type VXML, V, T}
-import infrastructure.{type DesugarerTransform, type DesugaringError, DesugaringError, type DesugaringWarning, type TrafficLight, Continue, GoBack} as infra
+import infrastructure.{
+  type DesugarerTransform,
+  type DesugaringError,
+  type DesugaringWarning,
+  type TrafficLight,
+  DesugaringError,
+  Continue,
+  GoBack,
+} as infra
 import blame as bl
 import on
 
 pub fn add_no_warnings(vxml: VXML) {
   #(vxml, [])
+}
+
+pub fn at_root_2_desugarer_transform(at_root: fn(VXML) -> Result(VXML, DesugaringError)) {
+  fn(vxml) {
+    at_root(vxml)
+    |> result.map(add_no_warnings)
+  }
+}
+
+pub fn at_root_no_errors_2_desugarer_transform(at_root: fn(VXML) -> VXML) {
+  fn(vxml) {
+    Ok(#(at_root(vxml), []))
+  }
 }
 
 pub fn identity_transform(vxml: VXML) {

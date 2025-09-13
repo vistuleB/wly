@@ -80,9 +80,10 @@ import desugarers/generate_ti2_table_of_contents_html
 import desugarers/generate_ti3_index
 import desugarers/generate_ti3_menu
 import desugarers/group_consecutive_children__outside
-import desugarers/handles_generate_dictionary
-import desugarers/handles_generate_ids
-import desugarers/handles_substitute
+import desugarers/handles_add_ids
+import desugarers/handles_generate_dictionary_and_id_list
+import desugarers/handles_setup_grand_wrapper
+import desugarers/handles_substitute_and_fix_nonlocal_id_links
 import desugarers/identity
 import desugarers/insert_bookend_tags
 import desugarers/insert_bookend_text_if_no_attributes
@@ -263,9 +264,10 @@ pub const generate_ti2_table_of_contents_html = generate_ti2_table_of_contents_h
 pub const generate_ti3_index = generate_ti3_index.constructor
 pub const generate_ti3_menu = generate_ti3_menu.constructor
 pub const group_consecutive_children__outside = group_consecutive_children__outside.constructor
-pub const handles_generate_dictionary = handles_generate_dictionary.constructor
-pub const handles_generate_ids = handles_generate_ids.constructor
-pub const handles_substitute = handles_substitute.constructor
+pub const handles_add_ids = handles_add_ids.constructor
+pub const handles_generate_dictionary_and_id_list = handles_generate_dictionary_and_id_list.constructor
+pub const handles_setup_grand_wrapper = handles_setup_grand_wrapper.constructor
+pub const handles_substitute_and_fix_nonlocal_id_links = handles_substitute_and_fix_nonlocal_id_links.constructor
 pub const identity = identity.constructor
 pub const insert_bookend_tags = insert_bookend_tags.constructor
 pub const insert_bookend_text_if_no_attributes = insert_bookend_text_if_no_attributes.constructor
@@ -447,9 +449,10 @@ pub const assertive_tests : List(fn() -> infra.AssertiveTestCollection) = [
   generate_ti3_index.assertive_tests,
   generate_ti3_menu.assertive_tests,
   group_consecutive_children__outside.assertive_tests,
-  handles_generate_dictionary.assertive_tests,
-  handles_generate_ids.assertive_tests,
-  handles_substitute.assertive_tests,
+  handles_add_ids.assertive_tests,
+  handles_generate_dictionary_and_id_list.assertive_tests,
+  handles_setup_grand_wrapper.assertive_tests,
+  handles_substitute_and_fix_nonlocal_id_links.assertive_tests,
   identity.assertive_tests,
   insert_bookend_tags.assertive_tests,
   insert_bookend_text_if_no_attributes.assertive_tests,

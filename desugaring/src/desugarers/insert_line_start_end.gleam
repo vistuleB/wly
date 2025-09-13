@@ -43,7 +43,7 @@ type Param = #(String, #(String,    String))
 type InnerParam = #(String, TextLine, TextLine)
 
 pub const name = "insert_line_start_end"
-fn desugarer_blame(line_no: Int) {bl.Des([], name, line_no)}
+fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
 
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 // 🏖️🏖️ Desugarer 🏖️🏖️

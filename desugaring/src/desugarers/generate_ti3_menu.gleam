@@ -2,17 +2,21 @@ import blame as bl
 import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/string.{inspect as ins}
-import infrastructure.{type Desugarer, Desugarer, type DesugaringError, type DesugaringWarning} as infra
+import infrastructure.{
+  type Desugarer,
+  type DesugaringError,
+  Desugarer,
+} as infra
 import vxml.{type VXML, type Attribute, Attribute, TextLine, V, T}
 import nodemaps_2_desugarer_transforms as n2t
 import on
 
 fn an_attribute(key: String, value: String) -> Attribute {
-  Attribute(desugarer_blame(11), key, value)
+  Attribute(desugarer_blame(15), key, value)
 }
 
 fn a_1_line_text_node(content: String) -> VXML {
-  T(desugarer_blame(15), [TextLine(desugarer_blame(15), content)])
+  T(desugarer_blame(19), [TextLine(desugarer_blame(19), content)])
 }
 
 fn into_list(a: a) -> List(a) {
@@ -61,7 +65,7 @@ fn a_tag_with_href_and_content(
   content: String,
 ) -> VXML {
   V(
-    desugarer_blame(64),
+    desugarer_blame(68),
     "a",
     an_attribute("href", href) |> into_list,
     a_1_line_text_node(content) |> into_list,
@@ -104,7 +108,7 @@ fn info_2_left_menu(
   let ch_link_option = prev_info |> option.map(info_2_link(_, LeftMenu))
 
   V(
-    desugarer_blame(107),
+    desugarer_blame(111),
     "LeftMenu",
     an_attribute("class", "menu-left") |> into_list,
     option.values([
@@ -124,7 +128,7 @@ fn info_2_right_menu(
   let ch_link_option = prev_info |> option.map(info_2_link(_, RightMenu))
 
   V(
-    desugarer_blame(127),
+    desugarer_blame(131),
     "RightMenu",
     an_attribute("class", "menu-right") |> into_list,
     option.values([
@@ -139,7 +143,7 @@ fn infos_2_menu(
   homepage_url: String,
 ) -> VXML {
   V(
-    desugarer_blame(142),
+    desugarer_blame(146),
     "Menu",
     [],
     [
@@ -212,7 +216,7 @@ fn collect_all_page_infos(root: VXML) -> List(PageInfo) {
   )
 }
 
-fn at_root(root: VXML) -> Result(#(VXML, List(DesugaringWarning)), DesugaringError) {
+fn at_root(root: VXML) -> Result(VXML, DesugaringError) {
   let assert V(_, "Document", _, children) = root
   let homepage_url = get_course_homepage(root)
   let page_infos = collect_all_page_infos(root)
@@ -232,13 +236,12 @@ fn at_root(root: VXML) -> Result(#(VXML, List(DesugaringWarning)), DesugaringErr
       }
     }
   )
-  V(..root, children: children)
-  |> n2t.add_no_warnings
-  |> Ok
+  Ok(V(..root, children: children))
 }
 
 fn transform_factory(_: InnerParam) -> infra.DesugarerTransform {
   at_root
+  |> n2t.at_root_2_desugarer_transform
 }
 
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
@@ -249,7 +252,7 @@ type Param = Nil
 type InnerParam = Nil
 
 pub const name = "generate_ti3_menu"
-fn desugarer_blame(line_no: Int) {bl.Des([], name, line_no)}
+fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
 
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 // 🏖️🏖️ Desugarer 🏖️🏖️

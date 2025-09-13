@@ -89,7 +89,7 @@ fn param_to_inner_param(_param: Param) -> Result(InnerParam, DesugaringError) {
 }
 
 pub const name = "expand_ti3_carousel"
-fn desugarer_blame(line_no: Int) {bl.Des([], name, line_no)}
+fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
 
 type Param = Nil
 type InnerParam = Nil

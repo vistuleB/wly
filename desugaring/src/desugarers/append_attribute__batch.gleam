@@ -60,7 +60,7 @@ type Param = List(#(String, String, String))
 type InnerParam = Dict(String, List(Attribute))
 
 pub const name = "append_attribute__batch"
-fn desugarer_blame(line_no: Int) {bl.Des([], name, line_no)}
+fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
 
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 // 🏖️🏖️ Desugarer 🏖️🏖️

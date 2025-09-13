@@ -59,7 +59,7 @@ type Param = #(String, String, String, String)
 type InnerParam = Param
 
 pub const name = "append_attribute_if_child_of"
-fn desugarer_blame(line_no: Int) {bl.Des([], name, line_no)}
+fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
 
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 // 🏖️🏖️ Desugarer 🏖️🏖️

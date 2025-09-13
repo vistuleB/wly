@@ -38,7 +38,7 @@ type Param = #(String,   String,   List(#(String, String)))
 type InnerParam = #(String, String, List(Attribute))
 
 pub const name = "rename_with_attributes"
-fn desugarer_blame(line_no: Int) {bl.Des([], name, line_no)}
+fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
 
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 // 🏖️🏖️ Desugarer 🏖️🏖️

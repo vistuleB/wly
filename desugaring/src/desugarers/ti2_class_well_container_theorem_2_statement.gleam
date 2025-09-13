@@ -61,7 +61,7 @@ type Param = Nil
 type InnerParam = Param
 
 pub const name = "ti2_class_well_container_theorem_2_statement"
-fn desugarer_blame(line_no: Int) {bl.Des([], name, line_no)}
+fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
 
 
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️

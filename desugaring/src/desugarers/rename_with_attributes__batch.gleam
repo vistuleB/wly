@@ -53,7 +53,7 @@ type Param = List(#(String, String, List(#(String, String))))
 type InnerParam = Dict(String, #(String, List(vxml.Attribute)))
 
 pub const name = "rename_with_attributes__batch"
-fn desugarer_blame(line_no: Int) {bl.Des([], name, line_no)}
+fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
 
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 // 🏖️🏖️ Desugarer 🏖️🏖️

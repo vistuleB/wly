@@ -10,18 +10,6 @@ import vxml.{type Attribute, type TextLine, type VXML, Attribute, TextLine, T, V
 import blame.{type Blame} as bl
 import on
 
-type HandlesDict =
-  Dict(String, #(String,   String,   String))
-//     ↖         ↖         ↖         ↖
-//     handle    value     id        path
-
-type State {
-  State(
-    handles: HandlesDict,
-    path: Option(String),
-  )
-}
-
 fn extract_handle_name(match) -> #(String, Bool) {
   let assert Match(_, [_, option.Some(handle_name)]) = match
   case string.ends_with(handle_name, ":page") {
@@ -75,10 +63,10 @@ fn warning_element(
   blame: Blame,
 ) -> VXML {
   V(
-    desugarer_blame(78),
+    desugarer_blame(66),
     "span",
-    [Attribute(desugarer_blame(80), "style", "color:red;background-color:yellow;")],
-    [T(desugarer_blame(81), [TextLine(desugarer_blame(81), "undefined handle at " <> bl.blame_digest(blame) <> ": " <> handle_name)])],
+    [Attribute(desugarer_blame(68), "style", "color:red;background-color:yellow;")],
+    [T(desugarer_blame(69), [TextLine(desugarer_blame(69), "undefined handle at " <> bl.blame_digest(blame) <> ": " <> handle_name)])],
   )
 }
 
@@ -195,13 +183,17 @@ fn process_line(
   inner: InnerParam,
 ) -> Result(#(List(VXML), List(DesugaringWarning)), DesugaringError) {
   let TextLine(blame, content) = line
-  let matches = regexp.scan(inner.5, content)
-  let splits = regexp.split(inner.5, content)
-  use #(hyperlinks, warnings) <- on.ok(
-    matches_2_hyperlinks(matches, blame, state, inner)
-  )
-  let text_nodes = splits_2_ts(splits, blame)
-  Ok(#(list.interleave([text_nodes, hyperlinks]), warnings))
+  case regexp.scan(inner.5, content) {
+    [_, ..] as matches -> {
+      let splits = regexp.split(inner.5, content)
+      use #(hyperlinks, warnings) <- on.ok(
+        matches_2_hyperlinks(matches, blame, state, inner)
+      )
+      let text_nodes = splits_2_ts(splits, blame)
+      Ok(#(list.interleave([text_nodes, hyperlinks]), warnings))
+    }
+    [] -> Ok(#([T(line.blame, [line])], []))
+  }
 }
 
 fn process_lines(
@@ -226,35 +218,42 @@ fn process_lines(
     list_list_warnings
     |> list.flatten
 
-  #(vxmls, warnings)
-  |> Ok
+  Ok(#(vxmls, warnings))
 }
 
-fn get_handles_instances_from_grand_wrapper(
-  attributes: List(Attribute),
-) -> HandlesDict {
-  attributes
-  |> list.fold(
+fn grand_wrapper_load(
+  state: State,
+  attributes: List(Attribute)
+) -> State {
+  let #(handles, ids) = list.partition(attributes, fn(attr) {attr.key == "handle"})
+
+  let handles = list.fold(
+    handles,
     dict.new(),
     fn(acc, att) {
       let assert [handle_name, value, id, path] = att.value |> string.split("|")
       dict.insert(acc, handle_name, #(value, id, path))
     }
   )
+
+  let ids = list.map(
+    ids,
+    fn(attr) {
+      assert attr.key == "id"
+      let assert [id, path] = attr.value |> string.split(" ")
+      #(id, path)
+    }
+  )
+  |> infra.aggregate_on_first
+
+  State(..state, handles: handles, ids: ids)
 }
 
-fn substitute_in_href(
+fn substitute_handle_in_href(
   attr: Attribute,
   state: State,
 ) -> Result(Attribute, DesugaringWarning) {
-  use <- on.false_true(
-    attr.key == "href",
-    Ok(attr),
-  )
-  use <- on.false_true(
-    attr.value |> string.starts_with(">>"),
-    Ok(attr),
-  )
+  assert attr.value |> string.starts_with(">>")
   let handle_name = attr.value |> string.drop_start(2)
   let page = handle_name |> string.ends_with(":page")
   let handle_name = case page {
@@ -275,34 +274,86 @@ fn substitute_in_href(
   }
 }
 
+fn substitute_id_in_href(
+  attr: Attribute,
+  state: State,
+) -> Result(#(Attribute, Option(DesugaringWarning)), DesugaringError) {
+  assert attr.value |> string.starts_with("#")
+  let id = attr.value |> string.drop_start(1)
+  use path <- on.none_some(
+    state.path,
+    Error(DesugaringError(attr.blame, "id appearing outside outside of path context")),
+  )
+
+  use paths <- on.error_ok(
+    dict.get(state.ids, id),
+    fn(_) {
+      let warning = DesugaringWarning(attr.blame, "path not found for id '" <> id <> "'; maybe it's not defined?")
+      Ok(#(attr, Some(warning)))
+    }
+  )
+
+  case list.contains(paths, path) {
+    True -> {
+      // the page we're pointing to is
+      // the current page, nothing to do
+      Ok(#(attr, None))
+    }
+    False -> case paths {
+      [] -> panic as "each id should have at least 1 path?"
+      [one] -> Ok(#(Attribute(..attr, value: one <> attr.value), None))
+      _ -> Error(DesugaringError(attr.blame, "unresolved id '" <> id <> "' appearing out-of-own-page but with several target pages to choose from"))
+    }
+  }
+}
+
+fn substitute_in_href(
+  attr: Attribute,
+  state: State,
+) -> Result(#(Attribute, Option(DesugaringWarning)), DesugaringError) {
+  use <- on.false_true(
+    attr.key == "href",
+    Ok(#(attr, None)),
+  )
+
+  let #(attr, warning) = case attr.value |> string.starts_with(">>") {
+    False -> #(attr, None)
+    True -> case substitute_handle_in_href(attr, state) {
+      Ok(attr) -> #(attr, None)
+      Error(w) -> #(attr, Some(w))
+    }
+  }
+
+  use <- on.lazy_false_true(
+    attr.value |> string.starts_with("#"),
+    fn() { Ok(#(attr, warning)) }
+  )
+
+  // note that at this point, 'warning' is necessarily None;
+  // we can overwrite it without losing information:
+
+  use #(attr, warning) <- on.ok(substitute_id_in_href(attr, state))
+  Ok(#(attr, warning))
+}
+
 fn substitute_in_hrefs(
   attrs: List(Attribute),
   state: State,
-) -> #(List(Attribute), List(DesugaringWarning)) {
-  list.fold(
+) -> Result(#(List(Attribute), List(DesugaringWarning)), DesugaringError) {
+  list.try_fold(
     attrs,
     #([], []),
     fn(acc, attr) {
       case substitute_in_href(attr, state) {
-        Ok(attr) -> #([attr, ..acc.0], acc.1)
-        Error(z) -> #([attr, ..acc.0], [z, ..acc.1])
+        Ok(#(attr, None)) -> Ok(#([attr, ..acc.0], acc.1))
+        Ok(#(attr, Some(warning))) -> Ok(#([attr, ..acc.0], [warning, ..acc.1]))
+        Error(z) -> Error(z)
       }
     }
   )
 }
 
-fn update_handles(
-  state: State,
-  vxml: VXML,
-) {
-  let assert V(_, tag, attributes, _) = vxml
-  case tag == "GrandWrapper" {
-    True -> State(..state, handles: get_handles_instances_from_grand_wrapper(attributes))
-    False -> state
-  }
-}
-
-fn update_path(
+fn update_state_path(
   state: State,
   vxml: VXML,
   inner: InnerParam,
@@ -319,13 +370,18 @@ fn v_before_transform(
   state: State,
   inner: InnerParam,
 ) -> Result(#(VXML, State, List(DesugaringWarning)), DesugaringError) {
-  let state =
-    state
-    |> update_path(vxml, inner)
-    |> update_handles(vxml)
-  let assert V(_, _, attributes, _) = vxml
-  let #(attributes, warnings) = substitute_in_hrefs(attributes, state)
-  Ok(#(V(..vxml, attributes: attributes), state, warnings))
+  let assert V(_, tag, attributes, _) = vxml
+  case tag == "GrandWrapper" {
+    True -> {
+      let state = grand_wrapper_load(state, attributes)
+      Ok(#(vxml, state, []))
+    }
+    False -> {
+      let state = update_state_path(state, vxml, inner)
+      use #(attributes, warnings) <- on.ok(substitute_in_hrefs(attributes, state))
+      Ok(#(V(..vxml, attributes: attributes), state, warnings))
+    }
+  }
 }
 
 fn v_after_transform(
@@ -348,13 +404,7 @@ fn t_transform(
   inner: InnerParam,
 ) -> Result(#(List(VXML), State, List(DesugaringWarning)), DesugaringError) {
   let assert T(_, lines)  = vxml
-  use #(updated_lines, warnings) <- on.ok(
-    process_lines(
-      lines,
-      state,
-      inner,
-    )
-  )
+  use #(updated_lines, warnings) <- on.ok(process_lines(lines, state, inner))
   Ok(#(updated_lines, state, warnings))
 }
 
@@ -368,20 +418,38 @@ fn nodemap_factory(inner: InnerParam) -> n2t.OneToManyBeforeAndAfterStatefulNode
 
 fn transform_factory(inner: InnerParam) -> DesugarerTransform {
   nodemap_factory(inner)
-  |> n2t.one_to_many_before_and_after_stateful_nodemap_with_warnings_2_desufarer_transform(State(dict.new(), None))
+  |> n2t.one_to_many_before_and_after_stateful_nodemap_with_warnings_2_desufarer_transform(State(dict.new(), dict.new(), None))
 }
 
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
-  let assert Ok(handles_regexp) = regexp.from_string("(>>)([\\w\\^-]+(?:\\:page))")
+  let assert Ok(handles_regexp) = regexp.from_string("(>>)([\\w\\^-]+(?:\\:page)?)")
   #(
     param.0,
     param.1,
     param.2,
-    param.3 |> infra.string_pairs_2_attributes(desugarer_blame(380)),
-    param.4 |> infra.string_pairs_2_attributes(desugarer_blame(381)),
+    param.3 |> infra.string_pairs_2_attributes(desugarer_blame(430)),
+    param.4 |> infra.string_pairs_2_attributes(desugarer_blame(431)),
     handles_regexp, // inner.5
   )
   |> Ok
+}
+
+type HandlesDict = Dict(String, #(String,   String,   String))
+//                      ↖         ↖         ↖         ↖
+//                      handle    value     id        path
+
+type IdsDict = Dict(String, List(String))
+//                  ↖       ↖
+//                  id      list of pages (local paths)
+//                          where id appears
+
+
+type State {
+  State(
+    handles: HandlesDict,
+    ids: IdsDict,
+    path: Option(String),
+  )
 }
 
 type Param = #(String,            String,                 String,                List(#(String, String)),   List(#(String, String)))
@@ -392,8 +460,8 @@ type Param = #(String,            String,                 String,               
 //                                at point of insertion   at point of insertion
 type InnerParam = #(String, String, String, List(Attribute), List(Attribute), Regexp)
 
-pub const name = "handles_substitute"
-fn desugarer_blame(line_no: Int) {bl.Des([], name, line_no)}
+pub const name = "handles_substitute_and_fix_nonlocal_id_links"
+fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
 
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 // 🏖️🏖️ Desugarer 🏖️🏖️
@@ -401,14 +469,22 @@ fn desugarer_blame(line_no: Int) {bl.Des([], name, line_no)}
 //------------------------------------------------53
 /// Expects a document with root 'GrandWrapper'
 /// whose attributes comprise of key-value pairs of
-/// the form handle=handle_name|value|id|path
+/// the form
+/// 
+/// handle=handle_name|value|id|path
+/// 
+/// and
+/// 
+/// id=id_value|path
+/// 
 /// and with a unique child being the root of the
 /// original document.
 ///
 /// Replaces >>handle_name occurrences by links,
 /// using two different kinds of tags for links
 /// that point to elements in the same page versus
-/// links that point element in a different page.
+/// links that point element in a different page,
+/// as provided by the Param argument.
 ///
 /// More specifically, given an occurrence
 /// >>handle_name where handle_name points to an
@@ -427,14 +503,50 @@ fn desugarer_blame(line_no: Int) {bl.Des([], name, line_no)}
 /// links respectively. If the class list is empty
 /// no 'class' attribute will be added at all to
 /// that type of link element.
+/// 
+/// Secondly, substitutes each attribute of the
+/// form
+/// 
+/// href=>>handle_name
+/// 
+/// with
+/// 
+/// ref=<path>#<id>
+/// 
+/// where <path> is the associated path and <id>
+/// is the associated id to handle_name, as given
+/// by the GrandWrapper dictionary; and of the form
+/// 
+/// ref=>>handle_name:page
+/// 
+/// with
+/// 
+/// ref=<path>
+/// 
+/// without the '#<id>' portion. (I.e., simply linking
+/// to the page containing the element.)
+/// 
+/// Thirdly, substitutes attributes of the form
+/// 
+/// href=#<id_val>
+/// 
+/// with
+/// 
+/// href=<path>#<id_val>
+/// 
+/// when #id_val is an id whose associated page (if
+/// unique) is different from the current page. (I.e.,
+/// fixes id-based links to work across pages when
+/// possible.)
 ///
 /// Destroys the GrandWrapper root note on exit,
 /// returning its unique child.
 ///
-/// Throws a DesugaringError if a given handle name
-/// is not found in the list of GrandWrapper
-/// 'handle' attributes values, or if unable to
-/// locate a local page path for a given handle.
+/// Throws a DesugaringError if a given handle or id
+/// name is not found in the GrandWrapper data, of
+/// if the local 'path' param is missing at any point
+/// in the document where a substitution needs to be
+/// made.
 pub fn constructor(param: Param) -> Desugarer {
   Desugarer(
     name: name,

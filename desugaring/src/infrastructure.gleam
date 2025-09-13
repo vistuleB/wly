@@ -1624,11 +1624,7 @@ pub fn v_first_attribute_with_key(
   key: String,
 ) -> Option(Attribute) {
   let assert V(_, _, attrs, _) = vxml
-  case list.find(attrs, fn(b) { b.key == key })
-  {
-    Error(Nil) -> None
-    Ok(thing) -> Some(thing)
-  }
+  attributes_first_with_key(attrs, key)
 }
 
 pub fn v_value_of_first_attribute_with_key(
@@ -1839,6 +1835,17 @@ pub fn substitute_in_attributes(
       }
     }
   )
+}
+
+pub fn attributes_first_with_key(
+  attrs: List(Attribute),
+  key: String,
+) -> Option(Attribute){
+  case list.find(attrs, fn(b) { b.key == key })
+  {
+    Error(Nil) -> None
+    Ok(thing) -> Some(thing)
+  }
 }
 
 // ************************************************************
