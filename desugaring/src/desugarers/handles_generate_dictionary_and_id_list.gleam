@@ -16,15 +16,19 @@ fn grand_wrapper_attributes(
     state.handles
     |> dict.map_values(
       fn (key, value) {
-        let #(value, id, path, _) = value
-        Attribute(desugarer_blame(20), "handle", key <> "|" <> value <> "|" <> id <> "|" <> path)
+        let #(page, value, id, path, _) = value
+        let page = case page {
+          True -> ":page"
+          False -> ""
+        }
+        Attribute(desugarer_blame(24), "handle", key <> "|" <> page <> "|" <> value <> "|" <> id <> "|" <> path)
       }
     )
     |> dict.values,
     state.ids
     |> list.map(
       fn(x) {
-        Attribute(desugarer_blame(27), "id", x.0 <> " " <> x.1)
+        Attribute(desugarer_blame(31), "id", x.0 <> " " <> x.1)
       }
     )
   ]
@@ -33,10 +37,15 @@ fn grand_wrapper_attributes(
 
 fn try_read_handle(
   attr: Attribute
-) -> Result(#(String, String, String), DesugaringError) {
+) -> Result(#(String, Bool, String, String), DesugaringError) {
   assert attr.key == "handle"
   case string.split(attr.value, "|") {
-    [name, value, id] -> Ok(#(name, value, id))
+    [name, value, id] -> {
+      case name |> string.ends_with(":page") {
+        False -> Ok(#(name, False, value, id))
+        True -> Ok(#(name |> string.drop_end(5), True, value, id))
+      }
+    }
     _ -> Error(DesugaringError(attr.blame, "handle attribute not in form <name>|<value>|<id>; found: “" <> attr.value <> "”"))
   }
 }
@@ -44,6 +53,7 @@ fn try_read_handle(
 fn try_insert_handle(
   handles: HandlesDict,
   name: String,
+  page: Bool,
   value: String,
   id: String,
   path: String,
@@ -51,9 +61,9 @@ fn try_insert_handle(
 ) -> Result(HandlesDict, DesugaringError) {
   case dict.get(handles, name) {
     Ok(entry) ->
-      Error(DesugaringError(blame, "redefinition of '" <> name <> "' (previously defined at " <> bl.blame_digest(entry.3) <> ")"))
+      Error(DesugaringError(blame, "redefinition of '" <> name <> "' (previously defined at " <> bl.blame_digest(entry.4) <> ")"))
     Error(_) ->
-      Ok(dict.insert(handles, name, #(value, id, path, blame)))
+      Ok(dict.insert(handles, name, #(page, value, id, path, blame)))
   }
 }
 
@@ -103,8 +113,8 @@ fn attributes_fold(
 
   case first.key {
     "handle" -> {
-      use #(name, value, id) <- on.ok(try_read_handle(first))
-      use handles <- on.ok(try_insert_handle(handles, name, value, id, path, first.blame))
+      use #(name, page, value, id) <- on.ok(try_read_handle(first))
+      use handles <- on.ok(try_insert_handle(handles, name, page, value, id, path, first.blame))
       attributes_fold(not_handles_acc, rest, handles, ids, path)
     }
 
@@ -186,7 +196,7 @@ fn v_after_transforming_children(
     False -> Ok(#(vxml, state))
     True -> {
       let grand_wrapper = V(
-        desugarer_blame(187),
+        desugarer_blame(199),
         "GrandWrapper",
         grand_wrapper_attributes(state),
         [vxml],
@@ -221,10 +231,10 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
   Ok(param)
 }
 
-type HandlesDict = Dict(String, #(String,       String,     String,      Blame))
-//                      ↖         ↖             ↖           ↖
-//                      handle    string value  handle id   page path
-//                      name      of handle     on page     for handle
+type HandlesDict = Dict(String, #(Bool,         String,       String,     String,      Blame))
+//                      ↖         ↖             ↖             ↖           ↖
+//                      handle    ':page' link  string value  handle id   page path
+//                      name      by default    of handle     on page     for handle
 
 type Ids = List(#(String, String,     Blame))
 //                ↖       ↖

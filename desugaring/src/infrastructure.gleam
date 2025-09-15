@@ -269,6 +269,14 @@ pub fn pour(from: List(a), into: List(a)) -> List(a) {
   }
 }
 
+pub fn pour_but_last(from: List(a), into: List(a)) -> #(List(a), a) {
+  case from {
+    [one] -> #(into, one)
+    [first, ..rest] -> pour_but_last(rest, [first, ..into])
+    [] -> panic as "don't call pour_but_last with an empty first list"
+  }
+}
+
 pub fn index_map_fold(
   list: List(a),
   initial_acc: b,

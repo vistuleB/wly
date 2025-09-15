@@ -1,10 +1,14 @@
 import gleam/list
 import gleam/option
 import gleam/string.{inspect as ins}
-import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError, DesugaringError} as infra
+import infrastructure.{
+  type Desugarer,
+  type DesugarerTransform,
+  type DesugaringError,
+  Desugarer,
+} as infra
 import nodemaps_2_desugarer_transforms as n2t
 import vxml.{type VXML, T, V}
-import on
 
 type TopOfStack {
   Nothing
@@ -42,18 +46,25 @@ fn smash_cold_v(
   }
 }
 
-fn smash_hot_t(
+fn smash_hot(
   stack: Stack,
-  smashee: VXML,
+  smashees: List(VXML),
 ) -> Stack {
-  let assert T(..) = smashee
   let #(previous, t) = stack
-  case t {
-    Hot(t) | Cold(t) -> {
-      let smashee = infra.t_t_last_to_first_concatenation(t, smashee)
-      #(previous, Hot(smashee))
+  let #(previous, t) = case t, smashees {
+    Hot(t), [T(..) as first, ..rest] | Cold(t), [T(..) as first, ..rest] -> {
+      let t = infra.t_t_last_to_first_concatenation(t, first)
+      case rest {
+        [] -> #(previous, t)
+        _ -> infra.pour_but_last(rest, [t, ..previous])
+      }
     }
-    Nothing -> #(previous, Hot(smashee))
+    Hot(t), _ | Cold(t), _ -> infra.pour_but_last(smashees, [t, ..previous])
+    Nothing, _ -> infra.pour_but_last(smashees, previous)
+  }
+  case t {
+    T(..) -> #(previous, Hot(t))
+    _ -> #([t, ..previous], Nothing)
   }
 }
 
@@ -61,29 +72,25 @@ fn accumulator(
   inner: InnerParam,
   stack: Stack,
   remaining: List(VXML),
-) -> Result(List(VXML), DesugaringError) {
+) -> List(VXML) {
   case remaining {
     [] -> case stack {
-      #(previous, Nothing) -> previous |> list.reverse |> Ok
-      #(previous, Hot(t)) -> [t, ..previous] |> list.reverse |> Ok
-      #(previous, Cold(t)) -> [t, ..previous] |> list.reverse |> Ok
+      #(previous, Nothing) -> previous |> list.reverse
+      #(previous, Hot(t)) -> [t, ..previous] |> list.reverse
+      #(previous, Cold(t)) -> [t, ..previous] |> list.reverse
     }
     [T(..) as first, ..rest] -> {
       let stack = smash_cold_t(stack, first)
       accumulator(inner, stack, rest)
     }
     [V(_, tag, _, children) as first, ..rest] -> {
-      case tag == inner {
+      case tag == inner.0 && inner.1(first) {
         False -> {
           let stack = smash_cold_v(stack, first)
           accumulator(inner, stack, rest)
         }
         True -> {
-          use t <- on.ok(case children {
-            [T(..) as one] -> Ok(one)
-            _ -> Error(DesugaringError(first.blame, "found " <> ins(list.length(children)) <> " ≠ 1 child or non-T nodes"))
-          })
-          let stack = smash_hot_t(stack, t)
+          let stack = smash_hot(stack, children)
           accumulator(inner, stack, rest)
         }
       }
@@ -94,48 +101,42 @@ fn accumulator(
 fn nodemap(
   node: VXML,
   inner: InnerParam,
-) -> Result(VXML, DesugaringError) {
+) -> VXML {
   case node {
     V(_, _, _, children) -> {
-      use children <- on.ok(accumulator(inner, #([], Nothing), children))
-      Ok(V(..node, children: children))
+      let children = accumulator(inner, #([], Nothing), children)
+      V(..node, children: children)
     }
-    _ -> Ok(node)
+    _ -> node
   }
 }
 
-fn nodemap_factory(inner: InnerParam) -> n2t.OneToOneNodeMap {
+fn nodemap_factory(inner: InnerParam) -> n2t.OneToOneNoErrorNodeMap {
   nodemap(_, inner)
 }
 
 fn transform_factory(inner: InnerParam) -> DesugarerTransform {
   nodemap_factory(inner)
-  |> n2t.one_to_one_nodemap_2_desugarer_transform
+  |> n2t.one_to_one_no_error_nodemap_2_desugarer_transform
 }
 
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
   Ok(param)
 }
 
-type Param = String
+type Param = #(String, fn(VXML) -> Bool)
 type InnerParam = Param
 
-pub const name = "fold_contents_into_text"
+pub const name = "fold_children_into_text_if"
 
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 // 🏖️🏖️ Desugarer 🏖️🏖️
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 //------------------------------------------------53
-/// Replaces a specified tag by its contents
-/// assuming that the tag contains exactly one child
-/// consisting of text.
-///
-/// The text content gets folded into surrounding text
-/// nodes (in end-of-last-line to beginning-of-first-line
-/// fashion).
-///
-/// Throws an error if any instance of the tag fails
-/// to have exactly one text child.
+/// Replaces a specified tag (except if it occurs
+/// at the root) by its children and stitches the
+/// first and last children to surrounding text in
+/// last_to_first fashion.
 pub fn constructor(param: Param) -> Desugarer {
   Desugarer(
     name: name,

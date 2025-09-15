@@ -64,8 +64,9 @@ import desugarers/find_replace__batch__outside
 import desugarers/find_replace__outside
 import desugarers/find_replace_in_descendants_of__batch
 import desugarers/fix_ti2_local_links
+import desugarers/fold_children_into_text_if
 import desugarers/fold_contents_into_text
-import desugarers/fold_contents_into_text__batch
+import desugarers/fold_contents_into_text_if
 import desugarers/fold_custom_into_text
 import desugarers/fold_into_text
 import desugarers/fold_into_text__batch
@@ -90,6 +91,7 @@ import desugarers/insert_bookend_text_if_no_attributes
 import desugarers/insert_line_start_end
 import desugarers/insert_text_start_end
 import desugarers/insert_text_start_end_if_else
+import desugarers/insert_text_start_end_if_unique_attr
 import desugarers/insert_ti2_counter_commands
 import desugarers/keep_only_subtrees_and_ancestors_of_nodes_matching_a_key_value_pair
 import desugarers/line_rewrap_no1__outside
@@ -248,8 +250,9 @@ pub const find_replace__batch__outside = find_replace__batch__outside.constructo
 pub const find_replace__outside = find_replace__outside.constructor
 pub const find_replace_in_descendants_of__batch = find_replace_in_descendants_of__batch.constructor
 pub const fix_ti2_local_links = fix_ti2_local_links.constructor
+pub const fold_children_into_text_if = fold_children_into_text_if.constructor
 pub const fold_contents_into_text = fold_contents_into_text.constructor
-pub const fold_contents_into_text__batch = fold_contents_into_text__batch.constructor
+pub const fold_contents_into_text_if = fold_contents_into_text_if.constructor
 pub const fold_custom_into_text = fold_custom_into_text.constructor
 pub const fold_into_text = fold_into_text.constructor
 pub const fold_into_text__batch = fold_into_text__batch.constructor
@@ -274,6 +277,7 @@ pub const insert_bookend_text_if_no_attributes = insert_bookend_text_if_no_attri
 pub const insert_line_start_end = insert_line_start_end.constructor
 pub const insert_text_start_end = insert_text_start_end.constructor
 pub const insert_text_start_end_if_else = insert_text_start_end_if_else.constructor
+pub const insert_text_start_end_if_unique_attr = insert_text_start_end_if_unique_attr.constructor
 pub const insert_ti2_counter_commands = insert_ti2_counter_commands.constructor
 pub const keep_only_subtrees_and_ancestors_of_nodes_matching_a_key_value_pair = keep_only_subtrees_and_ancestors_of_nodes_matching_a_key_value_pair.constructor
 pub const line_rewrap_no1__outside = line_rewrap_no1__outside.constructor
@@ -433,8 +437,9 @@ pub const assertive_tests : List(fn() -> infra.AssertiveTestCollection) = [
   find_replace__outside.assertive_tests,
   find_replace_in_descendants_of__batch.assertive_tests,
   fix_ti2_local_links.assertive_tests,
+  fold_children_into_text_if.assertive_tests,
   fold_contents_into_text.assertive_tests,
-  fold_contents_into_text__batch.assertive_tests,
+  fold_contents_into_text_if.assertive_tests,
   fold_custom_into_text.assertive_tests,
   fold_into_text.assertive_tests,
   fold_into_text__batch.assertive_tests,
@@ -459,6 +464,7 @@ pub const assertive_tests : List(fn() -> infra.AssertiveTestCollection) = [
   insert_line_start_end.assertive_tests,
   insert_text_start_end.assertive_tests,
   insert_text_start_end_if_else.assertive_tests,
+  insert_text_start_end_if_unique_attr.assertive_tests,
   insert_ti2_counter_commands.assertive_tests,
   keep_only_subtrees_and_ancestors_of_nodes_matching_a_key_value_pair.assertive_tests,
   line_rewrap_no1__outside.assertive_tests,

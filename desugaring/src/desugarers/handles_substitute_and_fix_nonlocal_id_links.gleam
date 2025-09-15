@@ -21,7 +21,7 @@ fn extract_handle_name(match) -> #(String, Bool) {
 }
 
 fn hyperlink_constructor(
-    handle: #(String, String, String),
+    handle: #(Bool, String, String, String),
     page: Bool,
     blame: Blame,
     state: State,
@@ -31,11 +31,12 @@ fn hyperlink_constructor(
     state.path,
     fn(){ Error(DesugaringError(blame, "handle occurrence when local path is not defined")) },
   )
-  let #(value, id, target_path) = handle
+  let #(page_by_default, value, id, target_path) = handle
   let #(tag, attrs) = case target_path == our_path {
     True -> #(inner.1, inner.3)
     False -> #(inner.2, inner.4)
   }
+  let page = page || page_by_default
   let target_path = case page {
     True -> target_path
     False -> target_path <> "#" <> id
@@ -63,10 +64,10 @@ fn warning_element(
   blame: Blame,
 ) -> VXML {
   V(
-    desugarer_blame(66),
+    desugarer_blame(67),
     "span",
-    [Attribute(desugarer_blame(68), "style", "color:red;background-color:yellow;")],
-    [T(desugarer_blame(69), [TextLine(desugarer_blame(69), "undefined handle at " <> bl.blame_digest(blame) <> ": " <> handle_name)])],
+    [Attribute(desugarer_blame(69), "style", "color:red;background-color:yellow;")],
+    [T(desugarer_blame(70), [TextLine(desugarer_blame(70), "undefined handle at " <> bl.blame_digest(blame) <> ": " <> handle_name)])],
   )
 }
 
@@ -78,7 +79,7 @@ fn hyperlink_maybe(
 ) -> TripleThreat(VXML, #(VXML, DesugaringWarning), DesugaringError) {
   let #(handle_name, page) = handle_and_page
   case dict.get(state.handles, handle_name) {
-    Ok(triple) -> case hyperlink_constructor(triple, page, blame, state, inner) {
+    Ok(quad) -> case hyperlink_constructor(quad, page, blame, state, inner) {
       Ok(vxml) -> Success(vxml)
       Error(e) -> Failure(e)
     }
@@ -231,8 +232,13 @@ fn grand_wrapper_load(
     handles,
     dict.new(),
     fn(acc, att) {
-      let assert [handle_name, value, id, path] = att.value |> string.split("|")
-      dict.insert(acc, handle_name, #(value, id, path))
+      let assert [handle_name, page, value, id, path] = att.value |> string.split("|")
+      let page = case page {
+        ":page" -> True
+        "" -> False
+        _ -> panic as "malformed GrandWrapper dictionary"
+      }
+      dict.insert(acc, handle_name, #(page, value, id, path))
     }
   )
 
@@ -261,8 +267,8 @@ fn substitute_handle_in_href(
     False -> handle_name
   }
   case dict.get(state.handles, handle_name) {
-    Ok(#(_, id, target_path)) -> {
-      case page {
+    Ok(#(page_by_default, _, id, target_path)) -> {
+      case page || page_by_default {
         True -> Ok(Attribute(..attr, value: target_path))
         False -> case target_path == option.unwrap(state.path, "") {
           True -> Ok(Attribute(..attr, value: "#" <> id))
@@ -436,22 +442,23 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
     param.0,
     param.1,
     param.2,
-    param.3 |> infra.string_pairs_2_attributes(desugarer_blame(430)),
-    param.4 |> infra.string_pairs_2_attributes(desugarer_blame(431)),
+    param.3 |> infra.string_pairs_2_attributes(desugarer_blame(445)),
+    param.4 |> infra.string_pairs_2_attributes(desugarer_blame(446)),
     handles_regexp, // inner.5
   )
   |> Ok
 }
 
-type HandlesDict = Dict(String, #(String,   String,   String))
-//                      ↖         ↖         ↖         ↖
-//                      handle    value     id        path
+type HandlesDict = Dict(String, #(Bool,     String,   String,   String))
+//                      ↖         ↖         ↖         ↖         ↖
+//                      handle    :page-by  value     id        path
+//                                default
+//                                option
 
 type IdsDict = Dict(String, List(String))
 //                  ↖       ↖
 //                  id      list of pages (local paths)
 //                          where id appears
-
 
 type State {
   State(
