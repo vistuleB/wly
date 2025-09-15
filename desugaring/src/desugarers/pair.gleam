@@ -1,3 +1,4 @@
+import desugarers/unwrap_if_descendant_of
 import gleam/list
 import gleam/option.{type Option}
 import gleam/string.{inspect as ins}
@@ -22,6 +23,7 @@ fn accumulator(
   opening: String,
   closing: String,
   enclosing: String,
+  unbridgeable: List(String),
   already_processed: List(VXML),
   last_opening: Option(VXML),
   after_last_opening: List(VXML),
@@ -31,7 +33,7 @@ fn accumulator(
     [] ->
       case last_opening {
         option.None -> {
-          let assert [] = after_last_opening
+          assert [] == after_last_opening
           already_processed |> list.reverse
         }
         option.Some(dude) -> {
@@ -45,11 +47,12 @@ fn accumulator(
           // *
           // absorb the T-node into already_processed
           // *
-          let assert [] = after_last_opening
+          assert [] == after_last_opening
           accumulator(
             opening,
             closing,
             enclosing,
+            unbridgeable,
             [first, ..already_processed],
             option.None,
             [],
@@ -64,6 +67,7 @@ fn accumulator(
             opening,
             closing,
             enclosing,
+            unbridgeable,
             already_processed,
             last_opening,
             [first, ..after_last_opening],
@@ -71,151 +75,212 @@ fn accumulator(
           )
       }
     [V(_, tag, _, _) as first, ..rest] ->
-      case tag == opening, tag == closing {
-        False, False ->
-          // *
-          // treat the V-node like the T-node above
-          // *
-          case last_opening {
-            option.None -> {
-              // *
-              // absorb the V-node into already_processed
-              // *
-              let assert [] = after_last_opening
-              accumulator(
-                opening,
-                closing,
-                enclosing,
-                [first, ..already_processed],
-                option.None,
-                [],
-                rest,
-              )
-            }
-            option.Some(_) ->
-              // *
-              // absorb the V-node into after_last_opening
-              // *
-              accumulator(
-                opening,
-                closing,
-                enclosing,
-                already_processed,
-                last_opening,
-                [first, ..after_last_opening],
-                rest,
-              )
-          }
-        True, False ->
-          case last_opening {
-            option.None -> {
-              // *
-              // we make the V-node the new value of last_opening
-              // *
-              let assert [] = after_last_opening
-              accumulator(
-                opening,
-                closing,
-                enclosing,
-                already_processed,
-                option.Some(first),
-                [],
-                rest,
-              )
-            }
-            option.Some(dude) ->
-              // *
-              // we discard the previous last_opening and his followers and make the V-node the new value of last_opening
-              // *
-              accumulator(
-                opening,
-                closing,
-                enclosing,
-                list.flatten([after_last_opening, [dude, ..already_processed]]),
-                option.Some(first),
-                [],
-                rest,
-              )
-          }
-        False, True ->
-          case last_opening {
-            option.None -> {
-              // *
-              // we absorb the V-node into already_processed
-              // *
-              let assert [] = after_last_opening
-              accumulator(
-                opening,
-                closing,
-                enclosing,
-                [first, ..already_processed],
-                option.None,
-                [],
-                rest,
-              )
-            }
-            option.Some(dude) ->
-              // *
-              // we do a pairing
-              // *
-              accumulator(
-                opening,
-                closing,
-                enclosing,
-                [
-                  V(
-                    dude.blame |> bl.append_comment(pairing_msg(dude.blame, first.blame)),
+      // dispatch most comment case first,
+      // even if it's redundant with further cases:
+      case last_opening == option.None && tag != opening {
+        True -> {
+          assert [] == after_last_opening
+          accumulator(
+            opening,
+            closing,
+            enclosing,
+            unbridgeable,
+            [first, ..already_processed],
+            option.None,
+            [],
+            rest,
+          )
+        }
+        False -> {
+          case list.contains(unbridgeable, tag) {
+            True -> {
+              case last_opening {
+                option.None -> {
+                  assert [] == after_last_opening
+                  accumulator(
+                    opening,
+                    closing,
                     enclosing,
-                    first.attributes, // we only take the attributes of the closing tag, for now (we're lazy)
-                    after_last_opening |> list.reverse,
-                  ),
-                  ..already_processed
-                ],
-                option.None,
-                [],
-                rest,
-              )
-          }
-        True, True ->
-          case last_opening {
-            option.None -> {
-              // *
-              // we make the V-node the new value of last_opening
-              // *
-              let assert [] = after_last_opening
-              accumulator(
-                opening,
-                closing,
-                enclosing,
-                already_processed,
-                option.Some(first),
-                [],
-                rest,
-              )
-            }
-            option.Some(dude) ->
-              // *
-              // we do a pairing
-              // *
-              accumulator(
-                opening,
-                closing,
-                enclosing,
-                [
-                  V(
-                    dude.blame |> bl.append_comment(pairing_msg(dude.blame, first.blame)),
+                    unbridgeable,
+                    [first, ..already_processed],
+                    option.None,
+                    [],
+                    rest,
+                  )
+                }
+                option.Some(x) -> {
+                  accumulator(
+                    opening,
+                    closing,
                     enclosing,
-                    first.attributes, // we only take the attributes of the closing tag, for now (we're lazy),
-                    after_last_opening |> list.reverse,
-                  ),
-                  ..already_processed
-                ],
-                option.None,
-                [],
-                rest,
-              )
+                    unbridgeable,
+                    [first, ..infra.pour(after_last_opening, [x, ..already_processed])],
+                    option.None,
+                    [],
+                    rest,
+                  )
+                }
+              }
+            }
+            False -> {
+              case tag == opening, tag == closing {
+                False, False ->
+                  // *
+                  // treat the V-node like the T-node above
+                  // *
+                  case last_opening {
+                    option.None -> {
+                      // *
+                      // absorb the V-node into already_processed
+                      // *
+                      assert [] == after_last_opening
+                      accumulator(
+                        opening,
+                        closing,
+                        enclosing,
+                        unbridgeable,
+                        [first, ..already_processed],
+                        option.None,
+                        [],
+                        rest,
+                      )
+                    }
+                    option.Some(_) ->
+                      // *
+                      // absorb the V-node into after_last_opening
+                      // *
+                      accumulator(
+                        opening,
+                        closing,
+                        enclosing,
+                        unbridgeable,
+                        already_processed,
+                        last_opening,
+                        [first, ..after_last_opening],
+                        rest,
+                      )
+                  }
+                True, False ->
+                  case last_opening {
+                    option.None -> {
+                      // *
+                      // we make the V-node the new value of last_opening
+                      // *
+                      assert [] == after_last_opening
+                      accumulator(
+                        opening,
+                        closing,
+                        enclosing,
+                        unbridgeable,
+                        already_processed,
+                        option.Some(first),
+                        [],
+                        rest,
+                      )
+                    }
+                    option.Some(dude) ->
+                      // *
+                      // we discard the previous last_opening and his followers and make the V-node the new value of last_opening
+                      // *
+                      accumulator(
+                        opening,
+                        closing,
+                        enclosing,
+                        unbridgeable,
+                        list.flatten([after_last_opening, [dude, ..already_processed]]),
+                        option.Some(first),
+                        [],
+                        rest,
+                      )
+                  }
+                False, True ->
+                  case last_opening {
+                    option.None -> {
+                      // *
+                      // we absorb the V-node into already_processed
+                      // *
+                      assert [] == after_last_opening
+                      accumulator(
+                        opening,
+                        closing,
+                        enclosing,
+                        unbridgeable,
+                        [first, ..already_processed],
+                        option.None,
+                        [],
+                        rest,
+                      )
+                    }
+                    option.Some(dude) ->
+                      // *
+                      // we do a pairing
+                      // *
+                      accumulator(
+                        opening,
+                        closing,
+                        enclosing,
+                        unbridgeable,
+                        [
+                          V(
+                            dude.blame |> bl.append_comment(pairing_msg(dude.blame, first.blame)),
+                            enclosing,
+                            first.attributes, // we only take the attributes of the closing tag, for now (we're lazy)
+                            after_last_opening |> list.reverse,
+                          ),
+                          ..already_processed
+                        ],
+                        option.None,
+                        [],
+                        rest,
+                      )
+                  }
+                True, True ->
+                  case last_opening {
+                    option.None -> {
+                      // *
+                      // we make the V-node the new value of last_opening
+                      // *
+                      assert [] == after_last_opening
+                      accumulator(
+                        opening,
+                        closing,
+                        enclosing,
+                        unbridgeable,
+                        already_processed,
+                        option.Some(first),
+                        [],
+                        rest,
+                      )
+                    }
+                    option.Some(dude) ->
+                      // *
+                      // we do a pairing
+                      // *
+                      accumulator(
+                        opening,
+                        closing,
+                        enclosing,
+                        unbridgeable,
+                        [
+                          V(
+                            dude.blame |> bl.append_comment(pairing_msg(dude.blame, first.blame)),
+                            enclosing,
+                            first.attributes, // we only take the attributes of the closing tag, for now (we're lazy),
+                            after_last_opening |> list.reverse,
+                          ),
+                          ..already_processed
+                        ],
+                        option.None,
+                        [],
+                        rest,
+                      )
+                  }
+              }
+            }
           }
+        }
       }
+
   }
 }
 
@@ -225,7 +290,7 @@ fn nodemap(
   node: VXML,
   inner: InnerParam,
 ) -> VXML {
-  let #(opening, closing, enclosing) = inner
+  let #(opening, closing, enclosing, unbridgeable) = inner
   case node {
     T(_, _) -> node
     V(blame, tag, attrs, children) -> {
@@ -234,6 +299,7 @@ fn nodemap(
           opening,
           closing,
           enclosing,
+          unbridgeable,
           [],
           option.None,
           [],
@@ -258,10 +324,10 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
 }
 
 type Param =
-  #(String,    String,     String)
-//  ↖          ↖           ↖
-//  opening    closing     enclosing
-//  tag        tag         tag
+  #(String,    String,     String,     List(String))
+//  ↖          ↖           ↖           ↖
+//  opening    closing     enclosing   list of
+//  tag        tag         tag         "unbridgeable" tags
 type InnerParam = Param
 
 pub const name = "pair"

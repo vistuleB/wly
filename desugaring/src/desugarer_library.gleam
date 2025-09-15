@@ -70,6 +70,7 @@ import desugarers/fold_contents_into_text_if
 import desugarers/fold_custom_into_text
 import desugarers/fold_into_text
 import desugarers/fold_into_text__batch
+import desugarers/fold_into_text_new_version
 import desugarers/free_children
 import desugarers/free_children__batch
 import desugarers/generate_lbp_breadcrumbs
@@ -256,6 +257,7 @@ pub const fold_contents_into_text_if = fold_contents_into_text_if.constructor
 pub const fold_custom_into_text = fold_custom_into_text.constructor
 pub const fold_into_text = fold_into_text.constructor
 pub const fold_into_text__batch = fold_into_text__batch.constructor
+pub const fold_into_text_new_version = fold_into_text_new_version.constructor
 pub const free_children = free_children.constructor
 pub const free_children__batch = free_children__batch.constructor
 pub const generate_lbp_breadcrumbs = generate_lbp_breadcrumbs.constructor
@@ -443,6 +445,7 @@ pub const assertive_tests : List(fn() -> infra.AssertiveTestCollection) = [
   fold_custom_into_text.assertive_tests,
   fold_into_text.assertive_tests,
   fold_into_text__batch.assertive_tests,
+  fold_into_text_new_version.assertive_tests,
   free_children.assertive_tests,
   free_children__batch.assertive_tests,
   generate_lbp_breadcrumbs.assertive_tests,

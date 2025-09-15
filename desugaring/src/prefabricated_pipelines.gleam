@@ -49,6 +49,7 @@ fn split_pair_fold_data(
 fn split_pair_fold_for_delimiter_pair(
   pair: LatexDelimiterPair,
   wrapper: String,
+  unbridgeable: List(String),
   forbidden: List(String),
 ) -> List(Desugarer) {
   let #(d1, d2) = infra.opening_and_closing_singletons_for_pair(pair)
@@ -57,7 +58,7 @@ fn split_pair_fold_for_delimiter_pair(
       let #(g, tag, original) = split_pair_fold_data(d1)
       [
         dl.regex_split_and_replace__outside(g, forbidden),
-        dl.pair(#(tag, tag, wrapper)),
+        dl.pair(#(tag, tag, wrapper, unbridgeable)),
         dl.fold_into_text(#(tag, original))
       ]
     }
@@ -67,7 +68,7 @@ fn split_pair_fold_for_delimiter_pair(
       [
         dl.regex_split_and_replace__outside(g1, forbidden),
         dl.regex_split_and_replace__outside(g2, forbidden),
-        dl.pair(#(tag1, tag2, wrapper)),
+        dl.pair(#(tag1, tag2, wrapper, unbridgeable)),
         dl.fold_into_text(#(tag1, replacement1)),
         dl.fold_into_text(#(tag2, replacement2)),
       ]
@@ -80,6 +81,7 @@ fn create_math_or_mathblock_elements(
   produced: LatexDelimiterPair,
   backup: LatexDelimiterPair,
   which: String,
+  unbridgeable: List(String),
 ) -> List(Desugarer) {
   let produced = infra.opening_and_closing_string_for_pair(produced)
   let backup = infra.opening_and_closing_string_for_pair(backup)
@@ -94,7 +96,7 @@ fn create_math_or_mathblock_elements(
 
   let create_tags =
     parsed
-    |> list.map(split_pair_fold_for_delimiter_pair(_, which, ["Math", "MathBlock"]))
+    |> list.map(split_pair_fold_for_delimiter_pair(_, which, unbridgeable, ["Math", "MathBlock"]))
     |> list.flatten
 
   let reinsert = case which {
@@ -121,7 +123,7 @@ pub fn create_mathblock_elements(
   parsed: List(LatexDelimiterPair),
   produced: LatexDelimiterPair,
 ) -> List(Desugarer) {
-  create_math_or_mathblock_elements(parsed, produced, produced, "MathBlock")
+  create_math_or_mathblock_elements(parsed, produced, produced, "MathBlock", ["WriterlyBlankLine"])
 }
 
 pub fn create_math_elements(
@@ -129,7 +131,7 @@ pub fn create_math_elements(
   produced: LatexDelimiterPair,
   backup: LatexDelimiterPair,
 ) -> List(Desugarer) {
-  create_math_or_mathblock_elements(parsed, produced, backup, "Math")
+  create_math_or_mathblock_elements(parsed, produced, backup, "Math", ["WriterlyBlankLine"])
 }
 
 //***************
@@ -199,7 +201,7 @@ pub fn asymmetric_delim_splitting(
   [
     dl.regex_split_and_replace__outside(opening_grs, forbidden),
     dl.regex_split_and_replace__outside(closing_grs, forbidden),
-    dl.pair(#("OpeningAsymmetricDelim", "ClosingAsymmetricDelim", tag)),
+    dl.pair(#("OpeningAsymmetricDelim", "ClosingAsymmetricDelim", tag, ["WriterlyBlankLine"])),
     dl.fold_into_text(#("OpeningAsymmetricDelim", opening_ordinary_form)),
     dl.fold_into_text(#("ClosingAsymmetricDelim", closing_ordinary_form)),
   ]
@@ -218,7 +220,7 @@ pub fn barbaric_symmetric_delim_splitting(
   let opening_or_closing_grs = grs.unescaped_suffix_replacement_splitter(delim_regex_form, "OpeningOrClosingSymmetricDelim")
   [
     dl.regex_split_and_replace__outside(opening_or_closing_grs, forbidden),
-    dl.pair(#("OpeningOrClosingSymmetricDelim", "OpeningOrClosingSymmetricDelim", tag)),
+    dl.pair(#("OpeningOrClosingSymmetricDelim", "OpeningOrClosingSymmetricDelim", tag, ["WriterlyBlankLine"])),
     dl.fold_into_text(#("OpeningOrClosingSymmetricDelim", delim_ordinary_form)),
   ]
 }
@@ -249,7 +251,7 @@ pub fn annotated_backtick_splitting(
     [
       dl.regex_split_and_replace__outside(end_splitter, forbidden),
       dl.regex_split_and_replace__outside(start_splitter, forbidden),
-      dl.pair(#(start_tag, end_tag, "AnnotatedBackticks")),
+      dl.pair(#(start_tag, end_tag, "AnnotatedBackticks", ["WriterlyBlankLine"])),
       dl.fold_into_text(#("AnnotatedBackticksOpening", "`")),
       dl.fold_custom_into_text(#("AnnotatedBackticksClosing", text_folder)),
     ],
@@ -278,7 +280,7 @@ pub fn markdown_link_splitting(
   [
     dl.markdown_link_closing_handrolled_splitter(end_tag, forbidden),
     dl.regex_split_and_replace__outside(start_splitter, forbidden),
-    dl.pair(#(start_tag, end_tag, "MDLink")),
+    dl.pair(#(start_tag, end_tag, "MDLink", ["WriterlyBlankLine"])),
     dl.fold_into_text(#("MDLinkOpening", "[")),
     dl.fold_custom_into_text(#("MDLinkClosing", text_folder)),
     dl.rename(#("MDLink", "a")),
