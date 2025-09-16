@@ -1,4 +1,4 @@
-import blame.{Em, type Blame} as bl
+import blame.{Ext, type Blame} as bl
 import io_lines.{type InputLine, type OutputLine, OutputLine} as io_l
 import desugarer_library as dl
 import gleam/dict.{type Dict}
@@ -187,24 +187,24 @@ pub fn stub_html_emitter(
   let lines =
     list.flatten([
       [
-        OutputLine(Em([], "stub_html_emitter"), 0, "<!DOCTYPE html>"),
-        OutputLine(Em([], "stub_html_emitter"), 0, "<html>"),
-        OutputLine(Em([], "stub_html_emitter"), 0, "<head>"),
-        OutputLine(Em([], "stub_html_emitter"), 2, "<link rel=\"icon\" type=\"image/x-icon\" href=\"logo.png\">"),
-        OutputLine(Em([], "stub_html_emitter"), 2, "<meta charset=\"utf-8\">"),
-        OutputLine(Em([], "stub_html_emitter"), 2, "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">"),
-        OutputLine(Em([], "stub_html_emitter"), 2, "<script type=\"text/javascript\" src=\"./mathjax_setup.js\"></script>"),
-        OutputLine(Em([], "stub_html_emitter"), 2, "<script type=\"text/javascript\" id=\"MathJax-script\" async src=\"https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js\"></script>"),
-        OutputLine(Em([], "stub_html_emitter"), 0, "</head>"),
-        OutputLine(Em([], "stub_html_emitter"), 0, "<body>"),
+        OutputLine(Ext([], "stub_html_emitter"), 0, "<!DOCTYPE html>"),
+        OutputLine(Ext([], "stub_html_emitter"), 0, "<html>"),
+        OutputLine(Ext([], "stub_html_emitter"), 0, "<head>"),
+        OutputLine(Ext([], "stub_html_emitter"), 2, "<link rel=\"icon\" type=\"image/x-icon\" href=\"logo.png\">"),
+        OutputLine(Ext([], "stub_html_emitter"), 2, "<meta charset=\"utf-8\">"),
+        OutputLine(Ext([], "stub_html_emitter"), 2, "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">"),
+        OutputLine(Ext([], "stub_html_emitter"), 2, "<script type=\"text/javascript\" src=\"./mathjax_setup.js\"></script>"),
+        OutputLine(Ext([], "stub_html_emitter"), 2, "<script type=\"text/javascript\" id=\"MathJax-script\" async src=\"https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js\"></script>"),
+        OutputLine(Ext([], "stub_html_emitter"), 0, "</head>"),
+        OutputLine(Ext([], "stub_html_emitter"), 0, "<body>"),
       ],
       fragment.payload
         |> infra.v_get_children
         |> list.map(fn(vxml) { vp.vxml_to_html_output_lines(vxml, 2, 2) })
         |> list.flatten,
       [
-        OutputLine(Em([], "stub_html_emitter"), 0, "</body>"),
-        OutputLine(Em([], "stub_html_emitter"), 0, ""),
+        OutputLine(Ext([], "stub_html_emitter"), 0, "</body>"),
+        OutputLine(Ext([], "stub_html_emitter"), 0, ""),
       ],
     ])
   Ok(OutputFragment(..fragment, payload: lines))
@@ -220,19 +220,19 @@ pub fn stub_jsx_emitter(
   let lines =
     list.flatten([
       [
-        OutputLine(Em([], "panel_emitter"), 0, "import Something from \"./Somewhere\";",),
-        OutputLine(Em([], "panel_emitter"), 0, ""),
-        OutputLine(Em([], "panel_emitter"), 0, "const OurSuperComponent = () => {"),
-        OutputLine(Em([], "panel_emitter"), 2, "return ("),
-        OutputLine(Em([], "panel_emitter"), 4, "<>"),
+        OutputLine(Ext([], "panel_emitter"), 0, "import Something from \"./Somewhere\";",),
+        OutputLine(Ext([], "panel_emitter"), 0, ""),
+        OutputLine(Ext([], "panel_emitter"), 0, "const OurSuperComponent = () => {"),
+        OutputLine(Ext([], "panel_emitter"), 2, "return ("),
+        OutputLine(Ext([], "panel_emitter"), 4, "<>"),
       ],
       vp.vxmls_to_jsx_output_lines(fragment.payload |> infra.v_get_children, 6),
       [
-        OutputLine(Em([], "panel_emitter"), 4, "</>"),
-        OutputLine(Em([], "panel_emitter"), 2, ");"),
-        OutputLine(Em([], "panel_emitter"), 0, "};"),
-        OutputLine(Em([], "panel_emitter"), 0, ""),
-        OutputLine(Em([], "panel_emitter"), 0, "export default OurSuperComponent;"),
+        OutputLine(Ext([], "panel_emitter"), 4, "</>"),
+        OutputLine(Ext([], "panel_emitter"), 2, ");"),
+        OutputLine(Ext([], "panel_emitter"), 0, "};"),
+        OutputLine(Ext([], "panel_emitter"), 0, ""),
+        OutputLine(Ext([], "panel_emitter"), 0, "export default OurSuperComponent;"),
       ],
     ])
   Ok(OutputFragment(..fragment, payload: lines))

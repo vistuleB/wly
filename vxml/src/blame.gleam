@@ -16,7 +16,7 @@ pub type Blame {
     line_no: Int,
   )
 
-  Em(
+  Ext(
     comments: List(String),
     name: String,
   )
@@ -53,14 +53,14 @@ pub fn desugarer_blame(name: String, line_no: Int) -> Blame {
 }
 
 pub fn emitter_blame(name: String) -> Blame {
-  Em([], name)
+  Ext([], name)
 }
 
 pub fn clear_comments(blame: Blame) -> Blame {
   case blame {
     Src(_, _, _, _) -> Src(..blame, comments: [])
     Des(_, _, _) -> Des(..blame, comments: [])
-    Em(_, _) -> Em(..blame, comments: [])
+    Ext(_, _) -> Ext(..blame, comments: [])
     NoBlame(_) -> NoBlame([])
   }
 }
@@ -69,7 +69,7 @@ pub fn prepend_comment(blame: Blame, comment: String) -> Blame {
   case blame {
     Src(_, _, _, _) -> Src(..blame, comments: [comment, ..blame.comments])
     Des(_, _, _) -> Des(..blame, comments: [comment, ..blame.comments])
-    Em(_, _) -> Em(..blame, comments: [comment, ..blame.comments])
+    Ext(_, _) -> Ext(..blame, comments: [comment, ..blame.comments])
     NoBlame(_) -> NoBlame(comments: [comment, ..blame.comments])
   }
 }
@@ -78,7 +78,7 @@ pub fn append_comment(blame: Blame, comment: String) -> Blame {
   case blame {
     Src(_, _, _, _) -> Src(..blame, comments: list.append(blame.comments, [comment]))
     Des(_, _, _) -> Des(..blame, comments: list.append(blame.comments, [comment]))
-    Em(_, _) -> Em(..blame, comments: list.append(blame.comments, [comment]))
+    Ext(_, _) -> Ext(..blame, comments: list.append(blame.comments, [comment]))
     NoBlame(_) -> NoBlame(comments: list.append(blame.comments, [comment]))
   }  
 }
@@ -94,7 +94,7 @@ pub fn blame_digest(blame: Blame) -> String {
   case blame {
     Src(_, path, line_no, char_no) -> path <> ":" <> ins(line_no) <> ":" <> ins(char_no)
     Des(_, name, line_no) -> name <> "♦" <> ins(line_no)
-    Em(_, name) -> "e:" <> name
+    Ext(_, name) -> "e:" <> name
     NoBlame(_) -> ""
   }
 }
@@ -132,14 +132,21 @@ fn truncate_with_suffix_or_pad(
   }
 }
 
-fn truncate_with_prefix_or_pad(
+fn mid_truncation_or_pad(
   content: String,
   desired_length: Int,
-  truncation_prefix: String,
+  mid_truncation_dots: String,
 ) -> String {
   let l = string.length(content)
-  case l > desired_length {
-    True -> truncation_prefix <> string.drop_start(content, l - {desired_length - string.length(truncation_prefix)})
+  case l + 1 >= desired_length {
+    True -> {
+      let amt_to_drop = 1 + l - {desired_length - string.length(mid_truncation_dots)}
+      let inner_content = string.drop_start(content, 2)
+      let slice_start = { string.length(inner_content) / 2 } - {amt_to_drop / 2} - 3
+      let start = string.slice(inner_content, 0, slice_start)
+      let end = string.slice(inner_content, slice_start + amt_to_drop, 1000)
+      "| " <> start <> mid_truncation_dots <> end <> " "
+    }
     False -> content <> spaces(desired_length - l)
   }
 }
@@ -148,7 +155,7 @@ fn glue_columns_3(
   table_lines: List(#(String, String, String)),
   min_max_col1: #(Int, Int),
   min_max_col2: #(Int, Int),
-  truncation_suffix_col1: String,
+  mid_truncation_dots: String,
   truncation_suffix_col2: String,
 ) -> #(#(Int, Int), List(String)) {
   let #(col1_max, col2_max) = list.fold(
@@ -169,7 +176,7 @@ fn glue_columns_3(
     list.map(
       table_lines,
       fn (tuple) {
-        truncate_with_prefix_or_pad(tuple.0, col1_size, truncation_suffix_col1)
+        mid_truncation_or_pad(tuple.0, col1_size, mid_truncation_dots)
         <> truncate_with_suffix_or_pad(tuple.1, col2_size, truncation_suffix_col2)
         <> tuple.2
       }
