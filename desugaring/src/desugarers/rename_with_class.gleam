@@ -13,7 +13,7 @@ fn nodemap(
 ) -> VXML {
   case vxml {
     V(_, tag, attrs, _) if tag == inner.0 ->
-      V(..vxml, tag: inner.1, attributes: infra.append_to_class_attribute(attrs, our_blame, inner.2))
+      V(..vxml, tag: inner.1, attributes: infra.attributes_append_classes(attrs, our_blame, inner.2))
     _ -> vxml
   }
 }

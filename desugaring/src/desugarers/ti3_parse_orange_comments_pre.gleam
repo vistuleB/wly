@@ -64,7 +64,7 @@ fn nodemap(
             "pre",
             attrs
             |> infra.attributes_delete("language")
-            |> infra.append_to_class_attribute(desugarer_blame(67), "orange-comments"),
+            |> infra.attributes_append_classes(desugarer_blame(67), "orange-comments"),
             children,
           )
         }

@@ -56,12 +56,16 @@ fn line_map(
     string.split_once(maybe_href, " "),
     fn(pair) {
       let #(href_bef, href_af) = pair
-      let continue_with_bef = before <> ")[" <> href_bef <> " "
+      let continue_with_bef = before <> "](" <> href_bef <> " "
       let continue_with_af = href_af <> ")" <> after
-      [
-        t_1_line(blame, continue_with_bef),
-        ..line_map(TextLine(bl.advance(blame, string.length(continue_with_bef)), continue_with_af), inner)
-      ]
+      let assert [first, ..rest] = line_map(TextLine(bl.advance(blame, string.length(continue_with_bef)), continue_with_af), inner)
+      case first {
+        T(_, lines) -> {
+          let assert [first, ..more] = lines
+          [T(blame, [TextLine(blame, continue_with_bef <> first.content), ..more]), ..rest]
+        }
+        V(..) -> [t_1_line(blame, continue_with_bef), ..rest]
+      }
     }
   )
 
@@ -110,12 +114,16 @@ fn line_map(
       ]
     }
     Error(_) -> {
-      let continue_with_bef = before <> ")["
+      let continue_with_bef = before <> "]("
       let continue_with_af = original_after
-      [
-        t_1_line(blame, continue_with_bef),
-        ..line_map(TextLine(bl.advance(blame, string.length(continue_with_bef)), continue_with_af), inner)
-      ]
+      let assert [first, ..rest] = line_map(TextLine(bl.advance(blame, string.length(continue_with_bef)), continue_with_af), inner)
+      case first {
+        T(_, lines) -> {
+          let assert [first, ..more] = lines
+          [T(blame, [TextLine(blame, continue_with_bef <> first.content), ..more]), ..rest]
+        }
+        V(..) -> [t_1_line(blame, continue_with_bef), ..rest]
+      }
     }
   }
 }

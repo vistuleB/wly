@@ -1,10 +1,15 @@
 import gleam/option.{Some, None}
 import gleam/string.{inspect as ins}
 import gleam/int
-import gleam/list
-import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError, DesugaringError} as infra
+import infrastructure.{
+  type Desugarer,
+  type DesugarerTransform,
+  type DesugaringError,
+  Desugarer,
+  DesugaringError,
+} as infra
 import nodemaps_2_desugarer_transforms as n2t
-import vxml.{type VXML, V}
+import vxml.{type VXML, V, Attribute}
 import blame as bl
 import on
 
@@ -12,18 +17,20 @@ fn nodemap(
   vxml: VXML,
 ) -> Result(VXML, DesugaringError) {
   case vxml {
-    V(_, "CodeBlock", _, _) -> {
+    V(_, "CodeBlock", attrs, _) | V(_, "WriterlyCodeBlock", attrs, _) -> {
       use language <- on.lazy_none_some(
-        infra.v_value_of_first_attribute_with_key(vxml, "language"),
+        infra.v_first_attribute_with_key(vxml, "language"),
         fn() { Ok(V(..vxml, tag: "pre")) },
       )
 
-      use #(language, listing, line_no) <- on.ok(
-        case string.split_once(language, "listing") {
+      use #(amended_language, listing, line_no) <- on.ok(
+        case string.split_once(language.value, "listing") {
           Ok(#(before, after)) -> {
+            let listing = language.blame |> bl.advance(string.length(before))
+
             let language = case string.ends_with(before, "-") {
-              True -> string.drop_end(before, 1)
-              False -> string.drop_end(before, 0)
+              True -> string.drop_end(before, 1) |> string.trim
+              False -> before |> string.trim
             }
 
             use line_no <- on.ok(
@@ -38,33 +45,36 @@ fn nodemap(
               }
             )
 
-            Ok(#(language, True, line_no))
+            Ok(#(Some(language), Some(listing), line_no))
           }
           
-          _ -> Ok(#(language, False, None))
+          _ -> Ok(#(None, None, None))
         }
       )
 
-      let class = case listing {
-        True -> [vxml.Attribute(desugarer_blame(49), "class", "listing")]
-        False -> []
-      }
-      
-      let style = case line_no {
-        Some(line_no) -> [vxml.Attribute(desugarer_blame(54), "style", "counter-set:listing " <> line_no)]
-        None -> []
+      let attrs = case listing {
+        Some(blame) -> {
+          let attrs = infra.attributes_append_classes(attrs, blame, "listing")
+          case line_no {
+            Some(x) -> infra.attributes_set_styles(attrs, blame, "counter-set:listing " <> x)
+            None -> attrs
+          }
+        }
+        None -> attrs
       }
 
-      let language = [vxml.Attribute(desugarer_blame(58), "language", language)]
-      
+      let attrs = case amended_language {
+        Some("") ->
+          infra.attributes_delete(attrs, "language")          
+        Some(val) ->
+          infra.attributes_set_first_or_append(attrs, Attribute(..language, value: val))
+        None -> attrs
+      }
+
       V(
         ..vxml,
         tag: "pre",
-        attributes: [
-          class,
-          style,
-          language
-        ] |> list.flatten
+        attributes: attrs,
       )
       |> Ok
     }
@@ -86,7 +96,6 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
 }
 
 pub const name = "ti3_code_block_to_pre"
-fn desugarer_blame(line_no: Int) -> bl.Blame { bl.Des([], name, line_no) }
 
 type Param = Nil
 type InnerParam = Param

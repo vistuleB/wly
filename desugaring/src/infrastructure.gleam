@@ -472,6 +472,27 @@ pub fn use_list_pair_as_dict(
   }
 }
 
+pub fn append_to_list_pair_as_dict_accumulator(
+  previous: List(#(a, b)),
+  item: #(a, b),
+  remaining: List(#(a, b)),
+) -> List(#(a, b)) {
+  case remaining {
+    [] -> [item, ..previous] |> list.reverse
+    [first, ..rest] -> case first.0 == item.0 {
+      True -> pour([item, ..previous], rest)
+      False -> append_to_list_pair_as_dict_accumulator([first, ..previous], item, rest)
+    }
+  }
+}
+
+pub fn append_to_list_pair_as_dict(
+  list_pairs: List(#(a, b)),
+  item: #(a, b)
+) -> List(#(a, b)) {
+  append_to_list_pair_as_dict_accumulator([], item, list_pairs)
+}
+
 pub fn triples_to_dict(l: List(#(a, b, c))) -> Dict(a, #(b, c)) {
   l
   |> triples_to_pairs
@@ -1742,7 +1763,7 @@ pub fn v_append_classes(
   let assert V(blame, _, attributes, _) = node
   V(
     ..node,
-    attributes: append_to_class_attribute(attributes, blame, classes),
+    attributes: attributes_append_classes(attributes, blame, classes),
   )
 }
 
@@ -1843,6 +1864,27 @@ pub fn substitute_in_attributes(
       }
     }
   )
+}
+
+pub fn attributes_set_first_or_append_acc(
+  previous: List(Attribute),
+  new: Attribute,
+  remaining: List(Attribute),
+) -> List(Attribute) {
+  case remaining {
+    [] -> [new, ..previous] |> list.reverse
+    [first, ..rest] -> case first.key == new.key {
+      True -> pour([new, ..previous], rest)
+      False -> attributes_set_first_or_append_acc([first, ..previous], new, rest)
+    }
+  }
+}
+
+pub fn attributes_set_first_or_append(
+  attrs: List(Attribute),
+  new: Attribute,
+) -> List(Attribute) {
+  attributes_set_first_or_append_acc([], new, attrs)
 }
 
 pub fn attributes_first_with_key(
@@ -1962,6 +2004,43 @@ pub fn is_v_and_has_class(vxml: VXML, class: String) -> Bool {
   }
 }
 
+pub fn assert_split_style(style: String) -> List(#(String, String)) {
+  style
+  |> string.split(";")
+  |> list.map(fn(s) {
+    let assert Ok(#(key, val)) = string.split_once(s, ":")
+    #(string.trim(key), string.trim(val))
+  })
+}
+
+pub fn insert_styles(a: String, b: String) -> String {
+  let all_a = a |> assert_split_style
+  list.fold(
+    b |> assert_split_style,
+    all_a,
+    append_to_list_pair_as_dict
+  )
+  |> list.map(fn(kv) { kv.0 <> ":" <> kv.1 })
+  |> string.join(";")
+}
+
+pub fn attributes_set_styles(attrs: List(Attribute), blame: Blame, styles: String) {
+  let #(index, new_attribute) = list.index_fold(
+    attrs,
+    #(-1, Attribute(blame, "", "")),
+    fn (acc, attr, i) {
+      case acc.0, attr.key {
+        -1, "style" -> #(i, Attribute(..attr, value: insert_styles(attr.value, styles)))
+        _, _ -> acc
+      }
+    }
+  )
+  case index >= 0 {
+    True -> list_set(attrs, index, new_attribute)
+    False -> list.append(attrs, [Attribute(blame, "style", concatenate_classes("", styles))])
+  }
+}
+
 pub fn concatenate_classes(a: String, b: String) -> String {
   let all_a = a |> string.split(" ") |> list.filter(fn(s){!string.is_empty(s)}) |> list.map(string.trim)
   let all_b = b |> string.split(" ") |> list.filter(fn(s){!string.is_empty(s)}) |> list.map(string.trim)
@@ -1970,7 +2049,7 @@ pub fn concatenate_classes(a: String, b: String) -> String {
   |> string.join(" ")
 }
 
-pub fn append_to_class_attribute(attrs: List(Attribute), blame: Blame, classes: String) -> List(Attribute) {
+pub fn attributes_append_classes(attrs: List(Attribute), blame: Blame, classes: String) -> List(Attribute) {
   let #(index, new_attribute) = list.index_fold(
     attrs,
     #(-1, Attribute(blame, "", "")),

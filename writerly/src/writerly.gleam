@@ -7,7 +7,7 @@ import gleam/option.{type Option, None, Some}
 import gleam/order
 import gleam/pair
 import gleam/result
-import gleam/regexp
+import gleam/regexp.{type Regexp}
 import gleam/string.{inspect as ins}
 import simplifile
 import vxml.{type Attribute, type TextLine, type VXML, Attribute, TextLine, T, V}
@@ -21,9 +21,18 @@ const debug = False
 // ************************************************************
 
 pub type Writerly {
-  BlankLine(blame: Blame)
-  Blurb(blame: Blame, lines: List(TextLine))
-  CodeBlock(blame: Blame, annotation: String, lines: List(TextLine))
+  BlankLine(
+    blame: Blame,
+  )
+  Blurb(
+    blame: Blame,
+    lines: List(TextLine),
+  )
+  CodeBlock(
+    blame: Blame,
+    attributes: List(Attribute),
+    lines: List(TextLine),
+  )
   Tag(
     blame: Blame,
     name: String,
@@ -34,8 +43,8 @@ pub type Writerly {
 
 pub type ParseError {
   TagEmpty(blame: Blame)
-  TagIllegalCharacter(blame: Blame, bad_name: String, bad_char: String)
-  AttributeKeyIllegalCharacter(blame: Blame, bad_key: String, bad_char: String)
+  BadTag(blame: Blame, bad_name: String)
+  BadKey(blame: Blame, bad_key: String)
   IndentationTooLarge(blame: Blame, line: String)
   IndentationNotMultipleOfFour(blame: Blame, line: String)
   CodeBlockNotClosed(blame: Blame)
@@ -60,20 +69,20 @@ pub type AssemblyOrParseError {
 type FileHead =
   List(InputLine)
 
-type BadTagName {
+type BadTentativeTag {
   Empty
-  IllegalCharacter(String, String)
+  BadTentativeTag(String)
 }
 
 type TentativeTagName =
-  Result(String, BadTagName)
+  Result(String, BadTentativeTag)
 
-type BadAttributeKey {
-  IllegalAttributeKeyCharacter(String, String)
+type BadTentativeKey {
+  BadTentativeKey(String)
 }
 
 type TentativeAttributeKey =
-  Result(String, BadAttributeKey)
+  Result(String, BadTentativeKey)
 
 type TentativeAttribute {
   TentativeAttribute(
@@ -99,7 +108,7 @@ type TentativeWriterly {
   TentativeBlurb(blame: Blame, contents: List(TextLine))
   TentativeCodeBlock(
     blame: Blame,
-    annotation: String,
+    attributes: List(TentativeAttribute),
     contents: List(TextLine),
   )
   TentativeTag(
@@ -139,12 +148,8 @@ fn tentative_attribute_to_attribute(
 ) -> Result(Attribute, ParseError) {
   case t.key {
     Ok(key) -> Ok(Attribute(blame: t.blame, key: key, value: t.value))
-    Error(IllegalAttributeKeyCharacter(original_would_be_key, bad_char)) ->
-      Error(AttributeKeyIllegalCharacter(
-        t.blame,
-        original_would_be_key,
-        bad_char,
-      ))
+    Error(BadTentativeKey(key)) ->
+      Error(BadKey(t.blame, key))
   }
 }
 
@@ -205,8 +210,11 @@ fn parse_from_tentative(
 
     TentativeBlurb(blame, contents) -> Ok(Blurb(blame, contents))
 
-    TentativeCodeBlock(blame, annotation, contents) ->
-      Ok(CodeBlock(blame, annotation, contents))
+    TentativeCodeBlock(blame, attributes, contents) ->
+      case tentative_attributes_to_attributes(attributes) {
+        Ok(attributes) -> Ok(CodeBlock(blame, attributes, contents))
+        Error(e) -> Error(e)
+      }
 
     TentativeTag(
       blame,
@@ -217,18 +225,11 @@ fn parse_from_tentative(
       case tentative_name {
         Error(Empty) -> Error(TagEmpty(blame))
 
-        Error(IllegalCharacter(original_bad_name, bad_char)) ->
-          Error(TagIllegalCharacter(
-            tentative.blame,
-            original_bad_name,
-            bad_char,
-          ))
+        Error(BadTentativeTag(tag)) ->
+          Error(BadTag(tentative.blame, tag))
 
         Ok(name) ->
-          case
-            tentative_attributes_to_attributes(
-              tentative_attributes,
-            )
+          case tentative_attributes_to_attributes(tentative_attributes)
           {
             Error(error) -> Error(error)
 
@@ -279,19 +280,19 @@ fn fast_forward_past_lines_of_indent_at_least(
 fn tentative_attribute(
   blame: Blame,
   pair: #(String, String),
+  key_re: Regexp,
 ) -> TentativeAttribute {
   let #(key, value) = pair
-  let assert False = string.contains(key, "=")
-  let assert False = string.is_empty(key)
-  let bad_character = contains_one_of(key, [".", "~"])
+  assert !string.contains(key, "=")
+  assert !string.is_empty(key)
 
-  case bad_character == "" {
+  case regexp.check(key_re, key) {
     True -> TentativeAttribute(blame: blame, key: Ok(key), value: value)
 
     False ->
       TentativeAttribute(
         blame: blame,
-        key: Error(IllegalAttributeKeyCharacter(key, bad_character)),
+        key: Error(BadTentativeKey(key)),
         value: value,
       )
   }
@@ -300,6 +301,7 @@ fn tentative_attribute(
 fn fast_forward_past_attribute_lines_at_indent(
   indent: Int,
   head: FileHead,
+  key_re: Regexp,
 ) -> #(List(TentativeAttribute), FileHead) {
   case current_line(head) {
     None -> #([], head)
@@ -317,20 +319,21 @@ fn fast_forward_past_attribute_lines_at_indent(
             Error(_) -> #([], head)
 
             Ok(#(key, value)) -> {
-              let key = string.trim(key)
-              let value = string.trim(value)
-              case string.contains(key, " ") || key == "" {
+              case string.contains(key, " ") || key == "" || string.starts_with(value, " ") {
                 True -> #([], head)
 
                 False -> {
+                  let value = string.trim(value)
+
                   let attribute_pair =
-                    #(key, string.trim(value))
-                    |> tentative_attribute(blame, _)
+                    #(key, value)
+                    |> tentative_attribute(blame, _, key_re)
 
                   let #(more_attribute_pairs, head_after_attributes) =
                     fast_forward_past_attribute_lines_at_indent(
                       indent,
                       move_forward(head),
+                      key_re,
                     )
 
                   #(
@@ -465,27 +468,12 @@ fn fast_forward_to_closing_backticks(
   }
 }
 
-fn contains_one_of(thing: String, substrings: List(String)) -> String {
-  case substrings {
-    [] -> ""
-    [first, ..rest] -> {
-      case string.contains(thing, first) {
-        True -> first
-        False -> contains_one_of(thing, rest)
-      }
-    }
-  }
-}
-
-fn check_good_tag_name(proposed_name) -> TentativeTagName {
+fn check_good_tag_name(proposed_name, tag_re) -> TentativeTagName {
   case string.is_empty(proposed_name) {
     True -> Error(Empty)
-    False -> {
-      let something_illegal = contains_one_of(proposed_name, ["-", ".", " "])
-      case string.is_empty(something_illegal) {
-        True -> Ok(proposed_name)
-        False -> Error(IllegalCharacter(proposed_name, something_illegal))
-      }
+    False -> case regexp.check(tag_re, proposed_name) {
+      True -> Ok(proposed_name)
+      False -> Error(BadTentativeTag(proposed_name))
     }
   }
 }
@@ -512,9 +500,58 @@ fn remove_starting_escapes(contents: List(TextLine)) -> List(TextLine) {
   })
 }
 
+fn code_block_annotation_key_value_parse(
+  blame: Blame,
+  string: String,
+  key_re: Regexp,
+) -> TentativeAttribute {
+  let string = case string.contains(string, "=") {
+    True -> string
+    False -> string <> "="
+  }
+  let assert Ok(#(key, val)) = string.split_once(string, "=")
+  case regexp.check(key_re, key) {
+    True -> TentativeAttribute(blame, Ok(key), val)
+    False -> TentativeAttribute(blame, Error(BadTentativeKey(key)), val)
+  }
+}
+
+fn code_block_annotation_to_attributes(
+  blame: Blame,
+  annotation: String,
+  key_re: Regexp,
+) -> List(TentativeAttribute) {
+  let annotation = string.trim_end(annotation)
+  case annotation == "" {
+    True -> []
+    False -> {
+      string.split(annotation,  "&")
+      |> list.map_fold(
+        blame,
+        fn (acc, piece) {
+          #(bl.advance(acc, string.length(piece)), #(acc, string.trim(piece)))
+        }
+      )
+      |> pair.second
+      |> list.index_map(
+        fn(pair, i) {
+          let #(blame, piece) = pair
+          let piece = case i == 0 && !string.contains(piece, "=") {
+            True -> "language=" <> piece
+            False -> piece
+          }
+          code_block_annotation_key_value_parse(blame, piece, key_re)
+        }
+      )
+    }
+  }
+}
+
 fn tentative_parse_at_indent(
   indent: Int,
   head: FileHead,
+  tag_re: Regexp,
+  key_re: Regexp,
 ) -> #(List(TentativeWriterly), List(TentativeWriterly), FileHead) {
   case current_line(head) {
     None -> #([], [], head)
@@ -524,7 +561,7 @@ fn tentative_parse_at_indent(
         True -> {
           let tentative_blank_line = TentativeBlankLine(blame)
           let #(siblings, siblings_trailing_blank_lines, remainder_after_indent) =
-            tentative_parse_at_indent(indent, move_forward(head))
+            tentative_parse_at_indent(indent, move_forward(head), tag_re, key_re)
 
           case siblings {
             [] -> #(
@@ -558,7 +595,7 @@ fn tentative_parse_at_indent(
                     siblings,
                     siblings_trailing_blank_lines,
                     head_after_indent,
-                  ) = tentative_parse_at_indent(indent, move_forward(head))
+                  ) = tentative_parse_at_indent(indent, move_forward(head), tag_re, key_re)
 
                   #(
                     list.prepend(siblings, error),
@@ -588,6 +625,8 @@ fn tentative_parse_at_indent(
                     tentative_parse_at_indent(
                       indent,
                       head_after_oversize_indent,
+                      tag_re,
+                      key_re,
                     )
 
                   case suffix_indent % 4 == 0 {
@@ -628,11 +667,12 @@ fn tentative_parse_at_indent(
                   let assert True = suffix_indent == indent
 
                   case nonempty_suffix_diagnostic(suffix) {
-                    Pipe(annotation) -> {
+                    Pipe(tag) -> {
                       let #(tentative_attributes, head_after_attributes) =
                         fast_forward_past_attribute_lines_at_indent(
                           indent + 4,
                           move_forward(head),
+                          key_re,
                         )
 
                       let #(
@@ -643,6 +683,8 @@ fn tentative_parse_at_indent(
                         tentative_parse_at_indent(
                           indent + 4,
                           head_after_attributes,
+                          tag_re,
+                          key_re,
                         )
 
                       // filter out syntax-imposed blank line:
@@ -659,7 +701,7 @@ fn tentative_parse_at_indent(
                       let tentative_tag =
                         TentativeTag(
                           blame: blame,
-                          tag: check_good_tag_name(string.trim(annotation)),
+                          tag: check_good_tag_name(string.trim(tag), tag_re),
                           attributes: tentative_attributes,
                           children: children,
                         )
@@ -668,7 +710,7 @@ fn tentative_parse_at_indent(
                         siblings,
                         siblings_trailing_blank_lines,
                         head_after_indent,
-                      ) = tentative_parse_at_indent(indent, head_after_children)
+                      ) = tentative_parse_at_indent(indent, head_after_children, tag_re, key_re)
 
                       case siblings {
                         [] -> #(
@@ -698,12 +740,10 @@ fn tentative_parse_at_indent(
                         )
                       {
                         Ok(#(contents, head_after_code_block)) -> {
-                          let blame = blame
-
                           let tentative_code_block =
                             TentativeCodeBlock(
                               blame: blame,
-                              annotation: annotation,
+                              attributes: code_block_annotation_to_attributes(blame, annotation, key_re),
                               contents: contents,
                             )
 
@@ -715,6 +755,8 @@ fn tentative_parse_at_indent(
                             tentative_parse_at_indent(
                               indent,
                               head_after_code_block,
+                              tag_re,
+                              key_re,
                             )
 
                           #(
@@ -747,7 +789,7 @@ fn tentative_parse_at_indent(
                             siblings_trailing_blank_lines,
                             head_after_indent,
                           ) =
-                            tentative_parse_at_indent(indent, head_after_error)
+                            tentative_parse_at_indent(indent, head_after_error, tag_re, key_re)
 
                           #(
                             list.prepend(siblings, tentative_error),
@@ -765,7 +807,6 @@ fn tentative_parse_at_indent(
                       }
 
                     Other(_) -> {
-                      let blame = blame
                       let line = TextLine(blame, suffix)
 
                       let #(more_lines, head_after_others) =
@@ -787,7 +828,7 @@ fn tentative_parse_at_indent(
                         siblings,
                         siblings_trailing_blank_lines,
                         head_after_indent,
-                      ) = tentative_parse_at_indent(indent, head_after_others)
+                      ) = tentative_parse_at_indent(indent, head_after_others, tag_re, key_re)
 
                       #(
                         list.prepend(siblings, tentative_blurb),
@@ -813,18 +854,19 @@ fn tentative_parse_at_indent(
 fn tentative_parse_input_lines(
   head: FileHead,
 ) -> List(TentativeWriterly) {
+  let assert Ok(tag_re) = regexp.from_string("^[a-zA-Z_\\:][-a-zA-Z0-9\\._\\:]*$")
+  let assert Ok(key_re) = regexp.from_string("^[a-zA-Z_][-a-zA-Z0-9\\._\\:]*$")
   let head = list.filter(head, fn(line) { !string.starts_with(line.suffix, "!!") })
-  let #(parsed, _, final_head) = tentative_parse_at_indent(0, head)
+  let #(parsed, _, final_head) = tentative_parse_at_indent(0, head, tag_re, key_re)
+  assert final_head == []
 
   let parsed =
     list.drop_while(parsed, fn(writerly) {
       case writerly {
-        TentativeBlankLine(_) -> True
+        TentativeBlankLine(..) -> True
         _ -> False
       }
     })
-
-  let assert True = list.is_empty(final_head)
 
   case debug {
     True -> {
@@ -924,12 +966,12 @@ fn tentative_attribute_to_output_line(
         indentation,
         ins(attribute.key) <> "=" <> attribute.value,
       )
-    Error(IllegalAttributeKeyCharacter(bad_key, bad_char)) ->
+    Error(BadTentativeKey(bad_key)) ->
       OutputLine(
         attribute.blame
-          |> pc("ERROR illegal character in key: " <> bad_char),
+          |> pc("ERROR bad xml key"),
         indentation,
-        bad_key <> " " <> attribute.value,
+        bad_key <> "=" <> attribute.value,
       )
   }
 }
@@ -942,6 +984,40 @@ fn tentative_attributes_to_output_lines(
   |> list.map(tentative_attribute_to_output_line(_, indentation))
 }
 
+fn tentative_attributes_to_code_block_annotation(
+  attrs: List(TentativeAttribute),
+) -> String {
+  list.index_map(
+    attrs,
+    fn (attr, i) {
+      let key = case attr.key {
+        Error(BadTentativeKey(key)) -> "BadTentativeKey(" <> key <> ")"
+        Ok(key) -> key
+      }
+      case i == 0 && key == "language" {
+        True -> attr.value
+        False -> key <> "=" <> attr.value
+      }
+    }
+  )
+  |> string.join("&")
+}
+
+fn attributes_to_code_block_annotation(
+  attrs: List(Attribute),
+) -> String {
+  list.index_map(
+    attrs,
+    fn (attr, i) {
+      case i == 0 && attr.key == "language" {
+        True -> attr.value
+        False -> attr.key <> "=" <> attr.value
+      }
+    }
+  )
+  |> string.join("&")
+}
+
 fn tentative_to_output_lines_internal(
   t: TentativeWriterly,
   indentation: Int,
@@ -952,7 +1028,8 @@ fn tentative_to_output_lines_internal(
     }
     TentativeBlurb(_, lines) ->
       lines_to_output_lines(lines, indentation)
-    TentativeCodeBlock(blame, annotation, lines) -> {
+    TentativeCodeBlock(blame, attrs, lines) -> {
+      let annotation = tentative_attributes_to_code_block_annotation(attrs)
       list.flatten([
         [OutputLine(blame, indentation, "```" <> annotation)],
         lines_to_output_lines(lines, indentation),
@@ -962,20 +1039,17 @@ fn tentative_to_output_lines_internal(
     TentativeTag(blame, maybe_tag, attributes, children) -> {
       let tag_line = case maybe_tag {
         Ok(tag) -> OutputLine(blame, indentation, "|> " <> tag)
-        Error(IllegalCharacter(bad_tag, bad_char)) ->
-          OutputLine(
-            blame
-              |> bl.prepend_comment(
-                "ERROR illegal tag character: " <> bad_char,
-              ),
-            indentation,
-            "|> " <> bad_tag,
-          )
         Error(Empty) ->
           OutputLine(
             blame |> bl.prepend_comment("ERROR empty tag"),
             indentation,
             "<>",
+          )
+        Error(BadTentativeTag(bad_tag)) ->
+          OutputLine(
+            blame |> bl.prepend_comment("ERROR bad xml tag"),
+            indentation,
+            "|> " <> bad_tag,
           )
       }
       let attribute_lines =
@@ -1040,10 +1114,11 @@ pub fn writerly_annotate_blames(writerly: Writerly) -> Writerly {
           )
         }),
       )
-    CodeBlock(blame, annotation, lines) ->
+    CodeBlock(blame, attrs, lines) -> {
+      let annotation = attributes_to_code_block_annotation(attrs)
       CodeBlock(
         blame |> pc("CodeBlock:" <> annotation),
-        annotation,
+        attrs,
         list.index_map(lines, fn(line, i) {
           TextLine(
             line.blame
@@ -1052,14 +1127,14 @@ pub fn writerly_annotate_blames(writerly: Writerly) -> Writerly {
           )
         }),
       )
+    }
     Tag(blame, tag, attributes, children) ->
       Tag(
         blame |> pc("Tag"),
         tag,
         list.index_map(attributes, fn(attribute, i) {
           Attribute(
-            attribute.blame
-              |> pc("Tag > Attribute(" <> ins(i + 1) <> ")"),
+            attribute.blame |> pc("Tag > Attribute(" <> ins(i + 1) <> ")"),
             attribute.key,
             attribute.value,
           )
@@ -1113,9 +1188,9 @@ fn writerly_to_output_lines_internal(
     BlankLine(blame) -> [OutputLine(blame, 0, "")]
     Blurb(_, lines) ->
       lines_to_output_lines(lines, indentation)
-    CodeBlock(blame, annotation, lines) -> {
+    CodeBlock(blame, attrs, lines) -> {
       list.flatten([
-        [OutputLine(blame, indentation, "```" <> annotation)],
+        [OutputLine(blame, indentation, "```" <> attributes_to_code_block_annotation(attrs))],
         lines_to_output_lines(lines, indentation),
         [
           OutputLine(
@@ -1208,7 +1283,6 @@ pub fn echo_writerly(writerly: Writerly, banner: String) -> Writerly {
 
 const writerly_blank_line_vxml_tag = "WriterlyBlankLine"
 const writerly_code_block_vxml_tag = "WriterlyCodeBlock"
-const writerly_code_block_annotation_vxml_attribute_name = "language"
 
 pub fn writerly_to_vxml(t: Writerly) -> VXML {
   case t {
@@ -1222,17 +1296,11 @@ pub fn writerly_to_vxml(t: Writerly) -> VXML {
 
     Blurb(blame, lines) -> T(blame: blame, lines: lines)
 
-    CodeBlock(blame, annotation, lines) ->
+    CodeBlock(blame, attrs, lines) ->
       V(
         blame: blame,
         tag: writerly_code_block_vxml_tag,
-        attributes: [
-          Attribute(
-            blame,
-            writerly_code_block_annotation_vxml_attribute_name,
-            annotation,
-          ),
-        ],
+        attributes: attrs,
         children: [T(blame: blame, lines: lines)],
       )
 
@@ -1594,26 +1662,21 @@ pub fn vxml_to_writerlys(vxml: VXML) -> List(Writerly) { // it would 'Writerly' 
     V(blame, tag, attributes, children) -> {
       case tag {
         "WriterlyBlankLine" -> {
-          let assert True = list.is_empty(attributes)
-          let assert True = list.is_empty(children)
+          assert attributes == []
+          assert children == []
           [BlankLine(blame)]
         }
         "WriterlyCodeBlock" -> {
-          let assert True = list.all(children, is_t)
-          let annotation = case list.find(attributes, fn(b) { b.key == "language" }) {
-            Ok(thing) -> thing.value
-            Error(Nil) -> ""
-          }
+          assert list.all(children, is_t)
           let lines =
             children
-            |> list.map(
+            |> list.flat_map(
               fn(t) {
                 let assert T(_, lines) = t
                 lines
               }
             )
-            |> list.flatten
-          [CodeBlock(blame, annotation, lines)]
+          [CodeBlock(blame, attributes, lines)]
         }
         _ -> {
           let children = children |> vxmls_to_writerlys

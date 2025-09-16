@@ -35,7 +35,7 @@ fn nodemap(
           let attributes =
             attributes
             |> infra.attributes_delete("language")
-            |> infra.append_to_class_attribute(desugarer_blame(38), "html")
+            |> infra.attributes_append_classes(desugarer_blame(38), "html")
           let children =
             children
             |> list.flat_map(fn(x) {

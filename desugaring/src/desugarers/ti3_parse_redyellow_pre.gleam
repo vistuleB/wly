@@ -16,7 +16,7 @@ fn nodemap(
             attributes: 
               attrs
               |> infra.attributes_delete("language")
-              |> infra.append_to_class_attribute(desugarer_blame(19), "redyellow"),
+              |> infra.attributes_append_classes(desugarer_blame(19), "redyellow"),
           )
         _ -> vxml
       }

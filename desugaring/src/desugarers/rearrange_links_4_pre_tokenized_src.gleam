@@ -83,7 +83,7 @@ fn generate_replacement_vxml_internal(
           let a_node = V(
             blame,
             tag,
-            attributes |> infra.append_to_class_attribute(blame, classes),
+            attributes |> infra.attributes_append_classes(blame, classes),
             generate_replacement_vxml_internal([], internal_pattern, match_data),
           )
           generate_replacement_vxml_internal(

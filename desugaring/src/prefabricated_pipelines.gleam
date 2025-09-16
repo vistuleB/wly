@@ -272,7 +272,7 @@ pub fn markdown_link_splitting(
 ) -> List(Desugarer) {
   let text_folder = fn(v: VXML) -> String {
     let assert V(_, _, [Attribute(_, "href", value)], _) = v
-    "]\\(" <> value <> "\\)"
+    "]aaa\\(" <> value <> "\\)"
   }
   let start_tag = "MDLinkOpening"
   let end_tag = "MDLinkClosing"
