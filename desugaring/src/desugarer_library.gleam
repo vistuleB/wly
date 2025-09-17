@@ -36,6 +36,7 @@ import desugarers/check_proper_tokenization
 import desugarers/check_tags
 import desugarers/compute_max_element_width
 import desugarers/compute_missing_images_width
+import desugarers/concatenate_consecutive_lines_if
 import desugarers/concatenate_tags
 import desugarers/concatenate_text_nodes
 import desugarers/convert_int_attributes_to_float
@@ -94,7 +95,9 @@ import desugarers/insert_text_start_end_if_else
 import desugarers/insert_text_start_end_if_unique_attr
 import desugarers/insert_ti2_counter_commands
 import desugarers/keep_only_subtrees_and_ancestors_of_nodes_matching_a_key_value_pair
+import desugarers/last_to_first_concatenate_text_nodes
 import desugarers/line_rewrap_no1__outside
+import desugarers/line_rewrap_no2__outside
 import desugarers/markdown_link_closing_handrolled_splitter
 import desugarers/merge_parent_attributes_into_child
 import desugarers/normalize_begin_end_align
@@ -103,6 +106,7 @@ import desugarers/normalize_math_delimiters_inside
 import desugarers/normalize_spaces__outside
 import desugarers/pair
 import desugarers/pair_list_list
+import desugarers/prepend
 import desugarers/prepend_append_to_text_children_of
 import desugarers/prepend_attribute
 import desugarers/prepend_attribute__outside
@@ -222,6 +226,7 @@ pub const check_proper_tokenization = check_proper_tokenization.constructor
 pub const check_tags = check_tags.constructor
 pub const compute_max_element_width = compute_max_element_width.constructor
 pub const compute_missing_images_width = compute_missing_images_width.constructor
+pub const concatenate_consecutive_lines_if = concatenate_consecutive_lines_if.constructor
 pub const concatenate_tags = concatenate_tags.constructor
 pub const concatenate_text_nodes = concatenate_text_nodes.constructor
 pub const convert_int_attributes_to_float = convert_int_attributes_to_float.constructor
@@ -280,7 +285,9 @@ pub const insert_text_start_end_if_else = insert_text_start_end_if_else.construc
 pub const insert_text_start_end_if_unique_attr = insert_text_start_end_if_unique_attr.constructor
 pub const insert_ti2_counter_commands = insert_ti2_counter_commands.constructor
 pub const keep_only_subtrees_and_ancestors_of_nodes_matching_a_key_value_pair = keep_only_subtrees_and_ancestors_of_nodes_matching_a_key_value_pair.constructor
+pub const last_to_first_concatenate_text_nodes = last_to_first_concatenate_text_nodes.constructor
 pub const line_rewrap_no1__outside = line_rewrap_no1__outside.constructor
+pub const line_rewrap_no2__outside = line_rewrap_no2__outside.constructor
 pub const markdown_link_closing_handrolled_splitter = markdown_link_closing_handrolled_splitter.constructor
 pub const merge_parent_attributes_into_child = merge_parent_attributes_into_child.constructor
 pub const normalize_begin_end_align = normalize_begin_end_align.constructor
@@ -289,6 +296,7 @@ pub const normalize_math_delimiters_inside = normalize_math_delimiters_inside.co
 pub const normalize_spaces__outside = normalize_spaces__outside.constructor
 pub const pair = pair.constructor
 pub const pair_list_list = pair_list_list.constructor
+pub const prepend = prepend.constructor
 pub const prepend_append_to_text_children_of = prepend_append_to_text_children_of.constructor
 pub const prepend_attribute = prepend_attribute.constructor
 pub const prepend_attribute__outside = prepend_attribute__outside.constructor
@@ -409,6 +417,7 @@ pub const assertive_tests : List(fn() -> infra.AssertiveTestCollection) = [
   check_tags.assertive_tests,
   compute_max_element_width.assertive_tests,
   compute_missing_images_width.assertive_tests,
+  concatenate_consecutive_lines_if.assertive_tests,
   concatenate_tags.assertive_tests,
   concatenate_text_nodes.assertive_tests,
   convert_int_attributes_to_float.assertive_tests,
@@ -467,7 +476,9 @@ pub const assertive_tests : List(fn() -> infra.AssertiveTestCollection) = [
   insert_text_start_end_if_unique_attr.assertive_tests,
   insert_ti2_counter_commands.assertive_tests,
   keep_only_subtrees_and_ancestors_of_nodes_matching_a_key_value_pair.assertive_tests,
+  last_to_first_concatenate_text_nodes.assertive_tests,
   line_rewrap_no1__outside.assertive_tests,
+  line_rewrap_no2__outside.assertive_tests,
   markdown_link_closing_handrolled_splitter.assertive_tests,
   merge_parent_attributes_into_child.assertive_tests,
   normalize_begin_end_align.assertive_tests,
@@ -476,6 +487,7 @@ pub const assertive_tests : List(fn() -> infra.AssertiveTestCollection) = [
   normalize_spaces__outside.assertive_tests,
   pair.assertive_tests,
   pair_list_list.assertive_tests,
+  prepend.assertive_tests,
   prepend_append_to_text_children_of.assertive_tests,
   prepend_attribute.assertive_tests,
   prepend_attribute__outside.assertive_tests,

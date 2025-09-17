@@ -989,7 +989,69 @@ pub fn lines_total_chars(
 // line wrapping
 // ************************************************************
 
-pub fn line_wrap_rearrangement_internal(
+pub fn line_wrap_before_rearrangement_internal(
+  _is_very_first_token: Bool,
+  _next_token_marks_beginning_of_line: Bool,
+  current_blame: Blame,
+  already_bundled: List(TextLine),
+  tokens_4_current_line: List(String),
+  wrap_before: Int,
+  chars_left: Int,
+  remaining_tokens: List(EitherOr(String, Blame)),
+) -> #(List(TextLine), Int) {
+  let bundle_current = fn() {
+    TextLine(current_blame, tokens_4_current_line |> list.reverse |> string.join(" "))
+  }
+  case remaining_tokens {
+    [] -> {
+      let last = bundle_current()
+      #(
+        [last, ..already_bundled] |> list.reverse,
+        last.content |> string.length,
+      )
+    }
+    [Or(current_blame), ..rest] -> line_wrap_before_rearrangement_internal(
+      False,
+      True,
+      current_blame,
+      already_bundled,
+      tokens_4_current_line,
+      wrap_before,
+      chars_left,
+      rest,
+    )
+    [Either(next_token), ..rest] -> {
+      let length = string.length(next_token)
+      let new_chars_left = chars_left - length - 1
+      let current_blame = bl.advance(current_blame, length + 1)
+      case new_chars_left >= 0 || { chars_left == wrap_before } || next_token == "" {
+        True -> line_wrap_before_rearrangement_internal(
+          False,
+          False,
+          current_blame,
+          already_bundled,
+          [next_token, ..tokens_4_current_line],
+          wrap_before,
+          new_chars_left,
+          rest,
+        )
+        False -> line_wrap_before_rearrangement_internal(
+          False,
+          False,
+          current_blame,
+          [bundle_current(), ..already_bundled],
+          [next_token],
+          wrap_before,
+          wrap_before - length,
+          rest,
+        )
+      }
+    }
+  }
+}
+
+
+pub fn line_wrap_beyond_rearrangement_internal(
   is_very_first_token: Bool,
   _next_token_marks_beginning_of_line: Bool,
   current_blame: Blame,
@@ -1010,7 +1072,7 @@ pub fn line_wrap_rearrangement_internal(
         last.content |> string.length,
       )
     }
-    [Or(current_blame), ..rest] -> line_wrap_rearrangement_internal(
+    [Or(current_blame), ..rest] -> line_wrap_beyond_rearrangement_internal(
       False,
       True,
       current_blame,
@@ -1025,7 +1087,7 @@ pub fn line_wrap_rearrangement_internal(
       let new_chars_left = chars_left - length - 1
       let current_blame = bl.advance(current_blame, length + 1)
       case next_token == "" || chars_left > 0 || is_very_first_token {
-        True -> line_wrap_rearrangement_internal(
+        True -> line_wrap_beyond_rearrangement_internal(
           False,
           False,
           current_blame,
@@ -1035,7 +1097,7 @@ pub fn line_wrap_rearrangement_internal(
           new_chars_left,
           rest,
         )
-        False -> line_wrap_rearrangement_internal(
+        False -> line_wrap_beyond_rearrangement_internal(
           False,
           False,
           current_blame,
@@ -1053,7 +1115,7 @@ pub fn line_wrap_rearrangement_internal(
 pub fn line_wrap_rearrangement(
   lines: List(TextLine),
   starting_offset: Int,
-  wrap_beyond: Int,
+  wrap_before: Int,
 ) -> #(List(TextLine), Int) {
   // 🚨
   // right now there is no option to protect empty first line
@@ -1072,14 +1134,14 @@ pub fn line_wrap_rearrangement(
     )
     |> list.flatten
   let assert [Or(first_blame), ..tokens] = tokens
-  let #(lines, last_line_length) = line_wrap_rearrangement_internal(
+  let #(lines, last_line_length) = line_wrap_before_rearrangement_internal(
     True,
     True,
     first_blame,
     [],
     [],
-    wrap_beyond,
-    wrap_beyond - starting_offset,
+    wrap_before,
+    wrap_before - starting_offset,
     tokens,
   )
   case list.length(lines) > 1 {

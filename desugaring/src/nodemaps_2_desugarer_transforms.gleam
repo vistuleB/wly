@@ -778,9 +778,9 @@ pub fn fancy_one_to_one_stateful_nodemap_2_desugarer_transform(
   }
 }
 
-//**********************************************************************
-//* OneToOneBeforeAndAfterNoErrorStatefulNodeMap
-//**********************************************************************
+// ************************************************************
+// OneToOneBeforeAndAfterNoErrorStatefulNodeMap
+// ************************************************************
 
 pub type OneToOneBeforeAndAfterNoErrorStatefulNodeMap(a) {
   OneToOneBeforeAndAfterNoErrorStatefulNodeMap(
@@ -831,6 +831,83 @@ pub fn one_to_one_before_and_after_no_error_stateful_nodemap_2_desugarer_transfo
         initial_state,
         vxml,
         nodemap,
+      )
+    Ok(#(vxml, []))
+  }
+}
+
+// *** with forbidden ***
+
+// fn custom_map_folder(
+//   remaining: List(a),
+//   state: b,
+//   map: fn(a, b) -> #(a, b),
+//   previous: List(a),
+// ) -> #(List(a), b) {
+//   case remaining {
+//     [] -> #(previous |> list.reverse, state)
+//     [first, ..rest] -> {
+//       let #(first, state) = map(first, state)
+//       custom_map_folder(rest, state, map, [first, ..previous])
+//     }
+//   }
+// }
+
+fn one_to_one_before_and_after_no_error_stateful_nodemap_recursive_application_with_forbidden(
+  original_state: a,
+  node: VXML,
+  nodemap: OneToOneBeforeAndAfterNoErrorStatefulNodeMap(a),
+  forbidden: List(String),
+) -> #(VXML, a) {
+  case node {
+    T(_, _) -> nodemap.t_nodemap(node, original_state)
+    V(_, tag, _, _) -> {
+      case list.contains(forbidden, tag) {
+        True -> #(node, original_state)
+        False -> {
+          let assert #(V(_, _, _, children) as node, latest_state) =
+            nodemap.v_before_transforming_children(
+              node,
+              original_state,
+            )
+          let #(latest_state, children) = 
+            // custom_map_folder(
+            //   children,
+            //   latest_state,
+            //   fn(child, state) { one_to_one_before_and_after_no_error_stateful_nodemap_recursive_application_with_forbidden(state, child, nodemap, forbidden) },
+            //   [],
+            // )
+            list.map_fold(
+              children,
+              latest_state,
+              fn (acc, child) {
+                let #(v, state) = one_to_one_before_and_after_no_error_stateful_nodemap_recursive_application_with_forbidden(acc, child, nodemap, forbidden)
+                #(state, v)
+              }
+            )
+          nodemap.v_after_transforming_children(
+            V(..node, children: children),
+            original_state,
+            latest_state,
+          )
+        }
+      }
+    }
+  }
+}
+
+pub fn one_to_one_before_and_after_no_error_stateful_nodemap_2_desugarer_transform_with_forbidden(
+  nodemap: OneToOneBeforeAndAfterNoErrorStatefulNodeMap(a),
+  initial_state: a,
+  forbidden: List(String),
+) -> DesugarerTransform {
+  fn(vxml) {
+    let #(vxml, _) =
+      one_to_one_before_and_after_no_error_stateful_nodemap_recursive_application_with_forbidden(
+        initial_state,
+        vxml,
+        nodemap,
+        forbidden,
       )
     Ok(#(vxml, []))
   }
