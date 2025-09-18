@@ -154,6 +154,8 @@ import desugarers/ti2_carousel_component
 import desugarers/ti2_class_well_container_theorem_2_statement
 import desugarers/ti2_remove_chapter_number_from_title
 import desugarers/ti3_add_listing_bol_spans
+import desugarers/ti3_add_should_be_numbers
+import desugarers/ti3_backfill
 import desugarers/ti3_code_block_to_pre
 import desugarers/ti3_parse_arbitrary_prompt_response_pre
 import desugarers/ti3_parse_orange_comments_pre
@@ -344,6 +346,8 @@ pub const ti2_carousel_component = ti2_carousel_component.constructor
 pub const ti2_class_well_container_theorem_2_statement = ti2_class_well_container_theorem_2_statement.constructor
 pub const ti2_remove_chapter_number_from_title = ti2_remove_chapter_number_from_title.constructor
 pub const ti3_add_listing_bol_spans = ti3_add_listing_bol_spans.constructor
+pub const ti3_add_should_be_numbers = ti3_add_should_be_numbers.constructor
+pub const ti3_backfill = ti3_backfill.constructor
 pub const ti3_code_block_to_pre = ti3_code_block_to_pre.constructor
 pub const ti3_parse_arbitrary_prompt_response_pre = ti3_parse_arbitrary_prompt_response_pre.constructor
 pub const ti3_parse_orange_comments_pre = ti3_parse_orange_comments_pre.constructor
@@ -535,6 +539,8 @@ pub const assertive_tests : List(fn() -> infra.AssertiveTestCollection) = [
   ti2_class_well_container_theorem_2_statement.assertive_tests,
   ti2_remove_chapter_number_from_title.assertive_tests,
   ti3_add_listing_bol_spans.assertive_tests,
+  ti3_add_should_be_numbers.assertive_tests,
+  ti3_backfill.assertive_tests,
   ti3_code_block_to_pre.assertive_tests,
   ti3_parse_arbitrary_prompt_response_pre.assertive_tests,
   ti3_parse_orange_comments_pre.assertive_tests,

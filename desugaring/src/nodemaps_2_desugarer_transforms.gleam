@@ -838,20 +838,20 @@ pub fn one_to_one_before_and_after_no_error_stateful_nodemap_2_desugarer_transfo
 
 // *** with forbidden ***
 
-// fn custom_map_folder(
-//   remaining: List(a),
-//   state: b,
-//   map: fn(a, b) -> #(a, b),
-//   previous: List(a),
-// ) -> #(List(a), b) {
-//   case remaining {
-//     [] -> #(previous |> list.reverse, state)
-//     [first, ..rest] -> {
-//       let #(first, state) = map(first, state)
-//       custom_map_folder(rest, state, map, [first, ..previous])
-//     }
-//   }
-// }
+fn custom_map_folder(
+  remaining: List(a),
+  state: b,
+  map: fn(a, b) -> #(a, b),
+  previous: List(a),
+) -> #(List(a), b) {
+  case remaining {
+    [] -> #(previous |> list.reverse, state)
+    [first, ..rest] -> {
+      let #(first, state) = map(first, state)
+      custom_map_folder(rest, state, map, [first, ..previous])
+    }
+  }
+}
 
 fn one_to_one_before_and_after_no_error_stateful_nodemap_recursive_application_with_forbidden(
   original_state: a,
@@ -870,21 +870,22 @@ fn one_to_one_before_and_after_no_error_stateful_nodemap_recursive_application_w
               node,
               original_state,
             )
-          let #(latest_state, children) = 
-            // custom_map_folder(
-            //   children,
-            //   latest_state,
-            //   fn(child, state) { one_to_one_before_and_after_no_error_stateful_nodemap_recursive_application_with_forbidden(state, child, nodemap, forbidden) },
-            //   [],
-            // )
-            list.map_fold(
+          let #(children, latest_state) = 
+            custom_map_folder(
               children,
               latest_state,
-              fn (acc, child) {
-                let #(v, state) = one_to_one_before_and_after_no_error_stateful_nodemap_recursive_application_with_forbidden(acc, child, nodemap, forbidden)
-                #(state, v)
-              }
+              fn(child, state) { one_to_one_before_and_after_no_error_stateful_nodemap_recursive_application_with_forbidden(state, child, nodemap, forbidden) },
+              [],
             )
+          // let #(latest_state, children) = 
+          //   list.map_fold(
+          //     children,
+          //     latest_state,
+          //     fn (acc, child) {
+          //       let #(v, state) = one_to_one_before_and_after_no_error_stateful_nodemap_recursive_application_with_forbidden(acc, child, nodemap, forbidden)
+          //       #(state, v)
+          //     }
+          //   )
           nodemap.v_after_transforming_children(
             V(..node, children: children),
             original_state,
@@ -1245,8 +1246,6 @@ pub fn one_to_many_before_and_after_stateful_nodemap_with_warnings_2_desufarer_t
 pub type EarlyReturnOneToOneNoErrorNodeMap =
   fn(VXML) -> #(VXML, TrafficLight)
 
-// *** without forbidden ***
-
 fn early_return_one_to_one_no_error_nodemap_recursive_application(
   node: VXML,
   nodemap: EarlyReturnOneToOneNoErrorNodeMap,
@@ -1310,6 +1309,42 @@ pub fn early_return_one_to_one_no_error_nodemap_2_desugarer_transform_with_forbi
     early_return_one_to_one_no_error_nodemap_recursive_application_with_forbidden(vxml, nodemap, forbidden)
     |> add_no_warnings
     |> Ok
+  }
+}
+
+//**************************************************************
+//* EarlyReturnOneToOneNodeMap
+//**************************************************************
+
+pub type EarlyReturnOneToOneNodeMap =
+  fn(VXML) -> Result(#(VXML, TrafficLight), DesugaringError)
+
+
+fn early_return_one_to_one_nodemap_recursive_application(
+  node: VXML,
+  nodemap: EarlyReturnOneToOneNodeMap,
+) -> Result(VXML, DesugaringError) {
+  use #(node, signal) <- on.ok(nodemap(node))
+  case node, signal {
+    V(_, _, _, children), Continue -> {
+      use children <- on.ok(
+        list.try_map(
+          children,
+          early_return_one_to_one_nodemap_recursive_application(_, nodemap),
+        )
+      )
+      Ok(V(..node, children: children))
+    }
+    _, _ -> Ok(node)
+  }
+}
+
+pub fn early_return_one_to_one_nodemap_2_desugarer_transform(
+  nodemap: EarlyReturnOneToOneNodeMap,
+) -> DesugarerTransform {
+  fn (vxml) {
+    early_return_one_to_one_nodemap_recursive_application(vxml, nodemap)
+    |> result.map(add_no_warnings)
   }
 }
 

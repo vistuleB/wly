@@ -1715,6 +1715,37 @@ pub fn v_prepend_child(vxml: VXML, child: VXML) {
   V(blame, tag, attributes, [child, ..children])
 }
 
+pub fn v_set_attribute(
+  vxml: VXML,
+  blame: Blame,
+  key: String,
+  val: String,
+) -> VXML {
+  let assert V(_, _, attrs, _) = vxml
+  let #(attrs, found) = list.fold(
+    attrs,
+    #([], False),
+    fn (acc, attr) {
+      case attr.key == key {
+        False -> #([attr, ..acc.0], acc.1)
+        True -> {
+          case acc.1 {
+            True -> {
+              let msg = "v_set_attribute found second occurrence of key '" <> key <> "'"
+              panic as msg
+            }
+            False -> #([Attribute(..attr, value: val), ..acc.0],  True)
+          }
+        }
+      }
+    }
+  )
+  case found {
+    True -> V(..vxml, attributes: attrs |> list.reverse)
+    False -> V(..vxml, attributes: [Attribute(blame, key, val), ..attrs] |> list.reverse)
+  }
+}
+
 pub fn v_first_attribute_with_key(
   vxml: VXML,
   key: String,
