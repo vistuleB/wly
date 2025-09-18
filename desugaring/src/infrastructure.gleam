@@ -990,7 +990,7 @@ pub fn lines_total_chars(
 // ************************************************************
 
 pub fn line_wrap_before_rearrangement_internal(
-  _is_very_first_token: Bool,
+  is_very_first_token: Bool,
   _next_token_marks_beginning_of_line: Bool,
   current_blame: Blame,
   already_bundled: List(TextLine),
@@ -1024,7 +1024,12 @@ pub fn line_wrap_before_rearrangement_internal(
       let length = string.length(next_token)
       let new_chars_left = chars_left - length - 1
       let current_blame = bl.advance(current_blame, length + 1)
-      case new_chars_left >= 0 || { chars_left == wrap_before } || next_token == "" {
+      case {                           // we don't move to next line if:
+        new_chars_left >= 0 ||         // - we have space on this line
+        chars_left == wrap_before ||   // - moving to next line wouldn't give us anymore space than we already have
+        next_token == "" ||            // - we represent adding a space at the end of the line
+        is_very_first_token            // - we are the first token of the paragraph, because we don't want to introduce accidental whitespace between us and the previous content
+      } {
         True -> line_wrap_before_rearrangement_internal(
           False,
           False,

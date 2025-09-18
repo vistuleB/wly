@@ -4,6 +4,7 @@ import gleam/string.{inspect as ins}
 import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as infra
 import nodemaps_2_desugarer_transforms as n2t
 import vxml.{type VXML, T, V}
+import blame.{type Blame}
 import on
 
 fn wrap_second_element_if_its_math_and_recurse(
@@ -14,22 +15,20 @@ fn wrap_second_element_if_its_math_and_recurse(
 
   use first, after_first <- on.empty_nonempty(
     children,
-    []
+    [],
   )
 
   use second, after_second <- on.empty_nonempty(
     after_first,
-    children
+    children,
   )
 
   use <- on.lazy_false_true(
-    infra.is_v_and_tag_equals(second, to_be_wrapped),
-    fn() {
-      [
-        first,
-        ..wrap_second_element_if_its_math_and_recurse([second, ..after_second], inner)
-      ]
-    },
+    infra.is_v_and_tag_is_one_of(second, to_be_wrapped),
+    fn() {[
+      first,
+      ..wrap_second_element_if_its_math_and_recurse([second, ..after_second], inner)
+    ]},
   )
 
   let #(first, last_word_of_first) =
@@ -79,40 +78,43 @@ fn wrap_second_element_if_its_math_and_recurse(
   }
 }
 
+fn children_processor(
+  blame: Blame,
+  children: List(VXML),
+  inner: InnerParam,
+) -> List(VXML) {
+  [V(blame, "Dummy", [], []), ..children]
+  |> wrap_second_element_if_its_math_and_recurse(inner)
+  |> list.drop(1)
+}
+
 fn nodemap(
   node: VXML,
   inner: InnerParam,
-) -> Result(VXML, DesugaringError) {
+) -> VXML {
   case node {
-    T(_, _) -> Ok(node)
-    V(b, t, a, children) -> {
-      Ok(V(
-        b,
-        t,
-        a,
-        [V(b, "Dummy", [], []), ..children]
-          |> wrap_second_element_if_its_math_and_recurse(inner)
-          |> list.drop(1),
-      ))
-    }
+    V(blame, _, _, children) ->
+      V(..node, children: children_processor(blame, children, inner))
+    T(_, _) -> node
   }
 }
 
-fn nodemap_factory(inner: InnerParam) -> n2t.OneToOneNodeMap {
+fn nodemap_factory(inner: InnerParam) -> n2t.OneToOneNoErrorNodeMap {
   nodemap(_, inner)
 }
 
 fn transform_factory(inner: InnerParam) -> DesugarerTransform {
-  n2t.one_to_one_nodemap_2_desugarer_transform(nodemap_factory(inner))
+  nodemap_factory(inner)
+  |> n2t.one_to_one_no_error_nodemap_2_desugarer_transform
 }
 
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
   Ok(param)
 }
 
-type Param = #(String,     String)
-//             ↖           ↖
-//             tag to      wrapper tag
+type Param = #(List(String),     String)
+//             ↖                 ↖
+//             tags to           wrapper tag
 //             be wrapped
 type InnerParam = Param
 
