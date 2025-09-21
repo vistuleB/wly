@@ -9,7 +9,7 @@ import infrastructure.{
   DesugaringError,
 } as infra
 import nodemaps_2_desugarer_transforms as n2t
-import vxml.{type VXML, V, Attribute}
+import vxml.{type VXML, V}
 import blame as bl
 import on
 
@@ -67,7 +67,7 @@ fn nodemap(
         Some("") ->
           infra.attributes_delete(attrs, "language")          
         Some(val) ->
-          infra.attributes_set_first_or_append(attrs, Attribute(..language, value: val))
+          infra.attributes_set(attrs, language.blame, "language", val)
         None -> attrs
       }
 

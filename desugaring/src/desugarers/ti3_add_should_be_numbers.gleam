@@ -42,16 +42,17 @@ fn nodemap(
   inner: InnerParam,
 ) -> Result(#(VXML, TrafficLight), DesugaringError) {
   case node {
-    V(blame, "Chapter", _, children) -> {
+    V(blame, "Chapter", attrs, children) -> {
       let assert bl.Src(_, path, _, _) = blame
       use first, _ <- on.lazy_empty_nonempty(
         regexp.scan(inner.0, path),
-        fn() { Error(DesugaringError(blame, "could not read directory number")) },
+        fn() { Error(DesugaringError(blame, "cannot read directory number")) },
       )
       let assert [Some(x)] = first.submatches
       let assert Ok(x) = int.parse(x)
       use children <- on.ok(list.try_map(children, process_sub(_, inner)))
-      Ok(#(V(..node, children: children) |> infra.v_set_attribute(desugarer_blame(54), "should-be-number", ins(x)), GoBack))
+      let attrs = infra.attributes_set(attrs, desugarer_blame(54), "should-be-number", ins(x))
+      Ok(#(V(..node, attributes: attrs, children: children), GoBack))
     }
     _ -> Ok(#(node, Continue))
   }

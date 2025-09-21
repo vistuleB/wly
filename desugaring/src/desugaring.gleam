@@ -39,8 +39,10 @@ pub type AssemblerDebugOptions {
 pub fn default_assembler(
   spotlight_paths: List(String),
 ) -> Assembler(wp.AssemblyError) {
-  let spaces = string.repeat(" ", string.length("• assembling "))
+  let spaces = 
+    string.repeat(" ", string.length("  -> assembled "))
   fn(input_dir) {
+    io.print("  -> assembled ")
     use #(directory_tree, assembled) <- on.ok(
       wp.assemble_input_lines_advanced_mode(input_dir, spotlight_paths),
     )
@@ -270,10 +272,8 @@ pub fn default_writer(
   output_dir: String,
   fragment: OutputFragment(d, String),
 ) -> Result(GhostOfOutputFragment(d), String) {
-  let brackets = "[" <> output_dir <> "/]"
   case output_dir_local_path_printer(output_dir, fragment.path, fragment.payload) {
     Ok(Nil) -> {
-      io.println("  wrote " <> brackets <> fragment.path)
       Ok(GhostOfOutputFragment(fragment.classifier, fragment.path))
     }
     Error(file_error) -> {
@@ -1462,7 +1462,7 @@ pub fn run_renderer(
   // 🌸 assembling~ 🌸
   // 🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸
 
-  io.print("• assembling ")
+  io.println("• assembling...")
 
   use assembled <- on.error_ok(
     renderer.assembler(input_dir),
@@ -1492,7 +1492,7 @@ pub fn run_renderer(
   // 🌸 parsing~~~~ 🌸
   // 🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸
 
-  io.println("• parsing input lines to VXML")
+  io.println("• parsing input lines to VXML...")
 
   use parsed: VXML <- on.error_ok(
     renderer.parser(assembled),
@@ -1580,7 +1580,7 @@ pub fn run_renderer(
   // 🌸 splitting~~ 🌸
   // 🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸
 
-  io.println("• splitting the vxml...")
+  io.println("• splitting...")
 
   use fragments <- on.error_ok(
     renderer.splitter(desugared),
@@ -1627,7 +1627,7 @@ pub fn run_renderer(
   // 🌸 emitting~~~ 🌸
   // 🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸
 
-  io.print("• converting fragments to output line fragments")
+  io.print("• converting fragments to output line fragments...")
 
   let fragments =
     fragments
@@ -1686,7 +1686,7 @@ pub fn run_renderer(
   // 🌸 writing (to file)~~ 🌸
   // 🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸
 
-  io.println("• writing string fragments to files")
+  io.println("• writing string fragments to files...")
 
   let fragments = {
     fragments
@@ -1722,15 +1722,28 @@ pub fn run_renderer(
     }
   })
 
+  let num_fragments = list.length(fragments)
+
   let fragments =
     fragments
-    |> list.map(fn(result) {
-      use fr <- on.ok(result)
-      case renderer.writer(output_dir, fr) {
-        Error(e) -> Error(P2(e))
-        Ok(z) -> Ok(z)
+    |> list.index_map(
+      fn(result, i) {
+        use fr <- on.ok(result)
+        case renderer.writer(output_dir, fr) {
+          Error(e) -> Error(P2(e))
+          Ok(z) -> {
+            case i < 7 || i >= num_fragments - 3 || num_fragments <= 9 {
+              True -> io.println("  wrote [" <> output_dir <> "/]" <> fr.path)
+              False -> case i <= 7 {
+                True -> io.println("  ⋮")
+                False -> Nil
+              }
+            }
+            Ok(z)
+          }
+        }
       }
-    })
+    )
 
   // 🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸
   // 🌸 prettifying 🌸

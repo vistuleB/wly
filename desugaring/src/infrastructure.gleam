@@ -1722,28 +1722,7 @@ pub fn v_set_attribute(
   val: String,
 ) -> VXML {
   let assert V(_, _, attrs, _) = vxml
-  let #(attrs, found) = list.fold(
-    attrs,
-    #([], False),
-    fn (acc, attr) {
-      case attr.key == key {
-        False -> #([attr, ..acc.0], acc.1)
-        True -> {
-          case acc.1 {
-            True -> {
-              let msg = "v_set_attribute found second occurrence of key '" <> key <> "'"
-              panic as msg
-            }
-            False -> #([Attribute(..attr, value: val), ..acc.0],  True)
-          }
-        }
-      }
-    }
-  )
-  case found {
-    True -> V(..vxml, attributes: attrs |> list.reverse)
-    False -> V(..vxml, attributes: [Attribute(blame, key, val), ..attrs] |> list.reverse)
-  }
+  V(..vxml, attributes: attributes_set(attrs, blame, key, val))
 }
 
 pub fn v_first_attribute_with_key(
@@ -1964,25 +1943,57 @@ pub fn substitute_in_attributes(
   )
 }
 
-pub fn attributes_set_first_or_append_acc(
-  previous: List(Attribute),
-  new: Attribute,
-  remaining: List(Attribute),
-) -> List(Attribute) {
-  case remaining {
-    [] -> [new, ..previous] |> list.reverse
-    [first, ..rest] -> case first.key == new.key {
-      True -> pour([new, ..previous], rest)
-      False -> attributes_set_first_or_append_acc([first, ..previous], new, rest)
-    }
-  }
-}
+// pub fn attributes_set_first_or_append_acc(
+//   previous: List(Attribute),
+//   new: Attribute,
+//   remaining: List(Attribute),
+// ) -> List(Attribute) {
+//   case remaining {
+//     [] -> [new, ..previous] |> list.reverse
+//     [first, ..rest] -> case first.key == new.key {
+//       True -> pour([new, ..previous], rest)
+//       False -> attributes_set_first_or_append_acc([first, ..previous], new, rest)
+//     }
+//   }
+// }
 
-pub fn attributes_set_first_or_append(
+// pub fn attributes_set_first_or_append(
+//   attrs: List(Attribute),
+//   new: Attribute,
+// ) -> List(Attribute) {
+//   attributes_set_first_or_append_acc([], new, attrs)
+// }
+
+pub fn attributes_set(
   attrs: List(Attribute),
-  new: Attribute,
+  blame: Blame,
+  key: String,
+  val: String,
 ) -> List(Attribute) {
-  attributes_set_first_or_append_acc([], new, attrs)
+  let #(attrs, found) = 
+    list.fold(
+    attrs,
+    #([], False),
+    fn (acc, attr) {
+      case attr.key == key {
+        False -> #([attr, ..acc.0], acc.1)
+        True -> {
+          case acc.1 {
+            True -> {
+              let msg = "attributes_set found second occurrence of key '" <> key <> "'"
+              panic as msg
+            }
+            False -> #([Attribute(..attr, value: val), ..acc.0],  True)
+          }
+        }
+      }
+    }
+  )
+
+  case found {
+    True -> attrs |> list.reverse
+    False -> [Attribute(blame, key, val), ..attrs] |> list.reverse
+  }
 }
 
 pub fn attributes_first_with_key(
