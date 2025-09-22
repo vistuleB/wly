@@ -538,9 +538,9 @@ pub fn basic_cli_usage() {
   io.println(margin <> "  -> restrict source to elements that have at least one of the")
   io.println(margin <> "     given key-value pairs as attributes (& ancestors of such)")
   io.println("")
-  io.println(margin <> "--table")
-  io.println(margin <> "  -> include a printout of the pipeline table in the rendering")
-  io.println(margin <> "     output")
+  io.println(margin <> "--table / --no-table")
+  io.println(margin <> "  -> force / suppress a printout of the pipeline table in the")
+  io.println(margin <> "     rendering output (overriding RendererParamater default)")
   io.println("")
   io.println(margin <> "--peek <step numbers>")
   io.println(margin <> "  -> show entire document at given pipeline step numbers; leave")
@@ -674,6 +674,12 @@ pub fn process_command_line_arguments(
           case list.is_empty(values) {
             True -> Ok(CommandLineAmendments(..amendments, table: Some(True)))
             False -> Error(UnexpectedArgumentsToOption("--table"))
+          }
+
+        "--no-table" ->
+          case list.is_empty(values) {
+            True -> Ok(CommandLineAmendments(..amendments, table: Some(False)))
+            False -> Error(UnexpectedArgumentsToOption("--no-table"))
           }
 
         "--prettier" ->
@@ -1443,7 +1449,7 @@ pub fn run_renderer(
   parameters: RendererParameters,
   debug_options: RendererDebugOptions(d),
 ) -> Result(Nil, RendererError(a, c, e, f, g, h)) {
-  io.println("")
+  // io.println("")
 
   let parameters = sanitize_output_dir(parameters)
   let RendererParameters(
@@ -1722,23 +1728,15 @@ pub fn run_renderer(
     }
   })
 
-  let num_fragments = list.length(fragments)
-
   let fragments =
     fragments
-    |> list.index_map(
-      fn(result, i) {
+    |> list.map(
+      fn(result) {
         use fr <- on.ok(result)
         case renderer.writer(output_dir, fr) {
           Error(e) -> Error(P2(e))
           Ok(z) -> {
-            case i < 7 || i >= num_fragments - 3 || num_fragments <= 9 {
-              True -> io.println("  wrote [" <> output_dir <> "/]" <> fr.path)
-              False -> case i <= 7 {
-                True -> io.println("  ⋮")
-                False -> Nil
-              }
-            }
+            io.println("  wrote [" <> output_dir <> "/]" <> fr.path)
             Ok(z)
           }
         }
@@ -1801,9 +1799,9 @@ pub fn run_renderer(
     }
   })
 
-  // 🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸
-  // 🌸 ...reporting~~~~~~~ 🌸
-  // 🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸
+  // 🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨
+  // 🚨 print warnings~~~~~ 🚨
+  // 🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨
 
   case list.length(warnings) {
     0 -> Nil
