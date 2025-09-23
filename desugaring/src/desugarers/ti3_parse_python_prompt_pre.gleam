@@ -15,7 +15,11 @@ const newline_t =
     ]
   )
 
+const terminal_prompt = "user@home:~$"
+const terminal_prompt_length = 12
+
 type PythonPromptChunk {
+  TerminalPrompt(TextLine)
   PromptLine(TextLine)
   OkResponseLines(List(TextLine))
   ErrorResponseLines(List(TextLine))
@@ -25,6 +29,33 @@ fn python_prompt_chunk_to_vxmls(
   chunk: PythonPromptChunk,
 ) -> List(VXML) {
   case chunk {
+    TerminalPrompt(line) -> {
+      let z = terminal_prompt_length
+      [
+        V(
+          desugarer_blame(31),
+          "span",
+          [Attribute(desugarer_blame(33), "class", "terminal-prompt")],
+          [
+            T(
+              line.blame,
+              [TextLine(line.blame, terminal_prompt)]
+            )
+          ]
+        ),
+        V(
+          desugarer_blame(42),
+          "span",
+          [Attribute(desugarer_blame(44), "class", "terminal-prompt-content")],
+          [
+            T(
+              bl.advance(line.blame, z),
+              [TextLine(bl.advance(line.blame, z), line.content |> string.drop_start(z))]
+            )
+          ]
+        )
+      ]
+    }
     PromptLine(line) -> {
       [
         V(
@@ -87,12 +118,17 @@ fn python_prompt_chunk_to_vxmls(
 fn process_python_prompt_lines(lines: List(TextLine)) -> List(PythonPromptChunk) {
   lines
   |> infra.either_or_misceginator(fn(line) {
-    string.starts_with(line.content, ">>>")
+    string.starts_with(line.content, ">>>") || string.starts_with(line.content, terminal_prompt)
   })
   |> infra.regroup_ors_no_empty_lists
   |> list.map(fn(either_bc_or_list_bc) {
     case either_bc_or_list_bc {
-      infra.Either(line) -> PromptLine(line)
+      infra.Either(line) -> {
+        case string.starts_with(line.content, ">>>") {
+          True -> PromptLine(line)
+          False -> TerminalPrompt(line)
+        }
+      }
       infra.Or(list_bc) -> case infra.lines_contain(list_bc, "SyntaxError:") {
         True -> ErrorResponseLines(list_bc)
         False -> OkResponseLines(list_bc)

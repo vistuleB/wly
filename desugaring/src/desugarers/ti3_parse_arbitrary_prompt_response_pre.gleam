@@ -18,14 +18,6 @@ const newline_t =
 
 const terminal_prompt = "user@home:~$"
 
-const prompt =
-  V(
-    bl.Des([], name, 22),
-    "span",
-    [Attribute(bl.Des([], name, 18), "class", "arbitrary-prompt")],
-    [],
-  )
-
 const terminal_prompt_span =
   V(
     bl.Des([], name, 31),
@@ -34,7 +26,23 @@ const terminal_prompt_span =
     [],
   )
 
-const response =
+const terminal_prompt_content_span =
+  V(
+    bl.Des([], name, 31),
+    "span",
+    [Attribute(bl.Des([], name, 18), "class", "terminal-prompt-content")],
+    [],
+  )
+
+const prompt_span =
+  V(
+    bl.Des([], name, 22),
+    "span",
+    [Attribute(bl.Des([], name, 18), "class", "arbitrary-prompt")],
+    [],
+  )
+
+const response_span =
   V(
     bl.Des([], name, 30),
     "span",
@@ -56,12 +64,16 @@ fn elements_for_line(line: TextLine) -> List(VXML) {
       }
     )
   let after_blame = bl.advance(line.blame, string.length(before) + 2)
-  let prompt = case before == terminal_prompt {
-    False -> prompt |> infra.v_prepend_child(line_2_t(TextLine(line.blame, before)))
-    True -> terminal_prompt_span |> infra.v_prepend_child(line_2_t(TextLine(line.blame, before)))
+  case before == terminal_prompt {
+    False -> [
+      prompt_span |> infra.v_prepend_child(line_2_t(TextLine(line.blame, before))),
+      response_span |> infra.v_prepend_child(line_2_t(TextLine(after_blame, after))),
+    ]
+    True -> [
+      terminal_prompt_span |> infra.v_prepend_child(line_2_t(TextLine(line.blame, before))),
+      terminal_prompt_content_span |> infra.v_prepend_child(line_2_t(TextLine(after_blame, after))),
+    ]
   }
-  let response = response |> infra.v_prepend_child(line_2_t(TextLine(after_blame, after)))
-  [prompt, response]
 }
 
 fn process_lines(
