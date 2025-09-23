@@ -4,10 +4,10 @@ import gleam/result
 import gleam/string.{inspect as ins}
 import gleam/regexp
 import infrastructure.{
-  type Desugarer, 
-  type DesugaringError, 
+  type Desugarer,
+  type DesugaringError,
   Desugarer,
-  DesugaringError, 
+  DesugaringError,
 } as infra
 import vxml.{type VXML, type TextLine, Attribute, TextLine, V, T}
 import nodemaps_2_desugarer_transforms as n2t
@@ -323,7 +323,145 @@ pub fn constructor() -> Desugarer {
 // 🌊🌊🌊 tests 🌊🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
 fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
-  []
+  [
+    infra.AssertiveTestDataNoParam(
+      source:   "
+                  <> Document
+                    title=Introduction to Computer Science
+                    program=Computer Science
+                    institution=University of Example
+                    lecturer=Dr. Smith
+                    course_homepage=https://example.com/cs101
+                    <> Chapter
+                      title=1. Introduction
+                      <> ChapterTitle
+                        <>
+                          \"1. Introduction\"
+                      <> Sub
+                        <> SubTitle
+                          <>
+                            \"1.1 Overview\"
+                      <> Sub
+                        <> SubTitle
+                          <>
+                            \"1.2 Goals\"
+                    <> Chapter
+                      title=2. Fundamentals
+                      <> ChapterTitle
+                        <>
+                          \"2. Fundamentals\"
+                      <> Sub
+                        <> SubTitle
+                          <>
+                            \"2.1 Basic Concepts\"
+                ",
+      expected: "
+                  <> Document
+                    title=Introduction to Computer Science
+                    program=Computer Science
+                    institution=University of Example
+                    lecturer=Dr. Smith
+                    course_homepage=https://example.com/cs101
+                    <> Index
+                      path=./index.html
+                      <> nav
+                        class=menu
+                        <> LeftMenu
+                          class=menu-left
+                          <> a
+                            href=https://example.com/cs101
+                            <>
+                              \"zür Kursübersicht\"
+                        <> RightMenu
+                          class=menu-right
+                          <> a
+                            id=next-page
+                            href=./1-0.html
+                            <>
+                              \"1. 1. Introduction >>\"
+                      <> header
+                        class=index__header
+                        <> h1
+                          class=index__header__title
+                          <>
+                            \"Introduction to Computer Science\"
+                        <> span
+                          class=index__header__subtitle
+                          <>
+                            \"Computer Science\"
+                        <> span
+                          class=index__header__subtitle
+                          <>
+                            \"Dr. Smith, University of Example\"
+                      <> section
+                        <> ol
+                          class=index__list
+                          <> li
+                            class=index__list__chapter
+                            <>
+                              \"1 - \"
+                            <> a
+                              href=./1-0.html
+                              <>
+                                \"Introduction\"
+                            <> ol
+                              class=index__list__subchapter
+                              <> li
+                                <>
+                                  \"1.1 - \"
+                                <> a
+                                  href=./1-1.html
+                                  <>
+                                    \"Overview\"
+                              <> li
+                                <>
+                                  \"1.2 - \"
+                                <> a
+                                  href=./1-2.html
+                                  <>
+                                    \"Goals\"
+                          <> li
+                            class=index__list__chapter
+                            <>
+                              \"2 - \"
+                            <> a
+                              href=./2-0.html
+                              <>
+                                \"Fundamentals\"
+                            <> ol
+                              class=index__list__subchapter
+                              <> li
+                                <>
+                                  \"2.1 - \"
+                                <> a
+                                  href=./2-1.html
+                                  <>
+                                    \"Basic Concepts\"
+                    <> Chapter
+                      title=1. Introduction
+                      <> ChapterTitle
+                        <>
+                          \"1. Introduction\"
+                      <> Sub
+                        <> SubTitle
+                          <>
+                            \"1.1 Overview\"
+                      <> Sub
+                        <> SubTitle
+                          <>
+                            \"1.2 Goals\"
+                    <> Chapter
+                      title=2. Fundamentals
+                      <> ChapterTitle
+                        <>
+                          \"2. Fundamentals\"
+                      <> Sub
+                        <> SubTitle
+                          <>
+                            \"2.1 Basic Concepts\"
+                ",
+    ),
+  ]
 }
 
 pub fn assertive_tests() {
