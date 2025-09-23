@@ -173,7 +173,7 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
                     <>
                       \"user@home:~$\"
                   <> span
-                    class=arbitrary-response
+                    class=terminal-prompt-content
                     <>
                       \" java TestRegex\"
                   <>
