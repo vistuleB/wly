@@ -13,7 +13,7 @@ fn nodemap(
         True ->
           V(
             ..vxml,
-            attributes: 
+            attributes:
               attrs
               |> infra.attributes_delete("language")
               |> infra.attributes_append_classes(desugarer_blame(19), "redyellow"),
@@ -48,10 +48,11 @@ type InnerParam = Param
 // 🏖️🏖️ Desugarer 🏖️🏖️
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 //------------------------------------------------53
-/// Processes CodeBlock elements with
-/// language=python-prompt and converts them to pre
-/// elements with proper span highlighting for
-/// prompts, responses, and errors
+/// Converts pre elements with language=redyellow to use
+/// redyellow CSS class instead of language attribute.
+///
+/// Removes the language attribute and adds "redyellow"
+/// to the element's CSS classes for proper styling.
 pub fn constructor() -> Desugarer {
   Desugarer(
     name: name,
@@ -69,6 +70,57 @@ pub fn constructor() -> Desugarer {
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
 fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
   [
+    infra.AssertiveTestDataNoParam(
+      source:   "
+                  <> root
+                    <> pre
+                      language=redyellow
+                      class=listing
+                      <>
+                        \"some code here\"
+                        \"with multiple lines\"
+                ",
+      expected: "
+                  <> root
+                    <> pre
+                      class=listing redyellow
+                      <>
+                        \"some code here\"
+                        \"with multiple lines\"
+                ",
+    ),
+    infra.AssertiveTestDataNoParam(
+      source:   "
+                  <> root
+                    <> pre
+                      language=redyellow
+                      <>
+                        \"just redyellow code\"
+                ",
+      expected: "
+                  <> root
+                    <> pre
+                      class=redyellow
+                      <>
+                        \"just redyellow code\"
+                ",
+    ),
+    infra.AssertiveTestDataNoParam(
+      source:   "
+                  <> root
+                    <> pre
+                      language=other
+                      <>
+                        \"should not change\"
+                ",
+      expected: "
+                  <> root
+                    <> pre
+                      language=other
+                      <>
+                        \"should not change\"
+                ",
+    ),
   ]
 }
 
