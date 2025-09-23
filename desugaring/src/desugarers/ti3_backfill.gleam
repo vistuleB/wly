@@ -112,10 +112,17 @@ type InnerParam = #(Regexp, Regexp)
 // 🏖️🏖️ Desugarer 🏖️🏖️
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 //------------------------------------------------53
-/// Processes CodeBlock elements with
-/// language=python-prompt and converts them to pre
-/// elements with proper span highlighting for
-/// prompts, responses, and errors
+/// Backfills missing numbered Chapter and Sub elements
+/// in VXML documents.
+///
+/// This desugarer processes VXML elements that have a
+/// "should-be-number" attribute and fills in any gaps
+/// in the numbering sequence by inserting stub elements.
+///
+/// - For Chapter elements: fills missing Sub elements
+/// - For other elements: fills missing Chapter elements
+/// - Validates numbers are monotonically increasing
+/// - Uses "Lorem Ipsum" titled stubs as placeholders
 pub fn constructor() -> Desugarer {
   Desugarer(
     name: name,
@@ -132,7 +139,94 @@ pub fn constructor() -> Desugarer {
 // 🌊🌊🌊 tests 🌊🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
 fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
-  []
+  [
+    infra.AssertiveTestDataNoParam(
+      source:   "
+                  <> root
+                    <> Chapter
+                      title=Chapter 1
+                      should-be-number=1
+                      <> Sub
+                        title=Sub 1.1
+                        should-be-number=1
+                      <> Sub
+                        title=Sub 1.3
+                        should-be-number=3
+                ",
+      expected: "
+                  <> root
+                    <> Chapter
+                      title=Chapter 1
+                      should-be-number=1
+                      <> Sub
+                        title=Sub 1.1
+                        should-be-number=1
+                      <> Sub
+                        title=Lorem Ipsum
+                      <> Sub
+                        title=Sub 1.3
+                        should-be-number=3
+                ",
+    ),
+    infra.AssertiveTestDataNoParam(
+      source:   "
+                  <> root
+                    <> Chapter
+                      title=Chapter 1
+                      should-be-number=1
+                    <> Chapter
+                      title=Chapter 4
+                      should-be-number=4
+                ",
+      expected: "
+                  <> root
+                    <> Chapter
+                      title=Chapter 1
+                      should-be-number=1
+                    <> Chapter
+                      title=Lorem Ipsum
+                    <> Chapter
+                      title=Lorem Ipsum
+                    <> Chapter
+                      title=Chapter 4
+                      should-be-number=4
+                ",
+    ),
+    infra.AssertiveTestDataNoParam(
+      source:   "
+                  <> root
+                    <> Chapter
+                      title=Chapter 2
+                      should-be-number=2
+                      <> Sub
+                        title=Sub 2.2
+                        should-be-number=2
+                      <> Sub
+                        title=Sub 2.5
+                        should-be-number=5
+                ",
+      expected: "
+                  <> root
+                    <> Chapter
+                      title=Lorem Ipsum
+                    <> Chapter
+                      title=Chapter 2
+                      should-be-number=2
+                      <> Sub
+                        title=Lorem Ipsum
+                      <> Sub
+                        title=Sub 2.2
+                        should-be-number=2
+                      <> Sub
+                        title=Lorem Ipsum
+                      <> Sub
+                        title=Lorem Ipsum
+                      <> Sub
+                        title=Sub 2.5
+                        should-be-number=5
+                ",
+    ),
+  ]
 }
 
 pub fn assertive_tests() {

@@ -81,9 +81,12 @@ type InnerParam = Nil
 // 🏖️🏖️ Desugarer 🏖️🏖️
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 //------------------------------------------------53
-/// Processes CodeBlock elements with language=orange-comment
-/// and converts them to pre elements with orange
-/// comment highlighting for text after // markers
+/// Adds beginning-of-line (BOL) span markers to pre
+/// elements with class="listing".
+/// 
+/// Transforms each text line in listing pre elements by
+/// adding span elements with class="listing-bol" at the
+/// beginning of each line for proper formatting.
 pub fn constructor() -> Desugarer {
   Desugarer(
     name,
@@ -101,6 +104,64 @@ pub fn constructor() -> Desugarer {
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
 fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
   [
+    infra.AssertiveTestDataNoParam(
+      source:   "
+                  <> root
+                    <> pre
+                      class=listing
+                      <>
+                        \"first line\"
+                        \"second line\"
+                ",
+      expected: "
+                  <> root
+                    <> pre
+                      class=listing
+                      <> span
+                        class=listing-bol
+                      <>
+                        \"first line\"
+                        \"\"
+                      <> span
+                        class=listing-bol
+                      <>
+                        \"second line\"
+                ",
+    ),
+    infra.AssertiveTestDataNoParam(
+      source:   "
+                  <> root
+                    <> pre
+                      class=listing
+                      <>
+                        \"single line\"
+                ",
+      expected: "
+                  <> root
+                    <> pre
+                      class=listing
+                      <> span
+                        class=listing-bol
+                      <>
+                        \"single line\"
+                ",
+    ),
+    infra.AssertiveTestDataNoParam(
+      source:   "
+                  <> root
+                    <> pre
+                      class=other
+                      <>
+                        \"should not change\"
+                ",
+      expected: "
+                  <> root
+                    <> pre
+                      class=other
+                      <>
+                        \"should not change\"
+                ",
+    ),
   ]
 }
 
