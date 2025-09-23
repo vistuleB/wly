@@ -81,35 +81,18 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
   [
     infra.AssertiveTestDataNoParam(
       source: "
-                <> CodeBlock
-                  language=orange-comment
+                <> pre
                   <>
-                    \"def mult(t,x):\"
-                    \"    temp = 0 //= zero(x)\"
-                    \"    for i in range(t):\"
-                    \"        temp = add(temp,x) //= Comp(add, p_0, p2) (temp,i,x)\"
-                    \"    return temp\"
+                    \"line 1\"
+                  <> br
+                  <>
+                    \"line 2\"
                 ",
       expected: "
                 <> pre
                   <>
-                    \"def mult(t,x):\"
-                    \"    temp = 0 \"
-                  <> span
-                    class=orange-comment
-                    <>
-                      \"= zero(x)\"
-                  <>
-                    \"\"
-                    \"    for i in range(t):\"
-                    \"        temp = add(temp,x) \"
-                  <> span
-                    class=orange-comment
-                    <>
-                      \"= Comp(add, p_0, p2) (temp,i,x)\"
-                  <>
-                    \"\"
-                    \"    return temp\"
+                    \"line 1\"
+                    \"line 2\"
                 "
     ),
   ]

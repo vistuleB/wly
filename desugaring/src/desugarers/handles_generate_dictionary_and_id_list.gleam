@@ -335,7 +335,7 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
                 ",
       expected: "
                 <> GrandWrapper
-                  handle=super-name|AA|_23-super-id|./ch1.html
+                  handle=super-name||AA|_23-super-id|./ch1.html
                   <> root
                     <> ChapterChapter
                       local_path=./ch1.html

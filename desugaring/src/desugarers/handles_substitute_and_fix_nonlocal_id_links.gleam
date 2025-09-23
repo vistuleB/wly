@@ -309,7 +309,7 @@ fn substitute_id_in_href(
         True -> Ok(#(Attribute(..attr, value: path), None)) // (this case is a bit weird but whatever the user says...)
         False -> Ok(#(attr, None))
       }
-      
+
     }
     False -> case paths {
       [] -> panic as "each id should have at least 1 path?"
@@ -486,13 +486,13 @@ fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
 /// Expects a document with root 'GrandWrapper'
 /// whose attributes comprise of key-value pairs of
 /// the form
-/// 
+///
 /// handle=handle_name|value|id|path
-/// 
+///
 /// and
-/// 
+///
 /// id=id_value|path
-/// 
+///
 /// and with a unique child being the root of the
 /// original document.
 ///
@@ -519,37 +519,37 @@ fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
 /// links respectively. If the class list is empty
 /// no 'class' attribute will be added at all to
 /// that type of link element.
-/// 
+///
 /// Secondly, substitutes each attribute of the
 /// form
-/// 
+///
 /// href=>>handle_name
-/// 
+///
 /// with
-/// 
+///
 /// ref=<path>#<id>
-/// 
+///
 /// where <path> is the associated path and <id>
 /// is the associated id to handle_name, as given
 /// by the GrandWrapper dictionary; and of the form
-/// 
+///
 /// ref=>>handle_name:page
-/// 
+///
 /// with
-/// 
+///
 /// ref=<path>
-/// 
+///
 /// without the '#<id>' portion. (I.e., simply linking
 /// to the page containing the element.)
-/// 
+///
 /// Thirdly, substitutes attributes of the form
-/// 
+///
 /// href=#<id_val>
-/// 
+///
 /// with
-/// 
+///
 /// href=<path>#<id_val>
-/// 
+///
 /// when #id_val is an id whose associated page (if
 /// unique) is different from the current page. (I.e.,
 /// fixes id-based links to work across pages when
@@ -590,7 +590,7 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
                 ),
       source:   "
                 <> GrandWrapper
-                  handle=fluescence|AA|_23-super-id|./ch1.html
+                  handle=fluescence||AA|_23-super-id|./ch1.html
                   <> root
                     <> Chapter
                       path=./ch1.html
@@ -628,8 +628,8 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
                 ),
       source:   "
                 <> GrandWrapper
-                  handle=fluescence|AA|_23-super-id|./ch1.html
-                  handle=out|AA|_24-super-id|./ch1.html
+                  handle=fluescence||AA|_23-super-id|./ch1.html
+                  handle=out||AA|_24-super-id|./ch1.html
                   <> root
                     <> Page
                       testerpath=./ch1.html
@@ -682,8 +682,8 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
                 ),
       source:   "
                 <> GrandWrapper
-                  handle=my-cardinal|Cardinal Number|_25-dash-id|./ch1.html
-                  handle=test^handle|Caret Test|_26-caret-id|./ch1.html
+                  handle=my-cardinal||Cardinal Number|_25-dash-id|./ch1.html
+                  handle=test^handle||Caret Test|_26-caret-id|./ch1.html
                   <> root
                     <> Chapter
                       path=./ch1.html

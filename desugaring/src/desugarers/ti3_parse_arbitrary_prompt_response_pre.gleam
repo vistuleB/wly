@@ -142,7 +142,7 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
   [
     infra.AssertiveTestDataNoParam(
       source:   "
-                <> CodeBlock
+                <> pre
                   language=arbitrary-prompt-response
                   <>
                     \"user@home:~$ java TestRegex\"
@@ -155,7 +155,7 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
                 ",
       expected: "
                 <> pre
-                  class=well highlight
+                  class=arbitrary-prompt-response
                   <> span
                     class=terminal-prompt
                     <>

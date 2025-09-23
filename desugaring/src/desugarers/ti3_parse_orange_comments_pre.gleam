@@ -120,8 +120,8 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
   [
     infra.AssertiveTestDataNoParam(
       source: "
-                <> CodeBlock
-                  language=orange-comment
+                <> pre
+                  language=orange-comments
                   <>
                     \"def mult(t,x):\"
                     \"    temp = 0 //= zero(x)\"
@@ -131,11 +131,12 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
                 ",
       expected: "
                 <> pre
+                  class=orange-comments
                   <>
                     \"def mult(t,x):\"
                     \"    temp = 0 \"
                   <> span
-                    class=orange-comment
+                    class=actual-orange-comment
                     <>
                       \"= zero(x)\"
                   <>
@@ -143,7 +144,7 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
                     \"    for i in range(t):\"
                     \"        temp = add(temp,x) \"
                   <> span
-                    class=orange-comment
+                    class=actual-orange-comment
                     <>
                       \"= Comp(add, p_0, p2) (temp,i,x)\"
                   <>
