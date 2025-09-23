@@ -133,10 +133,10 @@ type InnerParam = Nil
 // 🏖️🏖️ Desugarer 🏖️🏖️
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 //------------------------------------------------53
-/// Processes pre elements with language=arbitrary-prompt-response
+/// processes pre elements with language=arbitrary-prompt-response
 /// and converts them to structured prompt-response interactions.
-/// 
-/// Parses lines using "<- " separator to distinguish prompts
+///
+/// parses lines using "<- " separator to distinguish prompts
 /// from responses, with special handling for terminal prompts
 /// starting with "user@home:~$". Adds appropriate CSS classes
 /// for styling different interaction types.

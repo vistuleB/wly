@@ -48,10 +48,10 @@ type InnerParam = Param
 // 🏖️🏖️ Desugarer 🏖️🏖️
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 //------------------------------------------------53
-/// Converts pre elements with language=redyellow to use
+/// converts pre elements with language=redyellow to use
 /// redyellow CSS class instead of language attribute.
 ///
-/// Removes the language attribute and adds "redyellow"
+/// removes the language attribute and adds "redyellow"
 /// to the element's CSS classes for proper styling.
 pub fn constructor() -> Desugarer {
   Desugarer(

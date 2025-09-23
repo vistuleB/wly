@@ -47,7 +47,7 @@ fn nodemap(
 
             Ok(#(Some(language), Some(listing), line_no))
           }
-          
+
           _ -> Ok(#(None, None, None))
         }
       )
@@ -65,7 +65,7 @@ fn nodemap(
 
       let attrs = case amended_language {
         Some("") ->
-          infra.attributes_delete(attrs, "language")          
+          infra.attributes_delete(attrs, "language")
         Some(val) ->
           infra.attributes_set(attrs, language.blame, "language", val)
         None -> attrs
@@ -104,12 +104,12 @@ type InnerParam = Param
 // 🏖️🏖️ Desugarer 🏖️🏖️
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 //------------------------------------------------53
-/// Converts CodeBlock and WriterlyCodeBlock elements to
+/// converts CodeBlock and WriterlyCodeBlock elements to
 /// pre elements with proper language and listing support.
-/// 
-/// Handles special "listing" directive in language
+///
+/// handles special "listing" directive in language
 /// attributes to add listing class and line numbering.
-/// Supports syntax like "python-listing@5" for language
+/// supports syntax like "python-listing@5" for language
 /// with listing starting at line 5.
 pub fn constructor() -> Desugarer {
   Desugarer(

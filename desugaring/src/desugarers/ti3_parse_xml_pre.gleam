@@ -127,10 +127,10 @@ type InnerParam = Param
 // 🏖️🏖️ Desugarer 🏖️🏖️
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 //------------------------------------------------53
-/// Converts pre elements with language=xml or language=html
+/// converts pre elements with language=xml or language=html
 /// to syntax-highlighted HTML with detailed span markup.
-/// 
-/// Parses XML/HTML content and wraps different syntax
+///
+/// parses XML/HTML content and wraps different syntax
 /// elements (tags, attributes, values, comments) in spans
 /// with specific CSS classes for styling.
 pub fn constructor() -> Desugarer {

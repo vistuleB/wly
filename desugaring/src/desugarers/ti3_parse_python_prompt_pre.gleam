@@ -191,7 +191,7 @@ type InnerParam = Param
 // 🏖️🏖️ Desugarer 🏖️🏖️
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 //------------------------------------------------53
-/// Processes CodeBlock elements with
+/// processes CodeBlock elements with
 /// language=python-prompt and converts them to pre
 /// elements with proper span highlighting for
 /// prompts, responses, and errors

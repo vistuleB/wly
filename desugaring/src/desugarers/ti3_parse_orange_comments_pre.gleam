@@ -98,7 +98,7 @@ type InnerParam = Nil
 // 🏖️🏖️ Desugarer 🏖️🏖️
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 //------------------------------------------------53
-/// Processes CodeBlock elements with language=orange-comment
+/// processes CodeBlock elements with language=orange-comment
 /// and converts them to pre elements with orange
 /// comment highlighting for text after // markers
 pub fn constructor() -> Desugarer {

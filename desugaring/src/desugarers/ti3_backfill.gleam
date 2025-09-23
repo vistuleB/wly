@@ -112,17 +112,17 @@ type InnerParam = #(Regexp, Regexp)
 // 🏖️🏖️ Desugarer 🏖️🏖️
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 //------------------------------------------------53
-/// Backfills missing numbered Chapter and Sub elements
+/// backfills missing numbered Chapter and Sub elements
 /// in VXML documents.
 ///
-/// This desugarer processes VXML elements that have a
+/// this desugarer processes VXML elements that have a
 /// "should-be-number" attribute and fills in any gaps
 /// in the numbering sequence by inserting stub elements.
 ///
-/// - For Chapter elements: fills missing Sub elements
-/// - For other elements: fills missing Chapter elements
-/// - Validates numbers are monotonically increasing
-/// - Uses "Lorem Ipsum" titled stubs as placeholders
+/// - for Chapter elements: fills missing Sub elements
+/// - for other elements: fills missing Chapter elements
+/// - validates numbers are monotonically increasing
+/// - uses "Lorem Ipsum" titled stubs as placeholders
 pub fn constructor() -> Desugarer {
   Desugarer(
     name: name,

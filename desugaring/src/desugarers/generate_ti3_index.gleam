@@ -306,7 +306,7 @@ fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
 // 🏖️🏖️ Desugarer 🏖️🏖️
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 //------------------------------------------------53
-/// Generate ti3 Index element
+/// generate ti3 Index element
 pub fn constructor() -> Desugarer {
   Desugarer(
     name: name,
