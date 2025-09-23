@@ -127,10 +127,12 @@ type InnerParam = Param
 // 🏖️🏖️ Desugarer 🏖️🏖️
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 //------------------------------------------------53
-/// Processes CodeBlock elements with
-/// language=python-prompt and converts them to pre
-/// elements with proper span highlighting for
-/// prompts, responses, and errors
+/// Converts pre elements with language=xml or language=html
+/// to syntax-highlighted HTML with detailed span markup.
+/// 
+/// Parses XML/HTML content and wraps different syntax
+/// elements (tags, attributes, values, comments) in spans
+/// with specific CSS classes for styling.
 pub fn constructor() -> Desugarer {
   Desugarer(
     name: name,
@@ -147,7 +149,122 @@ pub fn constructor() -> Desugarer {
 // 🌊🌊🌊 tests 🌊🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
 fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
-  []
+  [
+    infra.AssertiveTestDataNoParam(
+      source:   "
+                  <> root
+                    <> pre
+                      language=xml
+                      <>
+                        \"<div class=\\\"example\\\">Hello</div>\"
+                ",
+      expected: "
+                  <> root
+                    <> pre
+                      class=html
+                      <> span
+                        class=xml-0
+                        <>
+                          \"<\"
+                      <> span
+                        class=xml-1
+                        <>
+                          \"div\"
+                      <>
+                        \" \"
+                      <> span
+                        class=xml-2
+                        <>
+                          \"class\"
+                      <> span
+                        class=xml-3
+                        <>
+                          \"=\"
+                      <> span
+                        class=xml-2b
+                        <>
+                          \"\\\"example\\\"\"
+                      <> span
+                        class=xml-0
+                        <>
+                          \">\"
+                      <> span
+                        class=xml-5
+                        <>
+                          \"Hello\"
+                      <> span
+                        class=xml-0
+                        <>
+                          \"</\"
+                      <> span
+                        class=xml-1
+                        <>
+                          \"div\"
+                      <> span
+                        class=xml-0
+                        <>
+                          \">\"
+                ",
+    ),
+    infra.AssertiveTestDataNoParam(
+      source:   "
+                  <> root
+                    <> pre
+                      language=html
+                      <>
+                        \"<img src=\\\"test.jpg\\\" />\"
+                ",
+      expected: "
+                  <> root
+                    <> pre
+                      class=html
+                      <> span
+                        class=xml-0
+                        <>
+                          \"<\"
+                      <> span
+                        class=xml-1
+                        <>
+                          \"img\"
+                      <>
+                        \" \"
+                      <> span
+                        class=xml-2
+                        <>
+                          \"src\"
+                      <> span
+                        class=xml-3
+                        <>
+                          \"=\"
+                      <> span
+                        class=xml-2b
+                        <>
+                          \"\\\"test.jpg\\\"\"
+                      <>
+                        \" \"
+                      <> span
+                        class=xml-0
+                        <>
+                          \"/>\"
+                ",
+    ),
+    infra.AssertiveTestDataNoParam(
+      source:   "
+                  <> root
+                    <> pre
+                      language=other
+                      <>
+                        \"<div>should not change</div>\"
+                ",
+      expected: "
+                  <> root
+                    <> pre
+                      language=other
+                      <>
+                        \"<div>should not change</div>\"
+                ",
+    ),
+  ]
 }
 
 pub fn assertive_tests() {
