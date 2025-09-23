@@ -278,7 +278,121 @@ pub fn constructor() -> Desugarer {
 // 🌊🌊🌊 tests 🌊🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
 fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
-  []
+  [
+    infra.AssertiveTestDataNoParam(
+      source:   "
+                  <> Document
+                    course_homepage=https://example.com/cs101
+                    <> Chapter
+                      <> Sub
+                        <>
+                          \"Sub content 1.1\"
+                      <> Sub
+                        <>
+                          \"Sub content 1.2\"
+                    <> Chapter
+                      <>
+                        \"Chapter 2 content\"
+                ",
+      expected: "
+                  <> Document
+                    course_homepage=https://example.com/cs101
+                    <> Chapter
+                      <> Menu
+                        <> LeftMenu
+                          class=menu-left
+                          <> a
+                            id=prev-page
+                            href=./index.html
+                            <>
+                              \"Inhaltsverzeichnis\"
+                        <> RightMenu
+                          class=menu-right
+                          <> a
+                            href=https://example.com/cs101
+                            <>
+                              \"zür Kursübersicht\"
+                          <> a
+                            id=next-page
+                            href=./1-1.html
+                            <>
+                              \"Kapitel 1.1  >>\"
+                      <> Sub
+                        <> Menu
+                          <> LeftMenu
+                            class=menu-left
+                            <> a
+                              href=./index.html
+                              <>
+                                \"Inhaltsverzeichnis\"
+                            <> a
+                              id=prev-page
+                              href=./1-0.html
+                              <>
+                                \"<< Kapitel 1\"
+                          <> RightMenu
+                            class=menu-right
+                            <> a
+                              href=https://example.com/cs101
+                              <>
+                                \"zür Kursübersicht\"
+                            <> a
+                              id=next-page
+                              href=./1-2.html
+                              <>
+                                \"Kapitel 1.2  >>\"
+                        <>
+                          \"Sub content 1.1\"
+                      <> Sub
+                        <> Menu
+                          <> LeftMenu
+                            class=menu-left
+                            <> a
+                              href=./index.html
+                              <>
+                                \"Inhaltsverzeichnis\"
+                            <> a
+                              id=prev-page
+                              href=./1-1.html
+                              <>
+                                \"<< Kapitel 1.1\"
+                          <> RightMenu
+                            class=menu-right
+                            <> a
+                              href=https://example.com/cs101
+                              <>
+                                \"zür Kursübersicht\"
+                            <> a
+                              id=next-page
+                              href=./2-0.html
+                              <>
+                                \"Kapitel 2  >>\"
+                        <>
+                          \"Sub content 1.2\"
+                    <> Chapter
+                      <> Menu
+                        <> LeftMenu
+                          class=menu-left
+                          <> a
+                            href=./index.html
+                            <>
+                              \"Inhaltsverzeichnis\"
+                          <> a
+                            id=prev-page
+                            href=./1-2.html
+                            <>
+                              \"<< Kapitel 1.2\"
+                        <> RightMenu
+                          class=menu-right
+                          <> a
+                            href=https://example.com/cs101
+                            <>
+                              \"zür Kursübersicht\"
+                      <>
+                        \"Chapter 2 content\"
+                ",
+    ),
+  ]
 }
 
 pub fn assertive_tests() {
