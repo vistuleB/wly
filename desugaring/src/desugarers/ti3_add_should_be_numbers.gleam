@@ -83,10 +83,12 @@ type InnerParam = #(Regexp, Regexp)
 // 🏖️🏖️ Desugarer 🏖️🏖️
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 //------------------------------------------------53
-/// Processes CodeBlock elements with
-/// language=python-prompt and converts them to pre
-/// elements with proper span highlighting for
-/// prompts, responses, and errors
+/// Extracts chapter and subchapter numbers from file
+/// paths and adds them as "should-be-number" attributes.
+/// 
+/// Processes Chapter and Sub elements by parsing their
+/// file paths using regex patterns to extract numeric
+/// identifiers and adding appropriate attributes.
 pub fn constructor() -> Desugarer {
   Desugarer(
     name: name,
