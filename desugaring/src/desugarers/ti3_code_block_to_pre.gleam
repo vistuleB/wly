@@ -104,7 +104,13 @@ type InnerParam = Param
 // 🏖️🏖️ Desugarer 🏖️🏖️
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 //------------------------------------------------53
-/// ...
+/// Converts CodeBlock and WriterlyCodeBlock elements to
+/// pre elements with proper language and listing support.
+/// 
+/// Handles special "listing" directive in language
+/// attributes to add listing class and line numbering.
+/// Supports syntax like "python-listing@5" for language
+/// with listing starting at line 5.
 pub fn constructor() -> Desugarer {
   Desugarer(
     name: name,
@@ -121,7 +127,94 @@ pub fn constructor() -> Desugarer {
 // 🌊🌊🌊 tests 🌊🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
 fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
-  []
+  [
+    infra.AssertiveTestDataNoParam(
+      source:   "
+                  <> root
+                    <> CodeBlock
+                      language=orange-comments
+                      <>
+                        \"some code here\"
+                ",
+      expected: "
+                  <> root
+                    <> pre
+                      language=orange-comments
+                      <>
+                        \"some code here\"
+                ",
+    ),
+    infra.AssertiveTestDataNoParam(
+      source:   "
+                  <> root
+                    <> WriterlyCodeBlock
+                      language=python-listing
+                      <>
+                        \"def hello():\"
+                        \"    print('world')\"
+                ",
+      expected: "
+                  <> root
+                    <> pre
+                      language=python
+                      class=listing
+                      <>
+                        \"def hello():\"
+                        \"    print('world')\"
+                ",
+    ),
+    infra.AssertiveTestDataNoParam(
+      source:   "
+                  <> root
+                    <> CodeBlock
+                      language=javascript-listing@10
+                      <>
+                        \"console.log('test');\"
+                ",
+      expected: "
+                  <> root
+                    <> pre
+                      language=javascript
+                      class=listing
+                      style=counter-set:listing 9
+                      <>
+                        \"console.log('test');\"
+                ",
+    ),
+    infra.AssertiveTestDataNoParam(
+      source:   "
+                  <> root
+                    <> CodeBlock
+                      language=listing@3
+                      <>
+                        \"line one\"
+                        \"line two\"
+                ",
+      expected: "
+                  <> root
+                    <> pre
+                      class=listing
+                      style=counter-set:listing 2
+                      <>
+                        \"line one\"
+                        \"line two\"
+                ",
+    ),
+    infra.AssertiveTestDataNoParam(
+      source:   "
+                  <> root
+                    <> CodeBlock
+                      <>
+                        \"plain code block\"
+                ",
+      expected: "
+                  <> root
+                    <> pre
+                      <>
+                        \"plain code block\"
+                ",
+    ),
+  ]
 }
 
 pub fn assertive_tests() {
