@@ -1633,7 +1633,7 @@ pub fn run_renderer(
   // 🌸 emitting~~~ 🌸
   // 🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸
 
-  io.print("• converting fragments to output line fragments...")
+  io.print("• converting VXML fragments to List(OutputLine) fragments...")
 
   let fragments =
     fragments
@@ -1688,11 +1688,7 @@ pub fn run_renderer(
     _ -> io.println("")
   }
 
-  // 🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸
-  // 🌸 writing (to file)~~ 🌸
-  // 🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸
-
-  io.println("• writing string fragments to files...")
+  io.println("• converting List(OutputLine) fragments to String fragments...")
 
   let fragments = {
     fragments
@@ -1708,6 +1704,12 @@ pub fn run_renderer(
       )
     )
   }
+
+  // 🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸
+  // 🌸 writing (to file)~~ 🌸
+  // 🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸
+
+  io.println("• writing String fragments to files...")
 
   fragments
   |> list.each(fn(result) {
