@@ -58,7 +58,6 @@ import desugarers/delete_text_nodes_with_singleton_empty_line
 import desugarers/detokenize_all
 import desugarers/detokenize_href_surroundings
 import desugarers/echo_if_see_text
-import desugarers/expand_ti3_carousel
 import desugarers/extract_starting_and_ending_spaces
 import desugarers/filter_nodes_by_attributes
 import desugarers/find_replace__batch__outside
@@ -80,8 +79,6 @@ import desugarers/generate_lbp_breadcrumbs
 import desugarers/generate_lbp_prev_next_attributes
 import desugarers/generate_lbp_sections_breadcrumbs
 import desugarers/generate_lbp_table_of_contents
-import desugarers/generate_ti3_index
-import desugarers/generate_ti3_menu
 import desugarers/group_consecutive_children__outside
 import desugarers/handles_add_ids
 import desugarers/handles_generate_dictionary_and_id_list
@@ -158,6 +155,9 @@ import desugarers/ti3_add_listing_bol_spans
 import desugarers/ti3_add_should_be_numbers
 import desugarers/ti3_backfill
 import desugarers/ti3_code_block_to_pre
+import desugarers/ti3_create_index
+import desugarers/ti3_create_menu
+import desugarers/ti3_expand_carousels
 import desugarers/ti3_parse_arbitrary_prompt_response_pre
 import desugarers/ti3_parse_orange_comments_pre
 import desugarers/ti3_parse_python_prompt_pre
@@ -251,7 +251,6 @@ pub const delete_text_nodes_with_singleton_empty_line = delete_text_nodes_with_s
 pub const detokenize_all = detokenize_all.constructor
 pub const detokenize_href_surroundings = detokenize_href_surroundings.constructor
 pub const echo_if_see_text = echo_if_see_text.constructor
-pub const expand_ti3_carousel = expand_ti3_carousel.constructor
 pub const extract_starting_and_ending_spaces = extract_starting_and_ending_spaces.constructor
 pub const filter_nodes_by_attributes = filter_nodes_by_attributes.constructor
 pub const find_replace__batch__outside = find_replace__batch__outside.constructor
@@ -273,8 +272,6 @@ pub const generate_lbp_breadcrumbs = generate_lbp_breadcrumbs.constructor
 pub const generate_lbp_prev_next_attributes = generate_lbp_prev_next_attributes.constructor
 pub const generate_lbp_sections_breadcrumbs = generate_lbp_sections_breadcrumbs.constructor
 pub const generate_lbp_table_of_contents = generate_lbp_table_of_contents.constructor
-pub const generate_ti3_index = generate_ti3_index.constructor
-pub const generate_ti3_menu = generate_ti3_menu.constructor
 pub const group_consecutive_children__outside = group_consecutive_children__outside.constructor
 pub const handles_add_ids = handles_add_ids.constructor
 pub const handles_generate_dictionary_and_id_list = handles_generate_dictionary_and_id_list.constructor
@@ -351,6 +348,9 @@ pub const ti3_add_listing_bol_spans = ti3_add_listing_bol_spans.constructor
 pub const ti3_add_should_be_numbers = ti3_add_should_be_numbers.constructor
 pub const ti3_backfill = ti3_backfill.constructor
 pub const ti3_code_block_to_pre = ti3_code_block_to_pre.constructor
+pub const ti3_create_index = ti3_create_index.constructor
+pub const ti3_create_menu = ti3_create_menu.constructor
+pub const ti3_expand_carousels = ti3_expand_carousels.constructor
 pub const ti3_parse_arbitrary_prompt_response_pre = ti3_parse_arbitrary_prompt_response_pre.constructor
 pub const ti3_parse_orange_comments_pre = ti3_parse_orange_comments_pre.constructor
 pub const ti3_parse_python_prompt_pre = ti3_parse_python_prompt_pre.constructor
@@ -445,7 +445,6 @@ pub const assertive_tests : List(fn() -> infra.AssertiveTestCollection) = [
   detokenize_all.assertive_tests,
   detokenize_href_surroundings.assertive_tests,
   echo_if_see_text.assertive_tests,
-  expand_ti3_carousel.assertive_tests,
   extract_starting_and_ending_spaces.assertive_tests,
   filter_nodes_by_attributes.assertive_tests,
   find_replace__batch__outside.assertive_tests,
@@ -467,8 +466,6 @@ pub const assertive_tests : List(fn() -> infra.AssertiveTestCollection) = [
   generate_lbp_prev_next_attributes.assertive_tests,
   generate_lbp_sections_breadcrumbs.assertive_tests,
   generate_lbp_table_of_contents.assertive_tests,
-  generate_ti3_index.assertive_tests,
-  generate_ti3_menu.assertive_tests,
   group_consecutive_children__outside.assertive_tests,
   handles_add_ids.assertive_tests,
   handles_generate_dictionary_and_id_list.assertive_tests,
@@ -545,6 +542,9 @@ pub const assertive_tests : List(fn() -> infra.AssertiveTestCollection) = [
   ti3_add_should_be_numbers.assertive_tests,
   ti3_backfill.assertive_tests,
   ti3_code_block_to_pre.assertive_tests,
+  ti3_create_index.assertive_tests,
+  ti3_create_menu.assertive_tests,
+  ti3_expand_carousels.assertive_tests,
   ti3_parse_arbitrary_prompt_response_pre.assertive_tests,
   ti3_parse_orange_comments_pre.assertive_tests,
   ti3_parse_python_prompt_pre.assertive_tests,
