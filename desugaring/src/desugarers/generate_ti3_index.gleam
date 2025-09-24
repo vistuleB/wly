@@ -422,50 +422,35 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
                           class=index__header__subtitle
                           <>
                             \"Dr. Smith, University of Example\"
-                      <> section
-                        <> ol
-                          class=index__toc
-                          <> li
-                            class=index__toc__chapter
+                      <> ol
+                        class=index__toc
+                        <> li
+                          <> a
+                            href=./1-0.html
                             <>
-                              \"1 - \"
-                            <> a
-                              href=./1-0.html
-                              <>
-                                \"Introduction\"
-                            <> ol
-                              class=index__toc__subchapter
-                              <> li
+                              \"Introduction\"
+                          <> ol
+                            <> li
+                              <> a
+                                href=./1-1.html
                                 <>
-                                  \"1.1 - \"
-                                <> a
-                                  href=./1-1.html
-                                  <>
-                                    \"Overview\"
-                              <> li
+                                  \"Overview\"
+                            <> li
+                              <> a
+                                href=./1-2.html
                                 <>
-                                  \"1.2 - \"
-                                <> a
-                                  href=./1-2.html
-                                  <>
-                                    \"Goals\"
-                          <> li
-                            class=index__toc__chapter
+                                  \"Goals\"
+                        <> li
+                          <> a
+                            href=./2-0.html
                             <>
-                              \"2 - \"
-                            <> a
-                              href=./2-0.html
-                              <>
-                                \"Fundamentals\"
-                            <> ol
-                              class=index__toc__subchapter
-                              <> li
+                              \"Fundamentals\"
+                          <> ol
+                            <> li
+                              <> a
+                                href=./2-1.html
                                 <>
-                                  \"2.1 - \"
-                                <> a
-                                  href=./2-1.html
-                                  <>
-                                    \"Basic Concepts\"
+                                  \"Basic Concepts\"
                     <> Chapter
                       title=1. Introduction
                       <> ChapterTitle
