@@ -185,14 +185,13 @@ fn extract_title(
 ) -> Result(ChapterOrSubchapterTitle, DesugaringError) {
   use title_element <- on.ok(infra.v_unique_child_with_tag_with_desugaring_error(ch, t))
   let assert V(_, _, _, children) = title_element
-  let assert [T(b, contents), ..rest] = children
+  let assert [T(b, [first, ..more]), ..rest] = children
   let assert Ok(re) = regexp.from_string("^(\\d+)(\\.(\\d+)?)?\\s")
-  let without_number =
-    contents
-    |> list.map(fn(line: TextLine) { line.content })
-    |> string.join("")
-    |> regexp.replace(re, _, "")
-  Ok([T(b, [TextLine(b, without_number)]), ..rest])
+  let first = TextLine(
+    desugarer_blame(0),
+    first.content |> regexp.replace(re, _, "")
+  )
+  Ok([T(b, [first, ..more]), ..rest])
 }
 
 fn extract_subchapter_info(subchapter: VXML, index: Int, ch_no: Int) {
