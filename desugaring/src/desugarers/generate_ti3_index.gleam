@@ -7,137 +7,97 @@ import infrastructure.{
   type Desugarer,
   type DesugaringError,
   Desugarer,
-  DesugaringError,
 } as infra
-import vxml.{type VXML, type TextLine, Attribute, TextLine, V, T}
+import vxml.{
+  type VXML,
+  type TextLine,
+  Attribute,
+  TextLine,
+  V,
+  T,
+}
 import nodemaps_2_desugarer_transforms as n2t
 import blame as bl
 import on
 
-type ChapterNo = Int
-type SubChapterNo = Int
-type TitleElements = List(VXML)
-type ChapterTitle = List(VXML)
-type SubchapterTitle = List(VXML)
+// 🌸🌸🌸🌸🌸🌸🌸
+// 🌸 menus~ 🌸
+// 🌸🌸🌸🌸🌸🌸🌸
 
-fn format_chapter_link(chapter_no: Int, sub_no: Int) -> String {
-  "./" <> ins(chapter_no) <> "-" <> ins(sub_no) <> ".html"
-}
+fn right_menu(document: VXML) -> VXML {
+  let b = desugarer_blame(194)
 
-fn extract_title(chapter_or_subchapter ch: VXML, title_tag t: String) -> Result(TitleElements, DesugaringError) {
-  use title_element <- on.error_ok(
-    infra.v_unique_child_with_tag(ch, t),
-    fn(e) {
-      case e {
-        infra.MoreThanOne -> Error(DesugaringError(infra.v_blame(ch), "more than one '" <> t <> "' element"))
-        infra.LessThanOne -> Error(DesugaringError(infra.v_blame(ch), "did not find '" <> t <> "' element"))
-      }
-    }
-  )
-  let assert V(_, _, _, children) = title_element
-  let assert [T(blame, contents), ..rest] = children
-  let assert Ok(re) = regexp.from_string("^(\\d+)(\\.(\\d+)?)?\\s")
-  let without_number =
-    contents
-    |> list.map(fn(line: TextLine) { line.content })
-    |> string.join("")
-    |> regexp.replace(re, _, "")
-  Ok([T(blame, [TextLine(blame, without_number)]), ..rest])
-}
+  let first_chapter_title =
+    document
+    |> infra.v_children_with_tag("Chapter")
+    |> list.first
+    |> result.map(fn(chapter) { infra.v_first_attribute_with_key(chapter, "title") })
+    |> result.map(fn(opt) { option.map(opt, fn(attr) {attr.value})})
+    |> result.map(fn(opt) { option.unwrap(opt, "no title found")})
+    |> result.unwrap("no title found")
 
-fn chapters_number_title(root: VXML) -> Result(List(#(VXML, ChapterNo, ChapterTitle)), DesugaringError) {
-  root
-  |> infra.v_index_children_with_tag("Chapter")
-  |> list.try_map(
-    fn(tup: #(VXML, Int)) {
-      use title <- on.ok(extract_title(tup.0, "ChapterTitle"))
-      Ok(#(tup.0, tup.1 + 1, title))
-  })
-}
-
-fn extract_subchapter_titles(chapter: VXML) -> Result(List(#(SubChapterNo, SubchapterTitle)), DesugaringError) {
-  chapter
-  |> infra.v_index_children_with_tag("Sub")
-  |> list.try_map(
-    fn(sub: #(VXML, Int)) {
-      use subchapter_title <- on.ok(extract_title(sub.0, "SubTitle"))
-      Ok(#(sub.1 + 1, subchapter_title))
-  })
-}
-
-fn all_subchapters(
-  chapters: List(#(VXML, ChapterNo, ChapterTitle))
-) -> Result(
-  List(#(ChapterNo, ChapterTitle, List(#(SubChapterNo, SubchapterTitle)))),
-  DesugaringError,
-) {
-  chapters
-  |> list.try_map(
-    fn(chapter: #(VXML, Int, SubchapterTitle)) {
-      use subchapter_titles <- on.ok(chapter.0 |> extract_subchapter_titles)
-      Ok(#(chapter.1, chapter.2, subchapter_titles))
-  })
-}
-
-fn construct_subchapter_item(subchapter_title: SubchapterTitle, subchapter_number: Int, chapter_number: Int) -> VXML {
-  let blame = desugarer_blame(83)
   V(
-    blame,
-    "li",
-    [],
+    b,
+    "RightMenu",
     [
-      T(blame, [TextLine(blame, ins(chapter_number) <> "." <> ins(subchapter_number) <> " - ")]),
+      Attribute(b, "class", "menu-right"),
+    ],
+    [
       V(
-        blame,
+        b,
         "a",
-        [Attribute(blame, "href", format_chapter_link(chapter_number, subchapter_number))],
-        subchapter_title,
-      )
+        [
+          Attribute(b, "id", "next-page"),
+          Attribute(b, "href", href(1, 0)),
+        ],
+        [
+          T(b, [TextLine(b, "1. " <> first_chapter_title <> " >>")]),
+        ]
+      ),
     ]
   )
 }
 
-fn construct_chapter_item(chapter_number: Int, chapter_title: ChapterTitle, subchapters: List(#(SubChapterNo, SubchapterTitle))) -> VXML {
-  let blame = desugarer_blame(101)
-  let subchapters_ol = case subchapters {
-    [] -> []
-    _ -> [
-      V(
-        blame,
-        "ol",
-        [Attribute(blame, "class", "index__list__subchapter")],
-        list.map(
-          subchapters,
-          fn(subchapter) {
-            let #(subchapter_number, subchapter_title) = subchapter
-            construct_subchapter_item(subchapter_title, subchapter_number, chapter_number)
-          }
-        )
-      )
-    ]
-  }
+fn menu(document: VXML) -> VXML {
+  let b = desugarer_blame(225)
+
+  let course_homepage_link =
+    case infra.v_first_attribute_with_key(document, "course_homepage") {
+      None -> "no url for course homepage"
+      Some(x) -> x.value
+    }
+
+  let left_menu =
+    V(
+      b,
+      "LeftMenu",
+      [
+        Attribute(b, "class", "menu-left")
+      ],
+      [
+        V(b, "a", [Attribute(b, "href", course_homepage_link)], [T(b, [TextLine(b, "zür Kursübersicht")])])
+      ]
+    )
 
   V(
-    blame,
-    "li",
-    [Attribute(blame, "class", "index__list__chapter")],
-    list.flatten([
-      [
-        T(blame, [TextLine(blame, ins(chapter_number) <> " - ")]),
-        V(
-          blame,
-          "a",
-          [Attribute(blame, "href", "./" <> ins(chapter_number) <> "-0" <> ".html")],
-          chapter_title,
-        )
-      ],
-      subchapters_ol
-    ])
+    b,
+    "nav",
+    [
+      Attribute(b, "class", "menu"),
+    ],
+    [
+      left_menu,
+      right_menu(document),
+    ]
   )
 }
 
-fn construct_header(document: VXML) -> VXML {
-  let blame = desugarer_blame(140)
+// 🌸🌸🌸🌸🌸🌸🌸
+// 🌸 header 🌸
+// 🌸🌸🌸🌸🌸🌸🌸
+
+fn header(document: VXML) -> VXML {
+  let b = desugarer_blame(140)
 
   let title =
     case infra.v_first_attribute_with_key(document, "title") {
@@ -164,127 +124,196 @@ fn construct_header(document: VXML) -> VXML {
     }
 
   V(
-    blame,
+    b,
     "header",
-    [Attribute(blame, "class", "index__header")],
+    [
+      Attribute(b, "class", "index__header"),
+    ],
     [
       V(
-        blame,
+        b,
         "h1",
-        [Attribute(blame, "class", "index__header__title")],
-        [T(blame, [TextLine(blame, title)])]
+        [
+          Attribute(b, "class", "index__header__title"),
+        ],
+        [
+          T(b, [TextLine(b, title)]),
+        ],
       ),
       V(
-        blame,
+        b,
         "span",
-        [Attribute(blame, "class", "index__header__subtitle")],
-        [T(blame, [TextLine(blame, program)])]
+        [
+          Attribute(b, "class", "index__header__subtitle"),
+        ],
+        [
+          T(b, [TextLine(b, program)]),
+        ],
       ),
       V(
-        blame,
+        b,
         "span",
-        [Attribute(blame, "class", "index__header__subtitle")],
-        [T(blame, [TextLine(blame, lecturer <> ", " <> institution)])]
+        [
+          Attribute(b, "class", "index__header__subtitle"),
+        ],
+        [
+          T(b, [TextLine(b, lecturer <> ", " <> institution)]),
+        ],
       )
     ]
   )
 }
 
-fn construct_right_menu(document: VXML) -> VXML {
-  let blame = desugarer_blame(194)
+// 🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸
+// 🌸 table of contents~~ 🌸
+// 🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸
 
-  let first_chapter_title =
-    document
-    |> infra.v_children_with_tag("Chapter")
-    |> list.first
-    |> result.map(fn(chapter) { infra.v_first_attribute_with_key(chapter, "title") })
-    |> result.map(fn(opt) { option.map(opt, fn(attr) {attr.value})})
-    |> result.map(fn(opt) { option.unwrap(opt, "no title found")})
-    |> result.unwrap("no title found")
+type ChapterOrSubchapterTitle = List(VXML)
 
-    V(
-      blame,
-      "RightMenu",
-      [Attribute(blame, "class", "menu-right")],
-      [ V(
-          blame,
-          "a",
-          [
-            Attribute(blame, "id", "next-page"),
-            Attribute(blame, "href", format_chapter_link(1, 0)),
-          ],
-          [
-            T(blame, [TextLine(blame, "1. " <> first_chapter_title <> " >>")]),
-          ]
-        )
-      ]
-    )
+type SubchapterTitle = ChapterOrSubchapterTitle
+type ChapterTitle = ChapterOrSubchapterTitle
+
+type SubchapterNo = Int
+type ChapterNo = Int
+
+type SubchapterInfo = #(ChapterNo, SubchapterNo, SubchapterTitle)
+type ChapterInfo = #(ChapterNo, ChapterTitle, List(SubchapterInfo))
+
+fn extract_title(
+  chapter_or_subchapter ch: VXML,
+  title_tag t: String,
+) -> Result(ChapterOrSubchapterTitle, DesugaringError) {
+  use title_element <- on.ok(infra.v_unique_child_with_tag_with_desugaring_error(ch, t))
+  let assert V(_, _, _, children) = title_element
+  let assert [T(b, contents), ..rest] = children
+  let assert Ok(re) = regexp.from_string("^(\\d+)(\\.(\\d+)?)?\\s")
+  let without_number =
+    contents
+    |> list.map(fn(line: TextLine) { line.content })
+    |> string.join("")
+    |> regexp.replace(re, _, "")
+  Ok([T(b, [TextLine(b, without_number)]), ..rest])
 }
 
-fn construct_menu(document: VXML) -> VXML {
-  let blame = desugarer_blame(225)
-
-  let course_homepage_link =
-    case infra.v_first_attribute_with_key(document, "course_homepage") {
-      None -> "no url for course homepage"
-      Some(x) -> x.value
-    }
-
-  let menu_left =
-    V(
-      blame,
-      "LeftMenu",
-      [Attribute(blame, "class", "menu-left")]
-      ,[
-        V(blame, "a", [Attribute(blame, "href", course_homepage_link)], [T(blame, [TextLine(blame, "zür Kursübersicht")])])
-      ]
-    )
-
-  V(
-    blame,
-    "nav",
-    [ Attribute(blame, "class", "menu")],
-    [ menu_left,
-      construct_right_menu(document)
-    ]
-  )
+fn extract_subchapter_info(subchapter: VXML, index: Int, ch_no: Int) {
+  use title <- on.ok(extract_title(subchapter, "SubTitle"))
+  Ok(#(ch_no, index + 1, title))
 }
 
-fn construct_index(chapters: List(#(ChapterNo, ChapterTitle, List(#(SubChapterNo, SubchapterTitle))))) -> VXML {
-  let blame = desugarer_blame(254)
+fn extract_subchapter_infos(
+  chapter: VXML,
+  ch_no: Int,
+) -> Result(List(SubchapterInfo), DesugaringError) {
+  chapter
+  |> infra.v_children_with_tag("Sub")
+  |> infra.index_try_map(fn(s, i) { extract_subchapter_info(s, i, ch_no) })
+}
 
+fn extract_chapter_info(ch: VXML, index: Int) -> Result(ChapterInfo, DesugaringError) {
+  use title <- on.ok(extract_title(ch, "ChapterTitle"))
+  use infos <- on.ok(extract_subchapter_infos(ch, index + 1))
+  Ok(#(index + 1, title, infos))
+}
+
+fn extract_chapter_infos(root: VXML) -> Result(List(ChapterInfo), DesugaringError) {
+  root
+  |> infra.v_children_with_tag("Chapter")
+  |> infra.index_try_map(extract_chapter_info)
+}
+
+fn href(chapter_no: Int, sub_no: Int) -> String {
+  "./" <> ins(chapter_no) <> "-" <> ins(sub_no) <> ".html"
+}
+
+fn subchapter_item(subchapter: SubchapterInfo) -> VXML {
+  let b = desugarer_blame(213)
+  let #(chapter_no, subchapter_no, title) = subchapter
   V(
-    blame,
-    "section",
+    b,
+    "li",
     [],
     [
       V(
-        blame,
-        "ol",
-        [Attribute(blame, "class", "index__list")],
-        list.map(chapters, fn(chapter) {
-          let #(chapter_number, chapter_title, subchapters) = chapter
-          construct_chapter_item(chapter_number, chapter_title, subchapters)
-        })
+        b,
+        "a",
+        [
+          Attribute(b, "href", href(chapter_no, subchapter_no)),
+        ],
+        title,
       )
     ]
   )
+}
+
+fn chapter_item(
+  chapter: ChapterInfo,
+) -> VXML {
+  let b = desugarer_blame(101)
+  let #(chapter_no, chapter_title, subchapters) = chapter
+  let subchapters_ol = case subchapters {
+    [] -> []
+    _ -> [
+      V(
+        b,
+        "ol",
+        [],
+        list.map(subchapters, subchapter_item),
+      )
+    ]
+  }
+
+  let link = V(
+    b,
+    "a",
+    [
+      Attribute(b, "href", href(chapter_no, 0)),
+    ],
+    chapter_title,
+  )
+
+  V(
+    b,
+    "li",
+    [],
+    [
+      link,
+      ..subchapters_ol,
+    ],
+  )
+}
+
+fn chapter_ol(chapters: List(ChapterInfo)) -> VXML {
+  let b = desugarer_blame(254)
+  V(
+    b,
+    "ol",
+    [
+      Attribute(b, "class", "index__toc"),
+    ],
+    list.map(chapters, chapter_item),
+  )
+}
+
+fn index(root: VXML) -> Result(VXML, DesugaringError) {
+  use chapter_infos <- on.ok(extract_chapter_infos(root))
+  Ok(V(
+    desugarer_blame(282),
+    "Index",
+    [
+      Attribute(desugarer_blame(284), "path", "./index.html"),
+    ],
+    [
+      menu(root),
+      header(root),
+      chapter_ol(chapter_infos),
+    ],
+  ))
 }
 
 fn at_root(root: VXML) -> Result(VXML, DesugaringError) {
   let assert V(_, "Document", _, children) = root
-  let menu_node = construct_menu(root)
-  let header_node = construct_header(root)
-  use chapters <- on.ok(chapters_number_title(root))
-  use subchapters <- on.ok(all_subchapters(chapters))
-  let index_list_node = construct_index(subchapters)
-  let index_node = V(
-    desugarer_blame(282),
-    "Index",
-    [Attribute(desugarer_blame(284), "path", "./index.html")],
-    [menu_node, header_node, index_list_node]
-  )
-  Ok(V(..root, children: [index_node, ..children]))
+  use index <- on.ok(index(root))
+  Ok(V(..root, children: [index, ..children]))
 }
 
 fn transform_factory(_: InnerParam) -> infra.DesugarerTransform {
@@ -395,9 +424,9 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
                             \"Dr. Smith, University of Example\"
                       <> section
                         <> ol
-                          class=index__list
+                          class=index__toc
                           <> li
-                            class=index__list__chapter
+                            class=index__toc__chapter
                             <>
                               \"1 - \"
                             <> a
@@ -405,7 +434,7 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
                               <>
                                 \"Introduction\"
                             <> ol
-                              class=index__list__subchapter
+                              class=index__toc__subchapter
                               <> li
                                 <>
                                   \"1.1 - \"
@@ -421,7 +450,7 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
                                   <>
                                     \"Goals\"
                           <> li
-                            class=index__list__chapter
+                            class=index__toc__chapter
                             <>
                               \"2 - \"
                             <> a
@@ -429,7 +458,7 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
                               <>
                                 \"Fundamentals\"
                             <> ol
-                              class=index__list__subchapter
+                              class=index__toc__subchapter
                               <> li
                                 <>
                                   \"2.1 - \"

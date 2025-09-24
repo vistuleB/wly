@@ -277,6 +277,24 @@ pub fn pour_but_last(from: List(a), into: List(a)) -> #(List(a), a) {
   }
 }
 
+fn index_try_map_acc(
+  i: Int,
+  rest: List(a),
+  f: fn(a, Int) -> Result(b, c)
+) -> Result(List(b), c) {
+  use first, rest <- on.empty_nonempty(rest, Ok([]))
+  use b <- on.ok(f(first, i))
+  use bs <- on.ok(index_try_map_acc(i + 1, rest, f))
+  Ok([b, ..bs])
+}
+
+pub fn index_try_map(
+  list: List(a),
+  f: fn(a, Int) -> Result(b, c)
+) -> Result(List(b), c) {
+  index_try_map_acc(0, list, f)
+}
+
 pub fn index_map_fold(
   list: List(a),
   initial_acc: b,
@@ -1804,26 +1822,25 @@ pub fn v_tag_is_one_of(vxml: VXML, tags: List(String)) -> Bool {
   list.contains(tags, tag)
 }
 
-pub fn v_index_filter_children(
-  vxml: VXML,
-  condition: fn(VXML) -> Bool,
-) -> List(#(VXML, Int)) {
-  let assert V(_, _, _, children) = vxml
-  children
-  |> list.filter(condition)
-  |> list.index_map(fn(v, idx) { #(v, idx) })
-}
-
-pub fn v_index_children_with_tag(vxml: VXML, tag: String) -> List(#(VXML, Int)) {
-  v_index_filter_children(vxml, is_v_and_tag_equals(_, tag))
-}
-
 pub fn v_unique_child_with_tag(
   vxml: VXML,
   tag: String,
 ) -> Result(VXML, SingletonError) {
   v_children_with_tag(vxml, tag)
   |> read_singleton
+}
+
+pub fn v_unique_child_with_tag_with_desugaring_error(
+  vxml: VXML,
+  tag: String,
+) -> Result(VXML, DesugaringError) {
+  v_unique_child_with_tag(vxml, tag)
+  |> result.map_error(fn(e) {
+    case e {
+      MoreThanOne -> DesugaringError(vxml.blame, "more than one '" <> tag <> "' element")
+      LessThanOne -> DesugaringError(vxml.blame, "did not find '" <> tag <> "' element")
+    }
+  })
 }
 
 pub fn v_replace_children_with(node: VXML, children: List(VXML)) {
