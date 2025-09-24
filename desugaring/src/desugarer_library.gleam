@@ -151,18 +151,18 @@ import desugarers/substitute_class
 import desugarers/supplement_class
 import desugarers/surround_elements_by
 import desugarers/table_marker
-import desugarers/ti3_add_listing_bol_spans
-import desugarers/ti3_add_should_be_numbers
-import desugarers/ti3_backfill
-import desugarers/ti3_code_block_to_pre
-import desugarers/ti3_create_index
-import desugarers/ti3_create_menu
-import desugarers/ti3_expand_carousels
-import desugarers/ti3_parse_arbitrary_prompt_response_pre
-import desugarers/ti3_parse_orange_comments_pre
-import desugarers/ti3_parse_python_prompt_pre
-import desugarers/ti3_parse_redyellow_pre
-import desugarers/ti3_parse_xml_pre
+import desugarers/ti2_add_listing_bol_spans
+import desugarers/ti2_add_should_be_numbers
+import desugarers/ti2_backfill
+import desugarers/ti2_code_block_to_pre
+import desugarers/ti2_create_index
+import desugarers/ti2_create_menu
+import desugarers/ti2_expand_carousels
+import desugarers/ti2_parse_arbitrary_prompt_response_pre
+import desugarers/ti2_parse_orange_comments_pre
+import desugarers/ti2_parse_python_prompt_pre
+import desugarers/ti2_parse_redyellow_pre
+import desugarers/ti2_parse_xml_pre
 import desugarers/timer
 import desugarers/tokenize_href_surroundings
 import desugarers/tokenize_text_children_if
@@ -344,18 +344,18 @@ pub const substitute_class = substitute_class.constructor
 pub const supplement_class = supplement_class.constructor
 pub const surround_elements_by = surround_elements_by.constructor
 pub const table_marker = table_marker.constructor
-pub const ti3_add_listing_bol_spans = ti3_add_listing_bol_spans.constructor
-pub const ti3_add_should_be_numbers = ti3_add_should_be_numbers.constructor
-pub const ti3_backfill = ti3_backfill.constructor
-pub const ti3_code_block_to_pre = ti3_code_block_to_pre.constructor
-pub const ti3_create_index = ti3_create_index.constructor
-pub const ti3_create_menu = ti3_create_menu.constructor
-pub const ti3_expand_carousels = ti3_expand_carousels.constructor
-pub const ti3_parse_arbitrary_prompt_response_pre = ti3_parse_arbitrary_prompt_response_pre.constructor
-pub const ti3_parse_orange_comments_pre = ti3_parse_orange_comments_pre.constructor
-pub const ti3_parse_python_prompt_pre = ti3_parse_python_prompt_pre.constructor
-pub const ti3_parse_redyellow_pre = ti3_parse_redyellow_pre.constructor
-pub const ti3_parse_xml_pre = ti3_parse_xml_pre.constructor
+pub const ti2_add_listing_bol_spans = ti2_add_listing_bol_spans.constructor
+pub const ti2_add_should_be_numbers = ti2_add_should_be_numbers.constructor
+pub const ti2_backfill = ti2_backfill.constructor
+pub const ti2_code_block_to_pre = ti2_code_block_to_pre.constructor
+pub const ti2_create_index = ti2_create_index.constructor
+pub const ti2_create_menu = ti2_create_menu.constructor
+pub const ti2_expand_carousels = ti2_expand_carousels.constructor
+pub const ti2_parse_arbitrary_prompt_response_pre = ti2_parse_arbitrary_prompt_response_pre.constructor
+pub const ti2_parse_orange_comments_pre = ti2_parse_orange_comments_pre.constructor
+pub const ti2_parse_python_prompt_pre = ti2_parse_python_prompt_pre.constructor
+pub const ti2_parse_redyellow_pre = ti2_parse_redyellow_pre.constructor
+pub const ti2_parse_xml_pre = ti2_parse_xml_pre.constructor
 pub const timer = timer.constructor
 pub const tokenize_href_surroundings = tokenize_href_surroundings.constructor
 pub const tokenize_text_children_if = tokenize_text_children_if.constructor
@@ -538,18 +538,18 @@ pub const assertive_tests : List(fn() -> infra.AssertiveTestCollection) = [
   supplement_class.assertive_tests,
   surround_elements_by.assertive_tests,
   table_marker.assertive_tests,
-  ti3_add_listing_bol_spans.assertive_tests,
-  ti3_add_should_be_numbers.assertive_tests,
-  ti3_backfill.assertive_tests,
-  ti3_code_block_to_pre.assertive_tests,
-  ti3_create_index.assertive_tests,
-  ti3_create_menu.assertive_tests,
-  ti3_expand_carousels.assertive_tests,
-  ti3_parse_arbitrary_prompt_response_pre.assertive_tests,
-  ti3_parse_orange_comments_pre.assertive_tests,
-  ti3_parse_python_prompt_pre.assertive_tests,
-  ti3_parse_redyellow_pre.assertive_tests,
-  ti3_parse_xml_pre.assertive_tests,
+  ti2_add_listing_bol_spans.assertive_tests,
+  ti2_add_should_be_numbers.assertive_tests,
+  ti2_backfill.assertive_tests,
+  ti2_code_block_to_pre.assertive_tests,
+  ti2_create_index.assertive_tests,
+  ti2_create_menu.assertive_tests,
+  ti2_expand_carousels.assertive_tests,
+  ti2_parse_arbitrary_prompt_response_pre.assertive_tests,
+  ti2_parse_orange_comments_pre.assertive_tests,
+  ti2_parse_python_prompt_pre.assertive_tests,
+  ti2_parse_redyellow_pre.assertive_tests,
+  ti2_parse_xml_pre.assertive_tests,
   timer.assertive_tests,
   tokenize_href_surroundings.assertive_tests,
   tokenize_text_children_if.assertive_tests,

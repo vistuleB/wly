@@ -95,7 +95,7 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
   Ok(param)
 }
 
-pub const name = "ti3_code_block_to_pre"
+pub const name = "ti2_code_block_to_pre"
 
 type Param = Nil
 type InnerParam = Param

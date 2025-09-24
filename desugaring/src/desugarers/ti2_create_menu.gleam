@@ -251,14 +251,14 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
 type Param = Nil
 type InnerParam = Nil
 
-pub const name = "ti3_create_menu"
+pub const name = "ti2_create_menu"
 fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
 
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 // 🏖️🏖️ Desugarer 🏖️🏖️
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 //------------------------------------------------53
-/// generate ti3 Menu navigation with left and right
+/// generate ti2 Menu navigation with left and right
 /// menus containing previous/next chapter links,
 /// index link, and course homepage link. The menu
 /// is inserted after each Chapter and Sub element.

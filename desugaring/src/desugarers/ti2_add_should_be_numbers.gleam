@@ -73,7 +73,7 @@ fn param_to_inner_param(_param: Param) -> Result(InnerParam, DesugaringError) {
   Ok(#(re_chapter, re_sub))
 }
 
-pub const name = "ti3_add_should_be_numbers"
+pub const name = "ti2_add_should_be_numbers"
 fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
 
 type Param = Nil

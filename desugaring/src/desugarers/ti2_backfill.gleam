@@ -18,7 +18,7 @@ import vxml.{type VXML, V, Attribute}
 import blame as bl
 import on
 
-const const_blame = bl.Des([], "ti3_backfill", 23)
+const const_blame = bl.Des([], name, 23)
 
 const stub_sub =
   V(
@@ -103,7 +103,7 @@ fn param_to_inner_param(_param: Param) -> Result(InnerParam, DesugaringError) {
   Ok(#(re_chapter, re_sub))
 }
 
-pub const name = "ti3_backfill"
+pub const name = "ti2_backfill"
 
 type Param = Nil
 type InnerParam = #(Regexp, Regexp)

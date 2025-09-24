@@ -117,7 +117,7 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
   Ok(param)
 }
 
-pub const name = "ti3_parse_xml_pre"
+pub const name = "ti2_parse_xml_pre"
 fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
 
 type Param = Nil
