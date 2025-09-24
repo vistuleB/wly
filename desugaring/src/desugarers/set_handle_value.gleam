@@ -70,7 +70,7 @@ type Param = #(String, String, TrafficLight)
 //             tag     value   return-early-or-not
 type InnerParam = Param
 
-pub const name = "set_hand_value"
+pub const name = "set_handle_value"
 
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 // 🏖️🏖️ Desugarer 🏖️🏖️

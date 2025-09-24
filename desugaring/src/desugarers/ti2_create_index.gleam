@@ -10,7 +10,6 @@ import infrastructure.{
 } as infra
 import vxml.{
   type VXML,
-  type TextLine,
   Attribute,
   TextLine,
   V,
