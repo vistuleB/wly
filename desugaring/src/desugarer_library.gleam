@@ -64,21 +64,22 @@ import desugarers/filter_nodes_by_attributes
 import desugarers/find_replace__batch__outside
 import desugarers/find_replace__outside
 import desugarers/find_replace_in_descendants_of__batch
-import desugarers/fix_ti2_local_links
+import desugarers/fix_ii2_local_links
 import desugarers/fold_children_into_text_if
 import desugarers/fold_contents_into_text
+import desugarers/fold_contents_into_text__batch
 import desugarers/fold_contents_into_text_if
 import desugarers/fold_custom_into_text
 import desugarers/fold_into_text
 import desugarers/fold_into_text__batch
 import desugarers/free_children
 import desugarers/free_children__batch
+import desugarers/generate_ii2_table_of_contents
+import desugarers/generate_ii2_table_of_contents_html
 import desugarers/generate_lbp_breadcrumbs
 import desugarers/generate_lbp_prev_next_attributes
 import desugarers/generate_lbp_sections_breadcrumbs
 import desugarers/generate_lbp_table_of_contents
-import desugarers/generate_ti2_table_of_contents
-import desugarers/generate_ti2_table_of_contents_html
 import desugarers/generate_ti3_index
 import desugarers/generate_ti3_menu
 import desugarers/group_consecutive_children__outside
@@ -87,13 +88,16 @@ import desugarers/handles_generate_dictionary_and_id_list
 import desugarers/handles_setup_grand_wrapper
 import desugarers/handles_substitute_and_fix_nonlocal_id_links
 import desugarers/identity
+import desugarers/ii2_carousel_component
+import desugarers/ii2_class_well_container_theorem_2_statement
+import desugarers/ii2_remove_chapter_number_from_title
 import desugarers/insert_bookend_tags
 import desugarers/insert_bookend_text_if_no_attributes
+import desugarers/insert_ii2_counter_commands
 import desugarers/insert_line_start_end
 import desugarers/insert_text_start_end
 import desugarers/insert_text_start_end_if_else
 import desugarers/insert_text_start_end_if_unique_attr
-import desugarers/insert_ti2_counter_commands
 import desugarers/keep_only_subtrees_and_ancestors_of_nodes_matching_a_key_value_pair
 import desugarers/last_to_first_concatenate_text_nodes
 import desugarers/line_rewrap_no1__outside
@@ -150,9 +154,6 @@ import desugarers/substitute_class
 import desugarers/supplement_class
 import desugarers/surround_elements_by
 import desugarers/table_marker
-import desugarers/ti2_carousel_component
-import desugarers/ti2_class_well_container_theorem_2_statement
-import desugarers/ti2_remove_chapter_number_from_title
 import desugarers/ti3_add_listing_bol_spans
 import desugarers/ti3_add_should_be_numbers
 import desugarers/ti3_backfill
@@ -256,21 +257,22 @@ pub const filter_nodes_by_attributes = filter_nodes_by_attributes.constructor
 pub const find_replace__batch__outside = find_replace__batch__outside.constructor
 pub const find_replace__outside = find_replace__outside.constructor
 pub const find_replace_in_descendants_of__batch = find_replace_in_descendants_of__batch.constructor
-pub const fix_ti2_local_links = fix_ti2_local_links.constructor
+pub const fix_ii2_local_links = fix_ii2_local_links.constructor
 pub const fold_children_into_text_if = fold_children_into_text_if.constructor
 pub const fold_contents_into_text = fold_contents_into_text.constructor
+pub const fold_contents_into_text__batch = fold_contents_into_text__batch.constructor
 pub const fold_contents_into_text_if = fold_contents_into_text_if.constructor
 pub const fold_custom_into_text = fold_custom_into_text.constructor
 pub const fold_into_text = fold_into_text.constructor
 pub const fold_into_text__batch = fold_into_text__batch.constructor
 pub const free_children = free_children.constructor
 pub const free_children__batch = free_children__batch.constructor
+pub const generate_ii2_table_of_contents = generate_ii2_table_of_contents.constructor
+pub const generate_ii2_table_of_contents_html = generate_ii2_table_of_contents_html.constructor
 pub const generate_lbp_breadcrumbs = generate_lbp_breadcrumbs.constructor
 pub const generate_lbp_prev_next_attributes = generate_lbp_prev_next_attributes.constructor
 pub const generate_lbp_sections_breadcrumbs = generate_lbp_sections_breadcrumbs.constructor
 pub const generate_lbp_table_of_contents = generate_lbp_table_of_contents.constructor
-pub const generate_ti2_table_of_contents = generate_ti2_table_of_contents.constructor
-pub const generate_ti2_table_of_contents_html = generate_ti2_table_of_contents_html.constructor
 pub const generate_ti3_index = generate_ti3_index.constructor
 pub const generate_ti3_menu = generate_ti3_menu.constructor
 pub const group_consecutive_children__outside = group_consecutive_children__outside.constructor
@@ -279,13 +281,16 @@ pub const handles_generate_dictionary_and_id_list = handles_generate_dictionary_
 pub const handles_setup_grand_wrapper = handles_setup_grand_wrapper.constructor
 pub const handles_substitute_and_fix_nonlocal_id_links = handles_substitute_and_fix_nonlocal_id_links.constructor
 pub const identity = identity.constructor
+pub const ii2_carousel_component = ii2_carousel_component.constructor
+pub const ii2_class_well_container_theorem_2_statement = ii2_class_well_container_theorem_2_statement.constructor
+pub const ii2_remove_chapter_number_from_title = ii2_remove_chapter_number_from_title.constructor
 pub const insert_bookend_tags = insert_bookend_tags.constructor
 pub const insert_bookend_text_if_no_attributes = insert_bookend_text_if_no_attributes.constructor
+pub const insert_ii2_counter_commands = insert_ii2_counter_commands.constructor
 pub const insert_line_start_end = insert_line_start_end.constructor
 pub const insert_text_start_end = insert_text_start_end.constructor
 pub const insert_text_start_end_if_else = insert_text_start_end_if_else.constructor
 pub const insert_text_start_end_if_unique_attr = insert_text_start_end_if_unique_attr.constructor
-pub const insert_ti2_counter_commands = insert_ti2_counter_commands.constructor
 pub const keep_only_subtrees_and_ancestors_of_nodes_matching_a_key_value_pair = keep_only_subtrees_and_ancestors_of_nodes_matching_a_key_value_pair.constructor
 pub const last_to_first_concatenate_text_nodes = last_to_first_concatenate_text_nodes.constructor
 pub const line_rewrap_no1__outside = line_rewrap_no1__outside.constructor
@@ -342,9 +347,6 @@ pub const substitute_class = substitute_class.constructor
 pub const supplement_class = supplement_class.constructor
 pub const surround_elements_by = surround_elements_by.constructor
 pub const table_marker = table_marker.constructor
-pub const ti2_carousel_component = ti2_carousel_component.constructor
-pub const ti2_class_well_container_theorem_2_statement = ti2_class_well_container_theorem_2_statement.constructor
-pub const ti2_remove_chapter_number_from_title = ti2_remove_chapter_number_from_title.constructor
 pub const ti3_add_listing_bol_spans = ti3_add_listing_bol_spans.constructor
 pub const ti3_add_should_be_numbers = ti3_add_should_be_numbers.constructor
 pub const ti3_backfill = ti3_backfill.constructor
@@ -449,21 +451,22 @@ pub const assertive_tests : List(fn() -> infra.AssertiveTestCollection) = [
   find_replace__batch__outside.assertive_tests,
   find_replace__outside.assertive_tests,
   find_replace_in_descendants_of__batch.assertive_tests,
-  fix_ti2_local_links.assertive_tests,
+  fix_ii2_local_links.assertive_tests,
   fold_children_into_text_if.assertive_tests,
   fold_contents_into_text.assertive_tests,
+  fold_contents_into_text__batch.assertive_tests,
   fold_contents_into_text_if.assertive_tests,
   fold_custom_into_text.assertive_tests,
   fold_into_text.assertive_tests,
   fold_into_text__batch.assertive_tests,
   free_children.assertive_tests,
   free_children__batch.assertive_tests,
+  generate_ii2_table_of_contents.assertive_tests,
+  generate_ii2_table_of_contents_html.assertive_tests,
   generate_lbp_breadcrumbs.assertive_tests,
   generate_lbp_prev_next_attributes.assertive_tests,
   generate_lbp_sections_breadcrumbs.assertive_tests,
   generate_lbp_table_of_contents.assertive_tests,
-  generate_ti2_table_of_contents.assertive_tests,
-  generate_ti2_table_of_contents_html.assertive_tests,
   generate_ti3_index.assertive_tests,
   generate_ti3_menu.assertive_tests,
   group_consecutive_children__outside.assertive_tests,
@@ -472,13 +475,16 @@ pub const assertive_tests : List(fn() -> infra.AssertiveTestCollection) = [
   handles_setup_grand_wrapper.assertive_tests,
   handles_substitute_and_fix_nonlocal_id_links.assertive_tests,
   identity.assertive_tests,
+  ii2_carousel_component.assertive_tests,
+  ii2_class_well_container_theorem_2_statement.assertive_tests,
+  ii2_remove_chapter_number_from_title.assertive_tests,
   insert_bookend_tags.assertive_tests,
   insert_bookend_text_if_no_attributes.assertive_tests,
+  insert_ii2_counter_commands.assertive_tests,
   insert_line_start_end.assertive_tests,
   insert_text_start_end.assertive_tests,
   insert_text_start_end_if_else.assertive_tests,
   insert_text_start_end_if_unique_attr.assertive_tests,
-  insert_ti2_counter_commands.assertive_tests,
   keep_only_subtrees_and_ancestors_of_nodes_matching_a_key_value_pair.assertive_tests,
   last_to_first_concatenate_text_nodes.assertive_tests,
   line_rewrap_no1__outside.assertive_tests,
@@ -535,9 +541,6 @@ pub const assertive_tests : List(fn() -> infra.AssertiveTestCollection) = [
   supplement_class.assertive_tests,
   surround_elements_by.assertive_tests,
   table_marker.assertive_tests,
-  ti2_carousel_component.assertive_tests,
-  ti2_class_well_container_theorem_2_statement.assertive_tests,
-  ti2_remove_chapter_number_from_title.assertive_tests,
   ti3_add_listing_bol_spans.assertive_tests,
   ti3_add_should_be_numbers.assertive_tests,
   ti3_backfill.assertive_tests,

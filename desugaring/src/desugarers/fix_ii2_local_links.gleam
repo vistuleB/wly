@@ -1,5 +1,6 @@
+import gleam/list
 import gleam/option
-import gleam/string.{inspect as ins}
+import gleam/string
 import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as infra
 import nodemaps_2_desugarer_transforms as n2t
 import vxml.{type VXML, T, V}
@@ -9,36 +10,35 @@ fn nodemap(
   vxml: VXML,
 ) -> Result(VXML, DesugaringError) {
   case vxml {
-    V(blame, _, _, _) -> {
-      // remove carousel buttons
-      use <- on.true_false(
-        infra.v_has_key_value(vxml, "data-slide", "prev"),
-        on_true: Ok(T(blame, [])),
+    V(blame, tag, atts, children) -> {
+      use href <- on.none_some(
+        infra.v_first_attribute_with_key(vxml, "href"),
+        Ok(vxml),
       )
-      use <- on.true_false(
-        infra.v_has_key_value(vxml, "data-slide", "next"),
-        on_true: Ok(T(blame, [])),
+      use <- on.false_true(
+        string.starts_with(href.value, "../../demo"),
+        Ok(vxml),
       )
-      use <- on.true_false(
-        infra.v_first_attribute_with_key(vxml, "data-slide-to") |> option.is_some,
-        on_true: Ok(T(blame, [])),
-      )
-      // carousel
-      use <- on.true_false(
-        !{ infra.v_has_key_value(vxml, "class", "carousel") },
-        on_true: Ok(vxml),
-      )
-      // vxml is node with carousel class
-      // get only images from children
-      let images = infra.descendants_with_tag(vxml, "img")
-      let attributes = case infra.v_has_key_value(vxml, "id", "cyk-demo") {
-        True -> [vxml.Attribute(blame, "jumpToLast", "true")]
-        False -> []
-      }
-      let carousel_node = V(blame, "Carousel", attributes, images)
-      Ok(carousel_node)
+      let atts =
+        atts
+        |> list.map(fn(att) {
+          case att.key {
+            "href" ->
+              vxml.Attribute(
+                att.blame,
+                "href",
+                att.value
+                  |> string.replace(
+                    "../../demos",
+                    "https://www.tu-chemnitz.de/informatik/theoretische-informatik/demos",
+                  ),
+              )
+            _ -> att
+          }
+        })
+      Ok(V(blame, tag, atts, children))
     }
-    _ -> Ok(vxml)
+    T(_, _) -> Ok(vxml)
   }
 }
 
@@ -57,18 +57,18 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
 type Param = Nil
 type InnerParam = Nil
 
-pub const name = "ti2_carousel_component"
+pub const name = "fix_ii2_local_links"
 
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 // 🏖️🏖️ Desugarer 🏖️🏖️
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 //------------------------------------------------53
-/// converts Bootstrap carousel components to custom
-/// Carousel components
+/// fixes local links in TI2 content by converting
+/// relative paths to absolute URLs
 pub fn constructor(param: Param) -> Desugarer {
   Desugarer(
     name: name,
-    stringified_param: option.Some(ins(Nil)),
+    stringified_param: option.None,
     stringified_outside: option.None,
     transform: case param_to_inner_param(param) {
       Error(error) -> fn(_) { Error(error) }

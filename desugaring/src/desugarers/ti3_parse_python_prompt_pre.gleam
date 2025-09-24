@@ -33,9 +33,9 @@ fn python_prompt_chunk_to_vxmls(
       let z = terminal_prompt_length
       [
         V(
-          desugarer_blame(31),
+          desugarer_blame(36),
           "span",
-          [Attribute(desugarer_blame(33), "class", "terminal-prompt")],
+          [Attribute(desugarer_blame(38), "class", "terminal-prompt")],
           [
             T(
               line.blame,
@@ -44,9 +44,9 @@ fn python_prompt_chunk_to_vxmls(
           ]
         ),
         V(
-          desugarer_blame(42),
+          desugarer_blame(47),
           "span",
-          [Attribute(desugarer_blame(44), "class", "terminal-prompt-content")],
+          [Attribute(desugarer_blame(49), "class", "terminal-prompt-content")],
           [
             T(
               bl.advance(line.blame, z),
@@ -59,9 +59,9 @@ fn python_prompt_chunk_to_vxmls(
     PromptLine(line) -> {
       [
         V(
-          desugarer_blame(31),
+          desugarer_blame(62),
           "span",
-          [Attribute(desugarer_blame(33), "class", "python-prompt-carets")],
+          [Attribute(desugarer_blame(64), "class", "python-prompt-carets")],
           [
             T(
               line.blame,
@@ -70,9 +70,9 @@ fn python_prompt_chunk_to_vxmls(
           ]
         ),
         V(
-          desugarer_blame(42),
+          desugarer_blame(73),
           "span",
-          [Attribute(desugarer_blame(44), "class", "python-prompt-content")],
+          [Attribute(desugarer_blame(75), "class", "python-prompt-content")],
           [
             T(
               bl.advance(line.blame, 3),
@@ -85,9 +85,9 @@ fn python_prompt_chunk_to_vxmls(
     OkResponseLines(lines) -> {
       [
         V(
-          desugarer_blame(57),
+          desugarer_blame(88),
           "span",
-          [Attribute(desugarer_blame(59), "class", "python-prompt-ok-response")],
+          [Attribute(desugarer_blame(90), "class", "python-prompt-ok-response")],
           [
             T(
               lines |> infra.lines_first_blame,
@@ -100,9 +100,9 @@ fn python_prompt_chunk_to_vxmls(
     ErrorResponseLines(lines) -> {
       [
         V(
-          desugarer_blame(72),
+          desugarer_blame(103),
           "span",
-          [Attribute(desugarer_blame(74), "class", "python-prompt-error-response")],
+          [Attribute(desugarer_blame(105), "class", "python-prompt-error-response")],
           [
             T(
               lines |> infra.lines_first_blame,
@@ -156,7 +156,7 @@ fn nodemap(
             "pre",
             attrs
             |> infra.attributes_delete("language")
-            |> infra.attributes_append_classes(desugarer_blame(123), "python-prompt"),
+            |> infra.attributes_append_classes(desugarer_blame(159), "python-prompt"),
             children,
           )
         }

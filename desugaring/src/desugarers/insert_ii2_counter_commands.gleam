@@ -128,7 +128,7 @@ type Param =
 
 type InnerParam = Param
 
-pub const name = "insert_ti2_counter_commands"
+pub const name = "insert_ii2_counter_commands"
 
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 // 🏖️🏖️ Desugarer 🏖️🏖️

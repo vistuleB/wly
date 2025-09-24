@@ -60,7 +60,7 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
 type Param = Nil
 type InnerParam = Param
 
-pub const name = "ti2_class_well_container_theorem_2_statement"
+pub const name = "ii2_class_well_container_theorem_2_statement"
 fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
 
 

@@ -99,7 +99,7 @@ fn nodemap(
             "pre",
             attrs
             |> infra.attributes_delete("language")
-            |> infra.attributes_append_classes(desugarer_blame(90), "arbitrary-prompt-response"),
+            |> infra.attributes_append_classes(desugarer_blame(102), "arbitrary-prompt-response"),
             children,
           )
         }

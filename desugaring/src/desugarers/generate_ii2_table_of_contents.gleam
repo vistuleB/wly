@@ -34,7 +34,7 @@ fn chapter_link(
     infra.v_first_attribute_with_key(item, "title_gr"),
     on_none: Error(DesugaringError(
       item_blame,
-      "(generate_ti2_table_of_contents)" <> tp <> " missing title_gr attribute",
+      tp <> " missing title_gr attribute",
     )),
   )
 
@@ -42,7 +42,7 @@ fn chapter_link(
     infra.v_first_attribute_with_key(item, "title_en"),
     on_none: Error(DesugaringError(
       item_blame,
-      "(generate_ti2_table_of_contents)" <> tp <> " missing title_en attribute",
+      tp <> " missing title_en attribute",
     )),
   )
 
@@ -50,7 +50,7 @@ fn chapter_link(
     infra.v_first_attribute_with_key(item, "number"),
     on_none: Error(DesugaringError(
       item_blame,
-      "(generate_ti2_table_of_contents)" <> tp <> " missing number attribute",
+      tp <> " missing number attribute",
     )),
   )
 
@@ -133,7 +133,7 @@ type Param = #(String,         String)
 //             contents tag    component name
 type InnerParam = Param
 
-pub const name = "generate_ti2_table_of_contents"
+pub const name = "generate_ii2_table_of_contents"
 fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
 
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️

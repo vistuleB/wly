@@ -36,9 +36,7 @@ fn chapter_link(
     infra.v_first_attribute_with_key(item, "title_gr"),
     on_none: Error(DesugaringError(
       item_blame,
-      "(generate_ti2_table_of_contents_html) "
-      <> tp
-      <> " missing title_gr attribute",
+      tp <> " missing title_gr attribute",
     )),
   )
 
@@ -46,9 +44,7 @@ fn chapter_link(
     infra.v_first_attribute_with_key(item, "title_en"),
     on_none: Error(DesugaringError(
       item_blame,
-      "(generate_ti2_table_of_contents_html) "
-      <> tp
-      <> " missing title_en attribute",
+      tp <> " missing title_en attribute",
     )),
   )
 
@@ -56,9 +52,7 @@ fn chapter_link(
     infra.v_first_attribute_with_key(item, "number"),
     on_none: Error(DesugaringError(
       item_blame,
-      "(generate_ti2_table_of_contents_html) "
-      <> tp
-      <> " missing number attribute",
+      tp <> " missing number attribute",
     )),
   )
 
@@ -78,10 +72,10 @@ fn chapter_link(
   let number_span =
     V(item_blame, "span", [], [
       T(
-        desugarer_blame(81),
+        desugarer_blame(75),
         [
           TextLine(
-            desugarer_blame(84),
+            desugarer_blame(78),
             chapter_number <> "." <> ins(section_index) <> " - ",
           ),
         ]
@@ -93,7 +87,7 @@ fn chapter_link(
       item_blame,
       "a",
       [
-        Attribute(desugarer_blame(96), "href", link)
+        Attribute(desugarer_blame(90), "href", link)
       ],
       [
         T(item_blame, [TextLine(item_blame, label_attr.value)]),
@@ -105,7 +99,7 @@ fn chapter_link(
     on.true_false(sub_chapter_number == "0", "0", fn() { "40px" })
 
   let style_attr =
-    Attribute(desugarer_blame(108), "style", "margin-left: " <> margin_left)
+    Attribute(desugarer_blame(102), "style", "margin-left: " <> margin_left)
 
   Ok(V(item_blame, chapter_link_component_name, [style_attr], [number_span, a]))
 }
@@ -117,9 +111,7 @@ fn get_section_index(item: VXML, count: Int) -> Result(Int, DesugaringError) {
     infra.v_first_attribute_with_key(item, "number"),
     on_none: Error(DesugaringError(
       item.blame,
-      "(generate_ti2_table_of_contents_html) "
-        <> tp
-        <> " missing number attribute (b)",
+      tp <> " missing number attribute (b)",
     )),
   )
 
@@ -134,11 +126,11 @@ fn get_section_index(item: VXML, count: Int) -> Result(Int, DesugaringError) {
 }
 
 fn div_with_id_title_and_menu_items(id: String, menu_items: List(VXML)) -> VXML {
-  V(desugarer_blame(137), "div", [Attribute(desugarer_blame(137), "id", id)], [
+  V(desugarer_blame(129), "div", [Attribute(desugarer_blame(129), "id", id)], [
     V(
-      desugarer_blame(139),
+      desugarer_blame(131),
       "ul",
-      [Attribute(desugarer_blame(141), "style", "list-style: none")],
+      [Attribute(desugarer_blame(133), "style", "list-style: none")],
       menu_items,
     ),
   ])
@@ -173,7 +165,7 @@ fn at_root(
     div_with_id_title_and_menu_items("Chapters", chapter_menu_items)
 
   let toc =
-    V(desugarer_blame(176), toc_tag, [], [chapters_div])
+    V(desugarer_blame(168), toc_tag, [], [chapters_div])
 
   infra.v_prepend_child(root, toc)
   |> Ok
@@ -194,7 +186,7 @@ type Param = #(String,              String)
 //             table of contents    individual chapter links
 type InnerParam = Param
 
-pub const name = "generate_ti2_table_of_contents_html"
+pub const name = "generate_zi2_table_of_contents_html"
 fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
 
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
