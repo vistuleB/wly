@@ -1,4 +1,3 @@
-import gleam/list
 import gleam/option
 import gleam/string.{inspect as ins}
 import infrastructure.{
@@ -11,12 +10,10 @@ import infrastructure.{
 } as infra
 import nodemaps_2_desugarer_transforms as n2t
 import vxml.{
-  type Attribute,
   type VXML,
-  Attribute,
   V,
 }
-import blame as bl
+import blame.{type Blame} as bl
 
 fn nodemap(
   vxml: VXML,
@@ -25,8 +22,11 @@ fn nodemap(
   case vxml {
     V(_, tag, attrs, _) if tag == inner.0 -> {
       #(
-        V(..vxml, attributes: list.append(attrs, [inner.1])),
-        inner.2,
+        V(
+          ..vxml,
+          attributes: infra.attributes_append_classes(attrs, desugarer_blame(0), inner.2),
+        ),
+        inner.3,
       )
     }
     _ -> #(vxml, Continue)
@@ -43,20 +43,15 @@ fn transform_factory(inner: InnerParam) -> DesugarerTransform {
 }
 
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
-  #(
-    param.0,
-    Attribute(desugarer_blame(47), param.1, param.2),
-    param.3,
-  )
-  |> Ok
+  Ok(#(param.0, desugarer_blame(0), param.1, param.2))
 }
 
-type Param = #(String, String, String, TrafficLight)
-//             ↖       ↖       ↖       ↖    
-//             tag     attr    value   return-early-or-not-after-finding-tag
-type InnerParam = #(String, Attribute, TrafficLight)
+type Param = #(String, String, TrafficLight)
+//             ↖       ↖       ↖
+//             tag     class   return-early-or-not-after-finding-tag
+type InnerParam = #(String, Blame, String, TrafficLight)
 
-pub const name = "append_attribute"
+pub const name = "append_class"
 fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
 
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️

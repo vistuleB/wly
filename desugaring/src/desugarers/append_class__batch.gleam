@@ -1,63 +1,54 @@
-import gleam/list
 import gleam/option
 import gleam/string.{inspect as ins}
 import infrastructure.{
   type Desugarer,
   type DesugarerTransform,
   type DesugaringError,
-  type TrafficLight,
   Desugarer,
-  Continue,
 } as infra
 import nodemaps_2_desugarer_transforms as n2t
-import vxml.{
-  type Attribute,
-  type VXML,
-  Attribute,
-  V,
-}
+import vxml.{type VXML, V}
 import blame as bl
 
+const blame = bl.Des([], name, 18)
+
 fn nodemap(
-  vxml: VXML,
+  node: VXML,
   inner: InnerParam,
-) -> #(VXML, TrafficLight) {
-  case vxml {
-    V(_, tag, attrs, _) if tag == inner.0 -> {
-      #(
-        V(..vxml, attributes: list.append(attrs, [inner.1])),
-        inner.2,
-      )
+) -> VXML {
+  case node {
+    V(_, tag, attrs, _) -> case infra.use_list_pair_as_dict(inner, tag) {
+      Ok(val) ->
+        V(
+          ..node,
+          attributes: infra.attributes_append_classes(attrs, blame, val),
+        )
+      _ -> node
     }
-    _ -> #(vxml, Continue)
+    _ -> node
   }
 }
 
-fn nodemap_factory(inner: InnerParam) -> n2t.EarlyReturnOneToOneNoErrorNodeMap {
+fn nodemap_factory(inner: InnerParam) -> n2t.OneToOneNoErrorNodeMap {
   nodemap(_, inner)
 }
 
 fn transform_factory(inner: InnerParam) -> DesugarerTransform {
   nodemap_factory(inner)
-  |> n2t.early_return_one_to_one_no_error_nodemap_2_desugarer_transform
+  |> n2t.one_to_one_no_error_nodemap_2_desugarer_transform
 }
 
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
-  #(
-    param.0,
-    Attribute(desugarer_blame(47), param.1, param.2),
-    param.3,
-  )
-  |> Ok
+  param
+  |> infra.validate_unique_keys
 }
 
-type Param = #(String, String, String, TrafficLight)
-//             ↖       ↖       ↖       ↖    
-//             tag     attr    value   return-early-or-not-after-finding-tag
-type InnerParam = #(String, Attribute, TrafficLight)
+type Param = List(#(String, String))
+//                  ↖       ↖      
+//                  tag     class
+type InnerParam = Param
 
-pub const name = "append_attribute"
-fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
+pub const name = "append_class__batch"
 
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 // 🏖️🏖️ Desugarer 🏖️🏖️

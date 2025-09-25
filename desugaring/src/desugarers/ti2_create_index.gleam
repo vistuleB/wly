@@ -141,24 +141,16 @@ fn header(document: VXML) -> VXML {
       ),
       V(
         b,
-        "span",
+        "div",
         [
           Attribute(b, "class", "index__header__subtitle"),
         ],
         [
           T(b, [TextLine(b, program)]),
-        ],
-      ),
-      V(
-        b,
-        "span",
-        [
-          Attribute(b, "class", "index__header__subtitle"),
-        ],
-        [
+          V(b, "br", [], []),
           T(b, [TextLine(b, lecturer <> ", " <> institution)]),
         ],
-      )
+      ),
     ]
   )
 }
