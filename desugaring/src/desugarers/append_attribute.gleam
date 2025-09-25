@@ -45,7 +45,7 @@ fn transform_factory(inner: InnerParam) -> DesugarerTransform {
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
   #(
     param.0,
-    Attribute(desugarer_blame(47), param.1, param.2),
+    Attribute(desugarer_blame(48), param.1, param.2),
     param.3,
   )
   |> Ok

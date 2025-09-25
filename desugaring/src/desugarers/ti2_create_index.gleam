@@ -24,7 +24,7 @@ import on
 // 🌸🌸🌸🌸🌸🌸🌸
 
 fn right_menu(document: VXML) -> VXML {
-  let b = desugarer_blame(28)
+  let b = desugarer_blame(27)
 
   let first_chapter_title =
     document
@@ -58,7 +58,7 @@ fn right_menu(document: VXML) -> VXML {
 }
 
 fn menu(document: VXML) -> VXML {
-  let b = desugarer_blame(62)
+  let b = desugarer_blame(61)
 
   let course_homepage_link =
     case infra.v_first_attribute_with_key(document, "course_homepage") {
@@ -96,7 +96,7 @@ fn menu(document: VXML) -> VXML {
 // 🌸🌸🌸🌸🌸🌸🌸
 
 fn header(document: VXML) -> VXML {
-  let b = desugarer_blame(100)
+  let b = desugarer_blame(99)
 
   let title =
     case infra.v_first_attribute_with_key(document, "title") {
@@ -179,7 +179,7 @@ fn extract_title(
   let assert [T(b, [first, ..more]), ..rest] = children
   let assert Ok(re) = regexp.from_string("^(\\d+)(\\.(\\d+)?)?\\s")
   let first = TextLine(
-    desugarer_blame(0),
+    desugarer_blame(182),
     first.content |> regexp.replace(re, _, "")
   )
   Ok([T(b, [first, ..more]), ..rest])
@@ -216,7 +216,7 @@ fn href(chapter_no: Int, sub_no: Int) -> String {
 }
 
 fn subchapter_item(subchapter: SubchapterInfo) -> VXML {
-  let b = desugarer_blame(229)
+  let b = desugarer_blame(219)
   let #(chapter_no, subchapter_no, title) = subchapter
   V(
     b,
@@ -238,7 +238,7 @@ fn subchapter_item(subchapter: SubchapterInfo) -> VXML {
 fn chapter_item(
   chapter: ChapterInfo,
 ) -> VXML {
-  let b = desugarer_blame(251)
+  let b = desugarer_blame(241)
   let #(chapter_no, chapter_title, subchapters) = chapter
   let subchapters_ol = case subchapters {
     [] -> []
@@ -273,7 +273,7 @@ fn chapter_item(
 }
 
 fn chapter_ol(chapters: List(ChapterInfo)) -> VXML {
-  let b = desugarer_blame(286)
+  let b = desugarer_blame(276)
   V(
     b,
     "ol",
@@ -287,10 +287,10 @@ fn chapter_ol(chapters: List(ChapterInfo)) -> VXML {
 fn index(root: VXML) -> Result(VXML, DesugaringError) {
   use chapter_infos <- on.ok(extract_chapter_infos(root))
   Ok(V(
-    desugarer_blame(300),
+    desugarer_blame(290),
     "Index",
     [
-      Attribute(desugarer_blame(303), "path", "./index.html"),
+      Attribute(desugarer_blame(293), "path", "./index.html"),
     ],
     [
       menu(root),

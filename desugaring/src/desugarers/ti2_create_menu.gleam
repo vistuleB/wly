@@ -7,38 +7,151 @@ import infrastructure.{
   type DesugaringError,
   Desugarer,
 } as infra
-import vxml.{type VXML, type Attribute, Attribute, TextLine, V, T}
+import vxml.{
+  type VXML,
+  type Attribute,
+  Attribute,
+  TextLine,
+  V,
+  T,
+}
 import nodemaps_2_desugarer_transforms as n2t
 import on
 
+type PageInfo = #(Int, Int)  // (chapter_no, sub_no)
+
+type PrevOrNext {
+  Prev
+  Next
+}
+
+const b = bl.Des([], name, 14)
+
+const id_prev_page_attribute = Attribute(b, "id", "prev-page")
+
+const id_next_page_attribute = Attribute(b, "id", "next-page")
+
+const index_link = V(
+  b,
+  "a",
+  [Attribute(b, "href", "./index.html")],
+  [T(b, [TextLine(b, "Inhaltsverzeichnis")])],
+)
+
 fn an_attribute(key: String, value: String) -> Attribute {
-  Attribute(desugarer_blame(15), key, value)
+  Attribute(desugarer_blame(42), key, value)
 }
 
 fn a_1_line_text_node(content: String) -> VXML {
-  T(desugarer_blame(19), [TextLine(desugarer_blame(19), content)])
+  T(desugarer_blame(46), [TextLine(desugarer_blame(46), content)])
 }
 
 fn into_list(a: a) -> List(a) {
   [a]
 }
 
-type PageInfo = #(Int, Int)  // (chapter_no, sub_no)
-
-type Menu {
-  RightMenu
-  LeftMenu
+fn homepage_link(homepage_url: String) -> VXML {
+  V(
+    b,
+    "a",
+    an_attribute("href", homepage_url) |> into_list,
+    a_1_line_text_node("zür Kursübersicht") |> into_list,
+  )
 }
 
-fn get_course_homepage(document: VXML) -> String {
-  case infra.v_first_attribute_with_key(document, "course_homepage") {
-    None -> ""
-    Some(x) -> x.value
+fn page_info_2_href(info: PageInfo) -> String {
+  "./" <> ins(info.0) <> "-" <> ins(info.1) <> ".html"
+}
+
+fn page_info_2_link(
+  info: PageInfo,
+  prev_or_next: PrevOrNext,
+) -> VXML {
+  let id_attribute = case prev_or_next {
+    Prev -> id_prev_page_attribute
+    Next -> id_next_page_attribute
   }
+
+  let href_attribute = 
+    info
+    |> page_info_2_href
+    |> an_attribute("href", _)
+
+  let content_text_node = case info.1, prev_or_next {
+    0, Prev -> "<<" <> " Kapitel " <> ins(info.0)
+    _, Prev -> "<<" <> " Kapitel " <> ins(info.0) <> "." <> ins(info.1)
+    0, Next -> "Kapitel " <> ins(info.0) <> "  " <> ">>"
+    _, Next -> "Kapitel " <> ins(info.0) <> "." <> ins(info.1) <> "  " <> ">>"
+  }
+  |> a_1_line_text_node
+
+  V(
+    desugarer_blame(89),
+    "a",
+    [
+      id_attribute,
+      href_attribute,
+    ],
+    [
+      content_text_node,
+    ],
+  )
 }
 
-fn format_chapter_link(chapter_no: Int, sub_no: Int) -> String {
-  "./" <> ins(chapter_no) <> "-" <> ins(sub_no) <> ".html"
+fn links_2_left_menu(
+  links: #(VXML, VXML, Option(VXML), Option(VXML))
+) -> VXML {
+  V(
+    desugarer_blame(105),
+    "LeftMenu",
+    an_attribute("class", "menu-left") |> into_list,
+    option.values([Some(links.0), links.2]),
+  )
+}
+
+fn links_2_right_menu(
+  links: #(VXML, VXML, Option(VXML), Option(VXML))
+) -> VXML {
+  V(
+    desugarer_blame(116),
+    "RightMenu",
+    an_attribute("class", "menu-right") |> into_list,
+    option.values([Some(links.1), links.3]),
+  )
+}
+
+fn infos_2_4_links(
+  prev_next_info: #(Option(PageInfo), Option(PageInfo)),
+  homepage_url: String,
+) -> #(VXML, VXML, Option(VXML), Option(VXML)) {
+  #(
+    index_link,
+    homepage_link(homepage_url),
+    prev_next_info.0 |> option.map(page_info_2_link(_, Prev)),
+    prev_next_info.1 |> option.map(page_info_2_link(_, Next)),
+  )
+}
+
+fn links_2_menu(
+  links: #(VXML, VXML, Option(VXML), Option(VXML))
+) -> VXML {
+  V(
+    desugarer_blame(139),
+    "Menu",
+    [],
+    [
+      links_2_left_menu(links),
+      links_2_right_menu(links),
+    ]
+  )
+}
+
+fn infos_2_menu(
+  prev_next_info: #(Option(PageInfo), Option(PageInfo)),
+  homepage_url: String,
+) -> VXML {
+  infos_2_4_links(prev_next_info, homepage_url)
+  |> links_2_menu
 }
 
 fn get_prev_next_info(
@@ -60,99 +173,6 @@ fn get_prev_next_info(
   )
 }
 
-fn a_tag_with_href_and_content(
-  href: String,
-  content: String,
-) -> VXML {
-  V(
-    desugarer_blame(68),
-    "a",
-    an_attribute("href", href) |> into_list,
-    a_1_line_text_node(content) |> into_list,
-  )
-}
-
-fn info_2_link(
-  info: PageInfo,
-  menu: Menu
-) -> VXML {
-  let href = format_chapter_link(info.0, info.1)
-
-  let content = case info.1, menu {
-      0, RightMenu -> "Kapitel " <> ins(info.0) <> "  " <> ">>"
-      _, RightMenu -> "Kapitel " <> ins(info.0) <> "." <> ins(info.1) <> "  " <> ">>"
-      0, LeftMenu -> "<<" <> " Kapitel " <> ins(info.0)
-      _, LeftMenu -> "<<" <> " Kapitel " <> ins(info.0) <> "." <> ins(info.1)
-    }
-
-  let id_attribute = case menu {
-    LeftMenu -> an_attribute("id", "prev-page")
-    RightMenu -> an_attribute("id", "next-page")
-  }
-
-  a_tag_with_href_and_content(href, content)
-  |> infra.v_prepend_attribute(id_attribute)
-}
-
-fn info_2_left_menu(
-  prev_info: Option(PageInfo)
-) -> VXML {
-  let index_link =
-    a_tag_with_href_and_content("./index.html", "Inhaltsverzeichnis")
-
-  let index_link = case prev_info {
-    None -> index_link |> infra.v_prepend_attribute(an_attribute("id", "prev-page"))
-    Some(_) -> index_link
-  }
-
-  let ch_link_option = prev_info |> option.map(info_2_link(_, LeftMenu))
-
-  V(
-    desugarer_blame(111),
-    "LeftMenu",
-    an_attribute("class", "menu-left") |> into_list,
-    option.values([
-      Some(index_link),
-      ch_link_option,
-    ]),
-  )
-}
-
-fn info_2_right_menu(
-  prev_info: Option(PageInfo),
-  homepage_url: String,
-) -> VXML {
-  let course_homepage_link =
-    a_tag_with_href_and_content(homepage_url, "zür Kursübersicht")
-
-  let ch_link_option = prev_info |> option.map(info_2_link(_, RightMenu))
-
-  V(
-    desugarer_blame(131),
-    "RightMenu",
-    an_attribute("class", "menu-right") |> into_list,
-    option.values([
-      Some(course_homepage_link),
-      ch_link_option,
-    ])
-  )
-}
-
-fn infos_2_menu(
-  prev_next_info: #(Option(PageInfo), Option(PageInfo)),
-  homepage_url: String,
-) -> VXML {
-  V(
-    desugarer_blame(146),
-    "Menu",
-    [],
-    [
-      info_2_left_menu(prev_next_info.0),
-      info_2_right_menu(prev_next_info.1, homepage_url),
-    ]
-  )
-}
-
 fn prepend_menu_element(
   node: VXML,
   chapter_no: Int,
@@ -167,7 +187,7 @@ fn prepend_menu_element(
   infra.v_prepend_child(node, menu)
 }
 
-fn prepend_menu_element_in_chapter_and_subchapters(
+fn process_chapter(
   chapter: VXML,
   chapter_no: Int,
   page_infos: List(PageInfo),
@@ -186,7 +206,8 @@ fn prepend_menu_element_in_chapter_and_subchapters(
       case child {
         V(_, "Sub", _, _) -> #(
           acc + 1,
-          prepend_menu_element(child, chapter_no, acc + 1, page_infos, homepage_url)
+          child
+          |> prepend_menu_element(chapter_no, acc + 1, page_infos, homepage_url)
         )
         _ -> #(
           acc,
@@ -199,7 +220,14 @@ fn prepend_menu_element_in_chapter_and_subchapters(
   V(..chapter, children: children)
 }
 
-fn collect_all_page_infos(root: VXML) -> List(PageInfo) {
+fn get_course_homepage(document: VXML) -> String {
+  case infra.v_first_attribute_with_key(document, "course_homepage") {
+    None -> ""
+    Some(x) -> x.value
+  }
+}
+
+fn generate_page_infos(root: VXML) -> List(PageInfo) {
   let chapters = infra.v_children_with_tag(root, "Chapter")
   list.index_fold(
     chapters,
@@ -219,20 +247,17 @@ fn collect_all_page_infos(root: VXML) -> List(PageInfo) {
 fn at_root(root: VXML) -> Result(VXML, DesugaringError) {
   let assert V(_, "Document", _, children) = root
   let homepage_url = get_course_homepage(root)
-  let page_infos = collect_all_page_infos(root)
+  let page_infos = generate_page_infos(root)
   let #(_, children) = list.map_fold(
     children,
     0,
     fn (acc, child) {
       case child {
-        V(_, tag, _, _) if tag == "Chapter" -> #(
+        V(_, "Chapter", _, _) -> #(
           acc + 1,
-          prepend_menu_element_in_chapter_and_subchapters(child, acc + 1, page_infos, homepage_url)
+          process_chapter(child, acc + 1, page_infos, homepage_url)
         )
-        _ -> #(
-          acc,
-          child,
-        )
+        _ -> #(acc, child)
       }
     }
   )

@@ -24,7 +24,7 @@ fn nodemap(
       #(
         V(
           ..vxml,
-          attributes: infra.attributes_append_classes(attrs, desugarer_blame(0), inner.2),
+          attributes: infra.attributes_append_classes(attrs, desugarer_blame(27), inner.2),
         ),
         inner.3,
       )
@@ -43,7 +43,7 @@ fn transform_factory(inner: InnerParam) -> DesugarerTransform {
 }
 
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
-  Ok(#(param.0, desugarer_blame(0), param.1, param.2))
+  Ok(#(param.0, desugarer_blame(46), param.1, param.2))
 }
 
 type Param = #(String, String, TrafficLight)
