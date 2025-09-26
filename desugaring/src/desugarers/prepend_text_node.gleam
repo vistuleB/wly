@@ -79,7 +79,74 @@ pub fn constructor(param: Param) -> Desugarer {
 // 🌊🌊🌊 tests 🌊🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
 fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
-  []
+  [
+    infra.AssertiveTestData(
+      param: #("ChapterTitle", "::øøChapterCounter. "),
+      source:   "
+                  <> root
+                    <> ChapterTitle
+                      <>
+                        \"Einleitung\"
+                    <> ChapterTitle
+                      <>
+                        \"Advanced Topics\"
+                        \"More content\"
+                    <> OtherElement
+                      <>
+                        \"Should not change\"
+                ",
+      expected: "
+                  <> root
+                    <> ChapterTitle
+                      <>
+                        \"::øøChapterCounter. \"
+                      <>
+                        \"Einleitung\"
+                    <> ChapterTitle
+                      <>
+                        \"::øøChapterCounter. \"
+                      <>
+                        \"Advanced Topics\"
+                        \"More content\"
+                    <> OtherElement
+                      <>
+                        \"Should not change\"
+                ",
+    ),
+    infra.AssertiveTestData(
+      param: #("SubTitle", "::øøChapterCounter.::øøSubCounter "),
+      source:   "
+                  <> root
+                    <> SubTitle
+                      <>
+                        \"Overview\"
+                    <> SubTitle
+                      <>
+                        \"Details\"
+                        \"Additional info\"
+                    <> ChapterTitle
+                      <>
+                        \"Should not change\"
+                ",
+      expected: "
+                  <> root
+                    <> SubTitle
+                      <>
+                        \"::øøChapterCounter.::øøSubCounter \"
+                      <>
+                        \"Overview\"
+                    <> SubTitle
+                      <>
+                        \"::øøChapterCounter.::øøSubCounter \"
+                      <>
+                        \"Details\"
+                        \"Additional info\"
+                    <> ChapterTitle
+                      <>
+                        \"Should not change\"
+                ",
+    ),
+  ]
 }
 
 pub fn assertive_tests() {
