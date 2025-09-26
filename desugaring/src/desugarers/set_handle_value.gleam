@@ -8,6 +8,7 @@ import infrastructure.{
   type TrafficLight,
   Desugarer,
   Continue,
+  GoBack,
 } as infra
 import nodemaps_2_desugarer_transforms as n2t
 import vxml.{
@@ -96,7 +97,74 @@ pub fn constructor(param: Param) -> Desugarer {
 // 🌊🌊🌊 tests 🌊🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
 fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
-  []
+  [
+    infra.AssertiveTestData(
+      param: #("Chapter", "::øøChapterCounter", GoBack),
+      source:   "
+                  <> root
+                    <> Chapter
+                      handle=complexity-theory:page
+                      <>
+                        \"Chapter content\"
+                    <> Chapter
+                      handle=algorithms:intro some-existing-value
+                      <>
+                        \"More content\"
+                    <> OtherElement
+                      handle=should-not-change
+                      <>
+                        \"Should not change\"
+                ",
+      expected: "
+                  <> root
+                    <> Chapter
+                      handle=complexity-theory:page ::øøChapterCounter
+                      <>
+                        \"Chapter content\"
+                    <> Chapter
+                      handle=algorithms:intro some-existing-value
+                      <>
+                        \"More content\"
+                    <> OtherElement
+                      handle=should-not-change
+                      <>
+                        \"Should not change\"
+                ",
+    ),
+    infra.AssertiveTestData(
+      param: #("Sub", "::øøChapterCounter.::øøSubCounter", GoBack),
+      source:   "
+                  <> root
+                    <> Sub
+                      handle=theorem:proof
+                      <>
+                        \"Sub content\"
+                    <> Sub
+                      handle=lemma:basic already-has-value
+                      <>
+                        \"More sub content\"
+                    <> Chapter
+                      handle=should-not-change
+                      <>
+                        \"Chapter content\"
+                ",
+      expected: "
+                  <> root
+                    <> Sub
+                      handle=theorem:proof ::øøChapterCounter.::øøSubCounter
+                      <>
+                        \"Sub content\"
+                    <> Sub
+                      handle=lemma:basic already-has-value
+                      <>
+                        \"More sub content\"
+                    <> Chapter
+                      handle=should-not-change
+                      <>
+                        \"Chapter content\"
+                ",
+    ),
+  ]
 }
 
 pub fn assertive_tests() {
