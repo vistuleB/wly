@@ -77,11 +77,11 @@ fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
 /// ```
 /// will, for each node of tag `parent_tag`,
 /// generate, if the node has no existing children
-/// tag `child_tag`, by using the value of 
-/// attribute_key as the contents of the child of 
+/// tag `child_tag`, by using the value of
+/// attribute_key as the contents of the child of
 /// tag child_tag. If no such attribute exists, does
 /// nothing to the node of tag parent_tag.
-/// 
+///
 /// Early-returns from subtree rooted at parent_tag.
 pub fn constructor(param: Param) -> Desugarer {
   Desugarer(
@@ -99,7 +99,104 @@ pub fn constructor(param: Param) -> Desugarer {
 // 🌊🌊🌊 tests 🌊🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
 fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
-  []
+  [
+    infra.AssertiveTestData(
+      param: #("Chapter", "ChapterTitle", "title"),
+      source:   "
+                  <> root
+                    <> Chapter
+                      title=Einleitung
+                      <>
+                        \"Chapter content\"
+                    <> Chapter
+                      title=Advanced Topics
+                      <> ChapterTitle
+                        <>
+                          \"Existing title\"
+                      <>
+                        \"More content\"
+                    <> Chapter
+                      <>
+                        \"No title attribute\"
+                    <> OtherElement
+                      title=Should not change
+                      <>
+                        \"Other content\"
+                ",
+      expected: "
+                  <> root
+                    <> Chapter
+                      title=Einleitung
+                      <> ChapterTitle
+                        <>
+                          \"Einleitung\"
+                      <>
+                        \"Chapter content\"
+                    <> Chapter
+                      title=Advanced Topics
+                      <> ChapterTitle
+                        <>
+                          \"Existing title\"
+                      <>
+                        \"More content\"
+                    <> Chapter
+                      <>
+                        \"No title attribute\"
+                    <> OtherElement
+                      title=Should not change
+                      <>
+                        \"Other content\"
+                ",
+    ),
+    infra.AssertiveTestData(
+      param: #("Sub", "SubTitle", "title"),
+      source:   "
+                  <> root
+                    <> Sub
+                      title=Overview
+                      <>
+                        \"Sub content\"
+                    <> Sub
+                      title=Details
+                      <> SubTitle
+                        <>
+                          \"Existing subtitle\"
+                      <>
+                        \"More sub content\"
+                    <> Sub
+                      <>
+                        \"No title attribute\"
+                    <> Chapter
+                      title=Should not change
+                      <>
+                        \"Chapter content\"
+                ",
+      expected: "
+                  <> root
+                    <> Sub
+                      title=Overview
+                      <> SubTitle
+                        <>
+                          \"Overview\"
+                      <>
+                        \"Sub content\"
+                    <> Sub
+                      title=Details
+                      <> SubTitle
+                        <>
+                          \"Existing subtitle\"
+                      <>
+                        \"More sub content\"
+                    <> Sub
+                      <>
+                        \"No title attribute\"
+                    <> Chapter
+                      title=Should not change
+                      <>
+                        \"Chapter content\"
+                ",
+    ),
+  ]
 }
 
 pub fn assertive_tests() {
