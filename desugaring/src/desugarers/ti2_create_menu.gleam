@@ -43,11 +43,11 @@ const id_prev_page_attribute = Attribute(b, "id", "prev-page")
 const id_next_page_attribute = Attribute(b, "id", "next-page")
 
 fn an_attribute(key: String, value: String) -> Attribute {
-  Attribute(desugarer_blame(55), key, value)
+  Attribute(desugarer_blame(46), key, value)
 }
 
 fn string_2_text_node(content: String) -> VXML {
-  T(desugarer_blame(59), [TextLine(desugarer_blame(59), content)])
+  T(desugarer_blame(50), [TextLine(desugarer_blame(50), content)])
 }
 
 fn into_list(a: a) -> List(a) {
@@ -94,7 +94,7 @@ fn related_page_2_link(
   |> string_2_text_node
 
   V(
-    desugarer_blame(106),
+    desugarer_blame(97),
     "a",
     [
       href_attribute,
@@ -151,17 +151,17 @@ fn links_2_left_menu(
     None ->
       // this is the index:
       V(
-        desugarer_blame(163),
+        desugarer_blame(154),
         "LeftMenu",
-        an_attribute("class", "menu-biplane-left") |> into_list,
+        an_attribute("class", "menu-left") |> into_list,
         [links.homepage],
       )
     _ ->
       // this is not the index:
       V(
-        desugarer_blame(171),
+        desugarer_blame(162),
         "LeftMenu",
-        an_attribute("class", "menu-biplane-left") |> into_list,
+        an_attribute("class", "menu-left") |> into_list,
         option.values([links.index, links.prev_chap_or_sub]),
       )
   }
@@ -174,49 +174,33 @@ fn links_2_right_menu(
     None ->
       // this is the index:
       V(
-        desugarer_blame(186),
+        desugarer_blame(177),
         "RightMenu",
-        an_attribute("class", "menu-biplane-right") |> into_list,
+        an_attribute("class", "menu-right") |> into_list,
         option.values([links.next_chap_or_sub]),
       )
     _ ->
       // this is not the index:
       V(
-        desugarer_blame(194),
+        desugarer_blame(185),
         "RightMenu",
-        an_attribute("class", "menu-biplane-right") |> into_list,
+        an_attribute("class", "menu-right") |> into_list,
         option.values([Some(links.homepage), links.next_chap_or_sub]),
       )
   }
 }
 
-fn links_2_biplane_menu(
+fn links_2_menu(
   links: FourLinks
 ) -> VXML {
   V(
-    desugarer_blame(206),
+    desugarer_blame(197),
     "Menu",
-    an_attribute("class", "menu menu-biplane") |> into_list,
+    an_attribute("class", "menu") |> into_list,
     [
       links_2_left_menu(links),
       links_2_right_menu(links),
     ]
-  )
-}
-
-fn links_2_horizontal_menu(
-  links: FourLinks
-) -> VXML {
-  V(
-    desugarer_blame(220),
-    "HorizontalMenu",
-    an_attribute("class", "menu menu-horizontal") |> into_list,
-    option.values([
-      links.prev_chap_or_sub,
-      links.index,
-      Some(links.homepage),
-      links.next_chap_or_sub,
-    ])
   )
 }
 
@@ -229,11 +213,8 @@ fn add_menu_to_thing(
 ) -> VXML {
   let links = get_four_links(this, prev, next, homepage_url)
   let links_w_ids = links |> add_ids_to_links
-  let menus = [
-    links_2_biplane_menu(links_w_ids),
-    links_2_horizontal_menu(links),
-  ]
-  infra.v_prepend_children(node, menus)
+  let menu = links_2_menu(links_w_ids)
+  infra.v_prepend_child(node, menu)
 }
 
 fn add_menus_in_subchapters(
