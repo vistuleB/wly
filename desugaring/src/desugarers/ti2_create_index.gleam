@@ -1,6 +1,5 @@
 import gleam/list
 import gleam/option.{Some,None}
-import gleam/result
 import gleam/string.{inspect as ins}
 import gleam/regexp
 import infrastructure.{
@@ -20,83 +19,11 @@ import blame as bl
 import on
 
 // 🌸🌸🌸🌸🌸🌸🌸
-// 🌸 menus~ 🌸
-// 🌸🌸🌸🌸🌸🌸🌸
-
-fn right_menu(document: VXML) -> VXML {
-  let b = desugarer_blame(27)
-
-  let first_chapter_title =
-    document
-    |> infra.v_children_with_tag("Chapter")
-    |> list.first
-    |> result.map(fn(chapter) { infra.v_first_attribute_with_key(chapter, "title") })
-    |> result.map(fn(opt) { option.map(opt, fn(attr) {attr.value})})
-    |> result.map(fn(opt) { option.unwrap(opt, "no title found")})
-    |> result.unwrap("no title found")
-
-  V(
-    b,
-    "RightMenu",
-    [
-      Attribute(b, "class", "menu-right"),
-    ],
-    [
-      V(
-        b,
-        "a",
-        [
-          Attribute(b, "id", "next-page"),
-          Attribute(b, "href", href(1, 0)),
-        ],
-        [
-          T(b, [TextLine(b, "1. " <> first_chapter_title <> " >>")]),
-        ]
-      ),
-    ]
-  )
-}
-
-fn menu(document: VXML) -> VXML {
-  let b = desugarer_blame(61)
-
-  let course_homepage_link =
-    case infra.v_first_attribute_with_key(document, "course_homepage") {
-      None -> "no url for course homepage"
-      Some(x) -> x.value
-    }
-
-  let left_menu =
-    V(
-      b,
-      "LeftMenu",
-      [
-        Attribute(b, "class", "menu-left")
-      ],
-      [
-        V(b, "a", [Attribute(b, "href", course_homepage_link)], [T(b, [TextLine(b, "zür Kursübersicht")])])
-      ]
-    )
-
-  V(
-    b,
-    "nav",
-    [
-      Attribute(b, "class", "menu"),
-    ],
-    [
-      left_menu,
-      right_menu(document),
-    ]
-  )
-}
-
-// 🌸🌸🌸🌸🌸🌸🌸
 // 🌸 header 🌸
 // 🌸🌸🌸🌸🌸🌸🌸
 
 fn header(document: VXML) -> VXML {
-  let b = desugarer_blame(99)
+  let b = desugarer_blame(26)
 
   let title =
     case infra.v_first_attribute_with_key(document, "title") {
@@ -179,7 +106,7 @@ fn extract_title(
   let assert [T(b, [first, ..more]), ..rest] = children
   let assert Ok(re) = regexp.from_string("^(\\d+)(\\.(\\d+)?)?\\s")
   let first = TextLine(
-    desugarer_blame(182),
+    desugarer_blame(109),
     first.content |> regexp.replace(re, _, "")
   )
   Ok([T(b, [first, ..more]), ..rest])
@@ -216,7 +143,7 @@ fn href(chapter_no: Int, sub_no: Int) -> String {
 }
 
 fn subchapter_item(subchapter: SubchapterInfo) -> VXML {
-  let b = desugarer_blame(219)
+  let b = desugarer_blame(146)
   let #(chapter_no, subchapter_no, title) = subchapter
   V(
     b,
@@ -238,7 +165,7 @@ fn subchapter_item(subchapter: SubchapterInfo) -> VXML {
 fn chapter_item(
   chapter: ChapterInfo,
 ) -> VXML {
-  let b = desugarer_blame(241)
+  let b = desugarer_blame(168)
   let #(chapter_no, chapter_title, subchapters) = chapter
   let subchapters_ol = case subchapters {
     [] -> []
@@ -273,7 +200,7 @@ fn chapter_item(
 }
 
 fn chapter_ol(chapters: List(ChapterInfo)) -> VXML {
-  let b = desugarer_blame(276)
+  let b = desugarer_blame(203)
   V(
     b,
     "ol",
@@ -284,16 +211,19 @@ fn chapter_ol(chapters: List(ChapterInfo)) -> VXML {
   )
 }
 
+// 🌸🌸🌸🌸🌸🌸🌸
+// 🌸 main~~ 🌸
+// 🌸🌸🌸🌸🌸🌸🌸
+
 fn index(root: VXML) -> Result(VXML, DesugaringError) {
   use chapter_infos <- on.ok(extract_chapter_infos(root))
   Ok(V(
-    desugarer_blame(290),
+    desugarer_blame(221),
     "Index",
     [
-      Attribute(desugarer_blame(293), "path", "./index.html"),
+      Attribute(desugarer_blame(224), "path", "./index.html"),
     ],
     [
-      menu(root),
       header(root),
       chapter_ol(chapter_infos),
     ],
@@ -342,129 +272,7 @@ pub fn constructor() -> Desugarer {
 // 🌊🌊🌊 tests 🌊🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
 fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
-  [
-    infra.AssertiveTestDataNoParam(
-      source:   "
-                  <> Document
-                    title=Introduction to Computer Science
-                    program=Computer Science
-                    institution=University of Example
-                    lecturer=Dr. Smith
-                    course_homepage=https://example.com/cs101
-                    <> Chapter
-                      title=1. Introduction
-                      <> ChapterTitle
-                        <>
-                          \"1. Introduction\"
-                      <> Sub
-                        <> SubTitle
-                          <>
-                            \"1.1 Overview\"
-                      <> Sub
-                        <> SubTitle
-                          <>
-                            \"1.2 Goals\"
-                    <> Chapter
-                      title=2. Fundamentals
-                      <> ChapterTitle
-                        <>
-                          \"2. Fundamentals\"
-                      <> Sub
-                        <> SubTitle
-                          <>
-                            \"2.1 Basic Concepts\"
-                ",
-      expected: "
-                  <> Document
-                    title=Introduction to Computer Science
-                    program=Computer Science
-                    institution=University of Example
-                    lecturer=Dr. Smith
-                    course_homepage=https://example.com/cs101
-                    <> Index
-                      path=./index.html
-                      <> nav
-                        class=menu
-                        <> LeftMenu
-                          class=menu-left
-                          <> a
-                            href=https://example.com/cs101
-                            <>
-                              \"zür Kursübersicht\"
-                        <> RightMenu
-                          class=menu-right
-                          <> a
-                            id=next-page
-                            href=./1-0.html
-                            <>
-                              \"1. 1. Introduction >>\"
-                      <> header
-                        class=index__header
-                        <> h1
-                          class=index__header__title
-                          <>
-                            \"Introduction to Computer Science\"
-                        <> div
-                          class=index__header__subtitle
-                          <>
-                            \"Computer Science\"
-                          <> br
-                          <>
-                            \"Dr. Smith, University of Example\"
-                      <> ol
-                        class=index__toc
-                        <> li
-                          <> a
-                            href=./1-0.html
-                            <>
-                              \"Introduction\"
-                          <> ol
-                            <> li
-                              <> a
-                                href=./1-1.html
-                                <>
-                                  \"Overview\"
-                            <> li
-                              <> a
-                                href=./1-2.html
-                                <>
-                                  \"Goals\"
-                        <> li
-                          <> a
-                            href=./2-0.html
-                            <>
-                              \"Fundamentals\"
-                          <> ol
-                            <> li
-                              <> a
-                                href=./2-1.html
-                                <>
-                                  \"Basic Concepts\"
-                    <> Chapter
-                      title=1. Introduction
-                      <> ChapterTitle
-                        <>
-                          \"1. Introduction\"
-                      <> Sub
-                        <> SubTitle
-                          <>
-                            \"1.1 Overview\"
-                      <> Sub
-                        <> SubTitle
-                          <>
-                            \"1.2 Goals\"
-                    <> Chapter
-                      title=2. Fundamentals
-                      <> ChapterTitle
-                        <>
-                          \"2. Fundamentals\"
-                      <> Sub
-                        <> SubTitle
-                          <>
-                            \"2.1 Basic Concepts\"
-                ",
-    ),
-  ]
+  []
 }
 
 pub fn assertive_tests() {

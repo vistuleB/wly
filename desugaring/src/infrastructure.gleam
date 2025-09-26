@@ -1714,8 +1714,8 @@ pub fn v_get_tag(vxml: VXML) -> String {
 }
 
 pub fn v_prepend_attribute(vxml: VXML, attr: Attribute) {
-  let assert V(blame, tag, attrs, children) = vxml
-  V(blame, tag, [attr, ..attrs], children)
+  let assert V(_, _, attrs, _) = vxml
+  V(..vxml, attributes: [attr, ..attrs])
 }
 
 pub fn v_prepend_unique_key_attribute(
@@ -1728,9 +1728,19 @@ pub fn v_prepend_unique_key_attribute(
   }
 }
 
-pub fn v_prepend_child(vxml: VXML, child: VXML) {
-  let assert V(blame, tag, attributes, children) = vxml
-  V(blame, tag, attributes, [child, ..children])
+pub fn v_prepend_child(node: VXML, child: VXML) {
+  let assert V(_, _, _, children) = node
+  V(..node, children: [child, ..children])
+}
+
+pub fn v_prepend_children(node: VXML, new: List(VXML)) {
+  let assert V(_, _, _, children) = node
+  V(..node, children: list.append(new, children))
+}
+
+pub fn v_pour_children(node: VXML, new: List(VXML)) {
+  let assert V(_, _, _, children) = node
+  V(..node, children: pour(new, children))
 }
 
 pub fn v_set_attribute(

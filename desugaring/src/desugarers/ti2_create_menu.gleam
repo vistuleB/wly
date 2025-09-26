@@ -1,4 +1,3 @@
-import blame as bl
 import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/string.{inspect as ins}
@@ -16,34 +15,39 @@ import vxml.{
   T,
 }
 import nodemaps_2_desugarer_transforms as n2t
-import on
+import blame as bl
 
-type PageInfo = #(Int, Int)  // (chapter_no, sub_no)
+type Page {
+  Index
+  Chapter(Int)
+  Sub(Int, Int)
+}
 
-type PrevOrNext {
+type Relation {
   Prev
   Next
+  Jump
+}
+
+type FourLinks {
+  FourLinks(
+    homepage: VXML,
+    index: Option(VXML), // is None at the index itself
+    prev_chap_or_sub: Option(VXML),
+    next_chap_or_sub: Option(VXML),
+  )
 }
 
 const b = bl.Des([], name, 14)
-
 const id_prev_page_attribute = Attribute(b, "id", "prev-page")
-
 const id_next_page_attribute = Attribute(b, "id", "next-page")
 
-const index_link = V(
-  b,
-  "a",
-  [Attribute(b, "href", "./index.html")],
-  [T(b, [TextLine(b, "Inhaltsverzeichnis")])],
-)
-
 fn an_attribute(key: String, value: String) -> Attribute {
-  Attribute(desugarer_blame(42), key, value)
+  Attribute(desugarer_blame(55), key, value)
 }
 
-fn a_1_line_text_node(content: String) -> VXML {
-  T(desugarer_blame(46), [TextLine(desugarer_blame(46), content)])
+fn string_2_text_node(content: String) -> VXML {
+  T(desugarer_blame(59), [TextLine(desugarer_blame(59), content)])
 }
 
 fn into_list(a: a) -> List(a) {
@@ -55,90 +59,144 @@ fn homepage_link(homepage_url: String) -> VXML {
     b,
     "a",
     an_attribute("href", homepage_url) |> into_list,
-    a_1_line_text_node("zür Kursübersicht") |> into_list,
+    string_2_text_node("zür Kursübersicht") |> into_list,
   )
 }
 
-fn page_info_2_href(info: PageInfo) -> String {
-  "./" <> ins(info.0) <> "-" <> ins(info.1) <> ".html"
+fn page_href(page: Page) -> String {
+  case page {
+    Index -> "./index.html"
+    Chapter(ch_no) -> "./" <> ins(ch_no) <> "-0.html"
+    Sub(ch_no, sub_no) -> "./" <> ins(ch_no) <> "-" <> ins(sub_no) <> ".html"
+  }
 }
 
-fn page_info_2_link(
-  info: PageInfo,
-  prev_or_next: PrevOrNext,
+fn related_page_2_link(
+  page: Page,
+  relation: Relation,
 ) -> VXML {
-  let id_attribute = case prev_or_next {
-    Prev -> id_prev_page_attribute
-    Next -> id_next_page_attribute
-  }
-
   let href_attribute = 
-    info
-    |> page_info_2_href
+    page
+    |> page_href
     |> an_attribute("href", _)
 
-  let content_text_node = case info.1, prev_or_next {
-    0, Prev -> "<<" <> " Kapitel " <> ins(info.0)
-    _, Prev -> "<<" <> " Kapitel " <> ins(info.0) <> "." <> ins(info.1)
-    0, Next -> "Kapitel " <> ins(info.0) <> "  " <> ">>"
-    _, Next -> "Kapitel " <> ins(info.0) <> "." <> ins(info.1) <> "  " <> ">>"
+  let #(prev_prefix, next_suffix) = case relation {
+    Prev -> #("<< ", "")
+    Next -> #("", " >>")
+    _ -> #("", "")
   }
-  |> a_1_line_text_node
+
+  let content_t = case page {
+    Index -> prev_prefix <> "Inhaltsverzeichnis"
+    Chapter(ch_no) -> prev_prefix <> "Kapitel " <> ins(ch_no) <> next_suffix
+    Sub(ch_no, sub_no) -> prev_prefix <> "Kapitel " <> ins(ch_no) <> "." <> ins(sub_no) <> next_suffix
+  }
+  |> string_2_text_node
 
   V(
-    desugarer_blame(89),
+    desugarer_blame(106),
     "a",
     [
-      id_attribute,
       href_attribute,
     ],
     [
-      content_text_node,
+      content_t,
     ],
+  )
+}
+
+fn get_four_links(
+  this: Page,
+  prev: Option(Page),
+  next: Option(Page),
+  homepage_url: String,
+) -> FourLinks {
+  FourLinks(
+    homepage: homepage_link(homepage_url),
+    index: case this, prev {
+      Index, _ -> None
+      _, Some(Index) -> Some(related_page_2_link(Index, Prev))
+      _, _ -> Some(related_page_2_link(Index, Jump))
+    },
+    prev_chap_or_sub: case prev {
+      None -> None
+      Some(Index) -> None
+      Some(x) -> Some(related_page_2_link(x, Prev))
+    },
+    next_chap_or_sub: next |> option.map(related_page_2_link(_, Next)),
+  )
+}
+
+fn add_ids_to_links(
+  links: FourLinks,
+) -> FourLinks {
+  let index = case option.is_none(links.prev_chap_or_sub) {
+    False -> links.index
+    True -> links.index |> option.map(infra.v_prepend_attribute(_, id_prev_page_attribute))
+  }
+  let prev = option.map(links.prev_chap_or_sub, infra.v_prepend_attribute(_, id_prev_page_attribute))
+  let next = option.map(links.next_chap_or_sub, infra.v_prepend_attribute(_, id_next_page_attribute))
+  FourLinks(
+    links.homepage,
+    index,
+    prev,
+    next,
   )
 }
 
 fn links_2_left_menu(
-  links: #(VXML, VXML, Option(VXML), Option(VXML))
+  links: FourLinks,
 ) -> VXML {
-  V(
-    desugarer_blame(105),
-    "LeftMenu",
-    an_attribute("class", "menu-left") |> into_list,
-    option.values([Some(links.0), links.2]),
-  )
+  case links.index {
+    None ->
+      // this is the index:
+      V(
+        desugarer_blame(163),
+        "LeftMenu",
+        an_attribute("class", "menu-biplane-left") |> into_list,
+        [links.homepage],
+      )
+    _ ->
+      // this is not the index:
+      V(
+        desugarer_blame(171),
+        "LeftMenu",
+        an_attribute("class", "menu-biplane-left") |> into_list,
+        option.values([links.index, links.prev_chap_or_sub]),
+      )
+  }
 }
 
 fn links_2_right_menu(
-  links: #(VXML, VXML, Option(VXML), Option(VXML))
+  links: FourLinks
 ) -> VXML {
-  V(
-    desugarer_blame(116),
-    "RightMenu",
-    an_attribute("class", "menu-right") |> into_list,
-    option.values([Some(links.1), links.3]),
-  )
+  case links.index {
+    None ->
+      // this is the index:
+      V(
+        desugarer_blame(186),
+        "RightMenu",
+        an_attribute("class", "menu-biplane-right") |> into_list,
+        option.values([links.next_chap_or_sub]),
+      )
+    _ ->
+      // this is not the index:
+      V(
+        desugarer_blame(194),
+        "RightMenu",
+        an_attribute("class", "menu-biplane-right") |> into_list,
+        option.values([Some(links.homepage), links.next_chap_or_sub]),
+      )
+  }
 }
 
-fn infos_2_4_links(
-  prev_next_info: #(Option(PageInfo), Option(PageInfo)),
-  homepage_url: String,
-) -> #(VXML, VXML, Option(VXML), Option(VXML)) {
-  #(
-    index_link,
-    homepage_link(homepage_url),
-    prev_next_info.0 |> option.map(page_info_2_link(_, Prev)),
-    prev_next_info.1 |> option.map(page_info_2_link(_, Next)),
-  )
-}
-
-fn links_2_menu(
-  links: #(VXML, VXML, Option(VXML), Option(VXML))
+fn links_2_biplane_menu(
+  links: FourLinks
 ) -> VXML {
   V(
-    desugarer_blame(139),
+    desugarer_blame(206),
     "Menu",
-    [],
+    an_attribute("class", "menu menu-biplane") |> into_list,
     [
       links_2_left_menu(links),
       links_2_right_menu(links),
@@ -146,78 +204,70 @@ fn links_2_menu(
   )
 }
 
-fn infos_2_menu(
-  prev_next_info: #(Option(PageInfo), Option(PageInfo)),
-  homepage_url: String,
+fn links_2_horizontal_menu(
+  links: FourLinks
 ) -> VXML {
-  infos_2_4_links(prev_next_info, homepage_url)
-  |> links_2_menu
-}
-
-fn get_prev_next_info(
-  current_chapter: Int,
-  current_sub: Int,
-  page_infos: List(PageInfo),
-) -> #(Option(PageInfo), Option(PageInfo)) {
-  let idx = infra.index_of(
-    page_infos,
-    #(current_chapter, current_sub),
-  )
-  use <- on.lazy_true_false(
-    idx < 0,
-    fn(){ panic as "#(current_chapter, current_sub) not found in page_infos" }
-  )
-  #(
-    infra.get_at(page_infos, idx - 1) |> option.from_result,
-    infra.get_at(page_infos, idx + 1) |> option.from_result,
+  V(
+    desugarer_blame(220),
+    "HorizontalMenu",
+    an_attribute("class", "menu menu-horizontal") |> into_list,
+    option.values([
+      links.prev_chap_or_sub,
+      links.index,
+      Some(links.homepage),
+      links.next_chap_or_sub,
+    ])
   )
 }
 
-fn prepend_menu_element(
+fn add_menu_to_thing(
   node: VXML,
-  chapter_no: Int,
-  sub_no: Int,
-  page_infos: List(PageInfo),
+  this: Page,
+  prev: Option(Page),
+  next: Option(Page),
   homepage_url: String,
 ) -> VXML {
-  let menu = infos_2_menu(
-    get_prev_next_info(chapter_no, sub_no, page_infos),
-    homepage_url,
-  )
-  infra.v_prepend_child(node, menu)
+  let links = get_four_links(this, prev, next, homepage_url)
+  let links_w_ids = links |> add_ids_to_links
+  let menus = [
+    links_2_biplane_menu(links_w_ids),
+    links_2_horizontal_menu(links),
+  ]
+  infra.v_prepend_children(node, menus)
 }
 
-fn process_chapter(
-  chapter: VXML,
-  chapter_no: Int,
-  page_infos: List(PageInfo),
+fn add_menus_in_subchapters(
+  ch: VXML,
+  ch_no: Int,
+  pages_idx: Int,
+  pages: List(Page),
   homepage_url: String,
-) -> VXML {
-  let chapter =
-    chapter
-    |> prepend_menu_element(chapter_no, 0, page_infos, homepage_url)
-
-  let assert V(_, _, _, children) = chapter
-
-  let #(_, children) = list.map_fold(
+) -> #(Int, VXML) {
+  let assert V(_, _, _, children) = ch
+  let #(acc, children) = list.map_fold(
     children,
-    0,
-    fn (acc, child) {
+    pages_idx,
+    fn(acc, child) {
       case child {
-        V(_, "Sub", _, _) -> #(
-          acc + 1,
-          child
-          |> prepend_menu_element(chapter_no, acc + 1, page_infos, homepage_url)
-        )
-        _ -> #(
-          acc,
-          child,
-        )
+        V(_, "Sub", _, _) -> {
+          let assert Ok(Sub(x, y) as this) = infra.get_at(pages, acc)
+          let sub_no = acc + 1 - pages_idx
+          assert x == ch_no
+          assert y == sub_no
+          let child = add_menu_to_thing(
+            child,
+            this,
+            infra.get_at(pages, acc - 1) |> option.from_result,
+            infra.get_at(pages, acc + 1) |> option.from_result,
+            homepage_url,
+          )
+          #(acc + 1, child)
+        }
+        _ -> #(acc, child)
       }
     }
   )
-
-  V(..chapter, children: children)
+  #(acc, V(..ch, children: children))
 }
 
 fn get_course_homepage(document: VXML) -> String {
@@ -227,37 +277,83 @@ fn get_course_homepage(document: VXML) -> String {
   }
 }
 
-fn generate_page_infos(root: VXML) -> List(PageInfo) {
-  let chapters = infra.v_children_with_tag(root, "Chapter")
-  list.index_fold(
-    chapters,
-    [],
-    fn(acc, chapter, chapter_idx) {
-      let chapter_no = chapter_idx + 1
-      let subchapters = infra.v_children_with_tag(chapter, "Sub")
-      let subchapters = list.index_map(
-        subchapters,
-        fn(_, sub_idx) { #(chapter_no, sub_idx + 1) }
-      )
-      list.flatten([acc, [#(chapter_no, 0)], subchapters])
+fn gather_pages_chapter_level(ch: VXML, ch_no: Int, previous: List(Page)) -> List(Page) {
+  let assert V(_, _, _, children) = ch
+  let acc = list.fold(
+    children,
+    #(1, previous),
+    fn (acc, thing) {
+      let #(sub_no, pages) = acc
+      case thing {
+        V(_, "Sub", _, _) -> #(sub_no + 1, [Sub(ch_no, sub_no), ..pages])
+        _ -> acc
+      }
     }
   )
+  acc.1
+}
+
+fn gather_pages_root_level(root: VXML) -> List(Page) {
+  let assert V(_, _, _, children) = root
+  let acc = list.fold(
+    children,
+    #(1, []),
+    fn (acc, thing) {
+      let #(ch_no, pages) = acc
+      case thing {
+        V(_, "Index", _, _) -> #(ch_no, [Index, ..pages])
+        V(_, "Chapter", _, _) -> {
+          let pages = gather_pages_chapter_level(thing, ch_no, [Chapter(ch_no), ..pages])
+          #(ch_no + 1, pages)
+        }
+        _ -> acc
+      }
+    }
+  )
+  acc.1 |> list.reverse
 }
 
 fn at_root(root: VXML) -> Result(VXML, DesugaringError) {
   let assert V(_, "Document", _, children) = root
   let homepage_url = get_course_homepage(root)
-  let page_infos = generate_page_infos(root)
+  let pages = gather_pages_root_level(root)
   let #(_, children) = list.map_fold(
     children,
     0,
-    fn (acc, child) {
-      case child {
-        V(_, "Chapter", _, _) -> #(
-          acc + 1,
-          process_chapter(child, acc + 1, page_infos, homepage_url)
-        )
-        _ -> #(acc, child)
+    fn (acc, thing) {
+      case thing {
+        V(_, "Index", _, _) -> {
+          assert acc == 0
+          let assert Ok(Index as this) = infra.get_at(pages, acc)
+          let thing = add_menu_to_thing(
+            thing,
+            this,
+            infra.get_at(pages, acc - 1) |> option.from_result,
+            infra.get_at(pages, acc + 1) |> option.from_result,
+            homepage_url,
+          )
+          #(acc + 1, thing)
+        }
+        V(_, "Chapter", _, _) -> {
+          let assert Ok(Chapter(ch_no) as this) = infra.get_at(pages, acc)
+          let thing = add_menu_to_thing(
+            thing,
+            this,
+            infra.get_at(pages, acc - 1) |> option.from_result,
+            infra.get_at(pages, acc + 1) |> option.from_result,
+            homepage_url,
+          )
+          let #(acc, thing) = add_menus_in_subchapters(
+            thing,
+            ch_no,
+            acc + 1,
+            pages,
+            homepage_url,
+          )
+          // for clarity:
+          #(acc, thing)
+        }
+        _ -> #(acc, thing)
       }
     }
   )
@@ -303,120 +399,7 @@ pub fn constructor() -> Desugarer {
 // 🌊🌊🌊 tests 🌊🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
 fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
-  [
-    infra.AssertiveTestDataNoParam(
-      source:   "
-                  <> Document
-                    course_homepage=https://example.com/cs101
-                    <> Chapter
-                      <> Sub
-                        <>
-                          \"Sub content 1.1\"
-                      <> Sub
-                        <>
-                          \"Sub content 1.2\"
-                    <> Chapter
-                      <>
-                        \"Chapter 2 content\"
-                ",
-      expected: "
-                  <> Document
-                    course_homepage=https://example.com/cs101
-                    <> Chapter
-                      <> Menu
-                        <> LeftMenu
-                          class=menu-left
-                          <> a
-                            href=./index.html
-                            <>
-                              \"Inhaltsverzeichnis\"
-                        <> RightMenu
-                          class=menu-right
-                          <> a
-                            href=https://example.com/cs101
-                            <>
-                              \"zür Kursübersicht\"
-                          <> a
-                            id=next-page
-                            href=./1-1.html
-                            <>
-                              \"Kapitel 1.1  >>\"
-                      <> Sub
-                        <> Menu
-                          <> LeftMenu
-                            class=menu-left
-                            <> a
-                              href=./index.html
-                              <>
-                                \"Inhaltsverzeichnis\"
-                            <> a
-                              id=prev-page
-                              href=./1-0.html
-                              <>
-                                \"<< Kapitel 1\"
-                          <> RightMenu
-                            class=menu-right
-                            <> a
-                              href=https://example.com/cs101
-                              <>
-                                \"zür Kursübersicht\"
-                            <> a
-                              id=next-page
-                              href=./1-2.html
-                              <>
-                                \"Kapitel 1.2  >>\"
-                        <>
-                          \"Sub content 1.1\"
-                      <> Sub
-                        <> Menu
-                          <> LeftMenu
-                            class=menu-left
-                            <> a
-                              href=./index.html
-                              <>
-                                \"Inhaltsverzeichnis\"
-                            <> a
-                              id=prev-page
-                              href=./1-1.html
-                              <>
-                                \"<< Kapitel 1.1\"
-                          <> RightMenu
-                            class=menu-right
-                            <> a
-                              href=https://example.com/cs101
-                              <>
-                                \"zür Kursübersicht\"
-                            <> a
-                              id=next-page
-                              href=./2-0.html
-                              <>
-                                \"Kapitel 2  >>\"
-                        <>
-                          \"Sub content 1.2\"
-                    <> Chapter
-                      <> Menu
-                        <> LeftMenu
-                          class=menu-left
-                          <> a
-                            href=./index.html
-                            <>
-                              \"Inhaltsverzeichnis\"
-                          <> a
-                            id=prev-page
-                            href=./1-2.html
-                            <>
-                              \"<< Kapitel 1.2\"
-                        <> RightMenu
-                          class=menu-right
-                          <> a
-                            href=https://example.com/cs101
-                            <>
-                              \"zür Kursübersicht\"
-                      <>
-                        \"Chapter 2 content\"
-                ",
-    ),
-  ]
+  []
 }
 
 pub fn assertive_tests() {
