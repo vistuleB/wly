@@ -404,12 +404,11 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
                           class=index__header__title
                           <>
                             \"Introduction to Computer Science\"
-                        <> span
+                        <> div
                           class=index__header__subtitle
                           <>
                             \"Computer Science\"
-                        <> span
-                          class=index__header__subtitle
+                          <> br
                           <>
                             \"Dr. Smith, University of Example\"
                       <> ol

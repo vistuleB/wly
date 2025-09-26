@@ -327,7 +327,6 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
                         <> LeftMenu
                           class=menu-left
                           <> a
-                            id=prev-page
                             href=./index.html
                             <>
                               \"Inhaltsverzeichnis\"
