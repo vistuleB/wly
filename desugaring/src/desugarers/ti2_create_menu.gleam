@@ -87,11 +87,23 @@ fn related_page_2_link(
   }
 
   let content_t = case page {
-    Index -> prev_prefix <> "Inhaltsverzeichnis"
+    Index -> "Inhaltsverzeichnis"
     Chapter(ch_no) -> prev_prefix <> "Kapitel " <> ins(ch_no) <> next_suffix
     Sub(ch_no, sub_no) -> prev_prefix <> "Kapitel " <> ins(ch_no) <> "." <> ins(sub_no) <> next_suffix
   }
   |> string_2_text_node
+
+  let span = case page, relation {
+    Index, Prev -> Some(
+      V(
+        desugarer_blame(99),
+        "span",
+        an_attribute("class", "inhalts_arrows") |> into_list, 
+        "<< " |> string_2_text_node |> into_list,
+      )
+    )
+    _, _ -> None
+  }
 
   V(
     desugarer_blame(97),
@@ -100,8 +112,9 @@ fn related_page_2_link(
       href_attribute,
     ],
     [
-      content_t,
-    ],
+      span,
+      Some(content_t),
+    ] |> option.values
   )
 }
 
@@ -196,7 +209,7 @@ fn links_2_menu(
   V(
     desugarer_blame(197),
     "Menu",
-    an_attribute("class", "menu") |> into_list,
+    an_attribute("id", "menu") |> into_list,
     [
       links_2_left_menu(links),
       links_2_right_menu(links),
