@@ -99,10 +99,14 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
                       title=Introduction
                       <>
                         \"Chapter content\"
+                      <> Chapter
+                        title=Should not change
                     <> Chapter
                       title=Advanced Topics
                       <>
                         \"More content\"
+                      <> Chapter
+                        title=Should not change
                     <> OtherElement
                       <>
                         \"Should not change\"
@@ -114,28 +118,32 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
                       title=Introduction
                       <>
                         \"Chapter content\"
+                      <> Chapter
+                        title=Should not change
                     <> Chapter
                       _=ChapterCounter ::++ChapterCounter
                       title=Advanced Topics
                       <>
                         \"More content\"
+                      <> Chapter
+                        title=Should not change
                     <> OtherElement
                       <>
                         \"Should not change\"
                 ",
     ),
     infra.AssertiveTestData(
-      param: #("Sub", "SubCounter", GoBack),
+      param: #("Sub", "SubCounter", Continue),
       source:   "
                   <> root
                     <> Sub
                       title=Overview
                       <>
                         \"Sub content\"
-                    <> Sub
-                      title=Details
-                      <>
-                        \"More sub content\"
+                      <> Sub
+                        title=Details
+                        <>
+                          \"More sub content\"
                     <> Chapter
                       title=Should not change
                       <>
@@ -148,11 +156,11 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
                       title=Overview
                       <>
                         \"Sub content\"
-                    <> Sub
-                      _=SubCounter ::++SubCounter
-                      title=Details
-                      <>
-                        \"More sub content\"
+                      <> Sub
+                        _=SubCounter ::++SubCounter
+                        title=Details
+                        <>
+                          \"More sub content\"
                     <> Chapter
                       title=Should not change
                       <>
