@@ -1743,6 +1743,11 @@ pub fn v_pour_children(node: VXML, new: List(VXML)) {
   V(..node, children: pour(new, children))
 }
 
+pub fn v_append_child(node: VXML, child: VXML) {
+  let assert V(_, _, _, children) = node
+  V(..node, children: list.append(children, [child]))
+}
+
 pub fn v_set_attribute(
   vxml: VXML,
   blame: Blame,
