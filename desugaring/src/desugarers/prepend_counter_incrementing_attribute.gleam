@@ -7,6 +7,7 @@ import infrastructure.{
   type TrafficLight,
   Desugarer,
   Continue,
+  GoBack,
 } as infra
 import nodemaps_2_desugarer_transforms as n2t
 import vxml.{
@@ -22,7 +23,7 @@ fn nodemap(
   inner: InnerParam,
 ) -> #(VXML, TrafficLight) {
   case vxml {
-    V(_, tag, attrs, _) if tag == inner.0 -> 
+    V(_, tag, attrs, _) if tag == inner.0 ->
       #(V(..vxml, attributes: [inner.1, ..attrs]), inner.2)
     _ -> #(vxml, Continue)
   }
@@ -39,7 +40,7 @@ fn transform_factory(inner: InnerParam) -> DesugarerTransform {
 
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
   #(
-    param.0, 
+    param.0,
     Attribute(desugarer_blame(43), "_", param.1 <> " ::++" <> param.1),
     param.2,
   )
@@ -58,17 +59,17 @@ pub const name = "prepend_counter_incrementing_attribute"
 // 🏖️🏖️ Desugarer 🏖️🏖️
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 //------------------------------------------------53
-/// For each #(tag, counter_name, traffic_light) 
-/// tuple in the parameter list, this desugarer adds 
+/// For each #(tag, counter_name, traffic_light)
+/// tuple in the parameter list, this desugarer adds
 /// an attribute of the form
 /// ```
-/// .=counter_name ::++counter_name
+/// _=counter_name ::++counter_name
 /// ```
-/// to each node of tag 'tag', where the key is a 
-/// period '.' and the value is the string 
+/// to each node of tag 'tag', where the key is a
+/// period '.' and the value is the string
 /// '<counter_name> ::++<counter_name>'. As counters
-/// are evaluated and substitued also inside of 
-/// key-value pairs, adding this key-value pair 
+/// are evaluated and substitued also inside of
+/// key-value pairs, adding this key-value pair
 /// causes the counter <counter_name> to increment at
 /// each occurrence of a node of tag 'tag'.
 pub fn constructor(
@@ -89,7 +90,109 @@ pub fn constructor(
 // 🌊🌊🌊 tests 🌊🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
 fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
-  []
+  [
+    infra.AssertiveTestData(
+      param: #("Chapter", "ChapterCounter", GoBack),
+      source:   "
+                  <> root
+                    <> Chapter
+                      title=Introduction
+                      <>
+                        \"Chapter content\"
+                    <> Chapter
+                      title=Advanced Topics
+                      <>
+                        \"More content\"
+                    <> OtherElement
+                      <>
+                        \"Should not change\"
+                ",
+      expected: "
+                  <> root
+                    <> Chapter
+                      _=ChapterCounter ::++ChapterCounter
+                      title=Introduction
+                      <>
+                        \"Chapter content\"
+                    <> Chapter
+                      _=ChapterCounter ::++ChapterCounter
+                      title=Advanced Topics
+                      <>
+                        \"More content\"
+                    <> OtherElement
+                      <>
+                        \"Should not change\"
+                ",
+    ),
+    infra.AssertiveTestData(
+      param: #("Sub", "SubCounter", GoBack),
+      source:   "
+                  <> root
+                    <> Sub
+                      title=Overview
+                      <>
+                        \"Sub content\"
+                    <> Sub
+                      title=Details
+                      <>
+                        \"More sub content\"
+                    <> Chapter
+                      title=Should not change
+                      <>
+                        \"Chapter content\"
+                ",
+      expected: "
+                  <> root
+                    <> Sub
+                      _=SubCounter ::++SubCounter
+                      title=Overview
+                      <>
+                        \"Sub content\"
+                    <> Sub
+                      _=SubCounter ::++SubCounter
+                      title=Details
+                      <>
+                        \"More sub content\"
+                    <> Chapter
+                      title=Should not change
+                      <>
+                        \"Chapter content\"
+                ",
+    ),
+    infra.AssertiveTestData(
+      param: #("Exercise", "ExerciseCounter", Continue),
+      source:   "
+                  <> root
+                    <> Exercise
+                      number=1
+                      <> Exercise
+                        number=nested
+                        <>
+                          \"Nested exercise\"
+                      <>
+                        \"Exercise content\"
+                    <> Section
+                      <>
+                        \"Section content\"
+                ",
+      expected: "
+                  <> root
+                    <> Exercise
+                      _=ExerciseCounter ::++ExerciseCounter
+                      number=1
+                      <> Exercise
+                        _=ExerciseCounter ::++ExerciseCounter
+                        number=nested
+                        <>
+                          \"Nested exercise\"
+                      <>
+                        \"Exercise content\"
+                    <> Section
+                      <>
+                        \"Section content\"
+                ",
+    ),
+  ]
 }
 
 pub fn assertive_tests() {
