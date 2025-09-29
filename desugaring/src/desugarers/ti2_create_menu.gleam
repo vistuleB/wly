@@ -106,7 +106,7 @@ fn related_page_2_link(
   }
 
   V(
-    desugarer_blame(97),
+    desugarer_blame(109),
     "a",
     [
       href_attribute,
@@ -164,7 +164,7 @@ fn links_2_left_menu(
     None ->
       // this is the index:
       V(
-        desugarer_blame(154),
+        desugarer_blame(167),
         "LeftMenu",
         an_attribute("class", "menu-left") |> into_list,
         [links.homepage],
@@ -172,7 +172,7 @@ fn links_2_left_menu(
     _ ->
       // this is not the index:
       V(
-        desugarer_blame(162),
+        desugarer_blame(175),
         "LeftMenu",
         an_attribute("class", "menu-left") |> into_list,
         option.values([links.index, links.prev_chap_or_sub]),
@@ -187,7 +187,7 @@ fn links_2_right_menu(
     None ->
       // this is the index:
       V(
-        desugarer_blame(177),
+        desugarer_blame(190),
         "RightMenu",
         an_attribute("class", "menu-right") |> into_list,
         option.values([links.next_chap_or_sub]),
@@ -195,7 +195,7 @@ fn links_2_right_menu(
     _ ->
       // this is not the index:
       V(
-        desugarer_blame(185),
+        desugarer_blame(198),
         "RightMenu",
         an_attribute("class", "menu-right") |> into_list,
         option.values([Some(links.homepage), links.next_chap_or_sub]),
@@ -207,7 +207,7 @@ fn links_2_menu(
   links: FourLinks
 ) -> VXML {
   V(
-    desugarer_blame(197),
+    desugarer_blame(210),
     "Menu",
     an_attribute("id", "menu") |> into_list,
     [

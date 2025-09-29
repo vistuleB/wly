@@ -15,22 +15,22 @@ fn nodemap(
       case children {
         [] -> {
           // get all src attributes
-          let src_attrs = list.filter(attrs, fn(attr) { attr.key == "src" })
+          let #(src_attrs, attrs) = list.partition(attrs, fn(attr) { attr.key == "src" })
 
           // get width and height attributes if they exist
-          let img_width_attr = list.filter(attrs, fn(attr) { attr.key == "width" })
-          let img_height_attr = list.filter(attrs, fn(attr) { attr.key == "height" })
+          let #(img_width_attr, attrs) = list.partition(attrs, fn(attr) { attr.key == "width" })
+          let #(img_height_attr, attrs) = list.partition(attrs, fn(attr) { attr.key == "height" })
 
           // validate only one img width attribute
           use <- on.true_false(
             list.length(img_width_attr) > 1,
-            Error (DesugaringError(blame, "Carousel should have only one width attribute"))
+            Error(DesugaringError(blame, "Carousel should have only one width attribute"))
           )
 
           // validate only one img height attribute
           use <- on.true_false(
             list.length(img_height_attr) > 1,
-            Error (DesugaringError(blame, "Carousel should have only one height attribute"))
+            Error(DesugaringError(blame, "Carousel should have only one height attribute"))
           )
 
           // create CarouselItem children with img tags
@@ -55,7 +55,7 @@ fn nodemap(
             V(blame, "CarouselItem", [], [img])
           })
 
-          Ok(V(blame, "Carousel", [], carousel_items))
+          Ok(V(blame, "Carousel", attrs, carousel_items))
         }
 
         _ -> {
