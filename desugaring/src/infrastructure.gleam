@@ -10,7 +10,23 @@ import gleam/option.{type Option, None, Some}
 import gleam/result
 import gleam/string.{inspect as ins}
 import vxml.{type Attribute, Attribute, type TextLine, type VXML, TextLine, T, V}
+import splitter
 import on
+
+type Return(a, b) {
+  Return(a)
+  Keep(b)
+}
+
+fn on_keep(
+  thing: Return(a, b),
+  on_keep f2: fn(b) -> a,
+) -> a {
+  case thing {
+    Return(a) -> a
+    Keep(b) -> f2(b)
+  }
+}
 
 // ************************************************************
 // Traffic Light for early returns
@@ -504,7 +520,7 @@ pub fn append_to_list_pair_as_dict_accumulator(
   }
 }
 
-pub fn append_to_list_pair_as_dict(
+pub fn insert_in_list_pair_as_dict(
   list_pairs: List(#(a, b)),
   item: #(a, b)
 ) -> List(#(a, b)) {
@@ -740,15 +756,6 @@ pub fn find_replace_if_t__batch(
     T(_, _) -> t_find_replace__batch(node, pairs)
     _ -> node
   }
-}
-
-// ************************************************************
-// Blame
-// ************************************************************
-
-pub fn assert_get_first_blame(vxmls: List(VXML)) -> Blame {
-  let assert [first, ..] = vxmls
-  first.blame
 }
 
 // ************************************************************
@@ -1174,7 +1181,7 @@ pub fn line_wrap_rearrangement(
 }
 
 // ************************************************************
-// line last_to_first concatenation
+// last_to_first concatenation
 // ************************************************************
 
 fn lines_last_to_first_concatenation_where_first_lines_are_already_reversed(
@@ -1258,6 +1265,10 @@ fn last_to_first_concatenation_internal(
 pub fn last_to_first_concatenation(vxmls: List(VXML)) -> List(VXML) {
   last_to_first_concatenation_internal(vxmls, [], None)
 }
+
+// ************************************************************
+// plain concatenation
+// ************************************************************
 
 fn nonempty_list_t_plain_concatenation(nodes: List(VXML)) -> VXML {
   let assert [first, ..] = nodes
@@ -1893,6 +1904,71 @@ pub fn v_assert_pop_attribute_value(vxml: VXML, key: String) -> #(VXML, String) 
   #(vxml, value)
 }
 
+pub fn v_has_class(vxml: VXML, class: String) -> Bool {
+  let assert V(_, _, attrs, _) = vxml
+  attributes_have_class(attrs, class)
+}
+
+fn make_split_while(
+  s: splitter.Splitter,
+  suffix: String,
+) -> #(String, List(#(String, String))) {
+  let #(before, q, after) = splitter.split(s, suffix)
+  use _ <- on_keep(case q {
+    "" -> Return(#(before, []))
+    _ -> Keep(Nil)
+  })
+  let #(u, others) = make_split_while(s, after)
+  #(before, [#(q, u), ..others])
+}
+
+pub type EmmetError {
+  EmptyTag
+  InvalidTag
+  InvalidKey
+}
+
+pub fn expand_selector_shorthand(shorthand: String) -> Result(VXML, EmmetError) {
+  let s = splitter.new([".", "#", "&"])
+  let #(tag, mods) = make_split_while(s, shorthand)
+  let blame = bl.Ext([], "expand_selector_shorthand")
+
+  use _ <- on_keep(case tag == "" {
+    True -> Return(Error(EmptyTag))
+    False -> Keep(Nil)
+  })
+
+  use <- on.lazy_false_true(
+    valid_tag(tag),
+    fn() { Error(InvalidTag) },
+  )
+
+  let mod_2_attribute = fn(mod: #(String, String)) -> Attribute {
+    case mod.0 {
+      "." -> Attribute(blame, "class", mod.1)
+      "#" -> Attribute(blame, "id", mod.1)
+      "&" -> case string.split_once(mod.1, "=") {
+        Ok(#(bef, aft)) -> Attribute(blame, bef, aft)
+        _ -> Attribute(blame, mod.1, "")
+      }
+      _ -> panic as "some bug"
+    }
+  }
+
+  let attrs =
+    list.map(mods, mod_2_attribute)
+    |> aggregate_attributes
+
+
+  V(
+    blame,
+    tag,
+    attrs,
+    [],
+  )
+  |> Ok
+}
+
 // ************************************************************
 // attributes
 // ************************************************************
@@ -1969,27 +2045,6 @@ pub fn substitute_in_attributes(
     }
   )
 }
-
-// pub fn attributes_set_first_or_append_acc(
-//   previous: List(Attribute),
-//   new: Attribute,
-//   remaining: List(Attribute),
-// ) -> List(Attribute) {
-//   case remaining {
-//     [] -> [new, ..previous] |> list.reverse
-//     [first, ..rest] -> case first.key == new.key {
-//       True -> pour([new, ..previous], rest)
-//       False -> attributes_set_first_or_append_acc([first, ..previous], new, rest)
-//     }
-//   }
-// }
-
-// pub fn attributes_set_first_or_append(
-//   attrs: List(Attribute),
-//   new: Attribute,
-// ) -> List(Attribute) {
-//   attributes_set_first_or_append_acc([], new, attrs)
-// }
 
 pub fn attributes_set(
   attrs: List(Attribute),
@@ -2114,6 +2169,13 @@ pub fn has_text_child(node: VXML) {
   }
 }
 
+pub fn is_v_and_has_class(vxml: VXML, class: String) -> Bool {
+  case vxml {
+    T(_, _) -> False
+    _ -> v_has_class(vxml, class)
+  }
+}
+
 // ************************************************************
 // class
 // ************************************************************
@@ -2128,33 +2190,30 @@ pub fn remove_class(
   |> string.join(" ")
 }
 
-pub fn v_has_class(vxml: VXML, class: String) -> Bool {
-  let assert V(_, _, attrs, _) = vxml
-  attributes_have_class(attrs, class)
-}
-
-pub fn is_v_and_has_class(vxml: VXML, class: String) -> Bool {
-  case vxml {
-    T(_, _) -> False
-    _ -> v_has_class(vxml, class)
-  }
-}
-
 pub fn assert_split_style(style: String) -> List(#(String, String)) {
   style
   |> string.split(";")
   |> list.map(fn(s) {
-    let assert Ok(#(key, val)) = string.split_once(s, ":")
-    #(string.trim(key), string.trim(val))
+    case string.split_once(s, ":") {
+      Ok(#(key, val)) -> Some(#(string.trim(key), string.trim(val)))
+      _ -> {
+        assert string.trim(s) == ""
+        None
+      }
+    }
   })
+  |> option.values
 }
 
-pub fn insert_styles(a: String, b: String) -> String {
+pub fn concatenate_styles(a: String, b: String) -> String {
+  // *
+  // styles of b overwrite styles of a
+  // *
   let all_a = a |> assert_split_style
   list.fold(
     b |> assert_split_style,
     all_a,
-    append_to_list_pair_as_dict
+    insert_in_list_pair_as_dict
   )
   |> list.map(fn(kv) { kv.0 <> ":" <> kv.1 })
   |> string.join(";")
@@ -2166,7 +2225,7 @@ pub fn attributes_set_styles(attrs: List(Attribute), blame: Blame, styles: Strin
     #(-1, Attribute(blame, "", "")),
     fn (acc, attr, i) {
       case acc.0, attr.key {
-        -1, "style" -> #(i, Attribute(..attr, value: insert_styles(attr.value, styles)))
+        -1, "style" -> #(i, Attribute(..attr, value: concatenate_styles(attr.value, styles)))
         _, _ -> acc
       }
     }
@@ -2265,6 +2324,64 @@ pub fn supplement_in_class_attribute(
       }
     }
   )
+}
+
+pub fn aggregate_attributes(
+  attrs: List(Attribute),
+) -> List(Attribute) {
+  let acc = list.fold(
+    attrs,
+    #(None, None, None, []),
+    fn (acc, attr) {
+      case attr.key {
+        "id" -> case acc.0 {
+          None -> #(
+            Some(attr),
+            acc.1,
+            acc.2,
+            acc.3,
+          )
+          Some(_) -> panic as "two 'id' keys"
+        }
+        "class" -> case acc.1 {
+          None -> #(
+            acc.0,
+            Some(attr),
+            acc.2,
+            acc.3,
+          )
+          Some(guy) -> #(
+            acc.0,
+            Some(Attribute(..guy, value: concatenate_classes(guy.value, attr.value))),
+            acc.2,
+            acc.3,
+          )
+        }
+        "style" -> case acc.2 {
+          None -> #(
+            acc.0,
+            acc.1,
+            Some(attr),
+            acc.3,
+          )
+          Some(guy) -> #(
+            acc.0,
+            acc.1,
+            Some(Attribute(..guy, value: concatenate_styles(guy.value, attr.value))),
+            acc.3,
+          )
+        }
+        _ -> #(acc.0, acc.1, acc.2, [attr, ..acc.3])
+      }
+    }
+  )
+  [
+    acc.2,
+    acc.1,
+    acc.0,
+  ]
+  |> option.values
+  |> pour(acc.3 |> list.reverse)
 }
 
 // ************************************************************
