@@ -97,6 +97,7 @@ import desugarers/insert_ii2_counter_commands
 import desugarers/insert_line_start_end
 import desugarers/insert_text_start_end
 import desugarers/insert_text_start_end_if_else
+import desugarers/insert_text_start_end_if_unique_attr
 import desugarers/keep_only_subtrees_and_ancestors_of_nodes_matching_a_key_value_pair
 import desugarers/last_to_first_concatenate_text_nodes
 import desugarers/line_rewrap_no1__outside
@@ -295,6 +296,7 @@ pub const insert_ii2_counter_commands = insert_ii2_counter_commands.constructor
 pub const insert_line_start_end = insert_line_start_end.constructor
 pub const insert_text_start_end = insert_text_start_end.constructor
 pub const insert_text_start_end_if_else = insert_text_start_end_if_else.constructor
+pub const insert_text_start_end_if_unique_attr = insert_text_start_end_if_unique_attr.constructor
 pub const keep_only_subtrees_and_ancestors_of_nodes_matching_a_key_value_pair = keep_only_subtrees_and_ancestors_of_nodes_matching_a_key_value_pair.constructor
 pub const last_to_first_concatenate_text_nodes = last_to_first_concatenate_text_nodes.constructor
 pub const line_rewrap_no1__outside = line_rewrap_no1__outside.constructor
@@ -494,6 +496,7 @@ pub const assertive_tests : List(fn() -> infra.AssertiveTestCollection) = [
   insert_line_start_end.assertive_tests,
   insert_text_start_end.assertive_tests,
   insert_text_start_end_if_else.assertive_tests,
+  insert_text_start_end_if_unique_attr.assertive_tests,
   keep_only_subtrees_and_ancestors_of_nodes_matching_a_key_value_pair.assertive_tests,
   last_to_first_concatenate_text_nodes.assertive_tests,
   line_rewrap_no1__outside.assertive_tests,

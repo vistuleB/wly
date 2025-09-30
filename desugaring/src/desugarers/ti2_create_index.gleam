@@ -106,7 +106,7 @@ fn extract_title(
   let assert V(_, _, _, children) = title_element
   let assert [T(b, [first, ..more]), ..rest] = children
   let first = TextLine(
-    desugarer_blame(109),
+    desugarer_blame(110),
     first.content |> regexp.replace(re, _, "")
   )
   Ok([T(b, [first, ..more]), ..rest])
@@ -142,8 +142,10 @@ fn extract_chapter_info(
   Ok(#(index + 1, title, infos))
 }
 
-fn extract_chapter_infos(root: VXML) -> Result(List(ChapterInfo), DesugaringError) {
-  let assert Ok(re) = regexp.from_string("^(\\d+)(\\.(\\d+)?)?\\s")
+fn extract_chapter_infos(
+  root: VXML,
+  re: Regexp,
+) -> Result(List(ChapterInfo), DesugaringError) {
   root
   |> infra.v_children_with_tag("Chapter")
   |> infra.index_try_map(
@@ -156,7 +158,7 @@ fn href(chapter_no: Int, sub_no: Int) -> String {
 }
 
 fn subchapter_item(subchapter: SubchapterInfo) -> VXML {
-  let b = desugarer_blame(146)
+  let b = desugarer_blame(160)
   let #(chapter_no, subchapter_no, title) = subchapter
   V(
     b,
@@ -178,7 +180,7 @@ fn subchapter_item(subchapter: SubchapterInfo) -> VXML {
 fn chapter_item(
   chapter: ChapterInfo,
 ) -> VXML {
-  let b = desugarer_blame(168)
+  let b = desugarer_blame(182)
   let #(chapter_no, chapter_title, subchapters) = chapter
   let subchapters_ol = case subchapters {
     [] -> []
@@ -213,7 +215,7 @@ fn chapter_item(
 }
 
 fn chapter_ol(chapters: List(ChapterInfo)) -> VXML {
-  let b = desugarer_blame(203)
+  let b = desugarer_blame(217)
   V(
     b,
     "ol",
@@ -229,12 +231,13 @@ fn chapter_ol(chapters: List(ChapterInfo)) -> VXML {
 // 🌸🌸🌸🌸🌸🌸🌸
 
 fn index(root: VXML) -> Result(VXML, DesugaringError) {
-  use chapter_infos <- on.ok(extract_chapter_infos(root))
+  let assert Ok(re) = regexp.from_string("^(\\d+)(\\.(\\d+)?)?\\s")
+  use chapter_infos <- on.ok(extract_chapter_infos(root, re))
   Ok(V(
-    desugarer_blame(221),
+    desugarer_blame(236),
     "Index",
     [
-      Attribute(desugarer_blame(224), "path", "./index.html"),
+      Attribute(desugarer_blame(239), "path", "./index.html"),
     ],
     [
       header(root),

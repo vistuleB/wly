@@ -8,7 +8,6 @@ import infrastructure.{
   DesugaringError,
   Desugarer,
   Continue,
-  GoBack,
 } as infra
 import nodemaps_2_desugarer_transforms as n2t
 import vxml.{type VXML, V}
@@ -24,8 +23,8 @@ fn nodemap(
         Ok(None) -> Ok(#(vxml, Continue))
         Ok(Some(x)) -> Ok(
           #(
-            vxml |> infra.v_start_insert_text(x.value),
-            GoBack,
+            vxml |> infra.v_start_insert_text(x.value <> inner.2),
+            inner.3,
           )
         )
       }
@@ -47,10 +46,10 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
   Ok(param)
 }
 
-type Param = #(String, String,    TrafficLight)
-//             ↖       ↖          ↖
-//             tag     key        return early or not
-//                     at start   
+type Param = #(String,  String,    String,     TrafficLight)
+//             ↖        ↖          ↖           ↖
+//             tag      key        connector   return early or not
+//                                 string
 type InnerParam = Param
 
 pub const name = "insert_attribute_value_at_start"
