@@ -15,6 +15,22 @@ import desugarer_library as dl
 import vxml
 import on
 
+fn first_different_line(
+  c: Int,
+  l1: List(String),
+  l2: List(String),
+) -> #(Int, String, String) {
+  case l1, l2 {
+    [], [] -> panic
+    [], [l2_first, ..] -> #(c, "--", l2_first)
+    [l1_first, ..], [] -> #(c, l1_first, "--")
+    [l1_first, ..l1], [l2_first, ..l2] -> case l1_first != l2_first {
+      True -> #(c, l1_first, l2_first)
+      False -> first_different_line(c + 1, l1, l2)
+    }
+  }
+}
+
 pub fn run_assertive_test(name: String, tst: AssertiveTest) -> Result(Nil, AssertiveTestError) {
   let desugarer = tst.constructor()
   use <- on.true_false(
@@ -29,13 +45,16 @@ pub fn run_assertive_test(name: String, tst: AssertiveTest) -> Result(Nil, Asser
     desugarer.transform(input)
     |> result.map_error(fn(e) { TestDesugaringError(e) })
   )
-  case vxml.vxml_to_string(output) == vxml.vxml_to_string(expected) {
+  let output_string = vxml.vxml_to_string(output)
+  let expected_string = vxml.vxml_to_string(expected)
+  case output_string == expected_string {
     True -> Ok(Nil)
     False -> Error(
       AssertiveTestError(
         desugarer.name,
         output,
         expected,
+        first_different_line(0, output_string |> string.split("\n"), expected_string |> string.split("\n"))
       )
     )
   }
@@ -55,10 +74,11 @@ pub fn run_and_announce_results(
     Error(error) -> {
       io.print("\n❌ test " <> ins(number) <> " of " <> ins(total) <> " failed:")
       case error {
-        AssertiveTestError(_, obtained, expected) -> {
+        AssertiveTestError(_, obtained, expected, first_different) -> {
           io.println(" obtained != expected:")
           vxml.echo_vxml(obtained, "obtained")
           vxml.echo_vxml(expected, "expected")
+          io.println(ins(first_different))
           Nil
         }
         _ -> io.println(ins(error))

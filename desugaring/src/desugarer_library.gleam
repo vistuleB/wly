@@ -48,6 +48,7 @@ import desugarers/cut_paste_attribute_from_first_child_to_self
 import desugarers/cut_paste_attribute_from_self_to_child
 import desugarers/cut_paste_attribute_from_self_to_child__outside
 import desugarers/delete
+import desugarers/delete__batch
 import desugarers/delete_attribute
 import desugarers/delete_attribute__batch
 import desugarers/delete_attribute_of__batch
@@ -161,6 +162,7 @@ import desugarers/ti2_backfill
 import desugarers/ti2_code_block_to_pre
 import desugarers/ti2_create_index
 import desugarers/ti2_create_menu
+import desugarers/ti2_create_menu_new_version
 import desugarers/ti2_expand_carousels
 import desugarers/ti2_parse_arbitrary_prompt_response_pre
 import desugarers/ti2_parse_orange_comments_pre
@@ -247,6 +249,7 @@ pub const cut_paste_attribute_from_first_child_to_self = cut_paste_attribute_fro
 pub const cut_paste_attribute_from_self_to_child = cut_paste_attribute_from_self_to_child.constructor
 pub const cut_paste_attribute_from_self_to_child__outside = cut_paste_attribute_from_self_to_child__outside.constructor
 pub const delete = delete.constructor
+pub const delete__batch = delete__batch.constructor
 pub const delete_attribute = delete_attribute.constructor
 pub const delete_attribute__batch = delete_attribute__batch.constructor
 pub const delete_attribute_of__batch = delete_attribute_of__batch.constructor
@@ -360,6 +363,7 @@ pub const ti2_backfill = ti2_backfill.constructor
 pub const ti2_code_block_to_pre = ti2_code_block_to_pre.constructor
 pub const ti2_create_index = ti2_create_index.constructor
 pub const ti2_create_menu = ti2_create_menu.constructor
+pub const ti2_create_menu_new_version = ti2_create_menu_new_version.constructor
 pub const ti2_expand_carousels = ti2_expand_carousels.constructor
 pub const ti2_parse_arbitrary_prompt_response_pre = ti2_parse_arbitrary_prompt_response_pre.constructor
 pub const ti2_parse_orange_comments_pre = ti2_parse_orange_comments_pre.constructor
@@ -447,6 +451,7 @@ pub const assertive_tests : List(fn() -> infra.AssertiveTestCollection) = [
   cut_paste_attribute_from_self_to_child.assertive_tests,
   cut_paste_attribute_from_self_to_child__outside.assertive_tests,
   delete.assertive_tests,
+  delete__batch.assertive_tests,
   delete_attribute.assertive_tests,
   delete_attribute__batch.assertive_tests,
   delete_attribute_of__batch.assertive_tests,
@@ -560,6 +565,7 @@ pub const assertive_tests : List(fn() -> infra.AssertiveTestCollection) = [
   ti2_code_block_to_pre.assertive_tests,
   ti2_create_index.assertive_tests,
   ti2_create_menu.assertive_tests,
+  ti2_create_menu_new_version.assertive_tests,
   ti2_expand_carousels.assertive_tests,
   ti2_parse_arbitrary_prompt_response_pre.assertive_tests,
   ti2_parse_orange_comments_pre.assertive_tests,

@@ -1857,6 +1857,22 @@ pub fn v_unique_child(
   }
 }
 
+pub fn first_in_list(
+  nodes: List(VXML),
+  tag: String,
+) -> Option(VXML) {
+  case nodes {
+    [V(_, t, _, _) as first, ..] if t == tag -> Some(first)
+    [_, ..rest] -> first_in_list(rest, tag)
+    [] -> None
+  }
+}
+
+pub fn v_first_child_with_tag(vxml: VXML, tag: String) -> Option(VXML) {
+  let assert V(_, _, _, children) = vxml
+  first_in_list(children, tag)
+}
+
 pub fn v_replace_children_with(node: VXML, children: List(VXML)) {
   case node {
     V(b, t, a, _) -> V(b, t, a, children)
@@ -2577,10 +2593,12 @@ pub type AssertiveTestDataWithOutside(a) {
   )
 }
 
+pub type FirstDifferentLine = #(Int, String, String)
+
 pub type AssertiveTestError {
   VXMLParseError(vxml.VXMLParseError)
   TestDesugaringError(DesugaringError)
-  AssertiveTestError(name: String, output: VXML, expected: VXML)
+  AssertiveTestError(name: String, output: VXML, expected: VXML, where: FirstDifferentLine)
   NonMatchingDesugarerName(String)
 }
 

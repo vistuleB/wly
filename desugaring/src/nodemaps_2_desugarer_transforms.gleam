@@ -1389,7 +1389,7 @@ pub type EarlyReturnOneToOneNodeMap =
   fn(VXML) -> Result(#(VXML, TrafficLight), DesugaringError)
 
 
-fn early_return_one_to_one_nodemap_recursive_application(
+pub fn early_return_one_to_one_nodemap_recursive_application(
   node: VXML,
   nodemap: EarlyReturnOneToOneNodeMap,
 ) -> Result(VXML, DesugaringError) {

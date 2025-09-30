@@ -1,5 +1,5 @@
+import gleam/list
 import gleam/option
-import gleam/string.{inspect as ins}
 import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as infra
 import nodemaps_2_desugarer_transforms as n2t
 import vxml.{type VXML, V}
@@ -9,7 +9,11 @@ fn nodemap(
   inner: InnerParam,
 ) -> List(VXML) {
   case vxml {
-    V(_, tag, _, _) if tag == inner -> []
+    V(_, tag, _, _) ->
+      case list.contains(inner, tag) {
+        True -> []
+        False -> [vxml]
+      }
     _ -> [vxml]
   }
 }
@@ -27,20 +31,21 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
   Ok(param)
 }
 
-type Param = String
+type Param = List(String)
 type InnerParam = Param
 
-pub const name = "delete"
+pub const name = "delete__batch"
 
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 // 🏖️🏖️ Desugarer 🏖️🏖️
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 //------------------------------------------------53
-/// removes all V-nodes of a certain tag
+/// removes V-nodes whose tags belong to a certain
+/// set (list)
 pub fn constructor(param: Param) -> Desugarer {
   Desugarer(
     name: name,
-    stringified_param: option.Some(ins(param)),
+    stringified_param: option.Some(param |> infra.list_param_stringifier),
     stringified_outside: option.None,
     transform: case param_to_inner_param(param) {
       Error(error) -> fn(_) { Error(error) }

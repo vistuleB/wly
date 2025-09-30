@@ -1,4 +1,5 @@
 import gleam/list
+import gleam/string.{inspect as ins}
 import gleam/option.{type Option, None, Some}
 import infrastructure.{
   type Desugarer,
@@ -10,6 +11,7 @@ import infrastructure.{
 } as infra
 import vxml.{
   type VXML,
+  type Attribute,
   Attribute,
   V,
 }
@@ -40,20 +42,14 @@ type PageGatheringState {
   )
 }
 
-fn gather_title(
+fn gather_title_and_chiron(
   vxml: VXML,
   tag: String,
-) -> Result(Title, DesugaringError) {
+) -> Result(#(Title, String), DesugaringError) {
   use title_element <- on.ok(infra.v_unique_child(vxml, tag))
-  let assert V(_, _, _, title) = title_element
-  Ok(title)
-}
-
-fn gather_chiron(
-  vxml: VXML,
-) -> Result(String, DesugaringError) {
-  let assert V(blame, _, attrs, _) = vxml
-  infra.attributes_value_of_unique_key(attrs, "number-chiron", blame)
+  let assert V(blame, _, attrs, title) = title_element
+  use chiron <- on.ok(infra.attributes_value_of_unique_key(attrs, "number-chiron", blame))
+  Ok(#(title, chiron))
 }
 
 fn page_gatherer_v_before(
@@ -61,25 +57,27 @@ fn page_gatherer_v_before(
   state: PageGatheringState,
 ) -> Result(#(VXML, PageGatheringState, TrafficLight), DesugaringError) {
   case vxml {
-    V(_, "Document", _, _) -> Ok(#(vxml, state, Continue))
+    V(_, "Document", _, _) ->
+      Ok(#(vxml, state, Continue))
+
     V(_, "Chapter", _, _) -> {
       let PageGatheringState(pages, ch_no, _) = state
       let ch_no = ch_no + 1
-      use title <- on.ok(gather_title(vxml, "ChapterTitle"))
-      use chiron <- on.ok(gather_chiron(vxml))
+      use #(title, chiron) <- on.ok(gather_title_and_chiron(vxml, "ChapterTitle"))
       let pages = [Chapter(title, chiron, ch_no), ..pages]
       let state = PageGatheringState(pages, ch_no, 0)
       Ok(#(vxml, state, Continue))
     }
+
     V(_, "Sub", _, _) -> {
       let PageGatheringState(pages, ch_no, sub_no) = state
       let sub_no = sub_no + 1
-      use title <- on.ok(gather_title(vxml, "SubTitle"))
-      use chiron <- on.ok(gather_chiron(vxml))
+      use #(title, chiron) <- on.ok(gather_title_and_chiron(vxml, "SubTitle"))
       let pages = [Sub(title, chiron, ch_no, sub_no), ..pages]
       let state = PageGatheringState(pages, ch_no, sub_no)
       Ok(#(vxml, state, GoBack))
     }
+
     _ -> Ok(#(vxml, state, GoBack))
   }
 }
@@ -114,35 +112,47 @@ fn page_gatherer_nodemap() -> n2t.EarlyReturnOneToOneBeforeAndAfterStatefulNodeM
 
 type PageDepositorState = #(List(Page), List(Page))
 
-fn deposit_next_page(
+fn attributes_4_page(
+  page: Page
+) -> List(Attribute) {
+  case page {
+    Chapter(_, number_chiron, ch_no) -> [
+      Attribute(desugarer_blame(124), "ch_no", ins(ch_no)),
+      Attribute(desugarer_blame(125), "number-chiron", number_chiron),
+    ]
+    Sub(_, number_chiron, ch_no, sub_no) -> [
+      Attribute(desugarer_blame(128), "ch_no", ins(ch_no)),
+      Attribute(desugarer_blame(129), "sub_no", ins(sub_no)),
+      Attribute(desugarer_blame(130), "number-chiron", number_chiron),
+    ]
+  }
+}
+
+fn deposit_next(
   vxml: VXML,
   next: Option(Page),
 ) -> VXML {
   let assert V(_, _, _, children) = vxml
   use next <- on.none_some(next, vxml)
   let title = V(
-    desugarer_blame(124),
+    desugarer_blame(142),
     "NextChapterOrSubTitle",
-    [
-      Attribute(desugarer_blame(127), "number-chiron", next.number_chiron),
-    ],
+    attributes_4_page(next),
     next.title,
   )
   V(..vxml, children: [title, ..children])
 }
 
-fn deposit_prev_page(
+fn deposit_prev(
   vxml: VXML,
   prev: Option(Page),
 ) -> VXML {
   let assert V(_, _, _, children) = vxml
   use prev <- on.none_some(prev, vxml)
   let title = V(
-    desugarer_blame(141),
+    desugarer_blame(157),
     "PrevChapterOrSubTitle",
-    [
-      Attribute(desugarer_blame(144), "number-chiron", prev.number_chiron),
-    ],
+    attributes_4_page(prev),
     prev.title,
   )
   V(..vxml, children: [title, ..children])
@@ -181,16 +191,22 @@ fn page_depositor_v_before(
 ) -> Result(#(VXML, PageDepositorState, TrafficLight), DesugaringError) {
   case vxml {
     V(_, "Document", _, _) -> Ok(#(vxml, state, Continue))
+    V(_, "Index", _, _) -> {
+      let assert #([], [next, ..]) = state
+      let assert Chapter(_, _, _) = next
+      let vxml = vxml |> deposit_next(Some(next))
+      Ok(#(vxml, state, GoBack))
+    }
     V(_, "Chapter", _, _) -> {
       let #(previous, upcoming) = state
       let #(prev, this, next, upcoming) = next_prev_pages(previous, upcoming, Chapter([], "", 0))
-      let vxml = vxml |> deposit_prev_page(prev) |> deposit_next_page(next)
+      let vxml = vxml |> deposit_prev(prev) |> deposit_next(next)
       Ok(#(vxml, #([this, ..previous], upcoming), Continue))
     }
     V(_, "Sub", _, _) -> {
       let #(previous, upcoming) = state
       let #(prev, this, next, upcoming) = next_prev_pages(previous, upcoming, Sub([], "", 0, 0))
-      let vxml = vxml |> deposit_prev_page(prev) |> deposit_next_page(next)
+      let vxml = vxml |> deposit_prev(prev) |> deposit_next(next)
       Ok(#(vxml, #([this, ..previous], upcoming), GoBack))
     }
     _ -> Ok(#(vxml, state, GoBack))
@@ -289,65 +305,75 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
     infra.AssertiveTestDataNoParam(
       source:   "
                 <> Document
+                  <> Index
                   <> Chapter
-                    number-chiron=1.
                     <> ChapterTitle
+                      number-chiron=1.
                       <>
                         \"Banana\"
                     <> Sub
-                      number-chiron=1.1
                       <> SubTitle
+                        number-chiron=1.1
                         <>
                           \"Green\"
                     <> Sub
-                      number-chiron=1.2
                       <> SubTitle
+                        number-chiron=1.2
                         <> b
                           <>
                             \"Fig\"
                         <>
                           \" Tree\"
                   <> Chapter
-                    number-chiron=2.
                     <> ChapterTitle
+                      number-chiron=2.
                       <>
                         \"And\"
                     <> Sub
-                      number-chiron=2.1
                       <> SubTitle
+                        number-chiron=2.1
                         <>
                           \"Leaf\"
                     <> Sub
-                      number-chiron=2.2
                       <> SubTitle
+                        number-chiron=2.2
                         <>
                           \"Absolute\"
                     <> Sub
-                      number-chiron=2.2
                       <> SubTitle
+                        number-chiron=2.3
                         <>
                           \"Absolute\"
                           \" Tree\"
                   <> Chapter
-                    number-chiron=3.
                     <> ChapterTitle
+                      number-chiron=3.
                       <>
                         \"And\"
                 ",
       expected: "
                 <> Document
-                  <> Chapter
-                    number-chiron=1.
+                  <> Index
                     <> NextChapterOrSubTitle
+                      ch_no=1
+                      number-chiron=1.
+                      <>
+                        \"Banana\"
+                  <> Chapter
+                    <> NextChapterOrSubTitle
+                      ch_no=1
+                      sub_no=1
                       number-chiron=1.1
                       <>
                         \"Green\"
                     <> ChapterTitle
+                      number-chiron=1.
                       <>
                         \"Banana\"
                     <> Sub
-                      number-chiron=1.1
                       <> NextChapterOrSubTitle
+                        ch_no=1
+                        sub_no=2
                         number-chiron=1.2
                         <> b
                           <>
@@ -355,35 +381,43 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
                         <>
                           \" Tree\"
                       <> PrevChapterOrSubTitle
+                        ch_no=1
                         number-chiron=1.
                         <>
                           \"Banana\"
                       <> SubTitle
+                        number-chiron=1.1
                         <>
                           \"Green\"
                     <> Sub
-                      number-chiron=1.2
                       <> NextChapterOrSubTitle
+                        ch_no=2
                         number-chiron=2.
                         <>
                           \"And\"
                       <> PrevChapterOrSubTitle
+                        ch_no=1
+                        sub_no=1
                         number-chiron=1.1
                         <>
                           \"Green\"
                       <> SubTitle
+                        number-chiron=1.2
                         <> b
                           <>
                             \"Fig\"
                         <>
                           \" Tree\"
                   <> Chapter
-                    number-chiron=2.
                     <> NextChapterOrSubTitle
+                      ch_no=2
+                      sub_no=1
                       number-chiron=2.1
                       <>
                         \"Leaf\"
                     <> PrevChapterOrSubTitle
+                      ch_no=1
+                      sub_no=2
                       number-chiron=1.2
                       <> b
                         <>
@@ -391,57 +425,70 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
                       <>
                         \" Tree\"
                     <> ChapterTitle
+                      number-chiron=2.
                       <>
                         \"And\"
                     <> Sub
-                      number-chiron=2.1
                       <> NextChapterOrSubTitle
+                        ch_no=2
+                        sub_no=2
                         number-chiron=2.2
                         <>
                           \"Absolute\"
                       <> PrevChapterOrSubTitle
+                        ch_no=2
                         number-chiron=2.
                         <>
                           \"And\"
                       <> SubTitle
+                        number-chiron=2.1
                         <>
                           \"Leaf\"
                     <> Sub
-                      number-chiron=2.2
                       <> NextChapterOrSubTitle
-                        number-chiron=2.2
+                        ch_no=2
+                        sub_no=3
+                        number-chiron=2.3
                         <>
                           \"Absolute\"
                           \" Tree\"
                       <> PrevChapterOrSubTitle
+                        ch_no=2
+                        sub_no=1
                         number-chiron=2.1
                         <>
                           \"Leaf\"
                       <> SubTitle
+                        number-chiron=2.2
                         <>
                           \"Absolute\"
                     <> Sub
-                      number-chiron=2.2
                       <> NextChapterOrSubTitle
+                        ch_no=3
                         number-chiron=3.
                         <>
                           \"And\"
                       <> PrevChapterOrSubTitle
+                        ch_no=2
+                        sub_no=2
                         number-chiron=2.2
                         <>
                           \"Absolute\"
                       <> SubTitle
+                        number-chiron=2.3
                         <>
                           \"Absolute\"
                           \" Tree\"
                   <> Chapter
-                    number-chiron=3.
                     <> PrevChapterOrSubTitle
-                      number-chiron=2.2
+                      ch_no=2
+                      sub_no=3
+                      number-chiron=2.3
                       <>
                         \"Absolute\"
                         \" Tree\"
                     <> ChapterTitle
+                      number-chiron=3.
                       <>
                         \"And\"
                 "
