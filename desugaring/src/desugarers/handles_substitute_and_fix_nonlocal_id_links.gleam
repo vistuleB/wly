@@ -394,7 +394,7 @@ fn v_before_transform(
     False -> {
       let state = update_state_path(state, vxml, inner)
       use #(attributes, warnings) <- on.ok(substitute_in_hrefs(attributes, state))
-      Ok(#(V(..vxml, attributes: attributes), state, warnings))
+      Ok(#(V(..vxml, attributes: attributes |> list.reverse), state, warnings))
     }
   }
 }

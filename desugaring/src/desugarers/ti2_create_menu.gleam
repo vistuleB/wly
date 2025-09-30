@@ -211,7 +211,7 @@ fn links_2_left_menu(
     _ ->
       // this is not the index:
       V(
-        desugarer_blame(162),
+        desugarer_blame(214),
         "LeftMenu",
         an_attribute("class", "menu-left") |> into_list,
         option.values([links.index, prev_div]),
@@ -244,7 +244,7 @@ fn links_2_right_menu(
     _ ->
       // this is not the index:
       V(
-        desugarer_blame(185),
+        desugarer_blame(247),
         "RightMenu",
         an_attribute("class", "menu-right") |> into_list,
         option.values([
@@ -259,7 +259,7 @@ fn links_2_menu(
   links: FourLinks
 ) -> VXML {
   V(
-    desugarer_blame(210),
+    desugarer_blame(262),
     "Menu",
     an_attribute("id", "menu") |> into_list,
     [

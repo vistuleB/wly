@@ -5,12 +5,12 @@ import infrastructure.{
   type DesugarerTransform,
   type DesugaringError,
   type TrafficLight,
-  DesugaringError,
   Desugarer,
   Continue,
 } as infra
 import nodemaps_2_desugarer_transforms as n2t
 import vxml.{type VXML, V}
+import on
 
 fn nodemap(
   vxml: VXML,
@@ -18,10 +18,10 @@ fn nodemap(
 ) -> Result(#(VXML, TrafficLight), DesugaringError) {
   case vxml {
     V(_, tag, attrs, _) if tag == inner.0 -> {
-      case infra.attributes_unique_with_key_or_none(attrs, inner.1) {
-        Error(b) -> Error(DesugaringError(b, "non-unique attribute"))
-        Ok(None) -> Ok(#(vxml, Continue))
-        Ok(Some(x)) -> Ok(
+      use maybe <- on.ok(infra.attributes_unique_key_or_none(attrs, inner.1))
+      case maybe {
+        None -> Ok(#(vxml, Continue))
+        Some(x) -> Ok(
           #(
             vxml |> infra.v_start_insert_text(x.value <> inner.2),
             inner.3,

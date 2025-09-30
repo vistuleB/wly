@@ -106,7 +106,7 @@ fn extract_title(
   let assert V(_, _, _, children) = title_element
   let assert [T(b, [first, ..more]), ..rest] = children
   let first = TextLine(
-    desugarer_blame(110),
+    desugarer_blame(109),
     first.content |> regexp.replace(re, _, "")
   )
   Ok([T(b, [first, ..more]), ..rest])
@@ -158,7 +158,7 @@ fn href(chapter_no: Int, sub_no: Int) -> String {
 }
 
 fn subchapter_item(subchapter: SubchapterInfo) -> VXML {
-  let b = desugarer_blame(160)
+  let b = desugarer_blame(161)
   let #(chapter_no, subchapter_no, title) = subchapter
   V(
     b,
@@ -180,7 +180,7 @@ fn subchapter_item(subchapter: SubchapterInfo) -> VXML {
 fn chapter_item(
   chapter: ChapterInfo,
 ) -> VXML {
-  let b = desugarer_blame(182)
+  let b = desugarer_blame(183)
   let #(chapter_no, chapter_title, subchapters) = chapter
   let subchapters_ol = case subchapters {
     [] -> []
@@ -215,7 +215,7 @@ fn chapter_item(
 }
 
 fn chapter_ol(chapters: List(ChapterInfo)) -> VXML {
-  let b = desugarer_blame(217)
+  let b = desugarer_blame(218)
   V(
     b,
     "ol",
@@ -234,10 +234,10 @@ fn index(root: VXML) -> Result(VXML, DesugaringError) {
   let assert Ok(re) = regexp.from_string("^(\\d+)(\\.(\\d+)?)?\\s")
   use chapter_infos <- on.ok(extract_chapter_infos(root, re))
   Ok(V(
-    desugarer_blame(236),
+    desugarer_blame(237),
     "Index",
     [
-      Attribute(desugarer_blame(239), "path", "./index.html"),
+      Attribute(desugarer_blame(240), "path", "./index.html"),
     ],
     [
       header(root),

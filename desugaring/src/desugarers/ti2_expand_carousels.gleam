@@ -1,10 +1,29 @@
 import gleam/list
-import gleam/option.{None}
+import gleam/string
+import gleam/option.{type Option, None, Some}
 import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError, DesugaringError} as infra
 import nodemaps_2_desugarer_transforms as n2t
-import vxml.{type VXML, T, V, Attribute}
+import vxml.{type VXML, type Attribute, T, V, Attribute}
 import blame as bl
 import on
+
+fn extract_width_height_from_style(
+  style_attr: Option(Attribute),
+) -> Result(#(Option(String), Option(String), Option(Attribute)), DesugaringError) {
+  case style_attr {
+    None -> Ok(#(None, None, None))
+    Some(Attribute(blame, k, value)) -> {
+      assert k == "style"
+      use #(w, value) <- on.ok(infra.style_extract_unique_key_or_none(value, "width", blame))
+      use #(h, value) <- on.ok(infra.style_extract_unique_key_or_none(value, "height", blame))
+      let style_attr = case value == "" {
+        True -> None
+        False -> Some(Attribute(blame, "style", value))
+      }
+      Ok(#(w, h, style_attr))
+    }
+  }
+}
 
 fn nodemap(
   vxml: VXML,
@@ -14,48 +33,73 @@ fn nodemap(
     V(blame, tag, attrs, children) if tag == "Carousel" -> {
       case children {
         [] -> {
-          // get all src attributes
           let #(src_attrs, attrs) = list.partition(attrs, fn(attr) { attr.key == "src" })
 
-          // get width and height attributes if they exist
-          let #(img_width_attr, attrs) = list.partition(attrs, fn(attr) { attr.key == "width" })
-          let #(img_height_attr, attrs) = list.partition(attrs, fn(attr) { attr.key == "height" })
-
-          // validate only one img width attribute
-          use <- on.true_false(
-            list.length(img_width_attr) > 1,
-            Error(DesugaringError(blame, "Carousel should have only one width attribute"))
+          use #(width_attr, attrs) <- on.ok(
+            infra.attributes_extract_unique_key_or_none(attrs, "width")
           )
 
-          // validate only one img height attribute
-          use <- on.true_false(
-            list.length(img_height_attr) > 1,
-            Error(DesugaringError(blame, "Carousel should have only one height attribute"))
+          use #(height_attr, attrs) <- on.ok(
+            infra.attributes_extract_unique_key_or_none(attrs, "height")
           )
 
-          // create CarouselItem children with img tags
-          let carousel_items = list.map(
-            src_attrs,
-            fn(src_attr) {
-            let base_attrs = [src_attr]
-            let style_value = case img_width_attr, img_height_attr {
-              [], [] -> ""
-              [width_attr], [] -> "width: " <> width_attr.value <> ";"
-              [], [height_attr] -> "height: " <> height_attr.value <> ";"
-              [width_attr], [height_attr] -> "width: " <> width_attr.value <> "; height: " <> height_attr.value <> ";"
-              _, _ -> panic as "shouldn't be here"
+          use #(style_attr, attrs) <- on.ok(
+            infra.attributes_extract_unique_key_or_none(attrs, "style")
+          )
+
+          use #(width_prop, height_prop, style_attr) <- on.ok(
+            extract_width_height_from_style(style_attr)
+          )
+
+          use width_style <- on.ok(
+            case width_attr, width_prop {
+              Some(x), Some(_) -> Error(DesugaringError(x.blame, "duplicate width definition via attribute and style element"))
+              Some(x), None -> Ok("width:" <> x.value)
+              None, Some(value) -> Ok("width:" <> value)
+              None, None -> Ok("")
             }
+          )
 
-            let final_attrs = case style_value {
-              "" -> base_attrs
-              style_value -> list.append(base_attrs, [Attribute(desugarer_blame(51), "style", style_value)])
+          use height_style <- on.ok(
+            case height_attr, height_prop {
+              Some(x), Some(_) -> Error(DesugaringError(x.blame, "duplicate height definition via attribute and style element"))
+              Some(x), None -> Ok("height:" <> x.value)
+              None, Some(value) -> Ok("height:" <> value)
+              None, None -> Ok("")
             }
+          )
 
-            let img = V(blame, "img", final_attrs, [])
-            V(blame, "CarouselItem", [], [img])
-          })
+          let child_style_attr = case width_style, height_style {
+            "", "" -> None
+            _, "" -> Some(Attribute(desugarer_blame(69), "style", width_style))
+            "", _ -> Some(Attribute(desugarer_blame(69), "style", height_style))
+            _, _ -> Some(Attribute(desugarer_blame(69), "style", width_style <> ";" <> height_style))
+          }
 
-          Ok(V(blame, "Carousel", attrs, carousel_items))
+          let items = case child_style_attr {
+            None -> list.map(
+              src_attrs,
+              fn(src_attr) {
+                let img = V(src_attr.blame, "img", [src_attr], [])
+                V(src_attr.blame, "CarouselItem", [], [img])
+              }
+            )
+            Some(child_style_attr) -> list.map(
+              src_attrs,
+              fn(src_attr) {
+                let img = V(src_attr.blame, "img", [child_style_attr, src_attr], [])
+                V(src_attr.blame, "CarouselItem", [], [img])
+              }
+            )
+          }
+
+          V(
+            blame,
+            "Carousel",
+            list.append(attrs, [style_attr] |> option.values),
+            items,
+          )
+          |> Ok
         }
 
         _ -> {

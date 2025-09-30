@@ -2034,15 +2034,43 @@ pub fn attributes_with_key(
   list.filter(attrs, fn(x) { x.key == key })
 }
 
-pub fn attributes_unique_with_key_or_none(
+pub fn attributes_unique_key_or_none(
   attrs: List(Attribute),
   key: String,
-) -> Result(Option(Attribute), Blame) {
+) -> Result(Option(Attribute), DesugaringError) {
   case attributes_with_key(attrs, key) {
     [one] -> Ok(Some(one))
     [] -> Ok(None)
-    [_, second, ..] -> Error(second.blame)
+    [_, second, ..] -> Error(DesugaringError(second.blame, "non-unique key: " <> key))
   }
+}
+
+pub fn attributes_extract_unique_key_or_none(
+  attrs: List(Attribute),
+  key: String,
+) -> Result(#(Option(Attribute), List(Attribute)), DesugaringError) {
+  use #(extracted, remaining) <- on.ok(
+    list.try_fold(
+      attrs,
+      #(None, []),
+      fn (acc, attr) {
+        case attr.key == key {
+          False -> Ok(#(acc.0, [attr, ..acc.1]))
+          True -> case acc.0 {
+            None -> Ok(#(Some(attr), acc.1))
+            _ -> Error(DesugaringError(attr.blame, "duplicate key: " <> key))
+          }
+        }
+      }
+    )
+  )
+
+  let attrs = case extracted {
+    None -> attrs
+    _ -> remaining |> list.reverse
+  }
+
+  Ok(#(extracted, attrs))
 }
 
 pub fn substitute_in_attributes(
@@ -2201,17 +2229,48 @@ pub fn is_v_and_has_class(vxml: VXML, class: String) -> Bool {
 }
 
 // ************************************************************
-// class
+// style
 // ************************************************************
 
-pub fn remove_class(
-  classes: String,
-  class: String,
+pub fn style_extract_unique_key_or_none(
+  style: String,
+  key: String,
+  blame: Blame,
+) -> Result(#(Option(String), String), DesugaringError) {
+  let key_vals = assert_split_style(style)
+
+  use #(extracted, remaining) <- on.ok(
+    list.try_fold(
+      key_vals,
+      #(None, []),
+      fn (acc, kv) {
+        case kv.0 == key {
+          False -> Ok(#(acc.0, [kv, ..acc.1]))
+          True -> case acc.0 {
+            None -> Ok(#(Some(kv.1), acc.1))
+            _ -> Error(DesugaringError(blame, "duplicate style property: " <> key))
+          }
+        }
+      }
+    )
+  )
+
+  let style = case extracted {
+    None -> style
+    _ -> remaining |> list.reverse |> compose_style
+  }
+
+  Ok(#(extracted, style))
+}
+
+pub fn compose_style(
+  keyvals: List(#(String, String))
 ) -> String {
-  classes
-  |> string.split(" ")
-  |> list.filter(fn(c) {c != class})
-  |> string.join(" ")
+  list.map(
+    keyvals,
+    fn(kv) { kv.0 <> ":" <> kv.1 }
+  )
+  |> string.join(";")
 }
 
 pub fn assert_split_style(style: String) -> List(#(String, String)) {
@@ -2239,8 +2298,7 @@ pub fn concatenate_styles(a: String, b: String) -> String {
     all_a,
     insert_in_list_pair_as_dict
   )
-  |> list.map(fn(kv) { kv.0 <> ":" <> kv.1 })
-  |> string.join(";")
+  |> compose_style
 }
 
 pub fn attributes_set_styles(attrs: List(Attribute), blame: Blame, styles: String) {
@@ -2258,6 +2316,20 @@ pub fn attributes_set_styles(attrs: List(Attribute), blame: Blame, styles: Strin
     True -> list_set(attrs, index, new_attribute)
     False -> list.append(attrs, [Attribute(blame, "style", concatenate_classes("", styles))])
   }
+}
+
+// ************************************************************
+// class
+// ************************************************************
+
+pub fn remove_class(
+  classes: String,
+  class: String,
+) -> String {
+  classes
+  |> string.split(" ")
+  |> list.filter(fn(c) {c != class})
+  |> string.join(" ")
 }
 
 pub fn concatenate_classes(a: String, b: String) -> String {
