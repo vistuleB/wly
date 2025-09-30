@@ -1,7 +1,7 @@
 import gleam/list
 import gleam/option.{Some,None}
 import gleam/string.{inspect as ins}
-import gleam/regexp
+import gleam/regexp.{type Regexp}
 import infrastructure.{
   type Desugarer,
   type DesugaringError,
@@ -98,13 +98,13 @@ type SubchapterInfo = #(ChapterNo, SubchapterNo, SubchapterTitle)
 type ChapterInfo = #(ChapterNo, ChapterTitle, List(SubchapterInfo))
 
 fn extract_title(
-  chapter_or_subchapter ch: VXML,
-  title_tag t: String,
+  ch_or_sub: VXML,
+  title_tag: String,
+  re: Regexp,
 ) -> Result(ChapterOrSubchapterTitle, DesugaringError) {
-  use title_element <- on.ok(infra.v_unique_child_with_tag_with_desugaring_error(ch, t))
+  use title_element <- on.ok(infra.v_unique_child_with_tag_with_desugaring_error(ch_or_sub, title_tag))
   let assert V(_, _, _, children) = title_element
   let assert [T(b, [first, ..more]), ..rest] = children
-  let assert Ok(re) = regexp.from_string("^(\\d+)(\\.(\\d+)?)?\\s")
   let first = TextLine(
     desugarer_blame(109),
     first.content |> regexp.replace(re, _, "")
@@ -112,30 +112,43 @@ fn extract_title(
   Ok([T(b, [first, ..more]), ..rest])
 }
 
-fn extract_subchapter_info(subchapter: VXML, index: Int, ch_no: Int) {
-  use title <- on.ok(extract_title(subchapter, "SubTitle"))
+fn extract_subchapter_info(
+  subchapter: VXML,
+  index: Int,
+  ch_no: Int,
+  re: Regexp,
+) {
+  use title <- on.ok(extract_title(subchapter, "SubTitle", re))
   Ok(#(ch_no, index + 1, title))
 }
 
 fn extract_subchapter_infos(
   chapter: VXML,
   ch_no: Int,
+  re: Regexp,
 ) -> Result(List(SubchapterInfo), DesugaringError) {
   chapter
   |> infra.v_children_with_tag("Sub")
-  |> infra.index_try_map(fn(s, i) { extract_subchapter_info(s, i, ch_no) })
+  |> infra.index_try_map(fn(s, i) { extract_subchapter_info(s, i, ch_no, re) })
 }
 
-fn extract_chapter_info(ch: VXML, index: Int) -> Result(ChapterInfo, DesugaringError) {
-  use title <- on.ok(extract_title(ch, "ChapterTitle"))
-  use infos <- on.ok(extract_subchapter_infos(ch, index + 1))
+fn extract_chapter_info(
+  ch: VXML,
+  index: Int,
+  re: Regexp,
+) -> Result(ChapterInfo, DesugaringError) {
+  use title <- on.ok(extract_title(ch, "ChapterTitle", re))
+  use infos <- on.ok(extract_subchapter_infos(ch, index + 1, re))
   Ok(#(index + 1, title, infos))
 }
 
 fn extract_chapter_infos(root: VXML) -> Result(List(ChapterInfo), DesugaringError) {
+  let assert Ok(re) = regexp.from_string("^(\\d+)(\\.(\\d+)?)?\\s")
   root
   |> infra.v_children_with_tag("Chapter")
-  |> infra.index_try_map(extract_chapter_info)
+  |> infra.index_try_map(
+    fn(c, i) { extract_chapter_info(c, i, re) }
+  )
 }
 
 fn href(chapter_no: Int, sub_no: Int) -> String {

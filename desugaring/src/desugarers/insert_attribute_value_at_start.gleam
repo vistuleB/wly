@@ -1,44 +1,59 @@
-import gleam/option
+import gleam/option.{Some, None}
 import gleam/string.{inspect as ins}
-import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as infra
+import infrastructure.{
+  type Desugarer,
+  type DesugarerTransform,
+  type DesugaringError,
+  type TrafficLight,
+  DesugaringError,
+  Desugarer,
+  Continue,
+  GoBack,
+} as infra
 import nodemaps_2_desugarer_transforms as n2t
 import vxml.{type VXML, V}
 
 fn nodemap(
   vxml: VXML,
   inner: InnerParam,
-) -> VXML {
+) -> Result(#(VXML, TrafficLight), DesugaringError) {
   case vxml {
-    V(_, tag, _, _) if tag == inner.0 -> {
-      vxml
-      |> infra.v_start_insert_text(inner.1)
-      |> infra.v_end_insert_text(inner.2)
+    V(_, tag, attrs, _) if tag == inner.0 -> {
+      case infra.attributes_unique_with_key_or_none(attrs, inner.1) {
+        Error(b) -> Error(DesugaringError(b, "non-unique attribute"))
+        Ok(None) -> Ok(#(vxml, Continue))
+        Ok(Some(x)) -> Ok(
+          #(
+            vxml |> infra.v_start_insert_text(x.value),
+            GoBack,
+          )
+        )
+      }
     }
-    _ -> vxml
+    _ -> Ok(#(vxml, Continue))
   }
 }
 
-fn nodemap_factory(inner: InnerParam) -> n2t.OneToOneNoErrorNodeMap {
+fn nodemap_factory(inner: InnerParam) -> n2t.EarlyReturnOneToOneNodeMap {
   nodemap(_, inner)
 }
 
 fn transform_factory(inner: InnerParam) -> DesugarerTransform {
   nodemap_factory(inner)
-  |> n2t.one_to_one_no_error_nodemap_2_desugarer_transform
+  |> n2t.early_return_one_to_one_nodemap_2_desugarer_transform
 }
 
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
-  #(param.0, param.1.0, param.1.1)
-  |> Ok
+  Ok(param)
 }
 
-type Param = #(String, #(String,    String))
-//             ↖         ↖          ↖
-//             tag       insert     insert
-//                       at start   at end
-type InnerParam = #(String, String, String)
+type Param = #(String, String,    TrafficLight)
+//             ↖       ↖          ↖
+//             tag     key        return early or not
+//                     at start   
+type InnerParam = Param
 
-pub const name = "insert_text_start_end"
+pub const name = "insert_attribute_value_at_start"
 
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 // 🏖️🏖️ Desugarer 🏖️🏖️

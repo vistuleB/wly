@@ -2029,6 +2029,17 @@ pub fn attributes_with_key(
   list.filter(attrs, fn(x) { x.key == key })
 }
 
+pub fn attributes_unique_with_key_or_none(
+  attrs: List(Attribute),
+  key: String,
+) -> Result(Option(Attribute), Blame) {
+  case attributes_with_key(attrs, key) {
+    [one] -> Ok(Some(one))
+    [] -> Ok(None)
+    [_, second, ..] -> Error(second.blame)
+  }
+}
+
 pub fn substitute_in_attributes(
   attrs: List(Attribute),
   key: String,
@@ -2087,6 +2098,14 @@ pub fn attributes_first_with_key(
     Error(Nil) -> None
     Ok(thing) -> Some(thing)
   }
+}
+
+pub fn attributes_value_of_first_with_key(
+  attrs: List(Attribute),
+  key: String,
+) -> Option(String) {
+  attributes_first_with_key(attrs, key)
+  |> option.map(fn(x) { x.value })
 }
 
 // ************************************************************

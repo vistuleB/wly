@@ -43,8 +43,10 @@ pub const name = "insert_text_start_end_if_unique_attr"
 // 🏖️🏖️ Desugarer 🏖️🏖️
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 //------------------------------------------------53
-/// inserts text at the beginning and end of a
-/// specified tag
+/// inserts spectified 'begin' and 'end' text to
+/// nodes of a given tag whose attributes consist
+/// of a list of length 1 that exactly matches a
+/// given key/value pair
 pub fn constructor(param: Param) -> Desugarer {
   let assert Ok(inner) = param_to_inner_param(param)
   Desugarer(

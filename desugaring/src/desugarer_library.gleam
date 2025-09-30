@@ -90,13 +90,13 @@ import desugarers/identity
 import desugarers/ii2_carousel_component
 import desugarers/ii2_class_well_container_theorem_2_statement
 import desugarers/ii2_remove_chapter_number_from_title
+import desugarers/insert_attribute_value_at_start
 import desugarers/insert_bookend_tags
 import desugarers/insert_bookend_text_if_no_attributes
 import desugarers/insert_ii2_counter_commands
 import desugarers/insert_line_start_end
 import desugarers/insert_text_start_end
 import desugarers/insert_text_start_end_if_else
-import desugarers/insert_text_start_end_if_unique_attr
 import desugarers/keep_only_subtrees_and_ancestors_of_nodes_matching_a_key_value_pair
 import desugarers/last_to_first_concatenate_text_nodes
 import desugarers/line_rewrap_no1__outside
@@ -154,6 +154,7 @@ import desugarers/supplement_class
 import desugarers/surround_elements_by
 import desugarers/table_marker
 import desugarers/ti2_add_listing_bol_spans
+import desugarers/ti2_add_prev_next_chapters_attributes
 import desugarers/ti2_add_should_be_numbers
 import desugarers/ti2_backfill
 import desugarers/ti2_code_block_to_pre
@@ -287,13 +288,13 @@ pub const identity = identity.constructor
 pub const ii2_carousel_component = ii2_carousel_component.constructor
 pub const ii2_class_well_container_theorem_2_statement = ii2_class_well_container_theorem_2_statement.constructor
 pub const ii2_remove_chapter_number_from_title = ii2_remove_chapter_number_from_title.constructor
+pub const insert_attribute_value_at_start = insert_attribute_value_at_start.constructor
 pub const insert_bookend_tags = insert_bookend_tags.constructor
 pub const insert_bookend_text_if_no_attributes = insert_bookend_text_if_no_attributes.constructor
 pub const insert_ii2_counter_commands = insert_ii2_counter_commands.constructor
 pub const insert_line_start_end = insert_line_start_end.constructor
 pub const insert_text_start_end = insert_text_start_end.constructor
 pub const insert_text_start_end_if_else = insert_text_start_end_if_else.constructor
-pub const insert_text_start_end_if_unique_attr = insert_text_start_end_if_unique_attr.constructor
 pub const keep_only_subtrees_and_ancestors_of_nodes_matching_a_key_value_pair = keep_only_subtrees_and_ancestors_of_nodes_matching_a_key_value_pair.constructor
 pub const last_to_first_concatenate_text_nodes = last_to_first_concatenate_text_nodes.constructor
 pub const line_rewrap_no1__outside = line_rewrap_no1__outside.constructor
@@ -351,6 +352,7 @@ pub const supplement_class = supplement_class.constructor
 pub const surround_elements_by = surround_elements_by.constructor
 pub const table_marker = table_marker.constructor
 pub const ti2_add_listing_bol_spans = ti2_add_listing_bol_spans.constructor
+pub const ti2_add_prev_next_chapters_attributes = ti2_add_prev_next_chapters_attributes.constructor
 pub const ti2_add_should_be_numbers = ti2_add_should_be_numbers.constructor
 pub const ti2_backfill = ti2_backfill.constructor
 pub const ti2_code_block_to_pre = ti2_code_block_to_pre.constructor
@@ -485,13 +487,13 @@ pub const assertive_tests : List(fn() -> infra.AssertiveTestCollection) = [
   ii2_carousel_component.assertive_tests,
   ii2_class_well_container_theorem_2_statement.assertive_tests,
   ii2_remove_chapter_number_from_title.assertive_tests,
+  insert_attribute_value_at_start.assertive_tests,
   insert_bookend_tags.assertive_tests,
   insert_bookend_text_if_no_attributes.assertive_tests,
   insert_ii2_counter_commands.assertive_tests,
   insert_line_start_end.assertive_tests,
   insert_text_start_end.assertive_tests,
   insert_text_start_end_if_else.assertive_tests,
-  insert_text_start_end_if_unique_attr.assertive_tests,
   keep_only_subtrees_and_ancestors_of_nodes_matching_a_key_value_pair.assertive_tests,
   last_to_first_concatenate_text_nodes.assertive_tests,
   line_rewrap_no1__outside.assertive_tests,
@@ -549,6 +551,7 @@ pub const assertive_tests : List(fn() -> infra.AssertiveTestCollection) = [
   surround_elements_by.assertive_tests,
   table_marker.assertive_tests,
   ti2_add_listing_bol_spans.assertive_tests,
+  ti2_add_prev_next_chapters_attributes.assertive_tests,
   ti2_add_should_be_numbers.assertive_tests,
   ti2_backfill.assertive_tests,
   ti2_code_block_to_pre.assertive_tests,
