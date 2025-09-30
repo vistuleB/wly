@@ -185,17 +185,12 @@ pub fn on_t_on_v(
 // get_root
 // ************************************************************
 
-pub fn get_root(vxmls: List(VXML)) -> Result(VXML, String) {
+pub fn get_root(vxmls: List(VXML)) -> Result(VXML, DesugaringError) {
   case vxmls {
-    [] -> Error("vxml is empty!")
     [root] -> Ok(root)
-    _ -> Error("found " <> ins(list.length(vxmls)) <> " > 1 top-level nodes")
+    [] -> Error(DesugaringError(bl.no_blame, "vxml is empty!"))
+    [_, second, ..] -> Error(DesugaringError(second.blame, "found " <> ins(list.length(vxmls)) <> " > 1 top-level nodes"))
   }
-}
-
-pub fn get_root_with_desugaring_error(vxmls: List(VXML)) -> Result(VXML, DesugaringError) {
-  get_root(vxmls)
-  |> result.map_error(fn(msg) { DesugaringError(bl.no_blame, msg)})
 }
 
 // ************************************************************
@@ -478,7 +473,7 @@ pub fn validate_unique_keys(
   }
 }
 
-pub fn dict_from_list_with_desugaring_error(
+pub fn dict_from_list(
   l: List(#(a, b))
 ) -> Result(Dict(a, b), DesugaringError) {
   validate_unique_keys(l)
@@ -1843,30 +1838,23 @@ pub fn v_children_with_class(vxml: VXML, class: String) -> List(VXML) {
   v_filter_children(vxml, is_v_and_has_class(_, class))
 }
 
-pub fn v_tag_is_one_of(vxml: VXML, tags: List(String)) -> Bool {
+pub fn v_tag_is_one_of(
+  vxml: VXML,
+  tags: List(String),
+) -> Bool {
   let assert V(_, tag, _, _) = vxml
   list.contains(tags, tag)
 }
 
-pub fn v_unique_child_with_tag(
-  vxml: VXML,
-  tag: String,
-) -> Result(VXML, SingletonError) {
-  v_children_with_tag(vxml, tag)
-  |> read_singleton
-}
-
-pub fn v_unique_child_with_tag_with_desugaring_error(
+pub fn v_unique_child(
   vxml: VXML,
   tag: String,
 ) -> Result(VXML, DesugaringError) {
-  v_unique_child_with_tag(vxml, tag)
-  |> result.map_error(fn(e) {
-    case e {
-      MoreThanOne -> DesugaringError(vxml.blame, "more than one '" <> tag <> "' element")
-      LessThanOne -> DesugaringError(vxml.blame, "did not find '" <> tag <> "' element")
-    }
-  })
+  case v_children_with_tag(vxml, tag) {
+    [one] -> Ok(one)
+    [] -> Error(DesugaringError(vxml.blame, "did not find '" <> tag <> "' element"))
+    [_, second, ..] -> Error(DesugaringError(second.blame, "more than one '" <> tag <> "' element"))
+  }
 }
 
 pub fn v_replace_children_with(node: VXML, children: List(VXML)) {
@@ -2041,6 +2029,30 @@ pub fn attributes_unique_key_or_none(
   case attributes_with_key(attrs, key) {
     [one] -> Ok(Some(one))
     [] -> Ok(None)
+    [_, second, ..] -> Error(DesugaringError(second.blame, "non-unique key: " <> key))
+  }
+}
+
+pub fn attributes_unique_key(
+  attrs: List(Attribute),
+  key: String,
+  blame: Blame,
+) -> Result(Attribute, DesugaringError) {
+  case attributes_with_key(attrs, key) {
+    [one] -> Ok(one)
+    [] -> Error(DesugaringError(blame, "missing attribute: '" <> key <> "'"))
+    [_, second, ..] -> Error(DesugaringError(second.blame, "non-unique key: " <> key))
+  }
+}
+
+pub fn attributes_value_of_unique_key(
+  attrs: List(Attribute),
+  key: String,
+  blame: Blame,
+) -> Result(String, DesugaringError) {
+  case attributes_with_key(attrs, key) {
+    [one] -> Ok(one.value)
+    [] -> Error(DesugaringError(blame, "missing attribute: '" <> key <> "'"))
     [_, second, ..] -> Error(DesugaringError(second.blame, "non-unique key: " <> key))
   }
 }

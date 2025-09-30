@@ -7,7 +7,6 @@ import infrastructure.{
   type DesugarerTransform,
   type DesugaringError,
   Desugarer,
-  DesugaringError,
 } as infra
 import vxml.{type VXML, Attribute, V}
 import blame as bl
@@ -25,30 +24,18 @@ fn chapter_link(
     _ if tag == "Bootcamp" -> "bootcamp"
     _ -> panic as "expecting 'Chapter' or 'Bootcamp'"
   }
-
-  use title_element <- on.error_ok(
-    infra.v_unique_child_with_tag(item, "ArticleTitle"),
-    fn (s) {
-      case s {
-        infra.MoreThanOne -> Error(DesugaringError(item.blame, "has more than one ArticleTitle child"))
-        infra.LessThanOne -> Error(DesugaringError(item.blame, "has no ArticleTitle child"))
-      }
-    }
-  )
-
+  use title_element <- on.ok(infra.v_unique_child(item, "ArticleTitle"))
   let assert V(_, _, _, _) = title_element
-
-  Ok(
-    V(
-      blame,
-      chapter_link_component_name,
-      [
-        Attribute(desugarer_blame(46), "article_type", ins(count)),
-        Attribute(desugarer_blame(47), "href", tp <> ins(count)),
-      ],
-      title_element.children,
-    ),
+  V(
+    blame,
+    chapter_link_component_name,
+    [
+      Attribute(desugarer_blame(33), "article_type", ins(count)),
+      Attribute(desugarer_blame(34), "href", tp <> ins(count)),
+    ],
+    title_element.children,
   )
+  |> Ok
 }
 
 fn type_of_chapters_title(
@@ -56,9 +43,9 @@ fn type_of_chapters_title(
   label: String,
 ) -> VXML {
   V(
-    desugarer_blame(59),
+    desugarer_blame(46),
     type_of_chapters_title_component_name,
-    [Attribute(desugarer_blame(61), "label", label)],
+    [Attribute(desugarer_blame(48), "label", label)],
     [],
   )
 }
@@ -70,14 +57,14 @@ fn div_with_id_title_and_menu_items(
   menu_items: List(VXML),
 ) -> VXML {
   V(
-    desugarer_blame(73),
+    desugarer_blame(60),
     "div",
     [
-      Attribute(desugarer_blame(76), "id", id),
+      Attribute(desugarer_blame(63), "id", id),
     ],
     [
       type_of_chapters_title(type_of_chapters_title_component_name, title_label),
-      V(desugarer_blame(80), "ul", [], menu_items),
+      V(desugarer_blame(67), "ul", [], menu_items),
     ],
   )
 }
@@ -131,7 +118,7 @@ fn at_root(root: VXML, param: InnerParam) -> Result(VXML, DesugaringError) {
       False -> []
     },
     case exists_bootcamps, exists_chapters, maybe_spacer {
-      True, True, Some(spacer_tag) -> [V(desugarer_blame(134), spacer_tag, [], [])]
+      True, True, Some(spacer_tag) -> [V(desugarer_blame(121), spacer_tag, [], [])]
       _, _, _ -> []
     },
     case exists_bootcamps {
@@ -141,7 +128,7 @@ fn at_root(root: VXML, param: InnerParam) -> Result(VXML, DesugaringError) {
   ]
   |> list.flatten
 
-  let toc = V(desugarer_blame(144), toc_tag, [], toc_children)
+  let toc = V(desugarer_blame(131), toc_tag, [], toc_children)
 
   Ok(V(..root, children: [toc, ..children]))
 }

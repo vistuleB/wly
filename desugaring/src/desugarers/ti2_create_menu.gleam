@@ -327,7 +327,7 @@ fn extract_title(
   chapter_or_subchapter ch: VXML,
   title_tag t: String,
 ) -> Result(Title, DesugaringError) {
-  use title_element <- on.ok(infra.v_unique_child_with_tag_with_desugaring_error(ch, t))
+  use title_element <- on.ok(infra.v_unique_child(ch, t))
   let assert V(_, _, _, children) = title_element
   Ok(children)
 }

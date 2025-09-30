@@ -155,7 +155,7 @@ import desugarers/supplement_class
 import desugarers/surround_elements_by
 import desugarers/table_marker
 import desugarers/ti2_add_listing_bol_spans
-import desugarers/ti2_add_prev_next_chapters_attributes
+import desugarers/ti2_add_prev_next_chapter_title_elements
 import desugarers/ti2_add_should_be_numbers
 import desugarers/ti2_backfill
 import desugarers/ti2_code_block_to_pre
@@ -354,7 +354,7 @@ pub const supplement_class = supplement_class.constructor
 pub const surround_elements_by = surround_elements_by.constructor
 pub const table_marker = table_marker.constructor
 pub const ti2_add_listing_bol_spans = ti2_add_listing_bol_spans.constructor
-pub const ti2_add_prev_next_chapters_attributes = ti2_add_prev_next_chapters_attributes.constructor
+pub const ti2_add_prev_next_chapter_title_elements = ti2_add_prev_next_chapter_title_elements.constructor
 pub const ti2_add_should_be_numbers = ti2_add_should_be_numbers.constructor
 pub const ti2_backfill = ti2_backfill.constructor
 pub const ti2_code_block_to_pre = ti2_code_block_to_pre.constructor
@@ -554,7 +554,7 @@ pub const assertive_tests : List(fn() -> infra.AssertiveTestCollection) = [
   surround_elements_by.assertive_tests,
   table_marker.assertive_tests,
   ti2_add_listing_bol_spans.assertive_tests,
-  ti2_add_prev_next_chapters_attributes.assertive_tests,
+  ti2_add_prev_next_chapter_title_elements.assertive_tests,
   ti2_add_should_be_numbers.assertive_tests,
   ti2_backfill.assertive_tests,
   ti2_code_block_to_pre.assertive_tests,

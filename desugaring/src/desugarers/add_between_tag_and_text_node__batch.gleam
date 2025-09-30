@@ -49,7 +49,7 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
       )
     }
   )
-  |> infra.dict_from_list_with_desugaring_error
+  |> infra.dict_from_list
 }
 
 type Param = List(#(String,                   String,          List(#(String, String))))

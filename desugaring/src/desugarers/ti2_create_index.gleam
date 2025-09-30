@@ -102,7 +102,7 @@ fn extract_title(
   title_tag: String,
   re: Regexp,
 ) -> Result(ChapterOrSubchapterTitle, DesugaringError) {
-  use title_element <- on.ok(infra.v_unique_child_with_tag_with_desugaring_error(ch_or_sub, title_tag))
+  use title_element <- on.ok(infra.v_unique_child(ch_or_sub, title_tag))
   let assert V(_, _, _, children) = title_element
   let assert [T(b, [first, ..more]), ..rest] = children
   let first = TextLine(

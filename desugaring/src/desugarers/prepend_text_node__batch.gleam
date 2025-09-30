@@ -41,7 +41,7 @@ fn transform_factory(inner: InnerParam) -> DesugarerTransform {
 }
 
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
-  infra.dict_from_list_with_desugaring_error(param)
+  infra.dict_from_list(param)
 }
 
 type Param = List(#(String, String))

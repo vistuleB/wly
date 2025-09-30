@@ -1,5 +1,4 @@
 import gleam/list
-import gleam/string
 import gleam/option.{type Option, None, Some}
 import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError, DesugaringError} as infra
 import nodemaps_2_desugarer_transforms as n2t
@@ -71,9 +70,9 @@ fn nodemap(
 
           let child_style_attr = case width_style, height_style {
             "", "" -> None
-            _, "" -> Some(Attribute(desugarer_blame(69), "style", width_style))
-            "", _ -> Some(Attribute(desugarer_blame(69), "style", height_style))
-            _, _ -> Some(Attribute(desugarer_blame(69), "style", width_style <> ";" <> height_style))
+            _, "" -> Some(Attribute(desugarer_blame(73), "style", width_style))
+            "", _ -> Some(Attribute(desugarer_blame(74), "style", height_style))
+            _, _ -> Some(Attribute(desugarer_blame(75), "style", width_style <> ";" <> height_style))
           }
 
           let items = case child_style_attr {
@@ -221,12 +220,12 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
                 <> Carousel
                   <> CarouselItem
                     <> img
+                      style=width:\"200px\";height:\"150px\"
                       src=\"image1.jpg\"
-                      style=width: \"200px\"; height: \"150px\";
                   <> CarouselItem
                     <> img
+                      style=width:\"200px\";height:\"150px\"
                       src=\"image2.jpg\"
-                      style=width: \"200px\"; height: \"150px\";
                 ",
     ),
     infra.AssertiveTestDataNoParam(
@@ -239,8 +238,8 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
                 <> Carousel
                   <> CarouselItem
                     <> img
+                      style=width:\"100px\"
                       src=\"only.jpg\"
-                      style=width: \"100px\";
                 ",
     ),
     infra.AssertiveTestDataNoParam(
