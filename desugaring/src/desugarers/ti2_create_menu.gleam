@@ -1,10 +1,14 @@
-import gleam/list
+import gleam/int
 import gleam/option.{type Option, None, Some}
 import gleam/string.{inspect as ins}
 import infrastructure.{
   type Desugarer,
   type DesugaringError,
+  type TrafficLight,
+  DesugaringError,
   Desugarer,
+  GoBack,
+  Continue,
 } as infra
 import vxml.{
   type VXML,
@@ -18,39 +22,36 @@ import nodemaps_2_desugarer_transforms as n2t
 import blame as bl
 import on
 
+const prev_page_id_attribute = Attribute(bl.Des([], name, 43), "id", "prev-page")
+const next_page_id_attribute = Attribute(bl.Des([], name, 44), "id", "next-page")
+
 type Title = List(VXML)
 
 type Page {
-  Index(title: Title)
-  Chapter(title: Title, ch_no: Int)
-  Sub(title: Title, ch_no: Int, sub_no: Int)
+  Chapter(title: Title, number_chiron: String, ch_no: Int)
+  Sub(title: Title, number_chiron: String, ch_no: Int, sub_no: Int)
 }
 
 type Relation {
   Prev
   Next
-  Jump
 }
 
 type FourLinks {
   FourLinks(
     homepage: VXML,
-    index: Option(VXML), // is None at the index itself
-    prev_chap_or_sub: Option(VXML),
-    next_chap_or_sub: Option(VXML),
+    index: Option(VXML), // none at Index itself; takes the prev-page-id if 'prev' is None
+    prev: Option(VXML),  // always chapter or sub, not the index
+    next: Option(VXML),
   )
 }
 
-const b = bl.Des([], name, 14)
-const id_prev_page_attribute = Attribute(b, "id", "prev-page")
-const id_next_page_attribute = Attribute(b, "id", "next-page")
-
 fn an_attribute(key: String, value: String) -> Attribute {
-  Attribute(desugarer_blame(49), key, value)
+  Attribute(desugarer_blame(50), key, value)
 }
 
 fn string_2_text_node(content: String) -> VXML {
-  T(desugarer_blame(53), [TextLine(desugarer_blame(53), content)])
+  T(desugarer_blame(54), [TextLine(desugarer_blame(54), content)])
 }
 
 fn into_list(a: a) -> List(a) {
@@ -59,22 +60,38 @@ fn into_list(a: a) -> List(a) {
 
 fn homepage_link(homepage_url: String) -> VXML {
   V(
-    b,
+    desugarer_blame(63),
     "a",
     an_attribute("href", homepage_url) |> into_list,
     string_2_text_node("zür Kursübersicht") |> into_list,
   )
 }
 
+fn index_link() -> VXML {
+  V(
+    desugarer_blame(72),
+    "a",
+    an_attribute("href", "./index.html") |> into_list,
+    [
+      V(
+        desugarer_blame(77),
+        "span",
+        an_attribute("class", "inhalts_arrows") |> into_list, 
+        "<< " |> string_2_text_node |> into_list,
+      ),
+      "Inhaltsverzeichnis" |> string_2_text_node
+    ]
+  )
+}
+
 fn page_href(page: Page) -> String {
   case page {
-    Index(_) -> "./index.html"
-    Chapter(_, ch_no) -> "./" <> ins(ch_no) <> "-0.html"
-    Sub(_, ch_no, sub_no) -> "./" <> ins(ch_no) <> "-" <> ins(sub_no) <> ".html"
+    Chapter(_, _, ch_no) -> "./" <> ins(ch_no) <> "-0.html"
+    Sub(_, _, ch_no, sub_no) -> "./" <> ins(ch_no) <> "-" <> ins(sub_no) <> ".html"
   }
 }
 
-fn related_page_2_link(
+fn prev_next_page_to_link(
   page: Page,
   relation: Relation,
 ) -> VXML {
@@ -86,113 +103,55 @@ fn related_page_2_link(
   let #(prev_prefix, next_suffix) = case relation {
     Prev -> #("<< ", "")
     Next -> #("", " >>")
-    _ -> #("", "")
   }
 
-  let content_t = case page {
-    Index(_) -> "Inhaltsverzeichnis"
-    Chapter(_, ch_no) -> prev_prefix <> "Kapitel " <> ins(ch_no) <> next_suffix
-    Sub(_, ch_no, sub_no) -> prev_prefix <> "Kapitel " <> ins(ch_no) <> "." <> ins(sub_no) <> next_suffix
+  let content = case page {
+    Chapter(_, _, ch_no) -> prev_prefix <> "Kapitel " <> ins(ch_no) <> next_suffix
+    Sub(_, _, ch_no, sub_no) -> prev_prefix <> "Kapitel " <> ins(ch_no) <> "." <> ins(sub_no) <> next_suffix
   }
-  |> string_2_text_node
 
-  let tooltip = case page, relation {
-    Index(_), _ -> None
-    _, Prev -> Some(V(
-      desugarer_blame(102),
+  let tooltip = case relation {
+    Prev -> V(
+      desugarer_blame(115),
       "span",
       [
         an_attribute("style", "visibility:hidden"),
         an_attribute("id", "prev-page-tooltip"),
       ],
       page.title,
-    ))
-    _, Next -> Some(V(
-      desugarer_blame(111),
+    )
+
+    Next -> V(
+      desugarer_blame(125),
       "span",
       [
         an_attribute("style", "visibility:hidden"),
         an_attribute("id", "next-page-tooltip"),
       ],
       page.title,
-    ))
-    _, _ -> None
-  }
-
-  let span = case page, relation {
-    Index(_), Prev -> Some(
-      V(
-        desugarer_blame(125),
-        "span",
-        an_attribute("class", "inhalts_arrows") |> into_list, 
-        "<< " |> string_2_text_node |> into_list,
-      )
     )
-    _, _ -> None
   }
 
   V(
-    desugarer_blame(135),
+    desugarer_blame(136),
     "a",
     [
       href_attribute,
     ],
     [
-      span,
-      Some(content_t),
+      content |> string_2_text_node,
       tooltip,
-    ] |> option.values
-  )
-}
-
-fn get_four_links(
-  this: Page,
-  prev: Option(Page),
-  next: Option(Page),
-  homepage_url: String,
-) -> FourLinks {
-  FourLinks(
-    homepage: homepage_link(homepage_url),
-    index: case this, prev {
-      Index(_), _ -> None
-      _, Some(Index(_)) -> Some(
-        related_page_2_link(Index([]), Prev)
-      )
-      _, _ -> Some(related_page_2_link(Index([]), Jump))
-    },
-    prev_chap_or_sub: case prev {
-      None -> None
-      Some(Index(_)) -> None
-      Some(x) -> Some(related_page_2_link(x, Prev))
-    },
-    next_chap_or_sub: next |> option.map(related_page_2_link(_, Next)),
-  )
-}
-
-fn add_ids_to_links(
-  links: FourLinks,
-) -> FourLinks {
-  let index = case option.is_none(links.prev_chap_or_sub) {
-    False -> links.index
-    True -> links.index |> option.map(infra.v_prepend_attribute(_, id_prev_page_attribute))
-  }
-  let prev = option.map(links.prev_chap_or_sub, infra.v_prepend_attribute(_, id_prev_page_attribute))
-  let next = option.map(links.next_chap_or_sub, infra.v_prepend_attribute(_, id_next_page_attribute))
-  FourLinks(
-    links.homepage,
-    index,
-    prev,
-    next,
+    ],
   )
 }
 
 fn links_2_left_menu(
   links: FourLinks,
 ) -> VXML {
-  let prev_div = case links.prev_chap_or_sub {
+  let prev_div = case links.prev {
     None -> None
     Some(x) -> Some(V(
-      desugarer_blame(195),
+      desugarer_blame(171),
       "div",
       [],
       [x],
@@ -201,17 +160,17 @@ fn links_2_left_menu(
 
   case links.index {
     None ->
-      // this is the index:
+      // we are the index:
       V(
-        desugarer_blame(206),
+        desugarer_blame(182),
         "LeftMenu",
         an_attribute("class", "menu-left") |> into_list,
         [links.homepage],
       )
     _ ->
-      // this is not the index:
+      // we are not the index:
       V(
-        desugarer_blame(214),
+        desugarer_blame(190),
         "LeftMenu",
         an_attribute("class", "menu-left") |> into_list,
         option.values([links.index, prev_div]),
@@ -222,10 +181,10 @@ fn links_2_left_menu(
 fn links_2_right_menu(
   links: FourLinks
 ) -> VXML {
-  let next_div = case links.next_chap_or_sub {
+  let next_div = case links.next {
     None -> None
     Some(x) -> Some(V(
-      desugarer_blame(228),
+      desugarer_blame(204),
       "div",
       [],
       [x],
@@ -233,18 +192,19 @@ fn links_2_right_menu(
   }
 
   case links.index {
-    None ->
+    None -> {
       // this is the index:
       V(
-        desugarer_blame(239),
+        desugarer_blame(215),
         "RightMenu",
         an_attribute("class", "menu-right") |> into_list,
         option.values([next_div]),
       )
-    _ ->
+    }
+    _ -> {
       // this is not the index:
       V(
-        desugarer_blame(247),
+        desugarer_blame(224),
         "RightMenu",
         an_attribute("class", "menu-right") |> into_list,
         option.values([
@@ -252,6 +212,7 @@ fn links_2_right_menu(
           next_div,
         ]),
       )
+    }
   }
 }
 
@@ -259,7 +220,7 @@ fn links_2_menu(
   links: FourLinks
 ) -> VXML {
   V(
-    desugarer_blame(262),
+    desugarer_blame(240),
     "Menu",
     an_attribute("id", "menu") |> into_list,
     [
@@ -269,159 +230,145 @@ fn links_2_menu(
   )
 }
 
-fn add_menu_to_thing(
-  node: VXML,
-  this: Page,
+fn get_four_links(
+  homepage_link: VXML,
+  index_link: Option(VXML),
   prev: Option(Page),
   next: Option(Page),
-  homepage_url: String,
-) -> VXML {
-  let links = get_four_links(this, prev, next, homepage_url)
-  let links_w_ids = links |> add_ids_to_links
-  let menu = links_2_menu(links_w_ids)
-  infra.v_prepend_child(node, menu)
-}
-
-fn add_menus_in_subchapters(
-  ch: VXML,
-  ch_no: Int,
-  pages_idx: Int,
-  pages: List(Page),
-  homepage_url: String,
-) -> #(Int, VXML) {
-  let assert V(_, _, _, children) = ch
-  let #(acc, children) = list.map_fold(
-    children,
-    pages_idx,
-    fn(acc, child) {
-      case child {
-        V(_, "Sub", _, _) -> {
-          let assert Ok(Sub(_, x, y) as this) = infra.get_at(pages, acc)
-          let sub_no = acc + 1 - pages_idx
-          assert x == ch_no
-          assert y == sub_no
-          let child = add_menu_to_thing(
-            child,
-            this,
-            infra.get_at(pages, acc - 1) |> option.from_result,
-            infra.get_at(pages, acc + 1) |> option.from_result,
-            homepage_url,
-          )
-          #(acc + 1, child)
-        }
-        _ -> #(acc, child)
-      }
-    }
+) -> FourLinks {
+  FourLinks(
+    homepage: homepage_link,
+    index: index_link,
+    prev: prev |> option.map(prev_next_page_to_link(_, Prev)),
+    next: next |> option.map(prev_next_page_to_link(_, Next)),
   )
-  #(acc, V(..ch, children: children))
 }
 
-fn get_course_homepage(document: VXML) -> String {
-  case infra.v_first_attribute_with_key(document, "course_homepage") {
-    None -> ""
-    Some(x) -> x.value
+fn page_associated_to_title_tag(
+  vxml: VXML,
+  title_tag: String,
+) -> Result(Option(Page), DesugaringError) {
+  use title <- on.none_some(
+    infra.v_first_child_with_tag(vxml, title_tag),
+    Ok(None),
+  )
+  let assert V(blame, _, attrs, title) = title
+  use chiron <- on.ok(infra.attributes_value_of_unique_key(attrs, "number-chiron", blame))
+  use ch_no <- on.ok(infra.attributes_value_of_unique_key(attrs, "ch_no", blame))
+  let assert Ok(ch_no) = int.parse(ch_no)
+  let sub_no = case infra.attributes_value_of_unique_key(attrs, "sub_no", blame) {
+    Ok(x) -> {
+      let assert Ok(x) = int.parse(x)
+      Some(x)
+    }
+    _ -> None
+  }
+  case sub_no {
+    None -> Ok(Some(Chapter(title, chiron, ch_no)))
+    Some(sub_no) -> Ok(Some(Sub(title, chiron, ch_no, sub_no)))
   }
 }
 
-fn extract_title(
-  chapter_or_subchapter ch: VXML,
-  title_tag t: String,
-) -> Result(Title, DesugaringError) {
-  use title_element <- on.ok(infra.v_unique_child(ch, t))
-  let assert V(_, _, _, children) = title_element
-  Ok(children)
+fn next_page(vxml: VXML) -> Result(Option(Page), DesugaringError) {
+  page_associated_to_title_tag(vxml, "NextChapterOrSubTitle")
 }
 
-fn gather_pages_chapter_level(
-  ch: VXML,
-  ch_no: Int,
-  previous: List(Page),
-) -> List(Page) {
-  let assert V(_, _, _, children) = ch
-  let acc = list.fold(
-    children,
-    #(1, previous),
-    fn (acc, thing) {
-      let #(sub_no, pages) = acc
-      case thing {
-        V(_, "Sub", _, _) -> {
-          let assert Ok(title) = extract_title(thing, "SubTitle")
-          #(sub_no + 1, [Sub(title, ch_no, sub_no), ..pages])
-        }
-        _ -> acc
-      }
-    }
-  )
-  acc.1
+fn prev_page(vxml: VXML) -> Result(Option(Page), DesugaringError) {
+  page_associated_to_title_tag(vxml, "PrevChapterOrSubTitle")
 }
 
-fn gather_pages_root_level(root: VXML) -> List(Page) {
-  let assert V(_, _, _, children) = root
-  let acc = list.fold(
-    children,
-    #(1, []),
-    fn (acc, thing) {
-      let #(ch_no, pages) = acc
-      case thing {
-        V(_, "Index", _, _) -> #(ch_no, [Index([]), ..pages])
-        V(_, "Chapter", _, _) -> {
-          let assert Ok(title) = extract_title(thing, "ChapterTitle")
-          let pages = gather_pages_chapter_level(thing, ch_no, [Chapter(title, ch_no), ..pages])
-          #(ch_no + 1, pages)
-        }
-        V(_, "Sub", _, _) -> panic as "Sub outside Chapter"
-        _ -> acc
-      }
-    }
-  )
-  acc.1 |> list.reverse
+fn four_links_constructor_at_index(
+  index: VXML,
+  homepage_link: VXML,
+) -> Result(FourLinks, DesugaringError) {
+  use next <- on.ok(next_page(index))
+  case next {
+    None -> Error(DesugaringError(bl.no_blame, "index missing PrevChapterOrSubTitle child (?)"))
+    Some(x) -> Ok(get_four_links(homepage_link, None, None, Some(x)))
+  }
 }
 
-fn at_root(root: VXML) -> Result(VXML, DesugaringError) {
-  let assert V(_, "Document", _, children) = root
-  let homepage_url = get_course_homepage(root)
-  let pages = gather_pages_root_level(root)
-  let #(_, children) = list.map_fold(
-    children,
-    0,
-    fn (acc, thing) {
-      case thing {
-        V(_, "Index", _, _) -> {
-          assert acc == 0
-          let assert Ok(Index(..) as this) = infra.get_at(pages, acc)
-          let thing = add_menu_to_thing(
-            thing,
-            this,
-            infra.get_at(pages, acc - 1) |> option.from_result,
-            infra.get_at(pages, acc + 1) |> option.from_result,
-            homepage_url,
-          )
-          #(acc + 1, thing)
-        }
-        V(_, "Chapter", _, _) -> {
-          let assert Ok(Chapter(_, ch_no) as this) = infra.get_at(pages, acc)
-          let thing = add_menu_to_thing(
-            thing,
-            this,
-            infra.get_at(pages, acc - 1) |> option.from_result,
-            infra.get_at(pages, acc + 1) |> option.from_result,
-            homepage_url,
-          )
-          let #(acc, thing) = add_menus_in_subchapters(
-            thing,
-            ch_no,
-            acc + 1,
-            pages,
-            homepage_url,
-          )
-          // for clarity:
-          #(acc, thing)
-        }
-        _ -> #(acc, thing)
-      }
+fn four_links_constructor_at_ch_or_sub(
+  vxml: VXML,
+  homepage_link: VXML,
+  index_link: VXML,
+) -> Result(FourLinks, DesugaringError) {
+  use prev <- on.ok(prev_page(vxml))
+  use next <- on.ok(next_page(vxml))
+  Ok(get_four_links(homepage_link, Some(index_link), prev, next))
+}
+
+fn add_ids_to_links(
+  links: FourLinks,
+) -> FourLinks {
+  let index = case option.is_none(links.prev) {
+    False -> links.index
+    True -> links.index |> option.map(infra.v_prepend_attribute(_, prev_page_id_attribute))
+  }
+  let prev = option.map(links.prev, infra.v_prepend_attribute(_, prev_page_id_attribute))
+  let next = option.map(links.next, infra.v_prepend_attribute(_, next_page_id_attribute))
+  FourLinks(links.homepage, index, prev, next)
+}
+
+fn add_menu(
+  node: VXML,
+  links: FourLinks,
+) -> VXML {
+  links
+  |> add_ids_to_links
+  |> links_2_menu
+  |> infra.v_prepend_child(node, _)
+}
+
+fn nodemap(
+  vxml: VXML,
+  homepage_link: VXML,
+  index_link: VXML,
+) -> Result(#(VXML, TrafficLight), DesugaringError) {
+  use #(links, continue) <- on.ok(case vxml {
+    V(_, "Index", _, _) -> {
+      use links <- on.ok(four_links_constructor_at_index(vxml, homepage_link))
+      Ok(#(Some(links), GoBack))
     }
+
+    V(_, "Chapter", _, _) -> {
+      use links <- on.ok(four_links_constructor_at_ch_or_sub(vxml, homepage_link, index_link))
+      Ok(#(Some(links), Continue))
+    }
+
+    V(_, "Sub", _, _) -> {
+      use links <- on.ok(four_links_constructor_at_ch_or_sub(vxml, homepage_link, index_link))
+      Ok(#(Some(links), GoBack))
+    }
+
+    V(_, "Document", _, _) -> {
+      Ok(#(None, Continue))
+    }
+
+    _ -> {
+      Ok(#(None, GoBack))
+    }
+  })
+
+  let vxml = case links {
+    None -> vxml
+    Some(links) -> add_menu(vxml, links)
+  }
+
+  Ok(#(vxml, continue))
+}
+
+fn at_root(
+  root: VXML
+) -> Result(VXML, DesugaringError) {
+  let external =
+    infra.v_value_of_first_attribute_with_key(root, "external")
+    |> option.unwrap("")
+
+  n2t.early_return_one_to_one_nodemap_recursive_application(
+    root,
+    nodemap(_, external |> homepage_link, index_link()),
   )
-  Ok(V(..root, children: children))
 }
 
 fn transform_factory(_: InnerParam) -> infra.DesugarerTransform {
@@ -436,7 +383,7 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
 type Param = Nil
 type InnerParam = Nil
 
-pub const name = "ti2_create_menu"
+pub const name = "ti2_create_menu_new_version"
 fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
 
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
@@ -447,6 +394,9 @@ fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
 /// menus containing previous/next chapter links,
 /// index link, and course homepage link. The menu
 /// is inserted after each Chapter and Sub element.
+/// This desugarer expects ti2_create_index and
+/// ti2_add_prev_next_chapter_title_elements to have
+/// been run beforehand
 pub fn constructor() -> Desugarer {
   Desugarer(
     name: name,
