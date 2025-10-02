@@ -56,9 +56,9 @@ fn nodemap(
 
           let item_style_attr = case width_style, height_style {
             "", "" -> None
-            _, "" -> Some(Attribute(desugarer_blame(73), "style", width_style))
-            "", _ -> Some(Attribute(desugarer_blame(74), "style", height_style))
-            _, _ -> Some(Attribute(desugarer_blame(75), "style", width_style <> ";" <> height_style))
+            _, "" -> Some(Attribute(desugarer_blame(59), "style", width_style))
+            "", _ -> Some(Attribute(desugarer_blame(60), "style", height_style))
+            _, _ -> Some(Attribute(desugarer_blame(61), "style", width_style <> ";" <> height_style))
           }
 
           let items = case item_style_attr {

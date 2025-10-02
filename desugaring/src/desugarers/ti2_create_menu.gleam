@@ -54,11 +54,11 @@ type FourLinks {
 }
 
 fn an_attribute(key: String, value: String) -> Attribute {
-  Attribute(desugarer_blame(50), key, value)
+  Attribute(desugarer_blame(57), key, value)
 }
 
 fn string_2_text_node(content: String) -> VXML {
-  T(desugarer_blame(54), [TextLine(desugarer_blame(54), content)])
+  T(desugarer_blame(61), [TextLine(desugarer_blame(61), content)])
 }
 
 fn into_list(a: a) -> List(a) {
@@ -67,7 +67,7 @@ fn into_list(a: a) -> List(a) {
 
 fn homepage_link(homepage_url: String) -> VXML {
   V(
-    desugarer_blame(63),
+    desugarer_blame(70),
     "a",
     an_attribute("href", homepage_url) |> into_list,
     string_2_text_node("zür Kursübersicht") |> into_list,
@@ -76,12 +76,12 @@ fn homepage_link(homepage_url: String) -> VXML {
 
 fn index_link() -> VXML {
   V(
-    desugarer_blame(72),
+    desugarer_blame(79),
     "a",
     an_attribute("href", "./index.html") |> into_list,
     [
       V(
-        desugarer_blame(77),
+        desugarer_blame(84),
         "span",
         an_attribute("class", "inhalts_arrows") |> into_list, 
         "<< " |> string_2_text_node |> into_list,
@@ -120,7 +120,7 @@ fn related_page_2_link(
 
   let tooltip = case relation {
     Prev -> V(
-      desugarer_blame(115),
+      desugarer_blame(123),
       "span",
       [
         an_attribute("style", "visibility:hidden"),
@@ -130,7 +130,7 @@ fn related_page_2_link(
     )
 
     Next -> V(
-      desugarer_blame(125),
+      desugarer_blame(133),
       "span",
       [
         an_attribute("style", "visibility:hidden"),
@@ -141,7 +141,7 @@ fn related_page_2_link(
   }
 
   V(
-    desugarer_blame(136),
+    desugarer_blame(144),
     "a",
     [
       href_attribute,
@@ -159,18 +159,18 @@ fn left_right_links_2_menu(
   class_prefix: String,
 ) -> VXML {
   V(
-    desugarer_blame(240),
+    desugarer_blame(162),
     "Menu",
     an_attribute("id", class_prefix <> "menu") |> into_list,
     [
       V(
-        desugarer_blame(224),
+        desugarer_blame(167),
         "MenuLeft",
         an_attribute("class", class_prefix <> "menu-left") |> into_list,
         left,
       ),
       V(
-        desugarer_blame(224),
+        desugarer_blame(173),
         "MenuRight",
         an_attribute("class", class_prefix <> "menu-right") |> into_list,
         right,

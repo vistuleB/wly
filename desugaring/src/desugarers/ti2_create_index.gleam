@@ -25,7 +25,7 @@ import on
 // 🌸🌸🌸🌸🌸🌸🌸
 
 fn header(document: VXML) -> VXML {
-  let b = desugarer_blame(26)
+  let b = desugarer_blame(28)
 
   let title =
     case infra.v_first_attribute_with_key(document, "title") {
@@ -178,7 +178,7 @@ fn href(chapter_no: Int, sub_no: Int) -> String {
 }
 
 fn sub_item(ch_no: Int, sub_no: Int, sub: SubInfo) -> VXML {
-  let b = desugarer_blame(161)
+  let b = desugarer_blame(181)
   let SubInfo(title) = sub
   V(
     b,
@@ -201,7 +201,7 @@ fn chapter_item(
   ch_no: Int,
   chapter: ChapterInfo,
 ) -> VXML {
-  let b = desugarer_blame(183)
+  let b = desugarer_blame(204)
   let ChapterInfo(title, subs) = chapter
   let subchapters_ol = case subs {
     [] -> []
@@ -236,7 +236,7 @@ fn chapter_item(
 }
 
 fn chapter_ol(chapters: List(ChapterInfo)) -> VXML {
-  let b = desugarer_blame(218)
+  let b = desugarer_blame(239)
   V(
     b,
     "ol",
@@ -255,10 +255,10 @@ fn index(root: VXML) -> Result(VXML, DesugaringError) {
   use chapter_infos <- on.ok(gather_chapter_infos(root))
 
   Ok(V(
-    desugarer_blame(237),
+    desugarer_blame(258),
     "Index",
     [
-      Attribute(desugarer_blame(240), "path", "./index.html"),
+      Attribute(desugarer_blame(261), "path", "./index.html"),
     ],
     [
       header(root),

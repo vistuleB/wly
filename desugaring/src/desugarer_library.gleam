@@ -141,6 +141,7 @@ import desugarers/rename_with_appended_attributes_and_prepended_text
 import desugarers/rename_with_attributes
 import desugarers/rename_with_attributes__batch
 import desugarers/rename_with_class
+import desugarers/rename_with_class_and_attributes
 import desugarers/replace_in_attribute_values
 import desugarers/replace_multiple_spaces_by_one
 import desugarers/replace_with_arbitrary
@@ -341,6 +342,7 @@ pub const rename_with_appended_attributes_and_prepended_text = rename_with_appen
 pub const rename_with_attributes = rename_with_attributes.constructor
 pub const rename_with_attributes__batch = rename_with_attributes__batch.constructor
 pub const rename_with_class = rename_with_class.constructor
+pub const rename_with_class_and_attributes = rename_with_class_and_attributes.constructor
 pub const replace_in_attribute_values = replace_in_attribute_values.constructor
 pub const replace_multiple_spaces_by_one = replace_multiple_spaces_by_one.constructor
 pub const replace_with_arbitrary = replace_with_arbitrary.constructor
@@ -542,6 +544,7 @@ pub const assertive_tests : List(fn() -> infra.AssertiveTestCollection) = [
   rename_with_attributes.assertive_tests,
   rename_with_attributes__batch.assertive_tests,
   rename_with_class.assertive_tests,
+  rename_with_class_and_attributes.assertive_tests,
   replace_in_attribute_values.assertive_tests,
   replace_multiple_spaces_by_one.assertive_tests,
   replace_with_arbitrary.assertive_tests,

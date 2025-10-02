@@ -1,59 +1,57 @@
+import gleam/list
 import gleam/option
 import gleam/string.{inspect as ins}
-import infrastructure.{
-  type Desugarer,
-  type DesugarerTransform,
-  type DesugaringError,
-  type TrafficLight,
-  Desugarer,
-  Continue,
-} as infra
+import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as infra
 import nodemaps_2_desugarer_transforms as n2t
-import vxml.{
-  type VXML,
-  V,
-}
-import blame.{type Blame} as bl
+import vxml.{type VXML, V, type Attribute, Attribute}
+import blame as bl
 
 fn nodemap(
   vxml: VXML,
   inner: InnerParam,
-) -> #(VXML, TrafficLight) {
+) -> Result(VXML, DesugaringError) {
   case vxml {
-    V(_, tag, attrs, _) if tag == inner.0 -> {
-      let attrs = infra.attributes_append_classes(attrs, desugarer_blame(24), inner.2)
-      #(V(..vxml, attributes: attrs), inner.3)
+    V(blame, tag, attrs, _) if tag == inner.0 -> {
+      let attrs =
+        attrs
+        |> infra.attributes_append_classes(blame, inner.2)
+        |> list.append(inner.3)
+      Ok(V(..vxml, tag: inner.1, attributes: attrs))
     }
-    _ -> #(vxml, Continue)
+    _ -> Ok(vxml)
   }
 }
 
-fn nodemap_factory(inner: InnerParam) -> n2t.EarlyReturnOneToOneNoErrorNodeMap {
+fn nodemap_factory(inner: InnerParam) -> n2t.OneToOneNodeMap {
   nodemap(_, inner)
 }
 
 fn transform_factory(inner: InnerParam) -> DesugarerTransform {
-  nodemap_factory(inner)
-  |> n2t.early_return_one_to_one_no_error_nodemap_2_desugarer_transform
+  n2t.one_to_one_nodemap_2_desugarer_transform(nodemap_factory(inner))
 }
 
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
-  Ok(#(param.0, desugarer_blame(41), param.1, param.2))
+  let attrs = param.3
+  |> list.map(fn(x) { Attribute(desugarer_blame(35), x.0, x.1) })
+  Ok(#(param.0, param.1, param.2, attrs))
 }
 
-type Param = #(String, String, TrafficLight)
-//             ↖       ↖       ↖
-//             tag     class   return-early-or-not-after-finding-tag
-type InnerParam = #(String, Blame, String, TrafficLight)
+type Param = #(String,   String,   String,  List(#(String, String)))
+//             ↖         ↖         ↖        ↖
+//             old_tag   new_tag   class    list of attributes 
+//                                          as key value pairs
+type InnerParam = #(String, String, String, List(Attribute))
 
-pub const name = "append_class"
+pub const name = "rename_with_class_and_attributes"
 fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
 
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 // 🏖️🏖️ Desugarer 🏖️🏖️
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 //------------------------------------------------53
-/// append to list of attributes of a given tag
+/// renames tags and adds attributes to them; also 
+/// adds a class attribute, that results in editing
+/// any existing class attribute, if present
 pub fn constructor(param: Param) -> Desugarer {
   Desugarer(
     name: name,

@@ -118,13 +118,13 @@ fn attributes_4_page(
 ) -> List(Attribute) {
   case page {
     Chapter(_, number_chiron, ch_no) -> [
-      Attribute(desugarer_blame(124), "ch_no", ins(ch_no)),
-      Attribute(desugarer_blame(125), "number-chiron", number_chiron),
+      Attribute(desugarer_blame(121), "ch_no", ins(ch_no)),
+      Attribute(desugarer_blame(122), "number-chiron", number_chiron),
     ]
     Sub(_, number_chiron, ch_no, sub_no) -> [
-      Attribute(desugarer_blame(128), "ch_no", ins(ch_no)),
-      Attribute(desugarer_blame(129), "sub_no", ins(sub_no)),
-      Attribute(desugarer_blame(130), "number-chiron", number_chiron),
+      Attribute(desugarer_blame(125), "ch_no", ins(ch_no)),
+      Attribute(desugarer_blame(126), "sub_no", ins(sub_no)),
+      Attribute(desugarer_blame(127), "number-chiron", number_chiron),
     ]
   }
 }
@@ -136,7 +136,7 @@ fn deposit_next(
   let assert V(_, _, _, children) = vxml
   use next <- on.none_some(next, vxml)
   let title = V(
-    desugarer_blame(142),
+    desugarer_blame(139),
     "NextChapterOrSubTitle",
     attributes_4_page(next),
     next.title,
@@ -151,7 +151,7 @@ fn deposit_prev(
   let assert V(_, _, _, children) = vxml
   use prev <- on.none_some(prev, vxml)
   let title = V(
-    desugarer_blame(157),
+    desugarer_blame(154),
     "PrevChapterOrSubTitle",
     attributes_4_page(prev),
     prev.title,
