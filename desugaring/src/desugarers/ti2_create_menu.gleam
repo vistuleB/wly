@@ -145,89 +145,49 @@ fn prev_next_page_to_link(
   )
 }
 
-fn links_2_left_menu(
-  links: FourLinks,
+fn left_right_links_2_menu(
+  left: List(VXML),
+  right: List(VXML),
+  class_prefix: String,
 ) -> VXML {
-  let prev_div = case links.prev {
-    None -> None
-    Some(x) -> Some(V(
-      desugarer_blame(171),
-      "div",
-      [],
-      [x],
-    ))
-  }
-
-  case links.index {
-    None ->
-      // we are the index:
-      V(
-        desugarer_blame(182),
-        "LeftMenu",
-        an_attribute("class", "menu-left") |> into_list,
-        [links.homepage],
-      )
-    _ ->
-      // we are not the index:
-      V(
-        desugarer_blame(190),
-        "LeftMenu",
-        an_attribute("class", "menu-left") |> into_list,
-        option.values([links.index, prev_div]),
-      )
-  }
-}
-
-fn links_2_right_menu(
-  links: FourLinks
-) -> VXML {
-  let next_div = case links.next {
-    None -> None
-    Some(x) -> Some(V(
-      desugarer_blame(204),
-      "div",
-      [],
-      [x],
-    ))
-  }
-
-  case links.index {
-    None -> {
-      // this is the index:
-      V(
-        desugarer_blame(215),
-        "RightMenu",
-        an_attribute("class", "menu-right") |> into_list,
-        option.values([next_div]),
-      )
-    }
-    _ -> {
-      // this is not the index:
+  V(
+    desugarer_blame(240),
+    "Menu",
+    an_attribute("id", class_prefix <> "menu") |> into_list,
+    [
       V(
         desugarer_blame(224),
-        "RightMenu",
-        an_attribute("class", "menu-right") |> into_list,
-        option.values([
-          Some(links.homepage), 
-          next_div,
-        ]),
-      )
-    }
-  }
+        "MenuLeft",
+        an_attribute("class", class_prefix <> "menu-left") |> into_list,
+        left,
+      ),
+      V(
+        desugarer_blame(224),
+        "MenuRight",
+        an_attribute("class", class_prefix <> "menu-right") |> into_list,
+        right,
+      ),
+    ],
+  )
 }
 
 fn links_2_menu(
   links: FourLinks
 ) -> VXML {
-  V(
-    desugarer_blame(240),
-    "Menu",
-    an_attribute("id", "menu") |> into_list,
-    [
-      links_2_left_menu(links),
-      links_2_right_menu(links),
-    ]
-  )
+  case links.index {
+    // the index:
+    None -> left_right_links_2_menu(
+      [links.homepage],
+      [links.next] |> option.values,
+      "",
+    )
+    // not the index:
+    _ -> left_right_links_2_menu(
+      [links.index, links.prev] |> option.values,
+      [Some(links.homepage), links.next] |> option.values,
+      "",
+    )
+  }
 }
 
 fn get_four_links(
