@@ -37,6 +37,13 @@ type Relation {
   Next
 }
 
+type RelatedPage {
+  RelatedPage(
+    page: Page,
+    relation: Relation,
+  )
+}
+
 type FourLinks {
   FourLinks(
     homepage: VXML,
@@ -91,10 +98,11 @@ fn page_href(page: Page) -> String {
   }
 }
 
-fn prev_next_page_to_link(
-  page: Page,
-  relation: Relation,
+fn related_page_2_link(
+  related_page: RelatedPage,
 ) -> VXML {
+  let RelatedPage(page, relation) = related_page
+
   let href_attribute = 
     page
     |> page_href
@@ -193,21 +201,21 @@ fn links_2_menu(
 fn get_four_links(
   homepage_link: VXML,
   index_link: Option(VXML),
-  prev: Option(Page),
-  next: Option(Page),
+  prev: Option(RelatedPage),
+  next: Option(RelatedPage),
 ) -> FourLinks {
   FourLinks(
     homepage: homepage_link,
     index: index_link,
-    prev: prev |> option.map(prev_next_page_to_link(_, Prev)),
-    next: next |> option.map(prev_next_page_to_link(_, Next)),
+    prev: prev |> option.map(related_page_2_link),
+    next: next |> option.map(related_page_2_link),
   )
 }
 
-fn page_from_title(
+fn related_page_from_title(
   vxml: VXML,
   relation: Relation,
-) -> Result(Option(Page), DesugaringError) {
+) -> Result(Option(RelatedPage), DesugaringError) {
   let title_tag = case relation {
     Prev -> "PrevChapterOrSubTitle"
     Next -> "NextChapterOrSubTitle"
@@ -227,20 +235,21 @@ fn page_from_title(
     }
     _ -> None
   }
-  case sub_no {
-    None -> Ok(Some(Chapter(title, chiron, ch_no)))
-    Some(sub_no) -> Ok(Some(Sub(title, chiron, ch_no, sub_no)))
+  let page = case sub_no {
+    None -> Chapter(title, chiron, ch_no)
+    Some(sub_no) -> Sub(title, chiron, ch_no, sub_no)
   }
+  Ok(Some(RelatedPage(page, relation)))
 }
 
 fn four_links_constructor_at_index(
   index: VXML,
   homepage_link: VXML,
 ) -> Result(FourLinks, DesugaringError) {
-  use next <- on.ok(page_from_title(index, Next))
+  use next <- on.ok(related_page_from_title(index, Next))
   case next {
     None -> Error(DesugaringError(bl.no_blame, "index missing PrevChapterOrSubTitle child (?)"))
-    Some(x) -> Ok(get_four_links(homepage_link, None, None, Some(x)))
+    _ -> Ok(get_four_links(homepage_link, None, None, next))
   }
 }
 
@@ -249,8 +258,8 @@ fn four_links_constructor_at_ch_or_sub(
   homepage_link: VXML,
   index_link: VXML,
 ) -> Result(FourLinks, DesugaringError) {
-  use prev <- on.ok(page_from_title(vxml, Prev))
-  use next <- on.ok(page_from_title(vxml, Next))
+  use prev <- on.ok(related_page_from_title(vxml, Prev))
+  use next <- on.ok(related_page_from_title(vxml, Next))
   Ok(get_four_links(homepage_link, Some(index_link), prev, next))
 }
 
