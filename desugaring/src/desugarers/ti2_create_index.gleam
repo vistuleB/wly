@@ -84,9 +84,9 @@ fn header(document: VXML) -> VXML {
   )
 }
 
-// 🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸
-// 🌸 data harvesting for table of contents~~~ 🌸
-// 🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸
+// 🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸
+// 🌸 gathering for table of contents~ 🌸
+// 🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸
 
 type Title =
   List(VXML)
@@ -94,14 +94,12 @@ type Title =
 type SubInfo {
   SubInfo(
     title: Title,
-    no: Int,
   )
 }
 
 type ChapterInfo {
   ChapterInfo(
     title: Title,
-    no: Int,
     subs: List(SubInfo)
   )
 }
@@ -111,51 +109,7 @@ type ChapterOrSub {
   Sub
 }
 
-type ChapterInfoGatheringState {
-  ChapterInfoGatheringState(
-    chapters: List(ChapterInfo),
-    ch_no: Int,
-    sub_no: Int,
-  )
-}
-
-fn chapter_info_gatherer_v_before(
-  vxml: VXML,
-  state: ChapterInfoGatheringState,
-) -> Result(#(VXML, ChapterInfoGatheringState, TrafficLight), DesugaringError) {
-  case vxml {
-    V(_, "Document", _, _) ->
-      Ok(#(vxml, state, Continue))
-
-    V(_, "Chapter", _, _) -> {
-      let ChapterInfoGatheringState(chapters, ch_no, _) = state
-      use title <- on.ok(harvest_title(vxml, Chapter))
-      let chapters = [ChapterInfo(title, ch_no + 1, []), ..chapters]
-      let state = ChapterInfoGatheringState(chapters, ch_no + 1, 0)
-      Ok(#(vxml, state, Continue))
-    }
-
-    V(_, "Sub", _, _) -> {
-      let assert ChapterInfoGatheringState([ChapterInfo(_, _, subs) as last, ..rest], ch_no, sub_no) = state
-      use title <- on.ok(harvest_title(vxml, Sub))
-      let chapters = [ChapterInfo(..last, subs: [SubInfo(title, sub_no + 1), ..subs]), ..rest]
-      let state = ChapterInfoGatheringState(chapters, ch_no, sub_no + 1)
-      Ok(#(vxml, state, GoBack))
-    }
-
-    _ -> Ok(#(vxml, state, GoBack))
-  }
-}
-
-fn chapter_info_gatherer_nodemap() -> n2t.EarlyReturnOneToOneBeforeAndAfterStatefulNodeMap(ChapterInfoGatheringState) {
-  n2t.EarlyReturnOneToOneBeforeAndAfterStatefulNodeMap(
-    v_before_transforming_children: chapter_info_gatherer_v_before,
-    v_after_transforming_children: n2t.before_and_after_keep_latest_state,
-    t_nodemap: n2t.before_and_after_identity,
-  )
-}
-
-fn harvest_title(
+fn gather_title(
   vxml: VXML,
   chapter_or_sub: ChapterOrSub,
 ) -> Result(Title, DesugaringError) {
@@ -168,37 +122,51 @@ fn harvest_title(
   Ok(children)
 }
 
-fn harvest_subchapter_info(
-  subchapter: VXML,
-  index: Int,
-) -> Result(SubInfo, DesugaringError) {
-  use title <- on.ok(harvest_title(subchapter, Sub))
-  Ok(SubInfo(title, index + 1))
+fn add_chapter_with_title_to_state(
+  state: List(ChapterInfo),
+  title: Title,
+) -> List(ChapterInfo) {
+  let chapter = ChapterInfo(title, [])
+  [chapter, ..state]
 }
 
-fn harvest_subchapter_infos(
-  chapter: VXML,
-) -> Result(List(SubInfo), DesugaringError) {
-  chapter
-  |> infra.v_children_with_tag("Sub")
-  |> infra.index_try_map(harvest_subchapter_info)
+fn add_sub_with_title_to_state(
+  state: List(ChapterInfo),
+  title: Title,
+) -> List(ChapterInfo) {
+  let assert [ChapterInfo(_, subs) as first, ..rest] = state
+  let first = ChapterInfo(..first, subs: [SubInfo(title), ..subs])
+  [first, ..rest]
 }
 
-fn harvest_chapter_info(
-  ch: VXML,
-  index: Int,
-) -> Result(ChapterInfo, DesugaringError) {
-  use title <- on.ok(harvest_title(ch, Chapter))
-  use subs <- on.ok(harvest_subchapter_infos(ch))
-  Ok(ChapterInfo(title, index + 1, subs))
+fn chapter_info_information_gatherer(
+  vxml: VXML,
+  state: List(ChapterInfo),
+) -> Result(#(List(ChapterInfo), TrafficLight), DesugaringError) {
+  case vxml {
+    V(_, "Document", _, _) ->
+      Ok(#(state, Continue))
+
+    V(_, "Chapter", _, _) -> {
+      use title <- on.ok(gather_title(vxml, Chapter))
+      Ok(#(state |> add_chapter_with_title_to_state(title), Continue))
+    }
+
+    V(_, "Sub", _, _) -> {
+      use title <- on.ok(gather_title(vxml, Sub))
+      Ok(#(state |> add_sub_with_title_to_state(title), GoBack))
+    }
+
+    _ -> Ok(#(state, GoBack))
+  }
 }
 
-fn harvest_chapter_infos(
-  root: VXML,
-) -> Result(List(ChapterInfo), DesugaringError) {
-  root
-  |> infra.v_children_with_tag("Chapter")
-  |> infra.index_try_map(harvest_chapter_info)
+fn gather_chapter_infos(root: VXML) -> Result(List(ChapterInfo), DesugaringError) {
+  n2t.early_return_information_gatherer_traverse_tree(
+    root,
+    [],
+    chapter_info_information_gatherer,
+  )
 }
 
 // 🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸
@@ -209,9 +177,9 @@ fn href(chapter_no: Int, sub_no: Int) -> String {
   "./" <> ins(chapter_no) <> "-" <> ins(sub_no) <> ".html"
 }
 
-fn subchapter_item(ch_no: Int, sub: SubInfo) -> VXML {
+fn sub_item(ch_no: Int, sub_no: Int, sub: SubInfo) -> VXML {
   let b = desugarer_blame(161)
-  let SubInfo(title, sub_no) = sub
+  let SubInfo(title) = sub
   V(
     b,
     "li",
@@ -230,10 +198,11 @@ fn subchapter_item(ch_no: Int, sub: SubInfo) -> VXML {
 }
 
 fn chapter_item(
+  ch_no: Int,
   chapter: ChapterInfo,
 ) -> VXML {
   let b = desugarer_blame(183)
-  let ChapterInfo(title, ch_no, subs) = chapter
+  let ChapterInfo(title, subs) = chapter
   let subchapters_ol = case subs {
     [] -> []
     _ -> [
@@ -241,7 +210,7 @@ fn chapter_item(
         b,
         "ol",
         [],
-        list.map(subs, subchapter_item(ch_no, _)),
+        list.index_map(subs |> list.reverse, fn (sub, i) { sub_item(ch_no, i + 1, sub) }),
       ),
     ]
   }
@@ -274,7 +243,7 @@ fn chapter_ol(chapters: List(ChapterInfo)) -> VXML {
     [
       Attribute(b, "class", "index__toc"),
     ],
-    list.map(chapters, chapter_item),
+    list.index_map(chapters |> list.reverse, fn(ch, i) { chapter_item(i + 1, ch) }),
   )
 }
 
@@ -283,14 +252,7 @@ fn chapter_ol(chapters: List(ChapterInfo)) -> VXML {
 // 🌸🌸🌸🌸🌸🌸🌸
 
 fn index(root: VXML) -> Result(VXML, DesugaringError) {
-  use #(_, ChapterInfoGatheringState(chapter_infos, _, _)) <- on.ok(
-    n2t.early_return_one_to_one_before_and_after_stateful_nodemap_traverse_tree(
-      ChapterInfoGatheringState([], 0, 0),
-      root,
-      chapter_info_gatherer_nodemap(),
-    )
-  )
-  // use chapter_infos <- on.ok(harvest_chapter_infos(root))
+  use chapter_infos <- on.ok(gather_chapter_infos(root))
 
   Ok(V(
     desugarer_blame(237),

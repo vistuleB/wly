@@ -278,13 +278,18 @@ fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
 /// Wraps the root of the document in a node named
 /// 'GrandWrapper' and with attributes of the form
 /// 
-/// handle=<name>|<value>|<id>|<path>
+/// handle=<name>|<:page>|<value>|<id>|<path>
 /// 
 /// where <path> is the value of the afore-mentioned
-/// "path" attribute associated to each handle. 
-/// (Specifically the value of that attribute at the
+/// "path" attribute associated to each handle
+/// (specifically the value of that attribute at the
 /// closest ancestor to the node where the handle 
-/// sits.)
+/// sits), and where <:page> is either the string
+/// ":page" or the empty string depending on whether
+/// original handle <name> ended with the suffix ':page'
+/// or not, in which which case that suffix will also
+/// be stripped in the <name> field of the GrandWrapper
+/// dictionary.
 ///
 /// Removes the original 'handle' attributes from their
 /// original positions, with all of the info stored at

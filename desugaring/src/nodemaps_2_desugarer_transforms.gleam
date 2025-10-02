@@ -1513,3 +1513,30 @@ pub fn early_return_one_to_many_no_error_nodemap_2_desugarer_transform_with_forb
     |> result.map(add_no_warnings)
   }
 }
+
+//**************************************************************
+//* EarlyReturnInformationGatherer
+//**************************************************************
+
+pub type EarlyReturnInformationGatherer(a) =
+  fn(VXML, a) -> Result(#(a, TrafficLight), DesugaringError)
+
+pub fn early_return_information_gatherer_traverse_tree(
+  vxml: VXML,
+  state: state,
+  gatherer:  EarlyReturnInformationGatherer(state),
+) -> Result(state, DesugaringError) {
+  use #(state, traffic_light) <- on.ok(gatherer(vxml, state))
+  case traffic_light, vxml {
+    Continue, V(_, _, _, children) -> {
+      list.try_fold(
+        children,
+        state,
+        fn (state, child) {
+          early_return_information_gatherer_traverse_tree(child, state, gatherer)
+        }
+      )
+    }
+    _, _ -> Ok(state)
+  }
+}
