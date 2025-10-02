@@ -4,7 +4,10 @@ import gleam/string.{inspect as ins}
 import infrastructure.{
   type Desugarer,
   type DesugaringError,
+  type TrafficLight,
   Desugarer,
+  Continue,
+  GoBack,
 } as infra
 import vxml.{
   type VXML,
@@ -85,14 +88,71 @@ fn header(document: VXML) -> VXML {
 // 🌸 data harvesting for table of contents~~~ 🌸
 // 🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸
 
-type Title = List(VXML)
-type SubNo = Int
-type ChapterNo = Int
-type SubInfo = #(ChapterNo, SubNo, Title)
-type ChapterInfo = #(ChapterNo, Title, List(SubInfo))
+type Title =
+  List(VXML)
+
+type SubInfo {
+  SubInfo(
+    title: Title,
+    no: Int,
+  )
+}
+
+type ChapterInfo {
+  ChapterInfo(
+    title: Title,
+    no: Int,
+    subs: List(SubInfo)
+  )
+}
+
 type ChapterOrSub {
   Chapter
   Sub
+}
+
+type ChapterInfoGatheringState {
+  ChapterInfoGatheringState(
+    chapters: List(ChapterInfo),
+    ch_no: Int,
+    sub_no: Int,
+  )
+}
+
+fn chapter_info_gatherer_v_before(
+  vxml: VXML,
+  state: ChapterInfoGatheringState,
+) -> Result(#(VXML, ChapterInfoGatheringState, TrafficLight), DesugaringError) {
+  case vxml {
+    V(_, "Document", _, _) ->
+      Ok(#(vxml, state, Continue))
+
+    V(_, "Chapter", _, _) -> {
+      let ChapterInfoGatheringState(chapters, ch_no, _) = state
+      use title <- on.ok(harvest_title(vxml, Chapter))
+      let chapters = [ChapterInfo(title, ch_no + 1, []), ..chapters]
+      let state = ChapterInfoGatheringState(chapters, ch_no + 1, 0)
+      Ok(#(vxml, state, Continue))
+    }
+
+    V(_, "Sub", _, _) -> {
+      let assert ChapterInfoGatheringState([ChapterInfo(_, _, subs) as last, ..rest], ch_no, sub_no) = state
+      use title <- on.ok(harvest_title(vxml, Sub))
+      let chapters = [ChapterInfo(..last, subs: [SubInfo(title, sub_no + 1), ..subs]), ..rest]
+      let state = ChapterInfoGatheringState(chapters, ch_no, sub_no + 1)
+      Ok(#(vxml, state, GoBack))
+    }
+
+    _ -> Ok(#(vxml, state, GoBack))
+  }
+}
+
+fn chapter_info_gatherer_nodemap() -> n2t.EarlyReturnOneToOneBeforeAndAfterStatefulNodeMap(ChapterInfoGatheringState) {
+  n2t.EarlyReturnOneToOneBeforeAndAfterStatefulNodeMap(
+    v_before_transforming_children: chapter_info_gatherer_v_before,
+    v_after_transforming_children: n2t.before_and_after_keep_latest_state,
+    t_nodemap: n2t.before_and_after_identity,
+  )
 }
 
 fn harvest_title(
@@ -111,19 +171,17 @@ fn harvest_title(
 fn harvest_subchapter_info(
   subchapter: VXML,
   index: Int,
-  ch_no: Int,
-) {
+) -> Result(SubInfo, DesugaringError) {
   use title <- on.ok(harvest_title(subchapter, Sub))
-  Ok(#(ch_no, index + 1, title))
+  Ok(SubInfo(title, index + 1))
 }
 
 fn harvest_subchapter_infos(
   chapter: VXML,
-  ch_no: Int,
 ) -> Result(List(SubInfo), DesugaringError) {
   chapter
   |> infra.v_children_with_tag("Sub")
-  |> infra.index_try_map(fn(s, i) { harvest_subchapter_info(s, i, ch_no) })
+  |> infra.index_try_map(harvest_subchapter_info)
 }
 
 fn harvest_chapter_info(
@@ -131,8 +189,8 @@ fn harvest_chapter_info(
   index: Int,
 ) -> Result(ChapterInfo, DesugaringError) {
   use title <- on.ok(harvest_title(ch, Chapter))
-  use infos <- on.ok(harvest_subchapter_infos(ch, index + 1))
-  Ok(#(index + 1, title, infos))
+  use subs <- on.ok(harvest_subchapter_infos(ch))
+  Ok(ChapterInfo(title, index + 1, subs))
 }
 
 fn harvest_chapter_infos(
@@ -151,9 +209,9 @@ fn href(chapter_no: Int, sub_no: Int) -> String {
   "./" <> ins(chapter_no) <> "-" <> ins(sub_no) <> ".html"
 }
 
-fn subchapter_item(subchapter: SubInfo) -> VXML {
+fn subchapter_item(ch_no: Int, sub: SubInfo) -> VXML {
   let b = desugarer_blame(161)
-  let #(chapter_no, subchapter_no, title) = subchapter
+  let SubInfo(title, sub_no) = sub
   V(
     b,
     "li",
@@ -163,7 +221,7 @@ fn subchapter_item(subchapter: SubInfo) -> VXML {
         b,
         "a",
         [
-          Attribute(b, "href", href(chapter_no, subchapter_no)),
+          Attribute(b, "href", href(ch_no, sub_no)),
         ],
         title,
       )
@@ -175,15 +233,15 @@ fn chapter_item(
   chapter: ChapterInfo,
 ) -> VXML {
   let b = desugarer_blame(183)
-  let #(chapter_no, chapter_title, subchapters) = chapter
-  let subchapters_ol = case subchapters {
+  let ChapterInfo(title, ch_no, subs) = chapter
+  let subchapters_ol = case subs {
     [] -> []
     _ -> [
       V(
         b,
         "ol",
         [],
-        list.map(subchapters, subchapter_item),
+        list.map(subs, subchapter_item(ch_no, _)),
       ),
     ]
   }
@@ -192,9 +250,9 @@ fn chapter_item(
     b,
     "a",
     [
-      Attribute(b, "href", href(chapter_no, 0)),
+      Attribute(b, "href", href(ch_no, 0)),
     ],
-    chapter_title,
+    title,
   )
 
   V(
@@ -225,7 +283,15 @@ fn chapter_ol(chapters: List(ChapterInfo)) -> VXML {
 // 🌸🌸🌸🌸🌸🌸🌸
 
 fn index(root: VXML) -> Result(VXML, DesugaringError) {
-  use chapter_infos <- on.ok(harvest_chapter_infos(root))
+  use #(_, ChapterInfoGatheringState(chapter_infos, _, _)) <- on.ok(
+    n2t.early_return_one_to_one_before_and_after_stateful_nodemap_traverse_tree(
+      ChapterInfoGatheringState([], 0, 0),
+      root,
+      chapter_info_gatherer_nodemap(),
+    )
+  )
+  // use chapter_infos <- on.ok(harvest_chapter_infos(root))
+
   Ok(V(
     desugarer_blame(237),
     "Index",
