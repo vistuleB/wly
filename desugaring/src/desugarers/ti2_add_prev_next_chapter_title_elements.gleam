@@ -52,42 +52,58 @@ fn gather_title_and_chiron(
   Ok(#(title, chiron))
 }
 
-fn page_gatherer_v_before(
+fn add_chapter_to_page_gathering_state(
+  state: PageGatheringState,
+  title: Title,
+  chiron: String,
+) -> PageGatheringState {
+  let PageGatheringState(pages, ch_no, _) = state
+  let pages = [Chapter(title, chiron, ch_no + 1), ..pages]
+  PageGatheringState(pages, ch_no + 1, 0)
+}
+
+fn add_sub_to_page_gathering_state(
+  state: PageGatheringState,
+  title: Title,
+  chiron: String,
+) -> PageGatheringState {
+  let PageGatheringState(pages, ch_no, sub_no) = state
+  let pages = [Sub(title, chiron, ch_no, sub_no + 1), ..pages]
+  PageGatheringState(pages, ch_no, sub_no + 1)
+}
+
+fn page_information_gatherer(
   vxml: VXML,
   state: PageGatheringState,
-) -> Result(#(VXML, PageGatheringState, TrafficLight), DesugaringError) {
+) -> Result(#(PageGatheringState, TrafficLight), DesugaringError) {
   case vxml {
     V(_, "Document", _, _) ->
-      Ok(#(vxml, state, Continue))
+      Ok(#(state, Continue))
 
     V(_, "Chapter", _, _) -> {
-      let PageGatheringState(pages, ch_no, _) = state
-      let ch_no = ch_no + 1
       use #(title, chiron) <- on.ok(gather_title_and_chiron(vxml, "ChapterTitle"))
-      let pages = [Chapter(title, chiron, ch_no), ..pages]
-      let state = PageGatheringState(pages, ch_no, 0)
-      Ok(#(vxml, state, Continue))
+      Ok(#(state |> add_chapter_to_page_gathering_state(title, chiron), Continue))
     }
 
     V(_, "Sub", _, _) -> {
-      let PageGatheringState(pages, ch_no, sub_no) = state
-      let sub_no = sub_no + 1
       use #(title, chiron) <- on.ok(gather_title_and_chiron(vxml, "SubTitle"))
-      let pages = [Sub(title, chiron, ch_no, sub_no), ..pages]
-      let state = PageGatheringState(pages, ch_no, sub_no)
-      Ok(#(vxml, state, GoBack))
+      Ok(#(state |> add_sub_to_page_gathering_state(title, chiron), GoBack))
     }
 
-    _ -> Ok(#(vxml, state, GoBack))
+    _ -> Ok(#(state, GoBack))
   }
 }
 
-fn page_gatherer_nodemap() -> n2t.EarlyReturnOneToOneBeforeAndAfterStatefulNodeMap(PageGatheringState) {
-  n2t.EarlyReturnOneToOneBeforeAndAfterStatefulNodeMap(
-    v_before_transforming_children: page_gatherer_v_before,
-    v_after_transforming_children: n2t.before_and_after_keep_latest_state,
-    t_nodemap: n2t.before_and_after_identity,
+fn gather_pages(root: VXML) -> Result(List(Page), DesugaringError) {
+  use PageGatheringState(pages, _, _) <- on.ok(
+    n2t.early_return_information_gatherer_traverse_tree(
+      root,
+      PageGatheringState([], 0, 0),
+      page_information_gatherer,
+    )
   )
+
+  pages |> list.reverse |> Ok
 }
 
 // ************************************************************
@@ -143,7 +159,7 @@ fn deposit_prev(
   V(..vxml, children: [title, ..children])
 }
 
-fn next_prev_pages(
+fn prev_this_next_rest(
   previous: List(Page),
   upcoming: List(Page),
   expecting: Page,
@@ -184,13 +200,13 @@ fn page_depositor_v_before(
     }
     V(_, "Chapter", _, _) -> {
       let #(previous, upcoming) = state
-      let #(prev, this, next, upcoming) = next_prev_pages(previous, upcoming, Chapter([], "", 0))
+      let #(prev, this, next, upcoming) = prev_this_next_rest(previous, upcoming, Chapter([], "", 0))
       let vxml = vxml |> deposit_prev(prev) |> deposit_next(next)
       Ok(#(vxml, #([this, ..previous], upcoming), Continue))
     }
     V(_, "Sub", _, _) -> {
       let #(previous, upcoming) = state
-      let #(prev, this, next, upcoming) = next_prev_pages(previous, upcoming, Sub([], "", 0, 0))
+      let #(prev, this, next, upcoming) = prev_this_next_rest(previous, upcoming, Sub([], "", 0, 0))
       let vxml = vxml |> deposit_prev(prev) |> deposit_next(next)
       Ok(#(vxml, #([this, ..previous], upcoming), GoBack))
     }
@@ -211,15 +227,7 @@ fn page_depositor_nodemap() -> n2t.EarlyReturnOneToOneBeforeAndAfterStatefulNode
 // ************************************************************
 
 fn at_root(root: VXML) -> Result(VXML, DesugaringError) {
-  use #(_, page_gathering_state) <- on.ok(
-    n2t.early_return_one_to_one_before_and_after_stateful_nodemap_traverse_tree(
-      PageGatheringState([], 0, 0),
-      root,
-      page_gatherer_nodemap(),
-    )
-  )
-
-  let pages = page_gathering_state.pages |> list.reverse
+  use pages <- on.ok(gather_pages(root))
 
   let assert Ok(#(root, #(_, []))) =
     n2t.early_return_one_to_one_before_and_after_stateful_nodemap_traverse_tree(
