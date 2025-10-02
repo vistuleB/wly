@@ -361,7 +361,7 @@ fn at_root(
     infra.v_value_of_first_attribute_with_key(root, "external")
     |> option.unwrap("")
 
-  n2t.early_return_one_to_one_nodemap_recursive_application(
+  n2t.early_return_one_to_one_nodemap_traverse_tree(
     root,
     nodemap(_, external |> homepage_link, index_link()),
   )

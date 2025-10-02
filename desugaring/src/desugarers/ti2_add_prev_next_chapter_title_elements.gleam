@@ -82,26 +82,11 @@ fn page_gatherer_v_before(
   }
 }
 
-fn page_gatherer_v_after(
-  vxml: VXML, 
-  _: PageGatheringState,
-  state: PageGatheringState,
-) -> Result(#(VXML, PageGatheringState), DesugaringError) {
-  Ok(#(vxml, state))
-}
-
-fn page_gatherer_t(
-  vxml: VXML, 
-  state: PageGatheringState,
-) -> Result(#(VXML, PageGatheringState), DesugaringError) {
-  Ok(#(vxml, state))
-}
-
 fn page_gatherer_nodemap() -> n2t.EarlyReturnOneToOneBeforeAndAfterStatefulNodeMap(PageGatheringState) {
   n2t.EarlyReturnOneToOneBeforeAndAfterStatefulNodeMap(
     v_before_transforming_children: page_gatherer_v_before,
-    v_after_transforming_children: page_gatherer_v_after,
-    t_nodemap: page_gatherer_t,
+    v_after_transforming_children: n2t.before_and_after_keep_latest_state,
+    t_nodemap: n2t.before_and_after_identity,
   )
 }
 
@@ -213,26 +198,11 @@ fn page_depositor_v_before(
   }
 }
 
-fn page_depositor_v_after(
-  vxml: VXML, 
-  _: PageDepositorState,
-  state: PageDepositorState,
-) -> Result(#(VXML, PageDepositorState), DesugaringError) {
-  Ok(#(vxml, state))
-}
-
-fn page_depositor_t(
-  vxml: VXML, 
-  state: PageDepositorState,
-) -> Result(#(VXML, PageDepositorState), DesugaringError) {
-  Ok(#(vxml, state))
-}
-
 fn page_depositor_nodemap() -> n2t.EarlyReturnOneToOneBeforeAndAfterStatefulNodeMap(PageDepositorState) {
   n2t.EarlyReturnOneToOneBeforeAndAfterStatefulNodeMap(
     v_before_transforming_children: page_depositor_v_before,
-    v_after_transforming_children: page_depositor_v_after,
-    t_nodemap: page_depositor_t,
+    v_after_transforming_children: n2t.before_and_after_keep_latest_state,
+    t_nodemap: n2t.before_and_after_identity,
   )
 }
 
@@ -242,7 +212,7 @@ fn page_depositor_nodemap() -> n2t.EarlyReturnOneToOneBeforeAndAfterStatefulNode
 
 fn at_root(root: VXML) -> Result(VXML, DesugaringError) {
   use #(_, page_gathering_state) <- on.ok(
-    n2t.early_return_one_to_one_before_and_after_stateful_nodemap_recursive_application(
+    n2t.early_return_one_to_one_before_and_after_stateful_nodemap_traverse_tree(
       PageGatheringState([], 0, 0),
       root,
       page_gatherer_nodemap(),
@@ -252,7 +222,7 @@ fn at_root(root: VXML) -> Result(VXML, DesugaringError) {
   let pages = page_gathering_state.pages |> list.reverse
 
   let assert Ok(#(root, #(_, []))) =
-    n2t.early_return_one_to_one_before_and_after_stateful_nodemap_recursive_application(
+    n2t.early_return_one_to_one_before_and_after_stateful_nodemap_traverse_tree(
       #([], pages),
       root,
       page_depositor_nodemap(),

@@ -34,6 +34,21 @@ pub fn identity_transform(vxml: VXML) {
   Ok(#(vxml, []))
 }
 
+pub fn before_and_after_identity(
+  vxml: VXML,
+  state: state
+) -> Result(#(VXML, state), DesugaringError) {
+  Ok(#(vxml, state))
+}
+
+pub fn before_and_after_keep_latest_state(
+  vxml: VXML,
+  _original_state: state,
+  latest_state: state,
+) -> Result(#(VXML, state), DesugaringError) {
+  Ok(#(vxml, latest_state))
+}
+
 fn bad_tag_guard(
   tags: List(String),
   on_all_ok: fn() -> DesugarerTransform,
@@ -53,7 +68,7 @@ pub type OneToOneNoErrorNodeMap =
 
 // *** without forbidden ***
 
-fn one_to_one_no_error_nodemap_recursive_application(
+fn one_to_one_no_error_nodemap_traverse_tree(
   node: VXML,
   nodemap: OneToOneNoErrorNodeMap,
 ) -> VXML {
@@ -63,7 +78,7 @@ fn one_to_one_no_error_nodemap_recursive_application(
       ..node,
       children: list.map(
         children,
-        one_to_one_no_error_nodemap_recursive_application(_, nodemap),
+        one_to_one_no_error_nodemap_traverse_tree(_, nodemap),
       ),
     ))
   }
@@ -73,7 +88,7 @@ pub fn one_to_one_no_error_nodemap_2_desugarer_transform(
   nodemap: OneToOneNoErrorNodeMap,
 ) -> DesugarerTransform {
   fn (vxml) {
-    one_to_one_no_error_nodemap_recursive_application(vxml, nodemap)
+    one_to_one_no_error_nodemap_traverse_tree(vxml, nodemap)
     |> add_no_warnings
     |> Ok
   }
@@ -81,7 +96,7 @@ pub fn one_to_one_no_error_nodemap_2_desugarer_transform(
 
 // *** with forbidden ***
 
-fn one_to_one_no_error_nodemap_recursive_application_with_forbidden(
+fn one_to_one_no_error_nodemap_traverse_tree_with_forbidden(
   node: VXML,
   nodemap: OneToOneNoErrorNodeMap,
   forbidden: List(String),
@@ -95,7 +110,7 @@ fn one_to_one_no_error_nodemap_recursive_application_with_forbidden(
           ..node,
           children: list.map(
             children, 
-            one_to_one_no_error_nodemap_recursive_application_with_forbidden(_, nodemap, forbidden),
+            one_to_one_no_error_nodemap_traverse_tree_with_forbidden(_, nodemap, forbidden),
           )
         ))
       }
@@ -110,7 +125,7 @@ pub fn one_to_one_no_error_nodemap_2_desugarer_transform_with_forbidden(
   use <- bad_tag_guard(forbidden)
 
   fn(vxml) {
-    one_to_one_no_error_nodemap_recursive_application_with_forbidden(vxml, nodemap, forbidden)
+    one_to_one_no_error_nodemap_traverse_tree_with_forbidden(vxml, nodemap, forbidden)
     |> add_no_warnings
     |> Ok
   }
@@ -118,7 +133,7 @@ pub fn one_to_one_no_error_nodemap_2_desugarer_transform_with_forbidden(
 
 // *** with forbidden, self_first ***
 
-fn one_to_one_no_error_nodemap_recursive_application_with_forbidden_self_first(
+fn one_to_one_no_error_nodemap_traverse_tree_with_forbidden_self_first(
   node: VXML,
   nodemap: OneToOneNoErrorNodeMap,
   forbidden: List(String),
@@ -131,7 +146,7 @@ fn one_to_one_no_error_nodemap_recursive_application_with_forbidden_self_first(
         let assert V(_, _, _, children) as node = nodemap(node)
         let children = list.map(
           children,
-          one_to_one_no_error_nodemap_recursive_application_with_forbidden_self_first(_, nodemap, forbidden)
+          one_to_one_no_error_nodemap_traverse_tree_with_forbidden_self_first(_, nodemap, forbidden)
         )
         V(..node, children: children)
       }
@@ -146,7 +161,7 @@ pub fn one_to_one_no_error_nodemap_2_desugarer_transform_with_forbidden_self_fir
   use <- bad_tag_guard(forbidden)
 
   fn (vxml) {
-    one_to_one_no_error_nodemap_recursive_application_with_forbidden_self_first(vxml, nodemap, forbidden)
+    one_to_one_no_error_nodemap_traverse_tree_with_forbidden_self_first(vxml, nodemap, forbidden)
     |> add_no_warnings
     |> Ok
   }
@@ -161,7 +176,7 @@ pub type OneToOneNodeMap =
 
 // *** without forbidden ***
 
-fn one_to_one_nodemap_recursive_application(
+fn one_to_one_nodemap_traverse_tree(
   node: VXML,
   nodemap: OneToOneNodeMap,
 ) -> Result(VXML, DesugaringError) {
@@ -169,7 +184,7 @@ fn one_to_one_nodemap_recursive_application(
     T(_, _) -> nodemap(node)
     V(_, _, _, children) -> {
       use children <- on.ok(
-        children |> list.try_map(one_to_one_nodemap_recursive_application(_, nodemap))
+        children |> list.try_map(one_to_one_nodemap_traverse_tree(_, nodemap))
       )
 
       nodemap(V(..node, children: children))
@@ -181,14 +196,14 @@ pub fn one_to_one_nodemap_2_desugarer_transform(
   nodemap: OneToOneNodeMap,
 ) -> DesugarerTransform {
   fn (vxml) {
-    one_to_one_nodemap_recursive_application(vxml, nodemap)
+    one_to_one_nodemap_traverse_tree(vxml, nodemap)
     |> result.map(add_no_warnings)
   }
 }
 
 // *** with forbidden ***
 
-fn one_to_one_nodemap_recursive_application_with_forbidden(
+fn one_to_one_nodemap_traverse_tree_with_forbidden(
   node: VXML,
   nodemap: OneToOneNodeMap,
   forbidden: List(String),
@@ -200,7 +215,7 @@ fn one_to_one_nodemap_recursive_application_with_forbidden(
       False -> {
         use children <- on.ok(
           children
-          |> list.try_map(one_to_one_nodemap_recursive_application_with_forbidden(_, nodemap, forbidden))
+          |> list.try_map(one_to_one_nodemap_traverse_tree_with_forbidden(_, nodemap, forbidden))
         )
         nodemap(V(..node, children: children))
       }
@@ -215,7 +230,7 @@ pub fn one_to_one_nodemap_2_desugarer_transform_with_forbidden(
   use <- bad_tag_guard(forbidden)
 
   fn (vxml) {
-    one_to_one_nodemap_recursive_application_with_forbidden(vxml, nodemap, forbidden)
+    one_to_one_nodemap_traverse_tree_with_forbidden(vxml, nodemap, forbidden)
     |> result.map(add_no_warnings)
   }
 }
@@ -229,7 +244,7 @@ pub type OneToManyNoErrorNodeMap =
 
 // *** without forbidden ***
 
-fn one_to_many_no_error_nodemap_recursive_application(
+fn one_to_many_no_error_nodemap_traverse_tree(
   node: VXML,
   nodemap: OneToManyNoErrorNodeMap,
 ) -> List(VXML) {
@@ -238,7 +253,7 @@ fn one_to_many_no_error_nodemap_recursive_application(
     V(_, _, _, children) -> {
       let children =
         children
-        |> list.map(one_to_many_no_error_nodemap_recursive_application(_, nodemap))
+        |> list.map(one_to_many_no_error_nodemap_traverse_tree(_, nodemap))
         |> list.flatten
       nodemap(V(..node, children: children))
     }
@@ -249,7 +264,7 @@ pub fn one_to_many_no_error_nodemap_2_desugarer_transform(
   nodemap: OneToManyNoErrorNodeMap,
 ) -> DesugarerTransform {
   fn (vxml) {
-    one_to_many_no_error_nodemap_recursive_application(vxml, nodemap)
+    one_to_many_no_error_nodemap_traverse_tree(vxml, nodemap)
     |> infra.get_root
     |> result.map(add_no_warnings)
   }
@@ -257,7 +272,7 @@ pub fn one_to_many_no_error_nodemap_2_desugarer_transform(
 
 // *** with forbidden ***
 
-fn one_to_many_no_error_nodemap_recursive_application_with_forbidden(
+fn one_to_many_no_error_nodemap_traverse_tree_with_forbidden(
   node: VXML,
   nodemap: OneToManyNoErrorNodeMap,
   forbidden: List(String),
@@ -269,7 +284,7 @@ fn one_to_many_no_error_nodemap_recursive_application_with_forbidden(
       False -> {
         let children =
           children
-          |> list.map(one_to_many_no_error_nodemap_recursive_application_with_forbidden(_, nodemap, forbidden))
+          |> list.map(one_to_many_no_error_nodemap_traverse_tree_with_forbidden(_, nodemap, forbidden))
           |> list.flatten
         nodemap(V(..node, children: children))
       }
@@ -284,7 +299,7 @@ pub fn one_to_many_no_error_nodemap_2_desugarer_transform_with_forbidden(
   use <- bad_tag_guard(forbidden)
 
   fn (vxml) {
-    one_to_many_no_error_nodemap_recursive_application_with_forbidden(vxml, nodemap, forbidden)
+    one_to_many_no_error_nodemap_traverse_tree_with_forbidden(vxml, nodemap, forbidden)
     |> infra.get_root
     |> result.map(add_no_warnings)
   }
@@ -299,7 +314,7 @@ pub type OneToManyNodeMap =
 
 // *** without forbidden ***
 
-fn one_to_many_nodemap_recursive_application(
+fn one_to_many_nodemap_traverse_tree(
   node: VXML,
   nodemap: OneToManyNodeMap,
 ) -> Result(List(VXML), DesugaringError) {
@@ -308,7 +323,7 @@ fn one_to_many_nodemap_recursive_application(
     V(_, _, _, children) -> {
       use children <- on.ok(
         children
-        |> list.try_map(one_to_many_nodemap_recursive_application(_, nodemap))
+        |> list.try_map(one_to_many_nodemap_traverse_tree(_, nodemap))
         |> result.map(list.flatten)
       )
       nodemap(V(..node, children: children))
@@ -320,7 +335,7 @@ pub fn one_to_many_nodemap_2_desugarer_transform(
   nodemap: OneToManyNodeMap,
 ) -> DesugarerTransform {
   fn (vxml) {
-    one_to_many_nodemap_recursive_application(vxml, nodemap)
+    one_to_many_nodemap_traverse_tree(vxml, nodemap)
     |> on.ok(infra.get_root)
     |> result.map(add_no_warnings)
   }
@@ -328,7 +343,7 @@ pub fn one_to_many_nodemap_2_desugarer_transform(
 
 // *** with forbidden ***
 
-fn one_to_many_nodemap_recursive_application_with_forbidden(
+fn one_to_many_nodemap_traverse_tree_with_forbidden(
   node: VXML,
   nodemap: OneToManyNodeMap,
   forbidden: List(String),
@@ -340,7 +355,7 @@ fn one_to_many_nodemap_recursive_application_with_forbidden(
       False -> {
         use children <- on.ok(
           children
-          |> list.try_map(one_to_many_nodemap_recursive_application_with_forbidden(_, nodemap, forbidden))
+          |> list.try_map(one_to_many_nodemap_traverse_tree_with_forbidden(_, nodemap, forbidden))
           |> result.map(list.flatten)
         )
         nodemap(V(..node, children: children))
@@ -356,7 +371,7 @@ pub fn one_to_many_nodemap_2_desugarer_transform_with_forbidden(
   use <- bad_tag_guard(forbidden)
 
   fn (vxml) {
-    one_to_many_nodemap_recursive_application_with_forbidden(vxml, nodemap, forbidden)
+    one_to_many_nodemap_traverse_tree_with_forbidden(vxml, nodemap, forbidden)
     |> on.ok(infra.get_root)
     |> result.map(add_no_warnings)
   }
@@ -369,7 +384,7 @@ pub fn one_to_many_nodemap_2_desugarer_transform_with_forbidden(
 pub type FancyOneToOneNoErrorNodeMap =
   fn(VXML, List(VXML), List(VXML), List(VXML), List(VXML)) -> VXML
 
-fn fancy_one_to_one_no_error_nodemap_recursive_application(
+fn fancy_one_to_one_no_error_nodemap_traverse_tree(
   node: VXML,
   ancestors: List(VXML),
   previous_siblings_before_mapping: List(VXML),
@@ -394,7 +409,7 @@ fn fancy_one_to_one_no_error_nodemap_recursive_application(
           #([], [], list.drop(children, 1)),
           fn(acc, child) {
             let mapped_child =
-              fancy_one_to_one_no_error_nodemap_recursive_application(child, children_ancestors, acc.0, acc.1, acc.2, nodemap)
+              fancy_one_to_one_no_error_nodemap_traverse_tree(child, children_ancestors, acc.0, acc.1, acc.2, nodemap)
             #(
               [child, ..acc.0],
               [mapped_child, ..acc.1],
@@ -418,7 +433,7 @@ pub fn fancy_one_to_one_no_error_nodemap_2_desugarer_transform(
   nodemap: FancyOneToOneNoErrorNodeMap,
 ) -> DesugarerTransform {
   fn (vxml) {
-    fancy_one_to_one_no_error_nodemap_recursive_application(vxml, [], [], [], [], nodemap)
+    fancy_one_to_one_no_error_nodemap_traverse_tree(vxml, [], [], [], [], nodemap)
     |> add_no_warnings
     |> Ok
   }
@@ -432,7 +447,7 @@ pub type FancyOneToOneNodeMap =
   fn(VXML, List(VXML), List(VXML), List(VXML), List(VXML)) ->
     Result(VXML, DesugaringError)
 
-fn fancy_one_to_one_nodemap_recursive_application(
+fn fancy_one_to_one_nodemap_traverse_tree(
   node: VXML,
   ancestors: List(VXML),
   previous_siblings_before_mapping: List(VXML),
@@ -456,7 +471,7 @@ fn fancy_one_to_one_nodemap_recursive_application(
           children,
           #([], [], list.drop(children, 1)),
           fn(acc, child) {
-            case fancy_one_to_one_nodemap_recursive_application(child, children_ancestors, acc.0, acc.1, acc.2, nodemap) {
+            case fancy_one_to_one_nodemap_traverse_tree(child, children_ancestors, acc.0, acc.1, acc.2, nodemap) {
               Error(e) -> Error(e)
               Ok(mapped_child) -> {
                 Ok(#(
@@ -485,7 +500,7 @@ pub fn fancy_one_to_one_nodemap_2_desugarer_transform(
   nodemap: FancyOneToOneNodeMap,
 ) -> DesugarerTransform {
   fn (vxml) {
-    fancy_one_to_one_nodemap_recursive_application(vxml, [], [], [], [], nodemap)
+    fancy_one_to_one_nodemap_traverse_tree(vxml, [], [], [], [], nodemap)
     |> result.map(add_no_warnings)
   }
 }
@@ -498,7 +513,7 @@ pub type FancyOneToManyNoErrorNodeMap =
   fn(VXML, List(VXML), List(VXML), List(VXML), List(VXML)) ->
     List(VXML)
 
-fn fancy_one_to_many_no_error_nodemap_recursive_application(
+fn fancy_one_to_many_no_error_nodemap_traverse_tree(
   node: VXML,
   ancestors: List(VXML),
   previous_siblings_before_mapping: List(VXML),
@@ -523,7 +538,7 @@ fn fancy_one_to_many_no_error_nodemap_recursive_application(
           #([], [], list.drop(children, 1)),
           fn(acc, child) {
             let shat_children =
-              fancy_one_to_many_no_error_nodemap_recursive_application(
+              fancy_one_to_many_no_error_nodemap_traverse_tree(
                 child,
                 children_ancestors,
                 acc.0,
@@ -554,7 +569,7 @@ pub fn fancy_one_to_many_no_error_nodemap_2_desugarer_transform(
   nodemap: FancyOneToManyNoErrorNodeMap,
 ) -> DesugarerTransform {
   fn(root: VXML) {
-    fancy_one_to_many_no_error_nodemap_recursive_application(
+    fancy_one_to_many_no_error_nodemap_traverse_tree(
       root,
       [],
       [],
@@ -575,7 +590,7 @@ pub type FancyOneToManyNodeMap =
   fn(VXML, List(VXML), List(VXML), List(VXML), List(VXML)) ->
     Result(List(VXML), DesugaringError)
 
-fn fancy_one_to_many_nodemap_recursive_application(
+fn fancy_one_to_many_nodemap_traverse_tree(
   node: VXML,
   ancestors: List(VXML),
   previous_siblings_before_mapping: List(VXML),
@@ -599,7 +614,7 @@ fn fancy_one_to_many_nodemap_recursive_application(
           children,
           #([], [], list.drop(children, 1)),
           fn(acc, child) {
-            case fancy_one_to_many_nodemap_recursive_application(
+            case fancy_one_to_many_nodemap_traverse_tree(
               child,
               children_ancestors,
               acc.0,
@@ -635,7 +650,7 @@ pub fn fancy_one_to_many_nodemap_2_desugarer_transform(
   nodemap: FancyOneToManyNodeMap,
 ) -> DesugarerTransform {
   fn(root: VXML) {
-    fancy_one_to_many_nodemap_recursive_application(
+    fancy_one_to_many_nodemap_traverse_tree(
       root,
       [],
       [],
@@ -655,7 +670,7 @@ pub fn fancy_one_to_many_nodemap_2_desugarer_transform(
 pub type OneToOneStatefulNodeMap(a) =
   fn(VXML, a) -> Result(#(VXML, a), DesugaringError)
 
-fn one_to_one_stateful_nodemap_recursive_application(
+fn one_to_one_stateful_nodemap_traverse_tree(
   state: a,
   node: VXML,
   nodemap: OneToOneStatefulNodeMap(a),
@@ -668,7 +683,7 @@ fn one_to_one_stateful_nodemap_recursive_application(
         |> infra.try_map_fold(
           state,
           fn(acc, child) {
-            one_to_one_stateful_nodemap_recursive_application(acc, child, nodemap)
+            one_to_one_stateful_nodemap_traverse_tree(acc, child, nodemap)
           }
         )
       )
@@ -682,7 +697,7 @@ pub fn one_to_one_stateful_nodemap_2_desugarer_transform(
   initial_state: a,
 ) -> DesugarerTransform {
   fn(vxml) {
-    case one_to_one_stateful_nodemap_recursive_application(initial_state, vxml, nodemap) {
+    case one_to_one_stateful_nodemap_traverse_tree(initial_state, vxml, nodemap) {
       Error(err) -> Error(err)
       Ok(#(new_vxml, _)) -> Ok(#(new_vxml, []))
     }
@@ -697,7 +712,7 @@ pub type FancyOneToOneStatefulNodeMap(a) =
   fn(VXML, List(VXML), List(VXML), List(VXML), List(VXML), a) ->
     Result(#(VXML, a), DesugaringError)
 
-fn fancy_one_to_one_stateful_nodemap_recursive_application(
+fn fancy_one_to_one_stateful_nodemap_traverse_tree(
   state: a,
   node: VXML,
   ancestors: List(VXML),
@@ -723,7 +738,7 @@ fn fancy_one_to_one_stateful_nodemap_recursive_application(
           children,
           #([], [], list.drop(children, 1), state),
           fn(acc, child) {
-            case fancy_one_to_one_stateful_nodemap_recursive_application(
+            case fancy_one_to_one_stateful_nodemap_traverse_tree(
               acc.3,
               child,
               children_ancestors,
@@ -763,7 +778,7 @@ pub fn fancy_one_to_one_stateful_nodemap_2_desugarer_transform(
   initial_state: a,
 ) -> DesugarerTransform {
   fn(vxml) {
-    case fancy_one_to_one_stateful_nodemap_recursive_application(
+    case fancy_one_to_one_stateful_nodemap_traverse_tree(
       initial_state,
       vxml,
       [],
@@ -790,7 +805,7 @@ pub type OneToOneBeforeAndAfterNoErrorStatefulNodeMap(a) {
   )
 }
 
-fn one_to_one_before_and_after_no_error_stateful_nodemap_recursive_application(
+fn one_to_one_before_and_after_no_error_stateful_nodemap_traverse_tree(
   original_state: a,
   node: VXML,
   nodemap: OneToOneBeforeAndAfterNoErrorStatefulNodeMap(a),
@@ -808,7 +823,7 @@ fn one_to_one_before_and_after_no_error_stateful_nodemap_recursive_application(
           children,
           latest_state,
           fn (acc, child) {
-            let #(vxml, state) = one_to_one_before_and_after_no_error_stateful_nodemap_recursive_application(acc, child, nodemap)
+            let #(vxml, state) = one_to_one_before_and_after_no_error_stateful_nodemap_traverse_tree(acc, child, nodemap)
             #(state, vxml)
           }
         )
@@ -827,7 +842,7 @@ pub fn one_to_one_before_and_after_no_error_stateful_nodemap_2_desugarer_transfo
 ) -> DesugarerTransform {
   fn(vxml) {
     let #(vxml, _) =
-      one_to_one_before_and_after_no_error_stateful_nodemap_recursive_application(
+      one_to_one_before_and_after_no_error_stateful_nodemap_traverse_tree(
         initial_state,
         vxml,
         nodemap,
@@ -839,6 +854,8 @@ pub fn one_to_one_before_and_after_no_error_stateful_nodemap_2_desugarer_transfo
 // *** with forbidden ***
 
 fn custom_map_folder(
+  // (this function is to avoid some stupid '#(v, s) -> #(s, v)' inversion step
+  // that would come with using the stdlib)
   remaining: List(a),
   state: b,
   map: fn(a, b) -> #(a, b),
@@ -853,7 +870,7 @@ fn custom_map_folder(
   }
 }
 
-fn one_to_one_before_and_after_no_error_stateful_nodemap_recursive_application_with_forbidden(
+fn one_to_one_before_and_after_no_error_stateful_nodemap_traverse_tree_with_forbidden(
   original_state: a,
   node: VXML,
   nodemap: OneToOneBeforeAndAfterNoErrorStatefulNodeMap(a),
@@ -874,18 +891,9 @@ fn one_to_one_before_and_after_no_error_stateful_nodemap_recursive_application_w
             custom_map_folder(
               children,
               latest_state,
-              fn(child, state) { one_to_one_before_and_after_no_error_stateful_nodemap_recursive_application_with_forbidden(state, child, nodemap, forbidden) },
+              fn(child, state) { one_to_one_before_and_after_no_error_stateful_nodemap_traverse_tree_with_forbidden(state, child, nodemap, forbidden) },
               [],
             )
-          // let #(latest_state, children) = 
-          //   list.map_fold(
-          //     children,
-          //     latest_state,
-          //     fn (acc, child) {
-          //       let #(v, state) = one_to_one_before_and_after_no_error_stateful_nodemap_recursive_application_with_forbidden(acc, child, nodemap, forbidden)
-          //       #(state, v)
-          //     }
-          //   )
           nodemap.v_after_transforming_children(
             V(..node, children: children),
             original_state,
@@ -904,7 +912,7 @@ pub fn one_to_one_before_and_after_no_error_stateful_nodemap_2_desugarer_transfo
 ) -> DesugarerTransform {
   fn(vxml) {
     let #(vxml, _) =
-      one_to_one_before_and_after_no_error_stateful_nodemap_recursive_application_with_forbidden(
+      one_to_one_before_and_after_no_error_stateful_nodemap_traverse_tree_with_forbidden(
         initial_state,
         vxml,
         nodemap,
@@ -929,7 +937,7 @@ pub type OneToOneBeforeAndAfterStatefulNodeMap(a) {
   )
 }
 
-fn one_to_one_before_and_after_stateful_nodemap_recursive_application(
+fn one_to_one_before_and_after_stateful_nodemap_traverse_tree(
   original_state: a,
   node: VXML,
   nodemap: OneToOneBeforeAndAfterStatefulNodeMap(a),
@@ -948,7 +956,7 @@ fn one_to_one_before_and_after_stateful_nodemap_recursive_application(
         infra.try_map_fold(
           children,
           latest_state,
-          fn (acc, child) { one_to_one_before_and_after_stateful_nodemap_recursive_application(acc, child, nodemap) }
+          fn (acc, child) { one_to_one_before_and_after_stateful_nodemap_traverse_tree(acc, child, nodemap) }
         )
       )
       nodemap.v_after_transforming_children(
@@ -966,7 +974,7 @@ pub fn one_to_one_before_and_after_stateful_nodemap_2_desugarer_transform(
 ) -> DesugarerTransform {
   fn(vxml) {
     use #(vxml, _) <- on.ok(
-      one_to_one_before_and_after_stateful_nodemap_recursive_application(
+      one_to_one_before_and_after_stateful_nodemap_traverse_tree(
         initial_state,
         vxml,
         nodemap,
@@ -991,7 +999,7 @@ pub type EarlyReturnOneToOneBeforeAndAfterStatefulNodeMap(a) {
   )
 }
 
-pub fn early_return_one_to_one_before_and_after_stateful_nodemap_recursive_application(
+pub fn early_return_one_to_one_before_and_after_stateful_nodemap_traverse_tree(
   original_state: a,
   node: VXML,
   nodemap: EarlyReturnOneToOneBeforeAndAfterStatefulNodeMap(a),
@@ -1014,7 +1022,7 @@ pub fn early_return_one_to_one_before_and_after_stateful_nodemap_recursive_appli
               children,
               latest_state,
               fn (acc, child) {
-                early_return_one_to_one_before_and_after_stateful_nodemap_recursive_application(acc, child, nodemap)
+                early_return_one_to_one_before_and_after_stateful_nodemap_traverse_tree(acc, child, nodemap)
               }
             )
           }
@@ -1035,7 +1043,7 @@ pub fn early_return_one_to_one_before_and_after_stateful_nodemap_2_desugarer_tra
 ) -> DesugarerTransform {
   fn(vxml) {
     use #(vxml, _) <- on.ok(
-      early_return_one_to_one_before_and_after_stateful_nodemap_recursive_application(
+      early_return_one_to_one_before_and_after_stateful_nodemap_traverse_tree(
         initial_state,
         vxml,
         nodemap,
@@ -1060,7 +1068,7 @@ pub type FancyOneToOneBeforeAndAfterStatefulNodeMap(a) {
   )
 }
 
-fn fancy_one_to_one_before_and_after_stateful_nodemap_recursive_application(
+fn fancy_one_to_one_before_and_after_stateful_nodemap_traverse_tree(
   original_state: a,
   node: VXML,
   ancestors: List(VXML),
@@ -1096,7 +1104,7 @@ fn fancy_one_to_one_before_and_after_stateful_nodemap_recursive_application(
           children,
           #([], [], list.drop(children, 1), latest_state),
           fn (acc, child) {
-            use #(mapped_child, state) <- on.ok(fancy_one_to_one_before_and_after_stateful_nodemap_recursive_application(
+            use #(mapped_child, state) <- on.ok(fancy_one_to_one_before_and_after_stateful_nodemap_traverse_tree(
               acc.3,
               child,
               children_ancestors,
@@ -1135,7 +1143,7 @@ pub fn fancy_one_to_one_before_and_after_stateful_nodemap_2_desugarer_transform(
 ) -> DesugarerTransform {
   fn(vxml) {
     use #(vxml, _) <- on.ok(
-      fancy_one_to_one_before_and_after_stateful_nodemap_recursive_application(
+      fancy_one_to_one_before_and_after_stateful_nodemap_traverse_tree(
         initial_state,
         vxml,
         [],
@@ -1164,7 +1172,7 @@ pub type OneToManyBeforeAndAfterStatefulNodeMap(a) {
   )
 }
 
-fn one_to_many_before_and_after_stateful_nodemap_recursive_application(
+fn one_to_many_before_and_after_stateful_nodemap_traverse_tree(
   original_state: a,
   node: VXML,
   nodemap: OneToManyBeforeAndAfterStatefulNodeMap(a),
@@ -1183,7 +1191,7 @@ fn one_to_many_before_and_after_stateful_nodemap_recursive_application(
         |> list.try_fold(
           #([], latest_state),
           fn (acc, child) {
-            use #(shat_children, latest_state) <- on.ok(one_to_many_before_and_after_stateful_nodemap_recursive_application(
+            use #(shat_children, latest_state) <- on.ok(one_to_many_before_and_after_stateful_nodemap_traverse_tree(
               acc.1,
               child,
               nodemap,
@@ -1211,7 +1219,7 @@ pub fn one_to_many_before_and_after_stateful_nodemap_2_desufarer_transform(
   initial_state: a,
 ) -> DesugarerTransform {
   fn(vxml) {
-    one_to_many_before_and_after_stateful_nodemap_recursive_application(initial_state, vxml, nodemap)
+    one_to_many_before_and_after_stateful_nodemap_traverse_tree(initial_state, vxml, nodemap)
     |> result.map(fn(pair){pair.0})
     |> on.ok(infra.get_root)
     |> result.map(add_no_warnings)
@@ -1233,7 +1241,7 @@ pub type OneToManyBeforeAndAfterStatefulNodeMapWithWarnings(a) {
   )
 }
 
-fn one_to_many_before_and_after_stateful_nodemap_with_warnings_recursive_application(
+fn one_to_many_before_and_after_stateful_nodemap_with_warnings_traverse_tree(
   collected_warnings: List(DesugaringWarning),
   original_state: a,
   node: VXML,
@@ -1255,7 +1263,7 @@ fn one_to_many_before_and_after_stateful_nodemap_with_warnings_recursive_applica
           #([], latest_state, collected_warnings),
           fn (acc, child) {
             use #(shat_children, latest_state, collected_warnings) <- on.ok(
-              one_to_many_before_and_after_stateful_nodemap_with_warnings_recursive_application(
+              one_to_many_before_and_after_stateful_nodemap_with_warnings_traverse_tree(
                 acc.2,
                 acc.1,
                 child,
@@ -1296,7 +1304,7 @@ pub fn one_to_many_before_and_after_stateful_nodemap_with_warnings_2_desufarer_t
 ) -> DesugarerTransform {
   fn(vxml) {
     use #(vxmls, _, warnings) <- on.ok(
-      one_to_many_before_and_after_stateful_nodemap_with_warnings_recursive_application(
+      one_to_many_before_and_after_stateful_nodemap_with_warnings_traverse_tree(
         [],
         initial_state,
         vxml,
@@ -1315,7 +1323,7 @@ pub fn one_to_many_before_and_after_stateful_nodemap_with_warnings_2_desufarer_t
 pub type EarlyReturnOneToOneNoErrorNodeMap =
   fn(VXML) -> #(VXML, TrafficLight)
 
-fn early_return_one_to_one_no_error_nodemap_recursive_application(
+fn early_return_one_to_one_no_error_nodemap_traverse_tree(
   node: VXML,
   nodemap: EarlyReturnOneToOneNoErrorNodeMap,
 ) -> VXML {
@@ -1325,7 +1333,7 @@ fn early_return_one_to_one_no_error_nodemap_recursive_application(
       let children =
         children
         |> list.map(
-          early_return_one_to_one_no_error_nodemap_recursive_application(_, nodemap)
+          early_return_one_to_one_no_error_nodemap_traverse_tree(_, nodemap)
         )
       V(..node, children: children)
     }
@@ -1337,7 +1345,7 @@ pub fn early_return_one_to_one_no_error_nodemap_2_desugarer_transform(
   nodemap: EarlyReturnOneToOneNoErrorNodeMap,
 ) -> DesugarerTransform {
   fn (vxml) {
-    early_return_one_to_one_no_error_nodemap_recursive_application(vxml, nodemap)
+    early_return_one_to_one_no_error_nodemap_traverse_tree(vxml, nodemap)
     |> add_no_warnings
     |> Ok
   }
@@ -1345,7 +1353,7 @@ pub fn early_return_one_to_one_no_error_nodemap_2_desugarer_transform(
 
 // *** with forbidden ***
 
-fn early_return_one_to_one_no_error_nodemap_recursive_application_with_forbidden(
+fn early_return_one_to_one_no_error_nodemap_traverse_tree_with_forbidden(
   node: VXML,
   nodemap: EarlyReturnOneToOneNoErrorNodeMap,
   forbidden: List(String),
@@ -1360,7 +1368,7 @@ fn early_return_one_to_one_no_error_nodemap_recursive_application_with_forbidden
       let children =
         children
         |> list.map(
-          early_return_one_to_one_no_error_nodemap_recursive_application_with_forbidden(_, nodemap, forbidden)
+          early_return_one_to_one_no_error_nodemap_traverse_tree_with_forbidden(_, nodemap, forbidden)
         )
       V(..node, children: children)
     }
@@ -1375,7 +1383,7 @@ pub fn early_return_one_to_one_no_error_nodemap_2_desugarer_transform_with_forbi
   use <- bad_tag_guard(forbidden)
 
   fn (vxml) {
-    early_return_one_to_one_no_error_nodemap_recursive_application_with_forbidden(vxml, nodemap, forbidden)
+    early_return_one_to_one_no_error_nodemap_traverse_tree_with_forbidden(vxml, nodemap, forbidden)
     |> add_no_warnings
     |> Ok
   }
@@ -1389,7 +1397,7 @@ pub type EarlyReturnOneToOneNodeMap =
   fn(VXML) -> Result(#(VXML, TrafficLight), DesugaringError)
 
 
-pub fn early_return_one_to_one_nodemap_recursive_application(
+pub fn early_return_one_to_one_nodemap_traverse_tree(
   node: VXML,
   nodemap: EarlyReturnOneToOneNodeMap,
 ) -> Result(VXML, DesugaringError) {
@@ -1399,7 +1407,7 @@ pub fn early_return_one_to_one_nodemap_recursive_application(
       use children <- on.ok(
         list.try_map(
           children,
-          early_return_one_to_one_nodemap_recursive_application(_, nodemap),
+          early_return_one_to_one_nodemap_traverse_tree(_, nodemap),
         )
       )
       Ok(V(..node, children: children))
@@ -1412,7 +1420,7 @@ pub fn early_return_one_to_one_nodemap_2_desugarer_transform(
   nodemap: EarlyReturnOneToOneNodeMap,
 ) -> DesugarerTransform {
   fn (vxml) {
-    early_return_one_to_one_nodemap_recursive_application(vxml, nodemap)
+    early_return_one_to_one_nodemap_traverse_tree(vxml, nodemap)
     |> result.map(add_no_warnings)
   }
 }
@@ -1426,7 +1434,7 @@ pub type EarlyReturnOneToManyNoErrorNodeMap =
 
 // *** without forbidden ***
 
-fn early_return_one_to_many_no_error_nodemap_recursive_application(
+fn early_return_one_to_many_no_error_nodemap_traverse_tree(
   node: VXML,
   nodemap: EarlyReturnOneToManyNoErrorNodeMap,
 ) -> List(VXML) {
@@ -1438,7 +1446,7 @@ fn early_return_one_to_many_no_error_nodemap_recursive_application(
     [V(_, _, _, children) as node], Continue -> {
       let children =
         children
-        |> list.map(early_return_one_to_many_no_error_nodemap_recursive_application(_, nodemap))
+        |> list.map(early_return_one_to_many_no_error_nodemap_traverse_tree(_, nodemap))
         |> list.flatten
       [V(..node, children: children)]
     }
@@ -1455,7 +1463,7 @@ pub fn early_return_one_to_many_no_error_nodemap_2_desugarer_transform(
   nodemap: EarlyReturnOneToManyNoErrorNodeMap,
 ) -> DesugarerTransform {
   fn (vxml) {
-    early_return_one_to_many_no_error_nodemap_recursive_application(vxml, nodemap)
+    early_return_one_to_many_no_error_nodemap_traverse_tree(vxml, nodemap)
     |> infra.get_root
     |> result.map(add_no_warnings)
   }
@@ -1463,7 +1471,7 @@ pub fn early_return_one_to_many_no_error_nodemap_2_desugarer_transform(
 
 // *** with forbidden ***
 
-fn early_return_one_to_many_no_error_nodemap_recursive_application_with_forbidden(
+fn early_return_one_to_many_no_error_nodemap_traverse_tree_with_forbidden(
   node: VXML,
   nodemap: EarlyReturnOneToManyNoErrorNodeMap,
   forbidden: List(String),
@@ -1480,7 +1488,7 @@ fn early_return_one_to_many_no_error_nodemap_recursive_application_with_forbidde
     [V(_, _, _, children) as node], Continue -> {
       let children =
         children
-        |> list.map(early_return_one_to_many_no_error_nodemap_recursive_application_with_forbidden(_, nodemap, forbidden))
+        |> list.map(early_return_one_to_many_no_error_nodemap_traverse_tree_with_forbidden(_, nodemap, forbidden))
         |> list.flatten
       [V(..node, children: children)]
     }
@@ -1500,7 +1508,7 @@ pub fn early_return_one_to_many_no_error_nodemap_2_desugarer_transform_with_forb
   use <- bad_tag_guard(forbidden)
 
   fn (vxml) {
-    early_return_one_to_many_no_error_nodemap_recursive_application_with_forbidden(vxml, nodemap, forbidden)
+    early_return_one_to_many_no_error_nodemap_traverse_tree_with_forbidden(vxml, nodemap, forbidden)
     |> infra.get_root
     |> result.map(add_no_warnings)
   }
