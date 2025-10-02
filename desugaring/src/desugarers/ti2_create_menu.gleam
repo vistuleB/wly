@@ -244,10 +244,14 @@ fn get_four_links(
   )
 }
 
-fn page_associated_to_title_tag(
+fn page_from_title(
   vxml: VXML,
-  title_tag: String,
+  relation: Relation,
 ) -> Result(Option(Page), DesugaringError) {
+  let title_tag = case relation {
+    Prev -> "PrevChapterOrSubTitle"
+    Next -> "NextChapterOrSubTitle"
+  }
   use title <- on.none_some(
     infra.v_first_child_with_tag(vxml, title_tag),
     Ok(None),
@@ -269,19 +273,11 @@ fn page_associated_to_title_tag(
   }
 }
 
-fn next_page(vxml: VXML) -> Result(Option(Page), DesugaringError) {
-  page_associated_to_title_tag(vxml, "NextChapterOrSubTitle")
-}
-
-fn prev_page(vxml: VXML) -> Result(Option(Page), DesugaringError) {
-  page_associated_to_title_tag(vxml, "PrevChapterOrSubTitle")
-}
-
 fn four_links_constructor_at_index(
   index: VXML,
   homepage_link: VXML,
 ) -> Result(FourLinks, DesugaringError) {
-  use next <- on.ok(next_page(index))
+  use next <- on.ok(page_from_title(index, Next))
   case next {
     None -> Error(DesugaringError(bl.no_blame, "index missing PrevChapterOrSubTitle child (?)"))
     Some(x) -> Ok(get_four_links(homepage_link, None, None, Some(x)))
@@ -293,8 +289,8 @@ fn four_links_constructor_at_ch_or_sub(
   homepage_link: VXML,
   index_link: VXML,
 ) -> Result(FourLinks, DesugaringError) {
-  use prev <- on.ok(prev_page(vxml))
-  use next <- on.ok(next_page(vxml))
+  use prev <- on.ok(page_from_title(vxml, Prev))
+  use next <- on.ok(page_from_title(vxml, Next))
   Ok(get_four_links(homepage_link, Some(index_link), prev, next))
 }
 

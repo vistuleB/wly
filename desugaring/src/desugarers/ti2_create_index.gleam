@@ -1,7 +1,6 @@
 import gleam/list
 import gleam/option.{Some,None}
 import gleam/string.{inspect as ins}
-import gleam/regexp.{type Regexp}
 import infrastructure.{
   type Desugarer,
   type DesugaringError,
@@ -82,82 +81,77 @@ fn header(document: VXML) -> VXML {
   )
 }
 
-// 🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸
-// 🌸 table of contents~~ 🌸
-// 🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸
+// 🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸
+// 🌸 data harvesting for table of contents~~~ 🌸
+// 🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸
 
-type ChapterOrSubchapterTitle = List(VXML)
-
-type SubchapterTitle = ChapterOrSubchapterTitle
-type ChapterTitle = ChapterOrSubchapterTitle
-
-type SubchapterNo = Int
+type Title = List(VXML)
+type SubNo = Int
 type ChapterNo = Int
-
-type SubchapterInfo = #(ChapterNo, SubchapterNo, SubchapterTitle)
-type ChapterInfo = #(ChapterNo, ChapterTitle, List(SubchapterInfo))
-
-fn extract_title(
-  ch_or_sub: VXML,
-  title_tag: String,
-  re: Regexp,
-) -> Result(ChapterOrSubchapterTitle, DesugaringError) {
-  use title_element <- on.ok(infra.v_unique_child(ch_or_sub, title_tag))
-  let assert V(_, _, _, children) = title_element
-  let assert [T(b, [first, ..more]), ..rest] = children
-  let first = TextLine(
-    desugarer_blame(109),
-    first.content |> regexp.replace(re, _, "")
-  )
-  Ok([T(b, [first, ..more]), ..rest])
+type SubInfo = #(ChapterNo, SubNo, Title)
+type ChapterInfo = #(ChapterNo, Title, List(SubInfo))
+type ChapterOrSub {
+  Chapter
+  Sub
 }
 
-fn extract_subchapter_info(
+fn harvest_title(
+  vxml: VXML,
+  chapter_or_sub: ChapterOrSub,
+) -> Result(Title, DesugaringError) {
+  let title_tag = case chapter_or_sub {
+    Chapter -> "ChapterTitle"
+    Sub -> "SubTitle"
+  }
+  use title_element <- on.ok(infra.v_unique_child(vxml, title_tag))
+  let assert V(_, _, _, children) = title_element
+  Ok(children)
+}
+
+fn harvest_subchapter_info(
   subchapter: VXML,
   index: Int,
   ch_no: Int,
-  re: Regexp,
 ) {
-  use title <- on.ok(extract_title(subchapter, "SubTitle", re))
+  use title <- on.ok(harvest_title(subchapter, Sub))
   Ok(#(ch_no, index + 1, title))
 }
 
-fn extract_subchapter_infos(
+fn harvest_subchapter_infos(
   chapter: VXML,
   ch_no: Int,
-  re: Regexp,
-) -> Result(List(SubchapterInfo), DesugaringError) {
+) -> Result(List(SubInfo), DesugaringError) {
   chapter
   |> infra.v_children_with_tag("Sub")
-  |> infra.index_try_map(fn(s, i) { extract_subchapter_info(s, i, ch_no, re) })
+  |> infra.index_try_map(fn(s, i) { harvest_subchapter_info(s, i, ch_no) })
 }
 
-fn extract_chapter_info(
+fn harvest_chapter_info(
   ch: VXML,
   index: Int,
-  re: Regexp,
 ) -> Result(ChapterInfo, DesugaringError) {
-  use title <- on.ok(extract_title(ch, "ChapterTitle", re))
-  use infos <- on.ok(extract_subchapter_infos(ch, index + 1, re))
+  use title <- on.ok(harvest_title(ch, Chapter))
+  use infos <- on.ok(harvest_subchapter_infos(ch, index + 1))
   Ok(#(index + 1, title, infos))
 }
 
-fn extract_chapter_infos(
+fn harvest_chapter_infos(
   root: VXML,
-  re: Regexp,
 ) -> Result(List(ChapterInfo), DesugaringError) {
   root
   |> infra.v_children_with_tag("Chapter")
-  |> infra.index_try_map(
-    fn(c, i) { extract_chapter_info(c, i, re) }
-  )
+  |> infra.index_try_map(harvest_chapter_info)
 }
+
+// 🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸
+// 🌸 table of contents~~ 🌸
+// 🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸
 
 fn href(chapter_no: Int, sub_no: Int) -> String {
   "./" <> ins(chapter_no) <> "-" <> ins(sub_no) <> ".html"
 }
 
-fn subchapter_item(subchapter: SubchapterInfo) -> VXML {
+fn subchapter_item(subchapter: SubInfo) -> VXML {
   let b = desugarer_blame(161)
   let #(chapter_no, subchapter_no, title) = subchapter
   V(
@@ -173,7 +167,7 @@ fn subchapter_item(subchapter: SubchapterInfo) -> VXML {
         ],
         title,
       )
-    ]
+    ],
   )
 }
 
@@ -190,7 +184,7 @@ fn chapter_item(
         "ol",
         [],
         list.map(subchapters, subchapter_item),
-      )
+      ),
     ]
   }
 
@@ -231,8 +225,7 @@ fn chapter_ol(chapters: List(ChapterInfo)) -> VXML {
 // 🌸🌸🌸🌸🌸🌸🌸
 
 fn index(root: VXML) -> Result(VXML, DesugaringError) {
-  let assert Ok(re) = regexp.from_string("^(\\d+)(\\.(\\d+)?)?\\s")
-  use chapter_infos <- on.ok(extract_chapter_infos(root, re))
+  use chapter_infos <- on.ok(harvest_chapter_infos(root))
   Ok(V(
     desugarer_blame(237),
     "Index",
