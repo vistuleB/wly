@@ -1,38 +1,20 @@
 import gleam/list
-import gleam/option.{type Option, None, Some}
+import gleam/option.{None, Some}
 import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError, DesugaringError} as infra
 import nodemaps_2_desugarer_transforms as n2t
-import vxml.{type VXML, type Attribute, T, V, Attribute}
+import vxml.{type VXML, V, Attribute}
 import blame as bl
 import on
-
-fn extract_width_height_from_style(
-  style_attr: Option(Attribute),
-) -> Result(#(Option(String), Option(String), Option(Attribute)), DesugaringError) {
-  case style_attr {
-    None -> Ok(#(None, None, None))
-    Some(Attribute(blame, k, value)) -> {
-      assert k == "style"
-      use #(w, value) <- on.ok(infra.style_extract_unique_key_or_none(value, "width", blame))
-      use #(h, value) <- on.ok(infra.style_extract_unique_key_or_none(value, "height", blame))
-      let style_attr = case value == "" {
-        True -> None
-        False -> Some(Attribute(blame, "style", value))
-      }
-      Ok(#(w, h, style_attr))
-    }
-  }
-}
 
 fn nodemap(
   vxml: VXML,
 ) -> Result(VXML, DesugaringError) {
   case vxml {
-    T(_, _) -> Ok(vxml)
     V(blame, tag, attrs, children) if tag == "Carousel" -> {
       case children {
         [] -> {
-          let #(src_attrs, attrs) = list.partition(attrs, fn(attr) { attr.key == "src" })
+          let #(src_attrs, attrs) = 
+            infra.attributes_extract_key_occurrences(attrs, "src")
 
           use #(width_attr, attrs) <- on.ok(
             infra.attributes_extract_unique_key_or_none(attrs, "width")
@@ -46,12 +28,16 @@ fn nodemap(
             infra.attributes_extract_unique_key_or_none(attrs, "style")
           )
 
-          use #(width_prop, height_prop, style_attr) <- on.ok(
-            extract_width_height_from_style(style_attr)
+          use #(width_style, style_attr) <- on.ok(
+            infra.optional_style_extract_unique_key_or_none(style_attr, "width")
+          )
+
+          use #(height_style, style_attr) <- on.ok(
+            infra.optional_style_extract_unique_key_or_none(style_attr, "height")
           )
 
           use width_style <- on.ok(
-            case width_attr, width_prop {
+            case width_attr, width_style {
               Some(x), Some(_) -> Error(DesugaringError(x.blame, "duplicate width definition via attribute and style element"))
               Some(x), None -> Ok("width:" <> x.value)
               None, Some(value) -> Ok("width:" <> value)
@@ -60,7 +46,7 @@ fn nodemap(
           )
 
           use height_style <- on.ok(
-            case height_attr, height_prop {
+            case height_attr, height_style {
               Some(x), Some(_) -> Error(DesugaringError(x.blame, "duplicate height definition via attribute and style element"))
               Some(x), None -> Ok("height:" <> x.value)
               None, Some(value) -> Ok("height:" <> value)
@@ -68,14 +54,14 @@ fn nodemap(
             }
           )
 
-          let child_style_attr = case width_style, height_style {
+          let item_style_attr = case width_style, height_style {
             "", "" -> None
             _, "" -> Some(Attribute(desugarer_blame(73), "style", width_style))
             "", _ -> Some(Attribute(desugarer_blame(74), "style", height_style))
             _, _ -> Some(Attribute(desugarer_blame(75), "style", width_style <> ";" <> height_style))
           }
 
-          let items = case child_style_attr {
+          let items = case item_style_attr {
             None -> list.map(
               src_attrs,
               fn(src_attr) {
@@ -83,10 +69,11 @@ fn nodemap(
                 V(src_attr.blame, "CarouselItem", [], [img])
               }
             )
-            Some(child_style_attr) -> list.map(
+
+            Some(item_style_attr) -> list.map(
               src_attrs,
               fn(src_attr) {
-                let img = V(src_attr.blame, "img", [child_style_attr, src_attr], [])
+                let img = V(src_attr.blame, "img", [item_style_attr, src_attr], [])
                 V(src_attr.blame, "CarouselItem", [], [img])
               }
             )
@@ -114,6 +101,7 @@ fn nodemap(
         }
       }
     }
+
     _ -> Ok(vxml)
   }
 }

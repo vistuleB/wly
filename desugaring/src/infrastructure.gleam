@@ -2073,6 +2073,13 @@ pub fn attributes_value_of_unique_key(
   }
 }
 
+pub fn attributes_extract_key_occurrences(
+  attrs: List(Attribute),
+  key: String
+) -> #(List(Attribute), List(Attribute)) {
+  list.partition(attrs, fn(attr) { attr.key == key})
+}
+
 pub fn attributes_extract_unique_key_or_none(
   attrs: List(Attribute),
   key: String,
@@ -2289,6 +2296,24 @@ pub fn style_extract_unique_key_or_none(
   }
 
   Ok(#(extracted, style))
+}
+
+pub fn optional_style_extract_unique_key_or_none(
+  style_attr: Option(Attribute),
+  key: String,
+) -> Result(#(Option(String), Option(Attribute)), DesugaringError) {
+  case style_attr {
+    None -> Ok(#(None, None))
+    Some(Attribute(blame, k, style)) -> {
+      assert k == "style"
+      use #(value, style) <- on.ok(style_extract_unique_key_or_none(style, key, blame))
+      let style_attr = case style == "" {
+        True -> None
+        False -> Some(Attribute(blame, "style", style))
+      }
+      Ok(#(value, style_attr))
+    }
+  }
 }
 
 pub fn compose_style(
