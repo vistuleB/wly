@@ -2176,6 +2176,40 @@ pub fn attributes_value_of_first_with_key(
   |> option.map(fn(x) { x.value })
 }
 
+pub fn replace_attribute_value(
+  attr: Attribute,
+  from: String,
+  to: String,
+) -> Attribute {
+  case attr.value == from {
+    True -> Attribute(..attr, value: to)
+    False -> attr
+  }
+}
+
+pub fn attributes_replace_value(
+  attrs: List(Attribute),
+  from: String,
+  to: String,
+) -> List(Attribute) {
+  list.map(attrs, replace_attribute_value(_, from, to))
+}
+
+pub fn replace_attribute_value_recursive(
+  vxml: VXML,
+  from: String,
+  to: String,
+) -> VXML {
+  case vxml {
+    T(..) -> vxml
+    V(_, _, attrs, children) -> {
+      let children = list.map(children, replace_attribute_value_recursive(_, from, to))
+      let attrs = attributes_replace_value(attrs, from, to)
+      V(..vxml, attributes: attrs, children: children)
+    }
+  }
+}
+
 // ************************************************************
 // validation
 // ************************************************************

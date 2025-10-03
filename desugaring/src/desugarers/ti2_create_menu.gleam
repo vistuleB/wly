@@ -53,12 +53,17 @@ type FourLinks {
   )
 }
 
+type Menu {
+  Top
+  Bottom
+}
+
 fn an_attribute(key: String, value: String) -> Attribute {
-  Attribute(desugarer_blame(57), key, value)
+  Attribute(desugarer_blame(62), key, value)
 }
 
 fn string_2_text_node(content: String) -> VXML {
-  T(desugarer_blame(61), [TextLine(desugarer_blame(61), content)])
+  T(desugarer_blame(66), [TextLine(desugarer_blame(66), content)])
 }
 
 fn into_list(a: a) -> List(a) {
@@ -67,7 +72,7 @@ fn into_list(a: a) -> List(a) {
 
 fn homepage_link(homepage_url: String) -> VXML {
   V(
-    desugarer_blame(70),
+    desugarer_blame(75),
     "a",
     an_attribute("href", homepage_url) |> into_list,
     string_2_text_node("zür Kursübersicht") |> into_list,
@@ -76,12 +81,12 @@ fn homepage_link(homepage_url: String) -> VXML {
 
 fn index_link() -> VXML {
   V(
-    desugarer_blame(79),
+    desugarer_blame(84),
     "a",
     an_attribute("href", "./index.html") |> into_list,
     [
       V(
-        desugarer_blame(84),
+        desugarer_blame(89),
         "span",
         an_attribute("class", "inhalts_arrows") |> into_list, 
         "<< " |> string_2_text_node |> into_list,
@@ -120,7 +125,7 @@ fn related_page_2_link(
 
   let tooltip = case relation {
     Prev -> V(
-      desugarer_blame(123),
+      desugarer_blame(128),
       "span",
       [
         an_attribute("style", "visibility:hidden"),
@@ -130,7 +135,7 @@ fn related_page_2_link(
     )
 
     Next -> V(
-      desugarer_blame(133),
+      desugarer_blame(138),
       "span",
       [
         an_attribute("style", "visibility:hidden"),
@@ -141,7 +146,7 @@ fn related_page_2_link(
   }
 
   V(
-    desugarer_blame(144),
+    desugarer_blame(149),
     "a",
     [
       href_attribute,
@@ -159,18 +164,18 @@ fn left_right_links_2_menu(
   class_prefix: String,
 ) -> VXML {
   V(
-    desugarer_blame(162),
+    desugarer_blame(167),
     "Menu",
     an_attribute("id", class_prefix <> "menu") |> into_list,
     [
       V(
-        desugarer_blame(167),
+        desugarer_blame(172),
         "MenuLeft",
         an_attribute("class", class_prefix <> "menu-left") |> into_list,
         left,
       ),
       V(
-        desugarer_blame(173),
+        desugarer_blame(178),
         "MenuRight",
         an_attribute("class", class_prefix <> "menu-right") |> into_list,
         right,
@@ -180,21 +185,36 @@ fn left_right_links_2_menu(
 }
 
 fn links_2_menu(
-  links: FourLinks
+  links: FourLinks,
+  which: Menu,
 ) -> VXML {
   case links.index {
-    // the index:
-    None -> left_right_links_2_menu(
-      [links.homepage],
-      [links.next] |> option.values,
-      "",
-    )
-    // not the index:
-    _ -> left_right_links_2_menu(
-      [links.index, links.prev] |> option.values,
-      [Some(links.homepage), links.next] |> option.values,
-      "",
-    )
+    // the Index
+    None -> case which {
+      Top -> left_right_links_2_menu(
+        [links.homepage],
+        [links.next] |> option.values,
+        "",
+      )
+      Bottom -> left_right_links_2_menu(
+        [],
+        [],
+        "bottom-",
+      )
+    }
+    // a chapter or subchapter
+    _ -> case which {
+      Top -> left_right_links_2_menu(
+        [links.index, links.prev] |> option.values,
+        [Some(links.homepage), links.next] |> option.values,
+        "",
+      )
+      Bottom -> left_right_links_2_menu(
+        [links.prev] |> option.values,
+        [links.next] |> option.values,
+        "bottom-",
+      )
+    }
   }
 }
 
@@ -265,24 +285,40 @@ fn four_links_constructor_at_ch_or_sub(
 
 fn add_ids_to_links(
   links: FourLinks,
+  which: Menu,
 ) -> FourLinks {
-  let index = case option.is_none(links.prev) {
-    False -> links.index
-    True -> links.index |> option.map(infra.v_prepend_attribute(_, prev_page_id_attribute))
+  case which {
+    Top -> {
+      let index = case option.is_none(links.prev) {
+        False -> links.index
+        True -> links.index |> option.map(infra.v_prepend_attribute(_, prev_page_id_attribute))
+      }
+      let prev = option.map(links.prev, infra.v_prepend_attribute(_, prev_page_id_attribute))
+      let next = option.map(links.next, infra.v_prepend_attribute(_, next_page_id_attribute))
+      FourLinks(links.homepage, index, prev, next)
+    }
+    Bottom ->
+      FourLinks(
+        ..links,
+        prev: links.prev |> option.map(infra.replace_attribute_value_recursive(_, "prev-page-tooltip", "bottom-prev-page-tooltip")),
+        next: links.next |> option.map(infra.replace_attribute_value_recursive(_, "next-page-tooltip", "bottom-next-page-tooltip")),
+      )
   }
-  let prev = option.map(links.prev, infra.v_prepend_attribute(_, prev_page_id_attribute))
-  let next = option.map(links.next, infra.v_prepend_attribute(_, next_page_id_attribute))
-  FourLinks(links.homepage, index, prev, next)
 }
 
 fn add_menu(
   node: VXML,
   links: FourLinks,
+  which: Menu,
 ) -> VXML {
-  links
-  |> add_ids_to_links
-  |> links_2_menu
-  |> infra.v_prepend_child(node, _)
+  let menu = links
+    |> add_ids_to_links(which)
+    |> links_2_menu(which)
+
+  case which {
+    Top -> infra.v_prepend_child(node, menu)
+    Bottom -> infra.v_append_child(node, menu)
+  }
 }
 
 fn nodemap(
@@ -317,7 +353,7 @@ fn nodemap(
 
   let vxml = case links {
     None -> vxml
-    Some(links) -> add_menu(vxml, links)
+    Some(links) -> vxml |> add_menu(links, Top) |> add_menu(links, Bottom)
   }
 
   Ok(#(vxml, continue))

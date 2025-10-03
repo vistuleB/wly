@@ -25,6 +25,7 @@ import desugarers/append_class_to_child_if_is_not_one_of
 import desugarers/append_class_to_child_if_is_one_of
 import desugarers/append_class_to_children_with_class
 import desugarers/append_class_to_children_with_tag
+import desugarers/append_custom
 import desugarers/auto_generate_child_if_missing_from_attribute
 import desugarers/auto_generate_child_if_missing_from_attribute__outside
 import desugarers/auto_generate_child_if_missing_from_first_descendant_of_type
@@ -226,6 +227,7 @@ pub const append_class_to_child_if_is_not_one_of = append_class_to_child_if_is_n
 pub const append_class_to_child_if_is_one_of = append_class_to_child_if_is_one_of.constructor
 pub const append_class_to_children_with_class = append_class_to_children_with_class.constructor
 pub const append_class_to_children_with_tag = append_class_to_children_with_tag.constructor
+pub const append_custom = append_custom.constructor
 pub const auto_generate_child_if_missing_from_attribute = auto_generate_child_if_missing_from_attribute.constructor
 pub const auto_generate_child_if_missing_from_attribute__outside = auto_generate_child_if_missing_from_attribute__outside.constructor
 pub const auto_generate_child_if_missing_from_first_descendant_of_type = auto_generate_child_if_missing_from_first_descendant_of_type.constructor
@@ -428,6 +430,7 @@ pub const assertive_tests : List(fn() -> infra.AssertiveTestCollection) = [
   append_class_to_child_if_is_one_of.assertive_tests,
   append_class_to_children_with_class.assertive_tests,
   append_class_to_children_with_tag.assertive_tests,
+  append_custom.assertive_tests,
   auto_generate_child_if_missing_from_attribute.assertive_tests,
   auto_generate_child_if_missing_from_attribute__outside.assertive_tests,
   auto_generate_child_if_missing_from_first_descendant_of_type.assertive_tests,
