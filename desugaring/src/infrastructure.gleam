@@ -1754,6 +1754,22 @@ pub fn v_append_child(node: VXML, child: VXML) {
   V(..node, children: list.append(children, [child]))
 }
 
+pub fn v_assert_append_to_last_child(node: VXML, child: VXML) {
+  let assert V(_, _, _, children) = node
+  let assert [last, ..rest] = children |> list.reverse
+  let assert V(_, _, _, last_children) = last
+  let last = V(..last, children: list.append(last_children, [child]))
+  V(..node, children: [last, ..rest] |> list.reverse)
+}
+
+pub fn v_assert_append_to_second_child(node: VXML, child: VXML) {
+  let assert V(_, _, _, children) = node
+  let assert [first, second, ..rest] = children
+  let assert V(_, tag, _, second_children) = second
+  let second = V(..second, children: list.append(second_children, [child]))
+  V(..node, children: [first, second, ..rest])
+}
+
 pub fn v_set_attribute(
   vxml: VXML,
   blame: Blame,

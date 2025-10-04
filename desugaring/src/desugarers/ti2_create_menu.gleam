@@ -1,4 +1,6 @@
 import gleam/int
+import gleam/io
+import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/string.{inspect as ins}
 import infrastructure.{
@@ -161,11 +163,15 @@ fn related_page_2_link(
 fn left_right_links_2_menu(
   left: List(VXML),
   right: List(VXML),
-  class_prefix: String,
+  which: Menu,
 ) -> VXML {
+  let #(menu_tag, class_prefix) = case which {
+    Top -> #("Menu", "")
+    Bottom -> #("BottomMenu", "bottom-")
+  }
   V(
     desugarer_blame(167),
-    "Menu",
+    menu_tag,
     an_attribute("id", class_prefix <> "menu") |> into_list,
     [
       V(
@@ -194,12 +200,12 @@ fn links_2_menu(
       Top -> left_right_links_2_menu(
         [links.homepage],
         [links.next] |> option.values,
-        "",
+        which,
       )
       Bottom -> left_right_links_2_menu(
         [],
         [],
-        "bottom-",
+        which,
       )
     }
     // a chapter or subchapter
@@ -207,12 +213,12 @@ fn links_2_menu(
       Top -> left_right_links_2_menu(
         [links.index, links.prev] |> option.values,
         [Some(links.homepage), links.next] |> option.values,
-        "",
+        which,
       )
       Bottom -> left_right_links_2_menu(
         [links.prev] |> option.values,
         [links.next] |> option.values,
-        "bottom-",
+        which,
       )
     }
   }
@@ -315,6 +321,7 @@ fn add_menu(
     |> add_ids_to_links(which)
     |> links_2_menu(which)
 
+
   case which {
     Top -> infra.v_prepend_child(node, menu)
     Bottom -> infra.v_append_child(node, menu)
@@ -353,7 +360,12 @@ fn nodemap(
 
   let vxml = case links {
     None -> vxml
-    Some(links) -> vxml |> add_menu(links, Top) |> add_menu(links, Bottom)
+    Some(links) -> {
+      case links.index {
+        None -> vxml |> add_menu(links, Top) // the index gets no bottom menu
+        Some(_) -> vxml |> add_menu(links, Top) |> add_menu(links, Bottom)
+      }
+    }
   }
 
   Ok(#(vxml, continue))
@@ -384,7 +396,7 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
 type Param = Nil
 type InnerParam = Nil
 
-pub const name = "ti2_create_menu_new_version"
+pub const name = "ti2_create_menu"
 fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
 
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️

@@ -48,6 +48,12 @@ fn gather_title_and_chiron(
 ) -> Result(#(Title, String), DesugaringError) {
   use title_element <- on.ok(infra.v_unique_child(vxml, tag))
   let assert V(blame, _, attrs, title) = title_element
+  // so that we can stomach both the cases where the
+  // title has already been wrapped in <p></p> or not:
+  let title = case title {
+    [V(_, "p", _, title)] -> title
+    _ -> title
+  }
   use chiron <- on.ok(infra.attributes_value_of_unique_key(attrs, "number-chiron", blame))
   Ok(#(title, chiron))
 }

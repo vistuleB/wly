@@ -119,7 +119,12 @@ fn gather_title(
   }
   use title_element <- on.ok(infra.v_unique_child(vxml, title_tag))
   let assert V(_, _, _, children) = title_element
-  Ok(children)
+  // so that we can stomach both the cases where the
+  // title has already been wrapped in <p></p> or not:
+  case children {
+    [V(_, "p", _, children)] -> Ok(children)
+    _ -> Ok(children)
+  }
 }
 
 fn add_chapter_with_title_to_state(

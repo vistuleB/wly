@@ -28,10 +28,12 @@ fn nodemap(
   inner: InnerParam,
 ) -> #(VXML, TrafficLight) {
   case node {
-    V(blame, tag, _, children) if tag == inner.0 -> {
-        let #(before, after) = children_up_to_not_including(children, inner.1, [])
-        let children = [V(blame, inner.2, [], before), ..after]
-        #(V(..node, children: children), GoBack)
+    V(_, tag, _, children) if tag == inner.0 -> {
+      let #(before, after) = children_up_to_not_including(children, inner.1, [])
+      let wrapper = inner.2
+      let assert V(_, _, _, _) = wrapper
+      let children = [V(..wrapper, children: before), ..after]
+      #(V(..node, children: children), inner.3)
     }
     _ -> #(node, Continue)
   }
@@ -50,13 +52,13 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
   Ok(param)
 }
 
-type Param = #(String,  String,  String)
-//             ↖        ↖        ↖
-//             parent   stop     wrapper
-//             tag      tag      tag
+type Param = #(String,  String,  VXML,     TrafficLight)
+//             ↖        ↖        ↖         ↖
+//             parent   stop     wrapper   early return
+//             tag      tag      element   or not
 type InnerParam = Param
 
-pub const name = "wrap_children_before_in"
+pub const name = "wrap_children_up_to_custom"
 
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 // 🏖️🏖️ Desugarer 🏖️🏖️
@@ -68,7 +70,7 @@ pub const name = "wrap_children_before_in"
 /// wrapper tag.
 ///
 /// Will create an empty wrapper in case the stop
-/// tag is immediately encountered, or there are no
+/// tag is immediately encountered or there are no
 /// children.
 pub fn constructor(param: Param) -> Desugarer {
   Desugarer(

@@ -92,6 +92,7 @@ import desugarers/identity
 import desugarers/ii2_carousel_component
 import desugarers/ii2_class_well_container_theorem_2_statement
 import desugarers/ii2_remove_chapter_number_from_title
+import desugarers/insert_attribute_value_at_first_child_start
 import desugarers/insert_attribute_value_at_start
 import desugarers/insert_bookend_tags
 import desugarers/insert_bookend_text_if_no_attributes
@@ -194,8 +195,10 @@ import desugarers/unwrap_tags_with_no_text_descendant
 import desugarers/unwrap_when_zero_or_one_children
 import desugarers/wrap
 import desugarers/wrap_adjacent_non_whitespace_text_with
-import desugarers/wrap_children_before_in
-import desugarers/wrap_children_in
+import desugarers/wrap_children
+import desugarers/wrap_children_custom
+import desugarers/wrap_children_up_to
+import desugarers/wrap_children_up_to_custom
 import desugarers/wrap_each_child
 import desugarers/wrap_with_custom_if_child_of
 import desugarers/wrap_with_custom_if_not_child_of
@@ -294,6 +297,7 @@ pub const identity = identity.constructor
 pub const ii2_carousel_component = ii2_carousel_component.constructor
 pub const ii2_class_well_container_theorem_2_statement = ii2_class_well_container_theorem_2_statement.constructor
 pub const ii2_remove_chapter_number_from_title = ii2_remove_chapter_number_from_title.constructor
+pub const insert_attribute_value_at_first_child_start = insert_attribute_value_at_first_child_start.constructor
 pub const insert_attribute_value_at_start = insert_attribute_value_at_start.constructor
 pub const insert_bookend_tags = insert_bookend_tags.constructor
 pub const insert_bookend_text_if_no_attributes = insert_bookend_text_if_no_attributes.constructor
@@ -396,8 +400,10 @@ pub const unwrap_tags_with_no_text_descendant = unwrap_tags_with_no_text_descend
 pub const unwrap_when_zero_or_one_children = unwrap_when_zero_or_one_children.constructor
 pub const wrap = wrap.constructor
 pub const wrap_adjacent_non_whitespace_text_with = wrap_adjacent_non_whitespace_text_with.constructor
-pub const wrap_children_before_in = wrap_children_before_in.constructor
-pub const wrap_children_in = wrap_children_in.constructor
+pub const wrap_children = wrap_children.constructor
+pub const wrap_children_custom = wrap_children_custom.constructor
+pub const wrap_children_up_to = wrap_children_up_to.constructor
+pub const wrap_children_up_to_custom = wrap_children_up_to_custom.constructor
 pub const wrap_each_child = wrap_each_child.constructor
 pub const wrap_with_custom_if_child_of = wrap_with_custom_if_child_of.constructor
 pub const wrap_with_custom_if_not_child_of = wrap_with_custom_if_not_child_of.constructor
@@ -497,6 +503,7 @@ pub const assertive_tests : List(fn() -> infra.AssertiveTestCollection) = [
   ii2_carousel_component.assertive_tests,
   ii2_class_well_container_theorem_2_statement.assertive_tests,
   ii2_remove_chapter_number_from_title.assertive_tests,
+  insert_attribute_value_at_first_child_start.assertive_tests,
   insert_attribute_value_at_start.assertive_tests,
   insert_bookend_tags.assertive_tests,
   insert_bookend_text_if_no_attributes.assertive_tests,
@@ -599,8 +606,10 @@ pub const assertive_tests : List(fn() -> infra.AssertiveTestCollection) = [
   unwrap_when_zero_or_one_children.assertive_tests,
   wrap.assertive_tests,
   wrap_adjacent_non_whitespace_text_with.assertive_tests,
-  wrap_children_before_in.assertive_tests,
-  wrap_children_in.assertive_tests,
+  wrap_children.assertive_tests,
+  wrap_children_custom.assertive_tests,
+  wrap_children_up_to.assertive_tests,
+  wrap_children_up_to_custom.assertive_tests,
   wrap_each_child.assertive_tests,
   wrap_with_custom_if_child_of.assertive_tests,
   wrap_with_custom_if_not_child_of.assertive_tests,

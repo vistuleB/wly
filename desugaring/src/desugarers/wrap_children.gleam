@@ -1,8 +1,18 @@
 import gleam/option
 import gleam/string.{inspect as ins}
-import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError, type TrafficLight, Continue, GoBack} as infra
+import infrastructure.{
+  type Desugarer,
+  type DesugarerTransform,
+  type DesugaringError,
+  type TrafficLight,
+  DesugaringError,
+  Desugarer,
+  Continue,
+  GoBack,
+} as infra
 import nodemaps_2_desugarer_transforms as n2t
 import vxml.{type VXML, V}
+import blame as bl
 
 fn nodemap(
   node: VXML,
@@ -11,7 +21,7 @@ fn nodemap(
   case node {
     V(blame, tag, attrs, children) if tag == inner.0 -> {
       let wrapped_children = [V(blame, inner.1, [], children)]
-      #(V(blame, tag, attrs, wrapped_children), GoBack)
+      #(V(blame, tag, attrs, wrapped_children), inner.2)
     }
     _ -> #(node, Continue)
   }
@@ -27,16 +37,19 @@ fn transform_factory(inner: InnerParam) -> DesugarerTransform {
 }
 
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
-  Ok(param)
+  case infra.valid_tag(param.1) {
+    True -> Ok(param)
+    False -> Error(DesugaringError(bl.no_blame, "invalid tag for wrapper"))
+  }
 }
 
-type Param = #(String,  String)
+type Param = #(String,  String,     TrafficLight)
 //             ↖        ↖
 //             parent   wrapper
 //             tag      tag
 type InnerParam = Param
 
-pub const name = "wrap_children_in"
+pub const name = "wrap_children"
 
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 // 🏖️🏖️ Desugarer 🏖️🏖️
@@ -68,7 +81,7 @@ pub fn constructor(param: Param) -> Desugarer {
 fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
   [
     infra.AssertiveTestData(
-      param: #("div", "wrapper"),
+      param: #("div", "wrapper", GoBack),
       source:   "
                 <> root
                   <> div
@@ -94,7 +107,7 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
                 ",
     ),
     infra.AssertiveTestData(
-      param: #("section", "content"),
+      param: #("section", "content", GoBack),
       source:   "
                 <> root
                   <> section
@@ -106,7 +119,7 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
                 ",
     ),
     infra.AssertiveTestData(
-      param: #("article", "body"),
+      param: #("article", "body", GoBack),
       source:   "
                 <> root
                   <> article
