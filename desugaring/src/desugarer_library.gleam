@@ -96,6 +96,7 @@ import desugarers/insert_attribute_value_at_first_child_start
 import desugarers/insert_attribute_value_at_start
 import desugarers/insert_bookend_tags
 import desugarers/insert_bookend_text_if_no_attributes
+import desugarers/insert_custom_before_first
 import desugarers/insert_ii2_counter_commands
 import desugarers/insert_line_start_end
 import desugarers/insert_text_start_end
@@ -301,6 +302,7 @@ pub const insert_attribute_value_at_first_child_start = insert_attribute_value_a
 pub const insert_attribute_value_at_start = insert_attribute_value_at_start.constructor
 pub const insert_bookend_tags = insert_bookend_tags.constructor
 pub const insert_bookend_text_if_no_attributes = insert_bookend_text_if_no_attributes.constructor
+pub const insert_custom_before_first = insert_custom_before_first.constructor
 pub const insert_ii2_counter_commands = insert_ii2_counter_commands.constructor
 pub const insert_line_start_end = insert_line_start_end.constructor
 pub const insert_text_start_end = insert_text_start_end.constructor
@@ -507,6 +509,7 @@ pub const assertive_tests : List(fn() -> infra.AssertiveTestCollection) = [
   insert_attribute_value_at_start.assertive_tests,
   insert_bookend_tags.assertive_tests,
   insert_bookend_text_if_no_attributes.assertive_tests,
+  insert_custom_before_first.assertive_tests,
   insert_ii2_counter_commands.assertive_tests,
   insert_line_start_end.assertive_tests,
   insert_text_start_end.assertive_tests,

@@ -168,18 +168,18 @@ fn left_right_links_2_menu(
     Bottom -> #("BottomMenu", "bottom-")
   }
   V(
-    desugarer_blame(167),
+    desugarer_blame(171),
     menu_tag,
     an_attribute("id", class_prefix <> "menu") |> into_list,
     [
       V(
-        desugarer_blame(172),
+        desugarer_blame(176),
         "MenuLeft",
         an_attribute("class", class_prefix <> "menu-left") |> into_list,
         left,
       ),
       V(
-        desugarer_blame(178),
+        desugarer_blame(182),
         "MenuRight",
         an_attribute("class", class_prefix <> "menu-right") |> into_list,
         right,
@@ -322,7 +322,7 @@ fn add_menu(
 
   case which {
     Top -> infra.v_prepend_child(node, menu)
-    Bottom -> infra.v_append_child(node, menu)
+    Bottom -> infra.v_insert_child_before_first(node, menu, "Sub")
   }
 }
 

@@ -416,6 +416,16 @@ pub fn delete(ze_list: List(a), ze_thing: a) -> #(Bool, List(a)) {
   }
 }
 
+pub fn insert_before_first(list: List(a), elt: a, condition: fn(a) -> Bool) {
+  case list {
+    [] -> [elt]
+    [first, ..rest] -> case condition(first) {
+      True -> [elt, first, ..rest]
+      False -> [first, ..insert_before_first(rest, elt, condition)]
+    }
+  }
+}
+
 // ************************************************************
 // tuples
 // ************************************************************
@@ -1763,6 +1773,15 @@ pub fn v_pour_children(node: VXML, new: List(VXML)) {
 pub fn v_append_child(node: VXML, child: VXML) {
   let assert V(_, _, _, children) = node
   V(..node, children: list.append(children, [child]))
+}
+
+pub fn insert_child_before_first_in_list(nodes: List(VXML), child: VXML, before: String) -> List(VXML) {
+  insert_before_first(nodes, child, is_v_and_tag_equals(_, before))
+}
+
+pub fn v_insert_child_before_first(node: VXML, child: VXML, before: String) {
+  let assert V(_, _, _, children) = node
+  V(..node, children: insert_child_before_first_in_list(children, child, before))
 }
 
 pub fn v_assert_append_to_last_child(node: VXML, child: VXML) {

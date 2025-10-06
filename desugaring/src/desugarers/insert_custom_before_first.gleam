@@ -9,38 +9,23 @@ import infrastructure.{
   Continue,
 } as infra
 import nodemaps_2_desugarer_transforms as n2t
-import vxml.{type VXML, V}
-
-fn children_up_to_not_including(
-  children: List(VXML),
-  stop_tag: String,
-  acc: List(VXML),
-) -> #(List(VXML), List(VXML)) {
-  case children {
-    [] -> #([], [])
-    [first, ..rest] -> {
-      case first {
-        V(_, tag, _, _) if tag == stop_tag -> #(acc, children)
-        _ -> {
-          let #(acc, rest) = children_up_to_not_including(rest, stop_tag, acc)
-          #([first, ..acc], rest)
-        }
-      }
-    }
-  }
+import vxml.{
+  type VXML,
+  V,
 }
 
 fn nodemap(
-  node: VXML,
+  vxml: VXML,
   inner: InnerParam,
 ) -> #(VXML, TrafficLight) {
-  case node {
-    V(blame, tag, _, children) if tag == inner.0 -> {
-        let #(before, after) = children_up_to_not_including(children, inner.1, [])
-        let children = [V(blame, inner.2, [], before), ..after]
-        #(V(..node, children: children), inner.3)
+  case vxml {
+    V(_, tag, _, children) if tag == inner.0 -> {
+      #(
+        V(..vxml, children: infra.insert_child_before_first_in_list(children, inner.1, inner.2)),
+        inner.3,
+      )
     }
-    _ -> #(node, Continue)
+    _ -> #(vxml, Continue)
   }
 }
 
@@ -50,33 +35,33 @@ fn nodemap_factory(inner: InnerParam) -> n2t.EarlyReturnOneToOneNoErrorNodeMap {
 
 fn transform_factory(inner: InnerParam) -> DesugarerTransform {
   nodemap_factory(inner)
-  |> n2t.early_return_one_to_one_no_error_nodemap_2_desugarer_transform()
+  |> n2t.early_return_one_to_one_no_error_nodemap_2_desugarer_transform
 }
 
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
   Ok(param)
 }
 
-type Param = #(String,  String,  String,   TrafficLight)
-//             ↖        ↖        ↖         ↖
-//             parent   stop     wrapper   early return or not
-//             tag      tag      tag
+type Param = #(String,   VXML,      String,                   TrafficLight)
+//             ↖         ↖          ↖                         ↖    
+//             tag       thing to   before                    return-early-or-not-after-inserting
+//                       insert     first elt of this
+//                                  tag (or at end if none)
 type InnerParam = Param
 
-pub const name = "wrap_children_up_to"
+pub const name = "insert_custom_before_first"
 
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 // 🏖️🏖️ Desugarer 🏖️🏖️
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 //------------------------------------------------53
-/// For a specified parent tag, wraps all children
-/// from the first up to but not including the first
-/// child with a specified "stop tag" into a given
-/// wrapper tag.
-///
-/// Will create an empty wrapper in case the stop
-/// tag is immediately encountered or there are no
-/// children.
+/// For a given tag, adds a custom child to all nodes
+/// of that tag at the first position right before
+/// tags of another given string, or else as the last
+/// child if no such other tag is found.
+/// 
+/// Early-returns after operating on a node depending
+/// on the value of the last argument.
 pub fn constructor(param: Param) -> Desugarer {
   Desugarer(
     name: name,
