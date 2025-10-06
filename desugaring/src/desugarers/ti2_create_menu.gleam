@@ -23,8 +23,8 @@ import nodemaps_2_desugarer_transforms as n2t
 import blame as bl
 import on
 
-const prev_page_id_attr = Attribute(bl.Des([], name, 25), "id", "prev-page")
-const next_page_id_attr = Attribute(bl.Des([], name, 25), "id", "next-page")
+const prev_page_id_attr = Attribute(bl.Des([], name, 26), "id", "prev-page")
+const next_page_id_attr = Attribute(bl.Des([], name, 27), "id", "next-page")
 
 type Title = List(VXML)
 
@@ -173,13 +173,13 @@ fn left_right_links_2_menu(
       V(
         desugarer_blame(176),
         "MenuLeft",
-        an_attribute("class", p1 <> "menu-left") |> into_list,
+        an_attribute("id", p1 <> "menu-left") |> into_list,
         left,
       ),
       V(
         desugarer_blame(182),
         "MenuRight",
-        an_attribute("class", p1 <> "menu-right") |> into_list,
+        an_attribute("id", p1 <> "menu-right") |> into_list,
         right,
       ),
     ],
