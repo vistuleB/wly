@@ -426,6 +426,16 @@ pub fn insert_before_first(list: List(a), elt: a, condition: fn(a) -> Bool) {
   }
 }
 
+pub fn pour_before_first(list: List(a), to_pour: List(a), condition: fn(a) -> Bool) {
+  case list {
+    [] -> to_pour
+    [first, ..rest] -> case condition(first) {
+      True -> pour(to_pour, [first, ..rest])
+      False -> [first, ..pour_before_first(rest, to_pour, condition)]
+    }
+  }
+}
+
 pub fn map_first(
   list: List(a),
   f: fn(a) -> a,
@@ -1790,8 +1800,17 @@ pub fn v_preprend_attribute(node: VXML, attr: Attribute) {
   V(..node, attributes: [attr, ..attrs])
 }
 
+pub fn pour_before_first_in_list(nodes: List(VXML), to_insert: List(VXML), before: String) -> List(VXML) {
+  pour_before_first(nodes, to_insert, is_v_and_tag_equals(_, before))
+}
+
 pub fn insert_child_before_first_in_list(nodes: List(VXML), child: VXML, before: String) -> List(VXML) {
   insert_before_first(nodes, child, is_v_and_tag_equals(_, before))
+}
+
+pub fn v_pour_before_first(node: VXML, to_insert: List(VXML), before: String) {
+  let assert V(_, _, _, children) = node
+  V(..node, children: pour_before_first_in_list(children, to_insert, before))
 }
 
 pub fn v_insert_child_before_first(node: VXML, child: VXML, before: String) {

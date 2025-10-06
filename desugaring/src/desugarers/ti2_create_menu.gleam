@@ -25,6 +25,8 @@ import on
 
 const prev_page_id_attr = Attribute(bl.Des([], name, 26), "id", "prev-page")
 const next_page_id_attr = Attribute(bl.Des([], name, 27), "id", "next-page")
+const hr_id_attr = Attribute(bl.Des([], name, 27), "id", "bottom-menu-hr")
+const hr = V(bl.Des([], name, 15), "hr", [hr_id_attr], [])
 
 type Title = List(VXML)
 
@@ -202,6 +204,7 @@ fn data_2_menu(
         ] |> option.values |> infra.map_first(infra.v_prepend_attribute(_, next_page_id_attr)),
         which,
       )
+
       Bottom -> left_right_links_2_menu(
         [],
         [],
@@ -222,6 +225,7 @@ fn data_2_menu(
         ] |> option.values,
         which,
       )
+
       Bottom -> left_right_links_2_menu(
         [
           data.prev |> option.map(page_link(_, Prev, which))
@@ -293,7 +297,14 @@ fn add_menu(
   let menu = data_2_menu(data, which)
   case which {
     Top -> infra.v_prepend_child(node, menu)
-    Bottom -> infra.v_insert_child_before_first(node, menu, "Sub")
+    Bottom -> infra.v_pour_before_first(
+      node,
+      [
+        hr,
+        menu,
+      ],
+      "Sub",
+    )
   }
 }
 
