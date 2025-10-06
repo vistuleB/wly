@@ -163,7 +163,6 @@ import desugarers/ti2_add_listing_bol_spans
 import desugarers/ti2_add_prev_next_chapter_title_elements
 import desugarers/ti2_add_should_be_numbers
 import desugarers/ti2_backfill
-import desugarers/ti2_code_block_to_pre
 import desugarers/ti2_create_index
 import desugarers/ti2_create_menu
 import desugarers/ti2_expand_carousels
@@ -172,6 +171,7 @@ import desugarers/ti2_parse_orange_comments_pre
 import desugarers/ti2_parse_python_prompt_pre
 import desugarers/ti2_parse_redyellow_pre
 import desugarers/ti2_parse_xml_pre
+import desugarers/ti2_process_pre_language_attribute
 import desugarers/timer
 import desugarers/tokenize_href_surroundings
 import desugarers/tokenize_text_children_if
@@ -369,7 +369,6 @@ pub const ti2_add_listing_bol_spans = ti2_add_listing_bol_spans.constructor
 pub const ti2_add_prev_next_chapter_title_elements = ti2_add_prev_next_chapter_title_elements.constructor
 pub const ti2_add_should_be_numbers = ti2_add_should_be_numbers.constructor
 pub const ti2_backfill = ti2_backfill.constructor
-pub const ti2_code_block_to_pre = ti2_code_block_to_pre.constructor
 pub const ti2_create_index = ti2_create_index.constructor
 pub const ti2_create_menu = ti2_create_menu.constructor
 pub const ti2_expand_carousels = ti2_expand_carousels.constructor
@@ -378,6 +377,7 @@ pub const ti2_parse_orange_comments_pre = ti2_parse_orange_comments_pre.construc
 pub const ti2_parse_python_prompt_pre = ti2_parse_python_prompt_pre.constructor
 pub const ti2_parse_redyellow_pre = ti2_parse_redyellow_pre.constructor
 pub const ti2_parse_xml_pre = ti2_parse_xml_pre.constructor
+pub const ti2_process_pre_language_attribute = ti2_process_pre_language_attribute.constructor
 pub const timer = timer.constructor
 pub const tokenize_href_surroundings = tokenize_href_surroundings.constructor
 pub const tokenize_text_children_if = tokenize_text_children_if.constructor
@@ -576,7 +576,6 @@ pub const assertive_tests : List(fn() -> infra.AssertiveTestCollection) = [
   ti2_add_prev_next_chapter_title_elements.assertive_tests,
   ti2_add_should_be_numbers.assertive_tests,
   ti2_backfill.assertive_tests,
-  ti2_code_block_to_pre.assertive_tests,
   ti2_create_index.assertive_tests,
   ti2_create_menu.assertive_tests,
   ti2_expand_carousels.assertive_tests,
@@ -585,6 +584,7 @@ pub const assertive_tests : List(fn() -> infra.AssertiveTestCollection) = [
   ti2_parse_python_prompt_pre.assertive_tests,
   ti2_parse_redyellow_pre.assertive_tests,
   ti2_parse_xml_pre.assertive_tests,
+  ti2_process_pre_language_attribute.assertive_tests,
   timer.assertive_tests,
   tokenize_href_surroundings.assertive_tests,
   tokenize_text_children_if.assertive_tests,

@@ -17,10 +17,10 @@ fn nodemap(
   vxml: VXML,
 ) -> Result(VXML, DesugaringError) {
   case vxml {
-    V(_, "CodeBlock", attrs, _) | V(_, "WriterlyCodeBlock", attrs, _) -> {
-      use language <- on.lazy_none_some(
+    V(_, "pre", attrs, _) -> {
+      use language <- on.none_some(
         infra.v_first_attribute_with_key(vxml, "language"),
-        fn() { Ok(V(..vxml, tag: "pre")) },
+        Ok(vxml),
       )
 
       use #(amended_language, listing, line_no) <- on.ok(
@@ -71,12 +71,7 @@ fn nodemap(
         None -> attrs
       }
 
-      V(
-        ..vxml,
-        tag: "pre",
-        attributes: attrs,
-      )
-      |> Ok
+      Ok(V(..vxml, attributes: attrs))
     }
     _ -> Ok(vxml)
   }
@@ -95,7 +90,7 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
   Ok(param)
 }
 
-pub const name = "ti2_code_block_to_pre"
+pub const name = "ti2_process_pre_language_attribute"
 
 type Param = Nil
 type InnerParam = Param
