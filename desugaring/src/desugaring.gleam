@@ -997,8 +997,8 @@ fn parse_track_args(
   let #(with_ancestor_attributes, values) = infra.delete(values, "with-ancestor-attributes")
   let #(with_elder_sibling_attributes, values) = infra.delete(values, "with-elder-sibling-attributes")
 
-  let with_ancestor_attributes = with_ancestor_attributes || with_attributes
   let with_elder_sibling_attributes = with_elder_sibling_attributes || with_attributes
+  let with_ancestor_attributes = with_ancestor_attributes || with_elder_sibling_attributes
   let with_elder_siblings = with_elder_siblings || with_elder_sibling_attributes
   let with_ancestors = with_ancestors || with_elder_siblings || with_ancestor_attributes
 
