@@ -1776,7 +1776,7 @@ pub fn v_assert_append_to_last_child(node: VXML, child: VXML) {
 pub fn v_assert_append_to_second_child(node: VXML, child: VXML) {
   let assert V(_, _, _, children) = node
   let assert [first, second, ..rest] = children
-  let assert V(_, tag, _, second_children) = second
+  let assert V(_, _, _, second_children) = second
   let second = V(..second, children: list.append(second_children, [child]))
   V(..node, children: [first, second, ..rest])
 }
@@ -3022,8 +3022,9 @@ pub fn extend_selection_up(
 
 pub fn extend_selection_to_ancestors(
   lines: List(SLine),
-  with_elder_siblings with_siblings: Bool,
-  with_attributes with_attributes: Bool,
+  with_elder_siblings w_s: Bool,
+  with_ancestor_attributes w_a_a: Bool,
+  with_elder_sibling_attributes w_e_a: Bool,
 ) -> List(SLine) {
   lines
   |> list.reverse
@@ -3036,9 +3037,9 @@ pub fn extend_selection_to_ancestors(
       let line = case {
         line.indent < indent
       } || {
-        line.indent == indent && { {is_v && with_siblings} || {is_a && with_attributes} }
+        line.indent == indent && { {is_v && w_s} || {is_a && w_a_a} }
       } || {
-        line.indent == indent + 2 && with_siblings && is_a && with_attributes
+        line.indent == indent + 2 && w_s && is_a && w_e_a
       } {
         True -> line |> bring_to_bystander_level
         False -> line
@@ -3082,12 +3083,13 @@ pub fn extend_selector_down(
 pub fn extend_selector_to_ancestors(
   f: Selector,
   with_elder_siblings with_siblings: Bool,
-  with_attributes with_attributes: Bool,
+  with_ancestor_attributes w_a_a: Bool,
+  with_elder_sibling_attributes w_e_a: Bool,
 ) -> Selector {
   fn (lines) {
     lines
     |> f
-    |> extend_selection_to_ancestors(with_siblings, with_attributes)
+    |> extend_selection_to_ancestors(with_siblings, w_a_a, w_e_a)
   }
 }
 

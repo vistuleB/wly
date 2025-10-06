@@ -994,12 +994,22 @@ fn parse_track_args(
   let #(with_ancestors, values) = infra.delete(values, "with-ancestors")
   let #(with_elder_siblings, values) = infra.delete(values, "with-elder-siblings")
   let #(with_attributes, values) = infra.delete(values, "with-attributes")
+  let #(with_ancestor_attributes, values) = infra.delete(values, "with-ancestor-attributes")
+  let #(with_elder_sibling_attributes, values) = infra.delete(values, "with-elder-sibling-attributes")
 
-  let with_ancestors = with_ancestors || with_elder_siblings || with_attributes
+  let with_ancestor_attributes = with_ancestor_attributes || with_attributes
+  let with_elder_sibling_attributes = with_elder_sibling_attributes || with_attributes
+  let with_elder_siblings = with_elder_siblings || with_elder_sibling_attributes
+  let with_ancestors = with_ancestors || with_elder_siblings || with_ancestor_attributes
 
   let selector = case with_ancestors {
     False -> selector
-    True -> infra.extend_selector_to_ancestors(selector, with_elder_siblings, with_attributes)
+    True -> infra.extend_selector_to_ancestors(
+      selector,
+      with_elder_siblings,
+      with_ancestor_attributes,
+      with_elder_sibling_attributes,
+    )
   }
 
   use second_payload, values <- on.empty_nonempty(
@@ -1017,7 +1027,7 @@ fn parse_track_args(
     parse_plus_minus(second_payload),
     fn(_) {
       Error(SelectorValues(
-        "2nd argument to --show-changes-near should have form +<p>-<m> or -<m>+<p> where p, m are integers",
+        "2nd argument to --track should have form +<p>-<m> or -<m>+<p> where p, m are integers [" <> second_payload <> "]",
       ))
     },
   )

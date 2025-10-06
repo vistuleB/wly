@@ -1,4 +1,4 @@
-import gleam/option.{Some, None}
+import gleam/option
 import gleam/string.{inspect as ins}
 import infrastructure.{
   type Desugarer,
