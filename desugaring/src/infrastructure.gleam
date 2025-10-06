@@ -426,6 +426,16 @@ pub fn insert_before_first(list: List(a), elt: a, condition: fn(a) -> Bool) {
   }
 }
 
+pub fn map_first(
+  list: List(a),
+  f: fn(a) -> a,
+) -> List(a) {
+  case list {
+    [first, ..rest] -> [f(first), ..rest]
+    [] -> []
+  }
+}
+
 // ************************************************************
 // tuples
 // ************************************************************
@@ -1773,6 +1783,11 @@ pub fn v_pour_children(node: VXML, new: List(VXML)) {
 pub fn v_append_child(node: VXML, child: VXML) {
   let assert V(_, _, _, children) = node
   V(..node, children: list.append(children, [child]))
+}
+
+pub fn v_preprend_attribute(node: VXML, attr: Attribute) {
+  let assert V(_, _, attrs, _) = node
+  V(..node, attributes: [attr, ..attrs])
 }
 
 pub fn insert_child_before_first_in_list(nodes: List(VXML), child: VXML, before: String) -> List(VXML) {
