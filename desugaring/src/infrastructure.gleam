@@ -405,6 +405,17 @@ pub fn append_if_not_present(ze_list: List(a), ze_thing: a) -> List(a) {
   }
 }
 
+pub fn delete(ze_list: List(a), ze_thing: a) -> #(Bool, List(a)) {
+  case ze_list {
+    [] -> #(False, [])
+    [first, ..rest] if first == ze_thing -> #(True, delete(rest, ze_thing).1)
+    [first, ..rest] -> {
+      let #(b, rest) = delete(rest, ze_thing)
+      #(b, [first, ..rest])
+    }
+  }
+}
+
 // ************************************************************
 // tuples
 // ************************************************************

@@ -991,6 +991,17 @@ fn parse_track_args(
   let assert True = first_payload != ""
   let selector = sl.verbatim(first_payload)
 
+  let #(with_ancestors, values) = infra.delete(values, "with-ancestors")
+  let #(with_elder_siblings, values) = infra.delete(values, "with-elder-siblings")
+  let #(with_attributes, values) = infra.delete(values, "with-attributes")
+
+  let with_ancestors = with_ancestors || with_elder_siblings || with_attributes
+
+  let selector = case with_ancestors {
+    False -> selector
+    True -> infra.extend_selector_to_ancestors(selector, with_elder_siblings, with_attributes)
+  }
+
   use second_payload, values <- on.empty_nonempty(
     values,
     Ok(
