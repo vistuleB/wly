@@ -1,6 +1,4 @@
 import gleam/int
-import gleam/io
-import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/string.{inspect as ins}
 import infrastructure.{
@@ -131,7 +129,7 @@ fn related_page_2_link(
       "span",
       [
         an_attribute("style", "visibility:hidden"),
-        an_attribute("id", "prev-page-tooltip"),
+        an_attribute("id", "top-prev-page-tooltip"),
       ],
       page.title,
     )
@@ -141,7 +139,7 @@ fn related_page_2_link(
       "span",
       [
         an_attribute("style", "visibility:hidden"),
-        an_attribute("id", "next-page-tooltip"),
+        an_attribute("id", "top-next-page-tooltip"),
       ],
       page.title,
     )
@@ -166,7 +164,7 @@ fn left_right_links_2_menu(
   which: Menu,
 ) -> VXML {
   let #(menu_tag, class_prefix) = case which {
-    Top -> #("Menu", "")
+    Top -> #("TopMenu", "top-")
     Bottom -> #("BottomMenu", "bottom-")
   }
   V(
@@ -303,12 +301,13 @@ fn add_ids_to_links(
       let next = option.map(links.next, infra.v_prepend_attribute(_, next_page_id_attribute))
       FourLinks(links.homepage, index, prev, next)
     }
-    Bottom ->
+    Bottom -> {
       FourLinks(
         ..links,
-        prev: links.prev |> option.map(infra.replace_attribute_value_recursive(_, "prev-page-tooltip", "bottom-prev-page-tooltip")),
-        next: links.next |> option.map(infra.replace_attribute_value_recursive(_, "next-page-tooltip", "bottom-next-page-tooltip")),
+        prev: links.prev |> option.map(infra.replace_attribute_value_recursive(_, "top-prev-page-tooltip", "bottom-prev-page-tooltip")),
+        next: links.next |> option.map(infra.replace_attribute_value_recursive(_, "top-next-page-tooltip", "bottom-next-page-tooltip")),
       )
+    }
   }
 }
 
@@ -320,7 +319,6 @@ fn add_menu(
   let menu = links
     |> add_ids_to_links(which)
     |> links_2_menu(which)
-
 
   case which {
     Top -> infra.v_prepend_child(node, menu)
