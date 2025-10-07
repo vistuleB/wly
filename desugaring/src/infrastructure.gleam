@@ -1239,7 +1239,7 @@ pub fn last_to_first_concatenation_in_list_list_of_lines_where_all_but_last_list
   list_of_lists: List(List(TextLine))
 ) -> List(TextLine) {
   case list_of_lists {
-    [] -> panic as "this is unexpected"
+    [] -> panic as "sorry plz find another way don't like returning empty List(TextLine)"
     [one] -> one
     [next_to_last, last] -> lines_last_to_first_concatenation_where_first_lines_are_already_reversed(next_to_last, last)
     [first, ..rest] -> lines_last_to_first_concatenation_where_first_lines_are_already_reversed(
@@ -1273,6 +1273,23 @@ pub fn t_t_last_to_first_concatenation(node1: VXML, node2: VXML) -> VXML {
       lines2
     )
   )
+}
+
+pub fn last_to_first_concatenation_in_list_list_lines(
+  l: List(List(TextLine))
+) -> List(TextLine) {
+  case l {
+    [] -> panic as "sorry plz find another way don't like returning empty List(TextLine)"
+    [lines1] -> lines1
+    [lines1, lines2] -> lines_last_to_first_concatenation_where_first_lines_are_already_reversed(
+      lines1 |> list.reverse,
+      lines2,
+    )
+    [lines1, ..rest] -> lines_last_to_first_concatenation_where_first_lines_are_already_reversed(
+      lines1 |> list.reverse,
+      last_to_first_concatenation_in_list_list_lines(rest),
+    )
+  }
 }
 
 fn last_to_first_concatenation_internal(

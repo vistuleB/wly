@@ -31,6 +31,7 @@ import desugarers/auto_generate_child_if_missing_from_attribute__outside
 import desugarers/auto_generate_child_if_missing_from_first_descendant_of_type
 import desugarers/break_lines_into_span_tooltips
 import desugarers/bridge_whitespace
+import desugarers/bridge_whitespace_single_space
 import desugarers/change_attribute_value
 import desugarers/change_attribute_value__batch
 import desugarers/check_proper_detokenization
@@ -93,6 +94,7 @@ import desugarers/identity
 import desugarers/ii2_carousel_component
 import desugarers/ii2_class_well_container_theorem_2_statement
 import desugarers/ii2_remove_chapter_number_from_title
+import desugarers/insert_attribute_as_text
 import desugarers/insert_attribute_value_at_first_child_start
 import desugarers/insert_attribute_value_at_start
 import desugarers/insert_bookend_tags
@@ -239,6 +241,7 @@ pub const auto_generate_child_if_missing_from_attribute__outside = auto_generate
 pub const auto_generate_child_if_missing_from_first_descendant_of_type = auto_generate_child_if_missing_from_first_descendant_of_type.constructor
 pub const break_lines_into_span_tooltips = break_lines_into_span_tooltips.constructor
 pub const bridge_whitespace = bridge_whitespace.constructor
+pub const bridge_whitespace_single_space = bridge_whitespace_single_space.constructor
 pub const change_attribute_value = change_attribute_value.constructor
 pub const change_attribute_value__batch = change_attribute_value__batch.constructor
 pub const check_proper_detokenization = check_proper_detokenization.constructor
@@ -301,6 +304,7 @@ pub const identity = identity.constructor
 pub const ii2_carousel_component = ii2_carousel_component.constructor
 pub const ii2_class_well_container_theorem_2_statement = ii2_class_well_container_theorem_2_statement.constructor
 pub const ii2_remove_chapter_number_from_title = ii2_remove_chapter_number_from_title.constructor
+pub const insert_attribute_as_text = insert_attribute_as_text.constructor
 pub const insert_attribute_value_at_first_child_start = insert_attribute_value_at_first_child_start.constructor
 pub const insert_attribute_value_at_start = insert_attribute_value_at_start.constructor
 pub const insert_bookend_tags = insert_bookend_tags.constructor
@@ -448,6 +452,7 @@ pub const assertive_tests : List(fn() -> infra.AssertiveTestCollection) = [
   auto_generate_child_if_missing_from_first_descendant_of_type.assertive_tests,
   break_lines_into_span_tooltips.assertive_tests,
   bridge_whitespace.assertive_tests,
+  bridge_whitespace_single_space.assertive_tests,
   change_attribute_value.assertive_tests,
   change_attribute_value__batch.assertive_tests,
   check_proper_detokenization.assertive_tests,
@@ -510,6 +515,7 @@ pub const assertive_tests : List(fn() -> infra.AssertiveTestCollection) = [
   ii2_carousel_component.assertive_tests,
   ii2_class_well_container_theorem_2_statement.assertive_tests,
   ii2_remove_chapter_number_from_title.assertive_tests,
+  insert_attribute_as_text.assertive_tests,
   insert_attribute_value_at_first_child_start.assertive_tests,
   insert_attribute_value_at_start.assertive_tests,
   insert_bookend_tags.assertive_tests,

@@ -8,7 +8,7 @@ import infrastructure.{
   Desugarer,
 } as infra
 import nodemaps_2_desugarer_transforms as n2t
-import vxml.{type VXML, T, V}
+import vxml.{type VXML, TextLine, T, V}
 import blame as bl
 
 fn accumulator(
@@ -143,11 +143,21 @@ fn accumulator(
             [T(..) as first, ..rest] -> #(first.lines, rest)
             _ -> #([], c2)
           }
-          let whitespace = list.map(whitespace, fn(w) {
-            let assert T(_, lines) = w
-            assert lines != []
-            lines
-          })
+          let any_space_or_newline = list.any(
+            whitespace,
+            fn (w) {
+              let assert T(_, lines) = w
+              case lines {
+                [] -> panic
+                [one] -> one.content != ""
+                _ -> True
+              }
+            }
+          )
+          let whitespace = case any_space_or_newline {
+            True -> [[TextLine(desugarer_blame(158), " ")]]
+            False -> []
+          }
           let all_lists = list.flatten([
             [c1_last_lines],
             whitespace,
@@ -161,7 +171,7 @@ fn accumulator(
           let children = case bridge_lines {
             [] -> infra.pour(c1_others_reversed, c2_others)
             _ -> {
-              let bridge_child = T(desugarer_blame(164), bridge_lines)
+              let bridge_child = T(desugarer_blame(174), bridge_lines)
               infra.pour([bridge_child, ..c1_others_reversed], c2_others)
             }
           }
@@ -212,7 +222,7 @@ type Param = String
 //           tag
 type InnerParam = Param
 
-pub const name = "bridge_whitespace"
+pub const name = "bridge_whitespace_single_space"
 fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
 
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
@@ -221,13 +231,21 @@ fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
 //------------------------------------------------53
 /// Globs sibling nodes of the given tag together
 /// when adjacent or separated only by text nodes
-/// that contain whitespace. In more detail, when
-/// two nodes are globbed together, the intervening
-/// text nodes are concatenated in last-to-first-line
-/// fashion with the last child of the first node and
-/// the first child of the second node, if these
-/// children are text, to form the "bridging child"
-/// of the newly formed node.
+/// that contain whitespace. In more detail:
+/// 
+/// - when there are no whitespace text nodes between
+///   the two adjacent siblings, the siblings are
+///   concatated in last-to-first-line fashion
+///   (vis-a-vis their own first & last child text node
+///   if any, respectively)
+/// 
+/// - in the remaining case, the intervening whitespace
+///   nodes are replaced by a single space text node,
+///   and a similar last-to-first line concatenation
+///   ensues among the last child text node of the
+///   first node, if any, the single space text node, 
+///   first child text node of the second node, if 
+///   any
 pub fn constructor(param: Param) -> Desugarer {
   Desugarer(
     name: name,
@@ -254,13 +272,33 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
                       \"hello1\"
                   <> b
                     <>
-                      \"hello\"
+                      \"hello2\"
                 ",
       expected: "
                 <> root
                   <> b
                     <>
-                      \"hello1hello\"
+                      \"hello1hello2\"
+                ",
+    ),
+    infra.AssertiveTestData(
+      param: "b",
+      source:   "
+                <> root
+                  <> b
+                    <>
+                      \"hello1\"
+                  <>
+                    \"\"
+                  <> b
+                    <>
+                      \"hello2\"
+                ",
+      expected: "
+                <> root
+                  <> b
+                    <>
+                      \"hello1hello2\"
                 ",
     ),
     infra.AssertiveTestData(
@@ -274,13 +312,13 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
                     \" \"
                   <> b
                     <>
-                      \"hello\"
+                      \"hello2\"
                 ",
       expected: "
                 <> root
                   <> b
                     <>
-                      \"hello1 hello\"
+                      \"hello1 hello2\"
                 ",
     ),
     infra.AssertiveTestData(
@@ -304,8 +342,7 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
                   <> b
                     <>
                       \"hello1\"
-                      \"hello2\"
-                      \"hello3\"
+                      \"hello2 hello3\"
                       \"hello4\"
                 ",
     ),
@@ -341,8 +378,7 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
                       <>
                         \"hey1\"
                     <>
-                      \"\"
-                      \"\"
+                      \" \"
                     <> i
                       <>
                         \"hey2\"

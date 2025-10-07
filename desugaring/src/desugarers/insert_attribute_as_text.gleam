@@ -2,24 +2,17 @@ import gleam/option.{Some}
 import gleam/string.{inspect as ins}
 import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as infra
 import nodemaps_2_desugarer_transforms as n2t
-import vxml.{ type VXML, TextLine, T, V, Attribute}
-import blame as bl
+import vxml.{ type VXML, V, Attribute}
 
 fn nodemap(
   vxml: VXML,
   inner: InnerParam,
 ) -> VXML {
   case vxml {
-    V(_, tag, _, children) if tag == inner.0 -> {
+    V(_, tag, _, _) if tag == inner.0 -> {
       case infra.v_first_attribute_with_key(vxml, inner.1) {
         Some(Attribute(_, _, value)) if value != "" ->
-          V(..vxml, children: [
-            T(
-              desugarer_blame(18),
-              [TextLine(desugarer_blame(19), value)]
-            ),
-            ..children
-          ])
+          infra.v_start_insert_text(vxml, value)
         _ -> vxml
       }
     }
@@ -42,11 +35,10 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
 
 type Param = #(String, String)
 //             ↖       ↖
-//             tag     attribute_key
+//             tag     attribute key
 type InnerParam = Param
 
-pub const name = "prepend_attribute_as_text"
-fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
+pub const name = "insert_attribute_as_text"
 
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 // 🏖️🏖️ Desugarer 🏖️🏖️
@@ -56,14 +48,14 @@ fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
 /// ```
 /// tag, attribute_key
 /// ```
-/// prepends the value of the attribute with key
-/// 'attribute_key' as a text node to nodes of tag
-/// 'tag'. If the attribute doesn't exist, the node
+/// insert the value of the attribute with key
+/// 'attribute_key' into the first line of the first
+/// text node child of the tag, or else as a text
+/// node unto itself if the first child is not a 
+/// text node. If the attribute doesn't exist, the node
 /// is left unchanged. The attribute value is used
 /// as-is without any newline splitting. Empty
 /// attribute values are ignored.
-///
-/// Processes all matching nodes depth-first.
 pub fn constructor(param: Param) -> Desugarer {
   Desugarer(
     name: name,
@@ -185,7 +177,7 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
       source: "
                 <> container
                   <> item
-                    value=\"Parent\"
+                    value=Parent
                     <> item
                       value=Child1
                       <> p
@@ -203,9 +195,9 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
       expected: "
                 <> container
                   <> item
-                    value=\"Parent\"
+                    value=Parent
                     <>
-                      \"\"Parent\"\"
+                      \"Parent\"
                     <> item
                       value=Child1
                       <>
@@ -220,6 +212,43 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
                       <> p
                         <>
                           \"Text2\"
+                    <> p
+                      <>
+                        \"Parent Content\"
+                ",
+    ),
+    infra.AssertiveTestData(
+      param: #("item", "value"),
+      source: "
+                <> container
+                  <> item
+                    value=Parent
+                    <> item
+                      value=Child1
+                      <>
+                        \"Text1\"
+                    <> item
+                      value=Child2
+                      <>
+                        \"Text2\"
+                    <> p
+                      <>
+                        \"Parent Content\"
+                ",
+      expected: "
+                <> container
+                  <> item
+                    value=Parent
+                    <>
+                      \"Parent\"
+                    <> item
+                      value=Child1
+                      <>
+                        \"Child1Text1\"
+                    <> item
+                      value=Child2
+                      <>
+                        \"Child2Text2\"
                     <> p
                       <>
                         \"Parent Content\"
