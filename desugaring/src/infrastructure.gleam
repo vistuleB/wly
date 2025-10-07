@@ -2202,6 +2202,14 @@ pub fn attributes_extract_key_occurrences(
   list.partition(attrs, fn(attr) { attr.key == key})
 }
 
+pub fn attributes_extract_key_value(
+  attrs: List(Attribute),
+  key: String,
+  value: String,
+) -> #(List(Attribute), List(Attribute)) {
+  list.partition(attrs, fn(attr) { attr.key == key && attr.value == value })
+}
+
 pub fn attributes_extract_unique_key_or_none(
   attrs: List(Attribute),
   key: String,
