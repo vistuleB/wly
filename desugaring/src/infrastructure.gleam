@@ -1968,6 +1968,17 @@ pub fn v_unique_child(
   }
 }
 
+pub fn v_unique_child_with_singleton_error(
+  vxml: VXML,
+  tag: String,
+) -> Result(VXML, SingletonError) {
+  case v_children_with_tag(vxml, tag) {
+    [one] -> Ok(one)
+    [] -> Error(LessThanOne)
+    _ -> Error(MoreThanOne)
+  }
+}
+
 pub fn first_in_list(
   nodes: List(VXML),
   tag: String,

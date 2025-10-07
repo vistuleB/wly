@@ -144,6 +144,7 @@ import desugarers/rename_attributes_by_function
 import desugarers/rename_if_child_of
 import desugarers/rename_if_child_of__batch
 import desugarers/rename_if_has_singleton_class_attribute
+import desugarers/rename_if_has_singleton_key_value
 import desugarers/rename_with_appended_attributes_and_prepended_text
 import desugarers/rename_with_attributes
 import desugarers/rename_with_attributes__batch
@@ -354,6 +355,7 @@ pub const rename_attributes_by_function = rename_attributes_by_function.construc
 pub const rename_if_child_of = rename_if_child_of.constructor
 pub const rename_if_child_of__batch = rename_if_child_of__batch.constructor
 pub const rename_if_has_singleton_class_attribute = rename_if_has_singleton_class_attribute.constructor
+pub const rename_if_has_singleton_key_value = rename_if_has_singleton_key_value.constructor
 pub const rename_with_appended_attributes_and_prepended_text = rename_with_appended_attributes_and_prepended_text.constructor
 pub const rename_with_attributes = rename_with_attributes.constructor
 pub const rename_with_attributes__batch = rename_with_attributes__batch.constructor
@@ -565,6 +567,7 @@ pub const assertive_tests : List(fn() -> infra.AssertiveTestCollection) = [
   rename_if_child_of.assertive_tests,
   rename_if_child_of__batch.assertive_tests,
   rename_if_has_singleton_class_attribute.assertive_tests,
+  rename_if_has_singleton_key_value.assertive_tests,
   rename_with_appended_attributes_and_prepended_text.assertive_tests,
   rename_with_attributes.assertive_tests,
   rename_with_attributes__batch.assertive_tests,

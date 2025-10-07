@@ -9,7 +9,7 @@ fn nodemap(
   inner: InnerParam,
 ) -> VXML {
   case vxml {
-    V(_, tag, [singleton], _) if tag == inner.0 && singleton.key == "class" && singleton.value == inner.2 ->
+    V(_, tag, [singleton], _) if tag == inner.0 && singleton.key == inner.2 && singleton.value == inner.3 ->
       V(..vxml, tag: inner.1, attributes: [])
     _ -> vxml
   }
@@ -28,22 +28,21 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
   Ok(param)
 }
 
-type Param = #(String,    String,    String)
-//             ↖          ↖          ↖
-//             tag        new tag    class
-//                        name
+type Param = #(String,  String,  String,  String)
+//             ↖        ↖        ↖        ↖
+//             tag      class    key      value
 type InnerParam = Param
 
-pub const name = "rename_if_has_singleton_class_attribute"
+pub const name = "rename_if_has_singleton_key_value"
 
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 // 🏖️🏖️ Desugarer 🏖️🏖️
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 //------------------------------------------------53
-/// renames tags when their attributes consist of a
-/// single 'class' attribute with a given value;
-/// removes the class attribute as part of the
-/// renaming process 
+/// renames tags of a given tag whose attribute list
+/// consists of a specific key-value pair
+/// 
+/// removes the key-value pair, while at it
 pub fn constructor(param: Param) -> Desugarer {
   Desugarer(
     name: name,
