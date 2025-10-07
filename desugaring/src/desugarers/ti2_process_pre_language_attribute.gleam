@@ -99,13 +99,15 @@ type InnerParam = Param
 // 🏖️🏖️ Desugarer 🏖️🏖️
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 //------------------------------------------------53
-/// converts CodeBlock and WriterlyCodeBlock elements to
-/// pre elements with proper language and listing support.
+/// Parses the 'language' attribute value of 'pre'
+/// elements according to a special format:
 ///
-/// handles special "listing" directive in language
-/// attributes to add listing class and line numbering.
-/// supports syntax like "python-listing@5" for language
-/// with listing starting at line 5.
+/// 1. '-listing' suffix is removed and 'listing' is
+///    is added as a class to the element instead
+/// 
+/// 2. '-listing@52' will additionally result in
+///    'counter-set:listing 52' being added as a
+///    style to the pre
 pub fn constructor() -> Desugarer {
   Desugarer(
     name: name,
@@ -126,7 +128,7 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
     infra.AssertiveTestDataNoParam(
       source:   "
                   <> root
-                    <> CodeBlock
+                    <> pre
                       language=orange-comments
                       <>
                         \"some code here\"
@@ -142,7 +144,7 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
     infra.AssertiveTestDataNoParam(
       source:   "
                   <> root
-                    <> WriterlyCodeBlock
+                    <> pre
                       language=python-listing
                       <>
                         \"def hello():\"
@@ -161,7 +163,7 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
     infra.AssertiveTestDataNoParam(
       source:   "
                   <> root
-                    <> CodeBlock
+                    <> pre
                       language=javascript-listing@10
                       <>
                         \"console.log('test');\"
@@ -179,7 +181,7 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
     infra.AssertiveTestDataNoParam(
       source:   "
                   <> root
-                    <> CodeBlock
+                    <> pre
                       language=listing@3
                       <>
                         \"line one\"
@@ -198,7 +200,7 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
     infra.AssertiveTestDataNoParam(
       source:   "
                   <> root
-                    <> CodeBlock
+                    <> pre
                       <>
                         \"plain code block\"
                 ",

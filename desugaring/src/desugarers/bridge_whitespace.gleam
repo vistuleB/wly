@@ -80,7 +80,7 @@ fn accumulator(
       }
     }
 
-    [V(_, t, _, _) as first, ..rest] if t != inner -> {
+    [V(_, tag, _, _) as first, ..rest] if tag != inner -> {
       case last_dude {
         None -> {
           // *
@@ -114,8 +114,8 @@ fn accumulator(
       }
     }
 
-    [V(_, t, _, c2) as first, ..rest] -> {
-      assert t == inner
+    [V(_, tag, _, c2) as first, ..rest] -> {
+      assert tag == inner
       case last_dude {
         None -> {
           // *
@@ -235,7 +235,72 @@ pub fn constructor(param: Param) -> Desugarer {
 // 🌊🌊🌊 tests 🌊🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
 fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
-  []
+  [
+    infra.AssertiveTestData(
+      param: "b",
+      source:   "
+                <> root
+                  <> b
+                    <>
+                      \"hello1\"
+                  <> b
+                    <>
+                      \"hello\"
+                ",
+      expected: "
+                <> root
+                  <> b
+                    <>
+                      \"hello1hello\"
+                ",
+    ),
+    infra.AssertiveTestData(
+      param: "b",
+      source:   "
+                <> root
+                  <> b
+                    <>
+                      \"hello1\"
+                  <>
+                    \" \"
+                  <> b
+                    <>
+                      \"hello\"
+                ",
+      expected: "
+                <> root
+                  <> b
+                    <>
+                      \"hello1 hello\"
+                ",
+    ),
+    infra.AssertiveTestData(
+      param: "b",
+      source:   "
+                <> root
+                  <> b
+                    <>
+                      \"hello1\"
+                      \"hello2\"
+                  <>
+                    \"\"
+                    \"\"
+                  <> b
+                    <>
+                      \"hello3\"
+                      \"hello4\"
+                ",
+      expected: "
+                <> root
+                  <> b
+                    <>
+                      \"hello1\"
+                      \"hello2\"
+                      \"hello3\"
+                      \"hello4\"
+                ",
+    ),
+  ]
 }
 
 pub fn assertive_tests() {

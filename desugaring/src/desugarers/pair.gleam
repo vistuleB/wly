@@ -288,8 +288,6 @@ fn accumulator(
   }
 }
 
-
-
 fn nodemap(
   node: VXML,
   inner: InnerParam,
