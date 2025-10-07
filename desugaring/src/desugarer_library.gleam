@@ -30,6 +30,7 @@ import desugarers/auto_generate_child_if_missing_from_attribute
 import desugarers/auto_generate_child_if_missing_from_attribute__outside
 import desugarers/auto_generate_child_if_missing_from_first_descendant_of_type
 import desugarers/break_lines_into_span_tooltips
+import desugarers/bridge_whitespace
 import desugarers/change_attribute_value
 import desugarers/change_attribute_value__batch
 import desugarers/check_proper_detokenization
@@ -114,6 +115,7 @@ import desugarers/normalize_math_delimiters_inside
 import desugarers/normalize_spaces__outside
 import desugarers/pair
 import desugarers/pair_list_list
+import desugarers/pour_custom_before_first
 import desugarers/prepend
 import desugarers/prepend_append_to_text_children_of
 import desugarers/prepend_attribute
@@ -236,6 +238,7 @@ pub const auto_generate_child_if_missing_from_attribute = auto_generate_child_if
 pub const auto_generate_child_if_missing_from_attribute__outside = auto_generate_child_if_missing_from_attribute__outside.constructor
 pub const auto_generate_child_if_missing_from_first_descendant_of_type = auto_generate_child_if_missing_from_first_descendant_of_type.constructor
 pub const break_lines_into_span_tooltips = break_lines_into_span_tooltips.constructor
+pub const bridge_whitespace = bridge_whitespace.constructor
 pub const change_attribute_value = change_attribute_value.constructor
 pub const change_attribute_value__batch = change_attribute_value__batch.constructor
 pub const check_proper_detokenization = check_proper_detokenization.constructor
@@ -320,6 +323,7 @@ pub const normalize_math_delimiters_inside = normalize_math_delimiters_inside.co
 pub const normalize_spaces__outside = normalize_spaces__outside.constructor
 pub const pair = pair.constructor
 pub const pair_list_list = pair_list_list.constructor
+pub const pour_custom_before_first = pour_custom_before_first.constructor
 pub const prepend = prepend.constructor
 pub const prepend_append_to_text_children_of = prepend_append_to_text_children_of.constructor
 pub const prepend_attribute = prepend_attribute.constructor
@@ -443,6 +447,7 @@ pub const assertive_tests : List(fn() -> infra.AssertiveTestCollection) = [
   auto_generate_child_if_missing_from_attribute__outside.assertive_tests,
   auto_generate_child_if_missing_from_first_descendant_of_type.assertive_tests,
   break_lines_into_span_tooltips.assertive_tests,
+  bridge_whitespace.assertive_tests,
   change_attribute_value.assertive_tests,
   change_attribute_value__batch.assertive_tests,
   check_proper_detokenization.assertive_tests,
@@ -527,6 +532,7 @@ pub const assertive_tests : List(fn() -> infra.AssertiveTestCollection) = [
   normalize_spaces__outside.assertive_tests,
   pair.assertive_tests,
   pair_list_list.assertive_tests,
+  pour_custom_before_first.assertive_tests,
   prepend.assertive_tests,
   prepend_append_to_text_children_of.assertive_tests,
   prepend_attribute.assertive_tests,

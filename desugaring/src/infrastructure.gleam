@@ -428,7 +428,7 @@ pub fn insert_before_first(list: List(a), elt: a, condition: fn(a) -> Bool) {
 
 pub fn pour_before_first(list: List(a), to_pour: List(a), condition: fn(a) -> Bool) {
   case list {
-    [] -> to_pour
+    [] -> to_pour |> list.reverse
     [first, ..rest] -> case condition(first) {
       True -> pour(to_pour, [first, ..rest])
       False -> [first, ..pour_before_first(rest, to_pour, condition)]
@@ -1217,7 +1217,7 @@ pub fn line_wrap_rearrangement(
 }
 
 // ************************************************************
-// last_to_first concatenation
+// last_to_first_concatenation
 // ************************************************************
 
 fn lines_last_to_first_concatenation_where_first_lines_are_already_reversed(
@@ -1245,6 +1245,20 @@ pub fn last_to_first_concatenation_in_list_list_of_lines_where_all_but_last_list
     [first, ..rest] -> lines_last_to_first_concatenation_where_first_lines_are_already_reversed(
       first,
       last_to_first_concatenation_in_list_list_of_lines_where_all_but_last_list_are_already_reversed(rest)
+    )
+  }
+}
+
+pub fn last_to_first_concatenation_in_list_list_of_lines_where_all_but_last_list_are_already_reversed_v2(
+  list_of_reversed_lists: List(List(TextLine)),
+  last_list: List(TextLine), // (not reversed)
+) -> List(TextLine) {
+  case list_of_reversed_lists {
+    [] -> last_list
+    [one] -> lines_last_to_first_concatenation_where_first_lines_are_already_reversed(one, last_list)
+    [first, ..rest] -> lines_last_to_first_concatenation_where_first_lines_are_already_reversed(
+      first,
+      last_to_first_concatenation_in_list_list_of_lines_where_all_but_last_list_are_already_reversed_v2(rest, last_list)
     )
   }
 }

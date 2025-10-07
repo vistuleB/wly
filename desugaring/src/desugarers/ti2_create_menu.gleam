@@ -55,11 +55,11 @@ type Menu {
 }
 
 fn an_attribute(key: String, value: String) -> Attribute {
-  Attribute(desugarer_blame(62), key, value)
+  Attribute(desugarer_blame(58), key, value)
 }
 
 fn string_2_text_node(content: String) -> VXML {
-  T(desugarer_blame(66), [TextLine(desugarer_blame(66), content)])
+  T(desugarer_blame(62), [TextLine(desugarer_blame(62), content)])
 }
 
 fn into_list(a: a) -> List(a) {
@@ -68,7 +68,7 @@ fn into_list(a: a) -> List(a) {
 
 fn homepage_link(homepage_url: String) -> VXML {
   V(
-    desugarer_blame(75),
+    desugarer_blame(71),
     "a",
     an_attribute("href", homepage_url) |> into_list,
     string_2_text_node("zür Kursübersicht") |> into_list,
@@ -77,12 +77,12 @@ fn homepage_link(homepage_url: String) -> VXML {
 
 fn index_link() -> VXML {
   V(
-    desugarer_blame(84),
+    desugarer_blame(80),
     "a",
     an_attribute("href", "./index.html") |> into_list,
     [
       V(
-        desugarer_blame(89),
+        desugarer_blame(85),
         "span",
         an_attribute("class", "inhalts_arrows") |> into_list, 
         "<< " |> string_2_text_node |> into_list,
@@ -115,7 +115,7 @@ fn tooltip(
   }
 
   V(
-    desugarer_blame(128),
+    desugarer_blame(118),
     "span",
     [
       an_attribute("style", "visibility:hidden"),
@@ -300,8 +300,8 @@ fn add_menu(
     Bottom -> infra.v_pour_before_first(
       node,
       [
-        hr,
         menu,
+        hr,
       ],
       "Sub",
     )

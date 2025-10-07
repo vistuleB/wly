@@ -1,7 +1,12 @@
 import gleam/list
 import gleam/option.{type Option}
 import gleam/string.{inspect as ins}
-import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as infra
+import infrastructure.{
+  type Desugarer,
+  type DesugarerTransform,
+  type DesugaringError,
+  Desugarer,
+} as infra
 import nodemaps_2_desugarer_transforms as n2t
 import vxml.{type VXML, T, V}
 import blame.{type Blame, Src} as bl
@@ -74,7 +79,7 @@ fn accumulator(
           )
       }
     [V(_, tag, _, _) as first, ..rest] ->
-      // dispatch most comment case first,
+      // dispatch most common case first,
       // even if it's redundant with further cases:
       case last_opening == option.None && tag != opening {
         True -> {
@@ -322,11 +327,10 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
   Ok(param)
 }
 
-type Param =
-  #(String,    String,     String,     List(String))
-//  ↖          ↖           ↖           ↖
-//  opening    closing     enclosing   list of
-//  tag        tag         tag         "unbridgeable" tags
+type Param = #(String,   String,   String,     List(String))
+//             ↖         ↖         ↖           ↖
+//             opening   closing   enclosing   list of
+//             tag       tag       tag         "unbridgeable" tags
 type InnerParam = Param
 
 pub const name = "pair"
