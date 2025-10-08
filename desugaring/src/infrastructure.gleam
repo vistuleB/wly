@@ -2040,7 +2040,13 @@ pub fn v_has_class(vxml: VXML, class: String) -> Bool {
   attributes_have_class(attrs, class)
 }
 
-fn make_split_while(
+pub type SelectorError {
+  EmptyTag
+  InvalidTag
+  InvalidKey
+}
+
+fn expand_selector_split_while(
   s: splitter.Splitter,
   suffix: String,
 ) -> #(String, List(#(String, String))) {
@@ -2049,19 +2055,13 @@ fn make_split_while(
     "" -> Return(#(before, []))
     _ -> Keep(Nil)
   })
-  let #(u, others) = make_split_while(s, after)
+  let #(u, others) = expand_selector_split_while(s, after)
   #(before, [#(q, u), ..others])
 }
 
-pub type EmmetError {
-  EmptyTag
-  InvalidTag
-  InvalidKey
-}
-
-pub fn expand_selector_shorthand(shorthand: String) -> Result(VXML, EmmetError) {
+pub fn expand_selector_shorthand(shorthand: String) -> Result(VXML, SelectorError) {
   let s = splitter.new([".", "#", "&"])
-  let #(tag, mods) = make_split_while(s, shorthand)
+  let #(tag, addenda) = expand_selector_split_while(s, shorthand)
   let blame = bl.Ext([], "expand_selector_shorthand")
 
   use _ <- on_keep(case tag == "" {
@@ -2074,7 +2074,7 @@ pub fn expand_selector_shorthand(shorthand: String) -> Result(VXML, EmmetError) 
     fn() { Error(InvalidTag) },
   )
 
-  let mod_2_attribute = fn(mod: #(String, String)) -> Attribute {
+  let addendum_2_attribute = fn(mod: #(String, String)) -> Attribute {
     case mod.0 {
       "." -> Attribute(blame, "class", mod.1)
       "#" -> Attribute(blame, "id", mod.1)
@@ -2087,17 +2087,11 @@ pub fn expand_selector_shorthand(shorthand: String) -> Result(VXML, EmmetError) 
   }
 
   let attrs =
-    list.map(mods, mod_2_attribute)
+    list.map(addenda, addendum_2_attribute)
     |> aggregate_attributes
 
 
-  V(
-    blame,
-    tag,
-    attrs,
-    [],
-  )
-  |> Ok
+  Ok(V(blame, tag, attrs, []))
 }
 
 // ************************************************************

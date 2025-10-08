@@ -139,8 +139,8 @@ fn html_test() -> Result(Nil, String) {
 
 pub fn main() {
   let errors = [
-    contents_test(),
     sample_test(),
+    contents_test(),
     html_test(),
   ] |> list.filter(result.is_error)
   

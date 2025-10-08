@@ -12,7 +12,23 @@ import gleam/string.{inspect as ins}
 import simplifile
 import vxml.{type Attribute, type TextLine, type VXML, Attribute, TextLine, T, V}
 import dirtree as dt
+import splitter
 import on
+
+type Return(a, b) {
+  Return(a)
+  NotReturn(b)
+}
+
+fn on_not_return(
+  r: Return(a, b),
+  on_not_return f1: fn(b) -> a,
+) -> a {
+  case r {
+    Return(a) -> a
+    NotReturn(b) -> f1(b)
+  }
+}
 
 const debug = False
 
@@ -45,6 +61,7 @@ pub type ParseError {
   TagEmpty(blame: Blame)
   BadTag(blame: Blame, bad_name: String)
   BadKey(blame: Blame, bad_key: String)
+  DuplicateIdInCodeBlockLanguageAnnotation(blame: Blame)
   IndentationTooLarge(blame: Blame, line: String)
   IndentationNotMultipleOfFour(blame: Blame, line: String)
   CodeBlockNotClosed(blame: Blame)
@@ -79,6 +96,7 @@ type TentativeTagName =
 
 type BadTentativeKey {
   BadTentativeKey(String)
+  DuplicateId
 }
 
 type TentativeAttributeKey =
@@ -148,8 +166,8 @@ fn tentative_attribute_to_attribute(
 ) -> Result(Attribute, ParseError) {
   case t.key {
     Ok(key) -> Ok(Attribute(blame: t.blame, key: key, value: t.value))
-    Error(BadTentativeKey(key)) ->
-      Error(BadKey(t.blame, key))
+    Error(BadTentativeKey(key)) -> Error(BadKey(t.blame, key))
+    Error(DuplicateId) -> Error(DuplicateIdInCodeBlockLanguageAnnotation(t.blame))
   }
 }
 
@@ -500,51 +518,108 @@ fn remove_starting_escapes(contents: List(TextLine)) -> List(TextLine) {
   })
 }
 
-fn code_block_annotation_key_value_parse(
+fn expand_selector_split_while(
+  s: splitter.Splitter,
+  suffix: String,
   blame: Blame,
-  string: String,
-  key_re: Regexp,
-) -> TentativeAttribute {
-  let string = case string.contains(string, "=") {
-    True -> string
-    False -> string <> "="
-  }
-  let assert Ok(#(key, val)) = string.split_once(string, "=")
-  case regexp.check(key_re, key) {
-    True -> TentativeAttribute(blame, Ok(key), val)
-    False -> TentativeAttribute(blame, Error(BadTentativeKey(key)), val)
-  }
+) -> #(String, List(#(Blame, String, String))) {
+  let #(before, sep, after) = splitter.split(s, suffix)
+  use _ <- on_not_return(case sep {
+    "" -> Return(#(before, []))
+    _ -> NotReturn(Nil)
+  })
+  let b1 = bl.advance(blame, string.length(before))
+  let b2 = bl.advance(b1, string.length(sep))
+  let #(u, others) = expand_selector_split_while(s, after, b2)
+  #(before, [#(b1, sep, u), ..others])
 }
 
-fn code_block_annotation_to_attributes(
+type CSSSelectorPiece {
+  Dot(blame: Blame, payload: String)
+  Pound(blame: Blame, payload: String)
+  Ampersand(blame: Blame, key: String, val: String)
+}
+
+fn css_selector_pieces(
+  s: splitter.Splitter,
+  shorthand: String,
+  blame: Blame,
+) -> #(String, List(CSSSelectorPiece)) {
+  let #(tag, pieces) = expand_selector_split_while(s, shorthand, blame)
+  let pieces = list.map(pieces, fn(p) {
+    case p {
+      #(b, ".", payload) -> Dot(b, payload)
+      #(b, "#", payload) -> Pound(b, payload)
+      #(b, "&", payload) -> case string.split_once(payload, "=") {
+        Ok(#(key, val)) -> Ampersand(b, key, val)
+        _ -> Ampersand(b, payload, "")
+      }
+      _ -> panic as "huh-huh"
+    }
+  })
+  #(tag, pieces)
+}
+
+fn code_block_annotation_to_attributes_v2(
   blame: Blame,
   annotation: String,
   key_re: Regexp,
 ) -> List(TentativeAttribute) {
   let annotation = string.trim_end(annotation)
-  case annotation == "" {
-    True -> []
-    False -> {
-      string.split(annotation,  "&")
-      |> list.map_fold(
-        blame,
-        fn (acc, piece) {
-          #(bl.advance(acc, string.length(piece)), #(acc, string.trim(piece)))
-        }
-      )
-      |> pair.second
-      |> list.index_map(
-        fn(pair, i) {
-          let #(blame, piece) = pair
-          let piece = case i == 0 && !string.contains(piece, "=") {
-            True -> "language=" <> piece
-            False -> piece
-          }
-          code_block_annotation_key_value_parse(blame, piece, key_re)
-        }
-      )
+  use _ <- on_not_return(case annotation {
+    "" -> Return([])
+    _ -> NotReturn(Nil)
+  })
+  let s = splitter.new([".", "#", "&"])
+  let #(language, pieces) = css_selector_pieces(s, annotation, blame)
+  let #(dots, pounds, ampersands) = list.fold(
+    pieces,
+    #([], [], []),
+    fn(acc, p) {
+      case p {
+        Dot(..) -> #([p, ..acc.0], acc.1, acc.2)
+        Pound(..) -> #(acc.0, [p, ..acc.1], acc.2)
+        Ampersand(..) -> #(acc.0, acc.1, [p, ..acc.2])
+      }
+    }
+  )
+  let language_attr = case language {
+    "" -> None
+    _ -> Some(TentativeAttribute(blame, Ok("language"), language))
+  }
+  let class_attr = case dots {
+    [] -> None
+    [first, ..] -> {
+      let val = list.map(dots, fn(d) {
+        let assert Dot(..) = d
+        d.payload
+      }) |> list.reverse |> string.join(" ")
+      Some(TentativeAttribute(first.blame, Ok("class"), val))
     }
   }
+  let id_attrs = case pounds {
+    [] -> []
+    [one] -> {
+      let assert Pound(..) = one
+      [TentativeAttribute(one.blame, Ok("id"), one.payload)]
+    }
+    _ -> list.map(pounds, fn(one) {
+      let assert Pound(..) = one
+      TentativeAttribute(one.blame, Error(DuplicateId), one.payload)
+    })
+  }
+  let other_attrs = list.map(ampersands, fn(a) {
+    let assert Ampersand(blame, key, value) = a
+    case regexp.check(key_re, key) {
+      True -> TentativeAttribute(blame, Ok(key), value)
+      False -> TentativeAttribute(blame, Error(BadTentativeKey(key)), value)
+    }
+  })
+  list.flatten([
+    [language_attr, class_attr] |> option.values,
+    id_attrs |> list.reverse,
+    other_attrs |> list.reverse,
+  ])  
 }
 
 fn tentative_parse_at_indent(
@@ -743,7 +818,7 @@ fn tentative_parse_at_indent(
                           let tentative_code_block =
                             TentativeCodeBlock(
                               blame: blame,
-                              attributes: code_block_annotation_to_attributes(blame, annotation, key_re),
+                              attributes: code_block_annotation_to_attributes_v2(blame, annotation, key_re),
                               contents: contents,
                             )
 
@@ -973,6 +1048,13 @@ fn tentative_attribute_to_output_line(
         indentation,
         bad_key <> "=" <> attribute.value,
       )
+    Error(DuplicateId) ->
+      OutputLine(
+        attribute.blame
+          |> pc("ERROR duplicate 'id'"),
+        indentation,
+        "id=" <> attribute.value,
+      )
   }
 }
 
@@ -992,6 +1074,7 @@ fn tentative_attributes_to_code_block_annotation(
     fn (attr, i) {
       let key = case attr.key {
         Error(BadTentativeKey(key)) -> "BadTentativeKey(" <> key <> ")"
+        Error(DuplicateId) -> "DuplicateId"
         Ok(key) -> key
       }
       case i == 0 && key == "language" {
