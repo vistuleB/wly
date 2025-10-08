@@ -177,7 +177,7 @@ import desugarers/ti2_parse_orange_comments_pre
 import desugarers/ti2_parse_python_prompt_pre
 import desugarers/ti2_parse_redyellow_pre
 import desugarers/ti2_parse_xml_pre
-import desugarers/ti2_process_pre_language_attribute
+import desugarers/ti2_process_pre_listing_classname
 import desugarers/timer
 import desugarers/tokenize_href_surroundings
 import desugarers/tokenize_text_children_if
@@ -389,7 +389,7 @@ pub const ti2_parse_orange_comments_pre = ti2_parse_orange_comments_pre.construc
 pub const ti2_parse_python_prompt_pre = ti2_parse_python_prompt_pre.constructor
 pub const ti2_parse_redyellow_pre = ti2_parse_redyellow_pre.constructor
 pub const ti2_parse_xml_pre = ti2_parse_xml_pre.constructor
-pub const ti2_process_pre_language_attribute = ti2_process_pre_language_attribute.constructor
+pub const ti2_process_pre_listing_classname = ti2_process_pre_listing_classname.constructor
 pub const timer = timer.constructor
 pub const tokenize_href_surroundings = tokenize_href_surroundings.constructor
 pub const tokenize_text_children_if = tokenize_text_children_if.constructor
@@ -602,7 +602,7 @@ pub const assertive_tests : List(fn() -> infra.AssertiveTestCollection) = [
   ti2_parse_python_prompt_pre.assertive_tests,
   ti2_parse_redyellow_pre.assertive_tests,
   ti2_parse_xml_pre.assertive_tests,
-  ti2_process_pre_language_attribute.assertive_tests,
+  ti2_process_pre_listing_classname.assertive_tests,
   timer.assertive_tests,
   tokenize_href_surroundings.assertive_tests,
   tokenize_text_children_if.assertive_tests,

@@ -1,6 +1,7 @@
 import gleam/option.{Some, None}
 import gleam/string.{inspect as ins}
 import gleam/int
+import gleam/list
 import infrastructure.{
   type Desugarer,
   type DesugarerTransform,
@@ -9,7 +10,7 @@ import infrastructure.{
   DesugaringError,
 } as infra
 import nodemaps_2_desugarer_transforms as n2t
-import vxml.{type VXML, V}
+import vxml.{type VXML, V, Attribute}
 import blame as bl
 import on
 
@@ -18,60 +19,44 @@ fn nodemap(
 ) -> Result(VXML, DesugaringError) {
   case vxml {
     V(_, "pre", attrs, _) -> {
-      use language <- on.none_some(
-        infra.v_first_attribute_with_key(vxml, "language"),
+      use #(class_attr, others) <- on.ok(
+        infra.attributes_extract_unique_key_or_none(attrs, "class")
+      )
+      use class_attr <- on.none_some(
+        class_attr,
         Ok(vxml),
       )
-
-      use #(amended_language, listing, line_no) <- on.ok(
-        case string.split_once(language.value, "listing") {
-          Ok(#(before, after)) -> {
-            let listing = language.blame |> bl.advance(string.length(before))
-
-            let language = case string.ends_with(before, "-") {
-              True -> string.drop_end(before, 1) |> string.trim
-              False -> before |> string.trim
-            }
-
-            use line_no <- on.ok(
-              case string.split_once(after, "@") {
-                Ok(#("", after)) -> {
-                  case int.parse(after) {
-                    Ok(line_no) -> Ok(Some(ins(line_no - 1)))
-                    _ -> Error(DesugaringError(vxml.blame, "cannot parse '@' line number as integer: " <> after))
-                  }
-                }
-                _ -> Ok(None)
+      let classes = string.split(class_attr.value, " ")
+      use #(classes, line_no) <- on.ok(list.try_fold(
+        classes,
+        #([], None),
+        fn (acc, class) {
+          case string.starts_with(class, "listing:") || string.starts_with(class, "listing@") {
+            False -> Ok(#([class, ..acc.0], acc.1))
+            True -> {
+              let suffix = string.drop_start(class, 8)
+              use line_no <- on.error_ok(
+                int.parse(suffix),
+                fn(_) { Error(DesugaringError(class_attr.blame, "unable to parse line_no in 'listing:' class: " <> class)) },
+              )
+              case acc.1 {
+                None -> Ok(#(["listing", ..acc.0], Some(line_no)))
+                _ -> Error(DesugaringError(class_attr.blame, "found two different 'listing:' in class attribute"))
               }
-            )
-
-            Ok(#(Some(language), Some(listing), line_no))
-          }
-
-          _ -> Ok(#(None, None, None))
-        }
-      )
-
-      let attrs = case listing {
-        Some(blame) -> {
-          let attrs = infra.attributes_append_classes(attrs, blame, "listing")
-          case line_no {
-            Some(x) -> infra.attributes_set_styles(attrs, blame, "counter-set:listing " <> x)
-            None -> attrs
+            }
           }
         }
-        None -> attrs
+      ))
+      let class_attr = Attribute(..class_attr, value: string.join(classes, " "))
+      let others = case line_no {
+        None -> others
+        Some(x) -> infra.attributes_set_styles(
+          others,
+          desugarer_blame(55),
+          "counter-set:listing " <> ins(x - 1),
+        )
       }
-
-      let attrs = case amended_language {
-        Some("") ->
-          infra.attributes_delete(attrs, "language")
-        Some(val) ->
-          infra.attributes_set(attrs, language.blame, "language", val)
-        None -> attrs
-      }
-
-      Ok(V(..vxml, attributes: attrs))
+      Ok(V(..vxml, attributes: [class_attr, ..others]))
     }
     _ -> Ok(vxml)
   }
@@ -91,6 +76,7 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
 }
 
 pub const name = "ti2_process_pre_language_attribute"
+fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
 
 type Param = Nil
 type InnerParam = Param
@@ -145,7 +131,8 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
       source:   "
                   <> root
                     <> pre
-                      language=python-listing
+                      language=python
+                      class=listing
                       <>
                         \"def hello():\"
                         \"    print('world')\"
@@ -164,7 +151,8 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
       source:   "
                   <> root
                     <> pre
-                      language=javascript-listing@10
+                      language=javascript
+                      class=bob listing@10
                       <>
                         \"console.log('test');\"
                 ",
@@ -172,7 +160,7 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
                   <> root
                     <> pre
                       language=javascript
-                      class=listing
+                      class=bob listing
                       style=counter-set:listing 9
                       <>
                         \"console.log('test');\"
@@ -182,7 +170,7 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
       source:   "
                   <> root
                     <> pre
-                      language=listing@3
+                      class=listing:3
                       <>
                         \"line one\"
                         \"line two\"

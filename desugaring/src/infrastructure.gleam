@@ -2525,7 +2525,7 @@ pub fn attributes_set_styles(attrs: List(Attribute), blame: Blame, styles: Strin
   )
   case index >= 0 {
     True -> list_set(attrs, index, new_attribute)
-    False -> list.append(attrs, [Attribute(blame, "style", concatenate_classes("", styles))])
+    False -> list.append(attrs, [Attribute(blame, "style", concatenate_styles("", styles))])
   }
 }
 
