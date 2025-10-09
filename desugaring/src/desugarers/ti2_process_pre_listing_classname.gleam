@@ -10,7 +10,7 @@ import infrastructure.{
   DesugaringError,
 } as infra
 import nodemaps_2_desugarer_transforms as n2t
-import vxml.{type VXML, V, Attribute}
+import vxml.{type VXML, V}
 import blame as bl
 import on
 
@@ -19,8 +19,8 @@ fn nodemap(
 ) -> Result(VXML, DesugaringError) {
   case vxml {
     V(_, "pre", attrs, _) -> {
-      use #(class_attr, others) <- on.ok(
-        infra.attributes_extract_unique_key_or_none(attrs, "class")
+      use class_attr <- on.ok(
+        infra.attributes_unique_key_or_none(attrs, "class"),
       )
       use class_attr <- on.none_some(
         class_attr,
@@ -47,16 +47,16 @@ fn nodemap(
           }
         }
       ))
-      let class_attr = Attribute(..class_attr, value: string.join(classes, " "))
-      let others = case line_no {
-        None -> others
+      let attrs = case line_no {
+        None -> attrs
         Some(x) -> infra.attributes_set_styles(
-          others,
+          attrs,
           desugarer_blame(55),
           "counter-set:listing " <> ins(x - 1),
         )
+        |> infra.attributes_set(desugarer_blame(0), "class", string.join(classes |> list.reverse, " "))
       }
-      Ok(V(..vxml, attributes: [class_attr, ..others]))
+      Ok(V(..vxml, attributes: attrs))
     }
     _ -> Ok(vxml)
   }
@@ -75,7 +75,7 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
   Ok(param)
 }
 
-pub const name = "ti2_process_pre_language_attribute"
+pub const name = "ti2_process_pre_listing_classname"
 fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
 
 type Param = Nil

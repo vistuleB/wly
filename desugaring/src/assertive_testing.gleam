@@ -1,3 +1,4 @@
+import io_lines.{OutputLine} as io_l
 import gleam/list
 import gleam/result
 import gleam/string.{inspect as ins}
@@ -6,12 +7,13 @@ import infrastructure.{
   type AssertiveTest,
   type AssertiveTestCollection,
   type AssertiveTestError,
-  AssertiveTestError,
+  InequalityError,
   NonMatchingDesugarerName,
   TestDesugaringError,
   VXMLParseError,
 }
 import desugarer_library as dl
+import colours
 import vxml
 import on
 
@@ -50,7 +52,7 @@ pub fn run_assertive_test(name: String, tst: AssertiveTest) -> Result(Nil, Asser
   case output_string == expected_string {
     True -> Ok(Nil)
     False -> Error(
-      AssertiveTestError(
+      InequalityError(
         desugarer.name,
         output,
         expected,
@@ -74,10 +76,27 @@ pub fn run_and_announce_results(
     Error(error) -> {
       io.print("\n❌ test " <> ins(number) <> " of " <> ins(total) <> " failed:")
       case error {
-        AssertiveTestError(_, obtained, expected, first_different) -> {
+        InequalityError(_, obtained, expected, first_different) -> {
+          let line_no = first_different.0
+          let obtained =
+            vxml.vxml_to_output_lines(obtained)
+            |> list.index_map(fn(l, i) {
+              case i >= line_no {
+                False -> l
+                True -> OutputLine(..l, suffix: colours.fgred(l.suffix))
+              }
+            })
+          let expected =
+            vxml.vxml_to_output_lines(expected)
+            |> list.index_map(fn(l, i) {
+              case i >= line_no {
+                False -> l
+                True -> OutputLine(..l, suffix: colours.fgred(l.suffix))
+              }
+            })
           io.println(" obtained != expected:")
-          vxml.echo_vxml(obtained, "obtained")
-          vxml.echo_vxml(expected, "expected")
+          obtained |> io_l.echo_output_lines("obtained")
+          expected |> io_l.echo_output_lines("expected")
           io.println(ins(first_different))
           Nil
         }

@@ -2781,7 +2781,12 @@ pub type FirstDifferentLine = #(Int, String, String)
 pub type AssertiveTestError {
   VXMLParseError(vxml.VXMLParseError)
   TestDesugaringError(DesugaringError)
-  AssertiveTestError(name: String, output: VXML, expected: VXML, where: FirstDifferentLine)
+  InequalityError(
+    name: String,
+    output: VXML,
+    expected: VXML,
+    where: FirstDifferentLine,
+  )
   NonMatchingDesugarerName(String)
 }
 
