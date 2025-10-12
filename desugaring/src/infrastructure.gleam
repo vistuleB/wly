@@ -2568,6 +2568,23 @@ pub fn attributes_append_classes(attrs: List(Attribute), blame: Blame, classes: 
   }
 }
 
+pub fn attributes_prepend_classes(attrs: List(Attribute), blame: Blame, classes: String) -> List(Attribute) {
+  let #(index, new_attribute) = list.index_fold(
+    attrs,
+    #(-1, Attribute(blame, "", "")),
+    fn (acc, attr, i) {
+      case acc.0, attr.key {
+        -1, "class" -> #(i, Attribute(..attr, value: concatenate_classes(classes, attr.value)))
+        _, _ -> acc
+      }
+    }
+  )
+  case index >= 0 {
+    True -> list_set(attrs, index, new_attribute)
+    False -> list.append(attrs, [Attribute(blame, "class", concatenate_classes("", classes))])
+  }
+}
+
 pub fn substitute_in_class_attribute(
   attrs: List(Attribute),
   from: String,

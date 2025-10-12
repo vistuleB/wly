@@ -30,12 +30,11 @@ fn nodemap(
 ) -> VXML {
   case vxml {
     V(_, "pre", attributes, children) -> {
-      case infra.v_has_key_value(vxml, "language", "xml") || infra.v_has_key_value(vxml, "language", "html") {
+      case infra.v_has_key_value(vxml, "language", "xml") {
         True -> {
           let attributes =
             attributes
             |> infra.attributes_delete("language")
-            |> infra.attributes_append_classes(desugarer_blame(38), "html")
           let children =
             children
             |> list.flat_map(fn(x) {
