@@ -10,7 +10,7 @@ import infrastructure.{
   Continue,
 } as infra
 import nodemaps_2_desugarer_transforms as n2t
-import vxml.{type VXML, type Attribute, Attribute, V}
+import vxml.{type VXML, type Attr, Attr, V}
 import blame as bl
 
 fn nodemap(
@@ -42,7 +42,7 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
   |> list.map(fn(triple) { 
     #(
       triple.0, 
-      #(Attribute(desugarer_blame(45), ".", triple.1 <> " ::++" <> triple.1), triple.2)
+      #(Attr(desugarer_blame(45), ".", triple.1 <> " ::++" <> triple.1), triple.2)
     ) 
   })
   |> infra.dict_from_list_with_desugaring_error
@@ -52,7 +52,7 @@ type Param = List(#(String, String,  TrafficLight))
 //                  ↖       ↖        ↖
 //                  tag     counter  traffic_light
 //                          name
-type InnerParam = Dict(String, #(Attribute, TrafficLight))
+type InnerParam = Dict(String, #(Attr, TrafficLight))
 fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
 
 pub const name = "prepend_counter_incrementing_attribute__batch"

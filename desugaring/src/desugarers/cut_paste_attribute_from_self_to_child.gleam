@@ -3,16 +3,16 @@ import gleam/option
 import gleam/string.{inspect as ins}
 import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError, type TrafficLight, Continue, GoBack} as infra
 import nodemaps_2_desugarer_transforms as n2t
-import vxml.{type VXML, V, type Attribute}
+import vxml.{type VXML, V, type Attr}
 
 fn update_child(
   child: VXML,
   child_tag: String,
-  attribute: Attribute,
+  attr: Attr,
 ) -> VXML {
   case child {
     V(_, tag, _, _) if tag == child_tag ->
-      V(..child, attributes: list.append(child.attributes, [attribute]))
+      V(..child, attrs: list.append(child.attrs, [attr]))
     _ -> child
   }
 }
@@ -23,13 +23,13 @@ fn nodemap(
 ) -> #(VXML, TrafficLight) {
   case node {
     V(_, tag, _, _) if tag == inner.0 -> {
-      case infra.v_first_attribute_with_key(node, inner.2) {
+      case infra.v_first_attr_with_key(node, inner.2) {
         option.None -> #(node, GoBack)
-        option.Some(attribute) -> #(
+        option.Some(attr) -> #(
           V(
             ..node,
-            attributes: node.attributes |> list.filter(fn(x) { x.key != inner.2 }),
-            children: node.children |> list.map(update_child(_, inner.1, attribute)),
+            attrs: node.attrs |> list.filter(fn(x) { x.key != inner.2 }),
+            children: node.children |> list.map(update_child(_, inner.1, attr)),
           ),
           GoBack
         )
@@ -54,7 +54,7 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
 
 type Param = #(String, String, String)
 //             ↖       ↖       ↖
-//             parent  child   attribute
+//             parent  child   attr
 type InnerParam = Param
 
 pub const name = "cut_paste_attribute_from_self_to_child"
@@ -64,8 +64,8 @@ pub const name = "cut_paste_attribute_from_self_to_child"
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 //------------------------------------------------53
 /// For all nodes with a given 'parent_tag',
-/// removes all attributes of a given key. If the 
-/// list of removed attributes is nonempty, pastes
+/// removes all attrs of a given key. If the 
+/// list of removed attrs is nonempty, pastes
 /// the first element of the list to all children
 /// of the `parent_tag` node that have a given 
 /// `child_tag` tag.

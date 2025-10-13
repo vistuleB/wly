@@ -10,11 +10,11 @@ fn nodemap(
 ) -> VXML {
   case vxml {
     T(_, _) -> vxml
-    V(blame, tag, attributes, children) -> {
+    V(blame, tag, attrs, children) -> {
       V(
         blame,
         tag,
-        list.filter(attributes, fn(ba) {!list.contains(inner, ba.key)}),
+        list.filter(attrs, fn(ba) {!list.contains(inner, ba.key)}),
         children,
       )
     }
@@ -42,7 +42,7 @@ pub const name = "delete_attribute__batch"
 // 🏖️🏖️ Desugarer 🏖️🏖️
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 //------------------------------------------------53
-/// removes specified attributes from all elements
+/// removes specified attrs from all elements
 pub fn constructor(param: Param) -> Desugarer {
   Desugarer(
     name: name,

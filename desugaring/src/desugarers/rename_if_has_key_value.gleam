@@ -10,10 +10,10 @@ fn nodemap(
 ) -> VXML {
   case vxml {
     V(_, tag, attrs, _) if tag == inner.0 -> {
-      let #(trash, remaining) = infra.attributes_extract_key_value(attrs, inner.2, inner.3)
+      let #(trash, remaining) = infra.attrs_extract_key_value(attrs, inner.2, inner.3)
       case trash {
         [] -> vxml
-        _ -> V(..vxml, tag: inner.1, attributes: remaining)
+        _ -> V(..vxml, tag: inner.1, attrs: remaining)
       }
     }
     _ -> vxml
@@ -44,7 +44,7 @@ pub const name = "rename_if_has_key_value"
 // 🏖️🏖️ Desugarer 🏖️🏖️
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 //------------------------------------------------53
-/// renames tags of a given tag if their attribute
+/// renames tags of a given tag if their attr
 /// list contains a specific key-value pair
 /// 
 /// removes all occurrences of the key-value pair

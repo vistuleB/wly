@@ -75,7 +75,7 @@ pub const name = "auto_generate_child_if_missing_from_first_descendant_of_type"
 /// generate, if the node has no existing
 /// children tag `child_tag`, a node of type
 /// `child_tag` by copy-pasting the contents
-/// and attributes of the first descendant
+/// and attrs of the first descendant
 /// of `parent_tag` that has tag `descendant_tag`.
 /// If no such descendant exists, does nothing
 /// to the node of tag `parent_tag`.

@@ -10,7 +10,7 @@ fn nodemap(
 ) -> VXML {
   case vxml {
     V(_, tag, [singleton], _) if tag == inner.0 && singleton.key == "class" && singleton.value == inner.1 ->
-      V(..vxml, tag: inner.2, attributes: [], children: [])
+      V(..vxml, tag: inner.2, attrs: [], children: [])
     _ -> vxml
   }
 }
@@ -40,9 +40,9 @@ pub const name = "rename_and_delete_children_if_has_singleton_class_attribute"
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 //------------------------------------------------53
 /// renames and given tag and deletes its children
-/// when its attributes consist of a
-/// single 'class' attribute with a given value;
-/// removes the class attribute as part of the
+/// when its attrs consist of a
+/// single 'class' attr with a given value;
+/// removes the class attr as part of the
 /// renaming process 
 pub fn constructor(param: Param) -> Desugarer {
   Desugarer(

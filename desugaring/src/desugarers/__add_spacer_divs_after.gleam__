@@ -6,7 +6,7 @@ import gleam/pair
 import gleam/string.{inspect as ins}
 import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError, DesugaringError} as infra
 import nodemaps_2_desugarer_transforms as n2t
-import vxml.{type VXML, Attribute, V}
+import vxml.{type VXML, Attr, V}
 
 fn intersperse_children_with_spacers(
   children: List(VXML),
@@ -23,7 +23,7 @@ fn intersperse_children_with_spacers(
           let blame = first.blame
           [
             first,
-            V(blame, "div", [Attribute(blame, "class", classname)], []),
+            V(blame, "div", [Attr(blame, "class", classname)], []),
             ..intersperse_children_with_spacers([second, ..rest], inner)
           ]
         }

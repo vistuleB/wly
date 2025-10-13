@@ -8,7 +8,7 @@ import gleam/string.{inspect as ins}
 import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError, DesugaringError} as infra
 import roman
 import nodemaps_2_desugarer_transforms as n2t
-import vxml.{type Attribute, type Line, type VXML, Attribute, Line, T, V}
+import vxml.{type Attr, type Line, type VXML, Attr, Line, T, V}
 import blame as bl
 import on
 
@@ -292,13 +292,13 @@ fn update_lines(
   |> result.map(fn(acc) { #(acc.0 |> list.reverse, acc.1, acc.2) })
 }
 
-fn handle_assignment_attributes_from_handle_assignments(
+fn handle_assignment_attrs_from_handle_assignments(
   handles: List(HandleAssignment),
-) -> List(Attribute) {
+) -> List(Attr) {
   handles
   |> list.map(fn(handle) {
     let #(name, value) = handle
-    Attribute(desugarer_blame(301), "handle", name <> " " <> value)
+    Attr(desugarer_blame(301), "handle", name <> " " <> value)
   })
 }
 
@@ -311,13 +311,13 @@ fn take_existing_counters(
 }
 
 fn handle_non_unary_att_value(
-  attribute: Attribute,
+  attr: Attr,
 ) -> Result(#(String, Int, Int), DesugaringError) {
-  let splits = string.split(attribute.value, " ")
+  let splits = string.split(attr.value, " ")
 
   use counter_name, rest <- on.lazy_empty_nonempty(
     splits,
-    fn() { Error(DesugaringError(attribute.blame, "counter must have a name")) },
+    fn() { Error(DesugaringError(attr.blame, "counter must have a name")) },
   )
 
   use starting_value, rest <- on.lazy_empty_nonempty(
@@ -327,7 +327,7 @@ fn handle_non_unary_att_value(
 
   use starting_value <- on.error_ok(
     int.parse(starting_value),
-    fn(_) { Error(DesugaringError(attribute.blame, "counter starting value must be a number")) },
+    fn(_) { Error(DesugaringError(attr.blame, "counter starting value must be a number")) },
   )
 
   use step, rest <- on.lazy_empty_nonempty(
@@ -337,28 +337,28 @@ fn handle_non_unary_att_value(
 
   use step <- on.error_ok(
     int.parse(step),
-    fn(_) { Error(DesugaringError(attribute.blame, "counter starting value must be a number")) },
+    fn(_) { Error(DesugaringError(attr.blame, "counter starting value must be a number")) },
   )
 
   case list.is_empty(rest) {
     True -> Ok(#(counter_name, starting_value, step))
-    False -> Error(DesugaringError(attribute.blame, "extra arguments found after <counter_name> <starting_value> <step_value>"))
+    False -> Error(DesugaringError(attr.blame, "extra arguments found after <counter_name> <starting_value> <step_value>"))
   }
 }
 
 fn handle_unary_att_value(
- attribute: Attribute,
+ attr: Attr,
 ) -> Result(#(String, String), DesugaringError) {
-  let splits = string.split(attribute.value, " ")
+  let splits = string.split(attr.value, " ")
   case splits {
     [counter_name, unary_char] -> Ok(#(counter_name, unary_char))
     [counter_name] -> Ok(#(counter_name, "1"))
-    [] -> Error(DesugaringError(attribute.blame, "counter attribute without name"))
-    _ -> Error(DesugaringError(attribute.blame, "too many arguments for unary-counter"))
+    [] -> Error(DesugaringError(attr.blame, "counter attr without name"))
+    _ -> Error(DesugaringError(attr.blame, "too many arguments for unary-counter"))
   }
 }
 
-fn attribute_key_is_counter(
+fn attr_key_is_counter(
   key: String
 ) -> Result(CounterType, Nil) {
   case key {
@@ -370,31 +370,31 @@ fn attribute_key_is_counter(
 }
 
 fn read_counter_definition(
-  attribute: Attribute,
+  attr: Attr,
 ) -> Result(Option(#(String, CounterInfo)), DesugaringError) {
   use counter_type <- on.error_ok(
-    attribute_key_is_counter(attribute.key),
+    attr_key_is_counter(attr.key),
     fn(_) { Ok(None) },
   )
 
   case counter_type {
     Unary(_) -> {
-      use #(counter_name, unary_char) <- on.ok(handle_unary_att_value(attribute))
+      use #(counter_name, unary_char) <- on.ok(handle_unary_att_value(attr))
       Ok(Some(#(counter_name, CounterInfo(Unary(unary_char), 0, 1))))
     }
     _ -> {
-      use #(counter_name, initial_value, step) <- on.ok(handle_non_unary_att_value(attribute))
+      use #(counter_name, initial_value, step) <- on.ok(handle_non_unary_att_value(attr))
       Ok(Some(#(counter_name, CounterInfo(counter_type, initial_value, step))))
     }
   }
 }
 
-fn fancy_one_attribute_processor(
-  to_process: Attribute,
+fn fancy_one_attr_processor(
+  to_process: Attr,
   counters: CounterDict,
   regexes: #(Regexp, Regexp),
 ) -> Result(
-  #(Attribute, CounterDict, List(HandleAssignment)),
+  #(Attr, CounterDict, List(HandleAssignment)),
   DesugaringError,
 ) {
   use #(key, counters, assignments1) <- on.ok(
@@ -430,29 +430,29 @@ fn fancy_one_attribute_processor(
   )
 
   Ok(#(
-    Attribute(to_process.blame, key, value),
+    Attr(to_process.blame, key, value),
     counters,
     list.flatten([assignments1, assignments2]),
   ))
 }
 
-fn fancy_attribute_processor(
-  already_processed: List(Attribute),
-  yet_to_be_processed: List(Attribute),
+fn fancy_attr_processor(
+  already_processed: List(Attr),
+  yet_to_be_processed: List(Attr),
   counters: CounterDict,
   regexes: #(Regexp, Regexp),
-) -> Result(#(List(Attribute), CounterDict), DesugaringError) {
+) -> Result(#(List(Attr), CounterDict), DesugaringError) {
   case yet_to_be_processed {
     [] -> Ok(#(already_processed |> list.reverse, counters))
     [next, ..rest] -> {
       use #(next, counters, assignments) <- on.ok(
-        fancy_one_attribute_processor(next, counters, regexes),
+        fancy_one_attr_processor(next, counters, regexes),
       )
 
-      let assignment_attributes =
+      let assignment_attrs =
         list.map(assignments, fn(handle_assignment) {
           let #(handle_name, handle_value) = handle_assignment
-          Attribute(next.blame, "handle", handle_name <> " " <> handle_value)
+          Attr(next.blame, "handle", handle_name <> " " <> handle_value)
         })
 
       use new_counter <- on.ok(read_counter_definition(next))
@@ -463,12 +463,12 @@ fn fancy_attribute_processor(
 
       let already_processed =
         list.flatten([
-          assignment_attributes |> list.reverse,
+          assignment_attrs |> list.reverse,
           [next],
           already_processed,
         ])
 
-      fancy_attribute_processor(
+      fancy_attr_processor(
         already_processed,
         rest,
         counters,
@@ -485,17 +485,17 @@ fn v_before_transforming_children(
   state: State,
   regexes: #(Regexp, Regexp),
 ) -> Result(#(VXML, State), DesugaringError) {
-  let assert V(b, t, attributes, c) = vxml
+  let assert V(b, t, attrs, c) = vxml
   let #(counters, handles) = state
 
-  use #(attributes, counters) <- on.ok(fancy_attribute_processor(
+  use #(attrs, counters) <- on.ok(fancy_attr_processor(
     [],
-    attributes,
+    attrs,
     counters,
     regexes,
   ))
 
-  Ok(#(V(b, t, attributes, c), #(counters, handles)))
+  Ok(#(V(b, t, attrs, c), #(counters, handles)))
 }
 
 fn t_nodemap(
@@ -536,24 +536,24 @@ fn v_after_transforming_children(
   state_before: State,
   state_after: State,
 ) -> Result(#(VXML, State), DesugaringError) {
-  let assert V(blame, tag, attributes, children) = vxml
+  let assert V(blame, tag, attrs, children) = vxml
   let #(counters_before, handles_before) = state_before
   let #(counters_after, handles_after) = state_after
 
   let handles_from_our_children =
     list.filter(handles_after, fn(h) { !list.contains(handles_before, h) })
 
-  let attributes =
+  let attrs =
     list.append(
-      attributes,
-      handle_assignment_attributes_from_handle_assignments(
+      attrs,
+      handle_assignment_attrs_from_handle_assignments(
         handles_from_our_children,
       ),
     )
 
   let counters = take_existing_counters(counters_before, counters_after)
 
-  Ok(#(V(blame, tag, attributes, children), #(counters, handles_before)))
+  Ok(#(V(blame, tag, attrs, children), #(counters, handles_before)))
 }
 
 fn our_two_regexes() -> #(Regexp, Regexp) {
@@ -653,7 +653,7 @@ fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
 /// value at that point in the document.
 ///
 /// The computed handle assignments are recorded as
-/// attributes of the form
+/// attrs of the form
 ///
 /// handle_\<handleName> <counterValue>
 ///

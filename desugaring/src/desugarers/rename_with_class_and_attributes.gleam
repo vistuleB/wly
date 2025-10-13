@@ -3,7 +3,7 @@ import gleam/option
 import gleam/string.{inspect as ins}
 import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as infra
 import nodemaps_2_desugarer_transforms as n2t
-import vxml.{type VXML, V, type Attribute, Attribute}
+import vxml.{type VXML, V, type Attr, Attr}
 import blame as bl
 
 fn nodemap(
@@ -14,9 +14,9 @@ fn nodemap(
     V(blame, tag, attrs, _) if tag == inner.0 -> {
       let attrs =
         attrs
-        |> infra.attributes_append_classes(blame, inner.2)
+        |> infra.attrs_append_classes(blame, inner.2)
         |> list.append(inner.3)
-      V(..vxml, tag: inner.1, attributes: attrs)
+      V(..vxml, tag: inner.1, attrs: attrs)
     }
     _ -> vxml
   }
@@ -33,15 +33,15 @@ fn transform_factory(inner: InnerParam) -> DesugarerTransform {
 
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
   let attrs = param.3
-  |> list.map(fn(x) { Attribute(desugarer_blame(36), x.0, x.1) })
+  |> list.map(fn(x) { Attr(desugarer_blame(36), x.0, x.1) })
   Ok(#(param.0, param.1, param.2, attrs))
 }
 
 type Param = #(String,   String,   String,  List(#(String, String)))
 //             ↖         ↖         ↖        ↖
-//             old_tag   new_tag   class    list of attributes 
+//             old_tag   new_tag   class    list of attrs 
 //                                          as key value pairs
-type InnerParam = #(String, String, String, List(Attribute))
+type InnerParam = #(String, String, String, List(Attr))
 
 pub const name = "rename_with_class_and_attributes"
 fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
@@ -50,9 +50,9 @@ fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
 // 🏖️🏖️ Desugarer 🏖️🏖️
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 //------------------------------------------------53
-/// renames tags and adds attributes to them; also 
-/// adds a class attribute, that results in editing
-/// any existing class attribute, if present
+/// renames tags and adds attrs to them; also 
+/// adds a class attr, that results in editing
+/// any existing class attr, if present
 pub fn constructor(param: Param) -> Desugarer {
   Desugarer(
     name: name,

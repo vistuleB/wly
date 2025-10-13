@@ -21,7 +21,7 @@ fn nodemap(
       Ok(val) ->
         V(
           ..node,
-          attributes: infra.attributes_append_classes(attrs, blame, val),
+          attrs: infra.attrs_append_classes(attrs, blame, val),
         )
       _ -> node
     }
@@ -54,7 +54,7 @@ pub const name = "append_class__batch"
 // 🏖️🏖️ Desugarer 🏖️🏖️
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 //------------------------------------------------53
-/// append to list of attributes of a given tag
+/// append to list of attrs of a given tag
 pub fn constructor(param: Param) -> Desugarer {
   Desugarer(
     name: name,

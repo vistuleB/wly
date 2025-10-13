@@ -3,17 +3,17 @@ import gleam/option
 import gleam/string
 import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as infra
 import nodemaps_2_desugarer_transforms as n2t
-import vxml.{type VXML, Attribute, V, T}
+import vxml.{type VXML, Attr, V, T}
 import blame.{type Blame} as bl
 
-const had_href_child = Attribute(bl.Des([], name, 9), "had_href_child", "true")
+const had_href_child = Attr(bl.Des([], name, 9), "had_href_child", "true")
 
 fn start_node(blame: Blame) {
   V(blame, "__StartTokenizedT", [], [])
 }
 
 fn word_node(blame: Blame, word: String) {
-  V(blame, "__OneWord", [Attribute(blame, "val", word)], [])
+  V(blame, "__OneWord", [Attr(blame, "val", word)], [])
 }
 
 fn space_node(blame: Blame) {
@@ -72,7 +72,7 @@ fn tokenize_t(vxml: VXML) -> List(VXML) {
 fn tokenize_if_t_or_has_href_attr_and_recurse(vxml: VXML) -> List(VXML) {
   case vxml {
     T(_, _) -> tokenize_t(vxml)
-    V(_, _, attrs, children) -> case infra.attributes_have_key(attrs, "href") {
+    V(_, _, attrs, children) -> case infra.attrs_have_key(attrs, "href") {
       True -> [V(..vxml, children: list.flat_map(children, tokenize_if_t_or_has_href_attr_and_recurse))]
       False -> [vxml]
     }
@@ -85,12 +85,12 @@ fn nodemap(
   case vxml {
     T(_, _) -> vxml
     V(_, _, attrs, children) -> {
-      case list.any(children, infra.is_v_and_has_attribute_with_key(_, "href")) {
+      case list.any(children, infra.is_v_and_has_attr_with_key(_, "href")) {
         False -> vxml
         True -> {
           let attrs = [had_href_child, ..attrs]
           let children = list.flat_map(children, tokenize_if_t_or_has_href_attr_and_recurse)
-          V(..vxml, attributes: attrs, children: children)
+          V(..vxml, attrs: attrs, children: children)
         }
       }
     }

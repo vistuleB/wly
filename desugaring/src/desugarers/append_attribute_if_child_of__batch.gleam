@@ -3,7 +3,7 @@ import gleam/list
 import gleam/option
 import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as infra
 import nodemaps_2_desugarer_transforms as n2t
-import vxml.{type VXML, Attribute, V}
+import vxml.{type VXML, Attr, V}
 import on
 
 fn nodemap(
@@ -11,7 +11,7 @@ fn nodemap(
   ancestors: List(VXML),
   inner: InnerParam,
 ) -> VXML {
-  use blame, tag, attributes, children <- infra.on_t_on_v(
+  use blame, tag, attrs, children <- infra.on_t_on_v(
     vxml,
     fn(_, _) {vxml}
   )
@@ -20,28 +20,28 @@ fn nodemap(
 
   let assert V(_, parent_tag, _, _) = parent
 
-  use attributes_to_add <- on.error_ok(
+  use attrs_to_add <- on.error_ok(
     dict.get(inner, #(tag, parent_tag)),
     fn(_) { vxml }
   )
 
-  let old_attribute_keys = infra.keys(attributes)
+  let old_attr_keys = infra.keys(attrs)
 
-  let attributes_to_add =
+  let attrs_to_add =
     list.fold(
-      over: attributes_to_add,
+      over: attrs_to_add,
       from: [],
       with: fn(so_far, pair) {
         let #(key, value) = pair
-        case list.contains(old_attribute_keys, key) {
+        case list.contains(old_attr_keys, key) {
           True -> so_far
-          False -> [Attribute(blame, key, value), ..so_far]
+          False -> [Attr(blame, key, value), ..so_far]
         }
       }
     )
     |> list.reverse
 
-  V(blame, tag, list.append(attributes, attributes_to_add), children)
+  V(blame, tag, list.append(attrs, attrs_to_add), children)
 }
 
 fn nodemap_factory(inner: InnerParam) -> n2t.FancyOneToOneNoErrorNodeMap {
@@ -71,9 +71,9 @@ pub const name = "append_attribute_if_child_of__batch"
 // 🏖️🏖️ Desugarer 🏖️🏖️
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 //------------------------------------------------53
-/// adds an attribute-pair to a tag when it is the
+/// adds an attr-pair to a tag when it is the
 /// child of another specified tag; will not
-/// overwrite if attribute with that key already
+/// overwrite if attr with that key already
 /// exists
 pub fn constructor(param: Param) -> Desugarer {
   Desugarer(

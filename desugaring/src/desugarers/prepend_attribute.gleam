@@ -10,9 +10,9 @@ import infrastructure.{
 } as infra
 import nodemaps_2_desugarer_transforms as n2t
 import vxml.{
-  type Attribute,
+  type Attr,
   type VXML,
-  Attribute,
+  Attr,
   V,
 }
 import blame as bl
@@ -24,7 +24,7 @@ fn nodemap(
   case vxml {
     V(_, tag, attrs, _) if tag == inner.0 ->
       #(
-        V(..vxml, attributes: [inner.1, ..attrs]),
+        V(..vxml, attrs: [inner.1, ..attrs]),
         inner.2,
       )
     _ -> #(vxml, Continue)
@@ -43,7 +43,7 @@ fn transform_factory(inner: InnerParam) -> DesugarerTransform {
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
   #(
     param.0,
-    Attribute(desugarer_blame(46), param.1, param.2),
+    Attr(desugarer_blame(46), param.1, param.2),
     param.3,
   )
   |> Ok
@@ -52,7 +52,7 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
 type Param = #(String, String, String, TrafficLight)
 //             ↖       ↖       ↖       ↖    
 //             tag     attr    value   return-early-or-not-after-finding-tag
-type InnerParam = #(String, Attribute, TrafficLight)
+type InnerParam = #(String, Attr, TrafficLight)
 
 pub const name = "prepend_attribute"
 fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
@@ -61,7 +61,7 @@ fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
 // 🏖️🏖️ Desugarer 🏖️🏖️
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 //------------------------------------------------53
-/// prepend to list of attributes of a given tag
+/// prepend to list of attrs of a given tag
 pub fn constructor(param: Param) -> Desugarer {
   Desugarer(
     name: name,

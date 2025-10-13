@@ -3,7 +3,7 @@ import gleam/option.{None, Some}
 import gleam/regexp.{type Regexp}
 import gleam/string.{inspect as ins}
 import infrastructure as infra
-import vxml.{type Line, type VXML, Attribute, Line, T, V}
+import vxml.{type Line, type VXML, Attr, Line, T, V}
 import blame.{type Blame} as bl
 import on
 
@@ -12,8 +12,8 @@ pub type GroupReplacementInstruction {
   Trash
   DropLast
   Tag(String)
-  TagWithAttribute(String, String)
-  TagWithAttributeAndReplace(String, String, String, String)
+  TagWithAttr(String, String)
+  TagWithAttrAndReplace(String, String, String, String)
   TagWithTextChild(String)
   TagFwdText(String, String)
   TagBwdText(String, String)
@@ -63,16 +63,16 @@ pub fn split_content_with_replacement(
         Keep -> Some([T(updated_blame, [Line(updated_blame, split)])])
         DropLast -> Some([T(updated_blame, [Line(updated_blame, string.drop_end(split, 1))])])
         Tag(tag) -> Some([V(updated_blame, tag, [], [])])
-        TagWithAttribute(tag, key) -> Some([V(
+        TagWithAttr(tag, key) -> Some([V(
           updated_blame,
           tag,
-          [Attribute(updated_blame, key, split)],
+          [Attr(updated_blame, key, split)],
           [],
         )])
-        TagWithAttributeAndReplace(tag, key, seq1, seq2) -> Some([V(
+        TagWithAttrAndReplace(tag, key, seq1, seq2) -> Some([V(
           updated_blame,
           tag,
-          [Attribute(updated_blame, key, split |> string.replace(seq1, seq2))],
+          [Attr(updated_blame, key, split |> string.replace(seq1, seq2))],
           [],
         )])
         TagWithTextChild(tag) -> Some([V(

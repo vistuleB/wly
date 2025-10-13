@@ -1,7 +1,7 @@
 import gleam/option
 import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as infra
 import nodemaps_2_desugarer_transforms as n2t
-import vxml.{type VXML, BlamedAttribute, T, V}
+import vxml.{type VXML, BlamedAttr, T, V}
 
 fn nodemap(
   node: VXML,
@@ -25,7 +25,7 @@ fn nodemap(
               Ok(V(
                 blame,
                 "VerticalChunk",
-                [BlamedAttribute(blame, "indent", "true"), ..attrs],
+                [BlamedAttr(blame, "indent", "true"), ..attrs],
                 children,
               ))
           }

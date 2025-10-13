@@ -4,7 +4,7 @@ import gleam/string
 import gleam/result
 import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as infra
 import nodemaps_2_desugarer_transforms as n2t
-import vxml.{type Line, type VXML, Attribute, Line, T, V}
+import vxml.{type Line, type VXML, Attr, Line, T, V}
 import blame as bl
 
 const newline_t =
@@ -22,7 +22,7 @@ const terminal_prompt_span =
   V(
     bl.Des([], name, 31),
     "span",
-    [Attribute(bl.Des([], name, 18), "class", "terminal-prompt")],
+    [Attr(bl.Des([], name, 18), "class", "terminal-prompt")],
     [],
   )
 
@@ -30,7 +30,7 @@ const terminal_prompt_content_span =
   V(
     bl.Des([], name, 31),
     "span",
-    [Attribute(bl.Des([], name, 18), "class", "terminal-prompt-content")],
+    [Attr(bl.Des([], name, 18), "class", "terminal-prompt-content")],
     [],
   )
 
@@ -38,7 +38,7 @@ const prompt_span =
   V(
     bl.Des([], name, 22),
     "span",
-    [Attribute(bl.Des([], name, 18), "class", "arbitrary-prompt")],
+    [Attr(bl.Des([], name, 18), "class", "arbitrary-prompt")],
     [],
   )
 
@@ -46,7 +46,7 @@ const response_span =
   V(
     bl.Des([], name, 30),
     "span",
-    [Attribute(bl.Des([], name, 18), "class", "arbitrary-response")],
+    [Attr(bl.Des([], name, 18), "class", "arbitrary-response")],
     [],
   )
 
@@ -98,8 +98,8 @@ fn nodemap(
             blame,
             "pre",
             attrs
-            |> infra.attributes_delete("language")
-            |> infra.attributes_append_classes(desugarer_blame(102), "arbitrary-prompt-response"),
+            |> infra.attrs_delete("language")
+            |> infra.attrs_append_classes(desugarer_blame(102), "arbitrary-prompt-response"),
             children,
           )
         }

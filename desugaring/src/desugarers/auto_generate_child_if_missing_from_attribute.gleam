@@ -10,7 +10,7 @@ fn nodemap(
   node: VXML,
   inner: InnerParam,
 ) -> #(VXML, TrafficLight) {
-  let #(parent_tag, child_tag, attribute_key) = inner
+  let #(parent_tag, child_tag, attr_key) = inner
   case node {
     V(_, tag, _, _) if tag == parent_tag -> {
       // return early if we have a child of tag child_tag:
@@ -19,9 +19,9 @@ fn nodemap(
         fn(_, _) { #(node, GoBack) },
       )
 
-      // return early if we don't have an attribute of key attribute_key:
-      use attribute, _ <- on.empty_nonempty(
-        infra.v_attributes_with_key(node, attribute_key),
+      // return early if we don't have an attr of key attr_key:
+      use attr, _ <- on.empty_nonempty(
+        infra.v_attrs_with_key(node, attr_key),
         #(node, GoBack),
       )
 
@@ -33,7 +33,7 @@ fn nodemap(
               desugarer_blame(33),
               child_tag,
               [],
-              [T(attribute.blame, [Line(attribute.blame, attribute.value)])],
+              [T(attr.blame, [Line(attr.blame, attr.value)])],
             ),
             ..node.children,
           ]
@@ -60,7 +60,7 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
 
 type Param = #(String, String, String)
 //             ↖       ↖       ↖
-//             parent  child   attribute
+//             parent  child   attr
 //             tag     tag
 type InnerParam = Param
 
@@ -73,13 +73,13 @@ fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
 //------------------------------------------------53
 /// Given arguments
 /// ```
-/// parent_tag, child_tag, attribute_key
+/// parent_tag, child_tag, attr_key
 /// ```
 /// will, for each node of tag `parent_tag`,
 /// generate, if the node has no existing children
 /// tag `child_tag`, by using the value of
-/// attribute_key as the contents of the child of
-/// tag child_tag. If no such attribute exists, does
+/// attr_key as the contents of the child of
+/// tag child_tag. If no such attr exists, does
 /// nothing to the node of tag parent_tag.
 ///
 /// Early-returns from subtree rooted at parent_tag.
@@ -117,7 +117,7 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
                         \"More content\"
                     <> Chapter
                       <>
-                        \"No title attribute\"
+                        \"No title attr\"
                     <> OtherElement
                       title=Should not change
                       <>
@@ -141,7 +141,7 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
                         \"More content\"
                     <> Chapter
                       <>
-                        \"No title attribute\"
+                        \"No title attr\"
                     <> OtherElement
                       title=Should not change
                       <>
@@ -165,7 +165,7 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
                         \"More sub content\"
                     <> Sub
                       <>
-                        \"No title attribute\"
+                        \"No title attr\"
                     <> Chapter
                       title=Should not change
                       <>
@@ -189,7 +189,7 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
                         \"More sub content\"
                     <> Sub
                       <>
-                        \"No title attribute\"
+                        \"No title attr\"
                     <> Chapter
                       title=Should not change
                       <>

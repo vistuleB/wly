@@ -3,7 +3,7 @@ import gleam/option.{None}
 import gleam/string
 import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as infra
 import nodemaps_2_desugarer_transforms as n2t
-import vxml.{type Line, type VXML, Attribute, Line, T, V}
+import vxml.{type Line, type VXML, Attr, Line, T, V}
 import blame as bl
 import on
 
@@ -16,7 +16,7 @@ const orange =
   V(
     bl.Des([], name, 16), // "functions can only be called within other functions..."
     "span",
-    [Attribute(bl.Des([], name, 18), "class", "actual-orange-comment")],
+    [Attr(bl.Des([], name, 18), "class", "actual-orange-comment")],
     [],
   )
 
@@ -51,7 +51,7 @@ fn nodemap(
   case vxml {
     V(blame, "pre", attrs, [T(_, lines)]) -> {
       use language <- on.none_some(
-        infra.v_value_of_first_attribute_with_key(vxml, "language"),
+        infra.v_value_of_first_attr_with_key(vxml, "language"),
         vxml,
       )
 
@@ -63,8 +63,8 @@ fn nodemap(
             blame,
             "pre",
             attrs
-            |> infra.attributes_delete("language")
-            |> infra.attributes_append_classes(desugarer_blame(67), "orange-comments"),
+            |> infra.attrs_delete("language")
+            |> infra.attrs_append_classes(desugarer_blame(67), "orange-comments"),
             children,
           )
         }

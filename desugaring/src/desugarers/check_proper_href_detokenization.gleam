@@ -9,9 +9,9 @@ fn nodemap(
 ) -> Result(VXML, DesugaringError) {
   case vxml {
     T(_, _) -> Ok(vxml)
-    V(_, tag, attrs, _) -> case string.starts_with(tag, "__"), infra.attributes_have_key(attrs, "had_href_tag") {
+    V(_, tag, attrs, _) -> case string.starts_with(tag, "__"), infra.attrs_have_key(attrs, "had_href_tag") {
       True, _ -> Error(infra.DesugaringError(vxml.blame, "check_proper_detokenization found tag: " <> tag))
-      False, True -> Error(infra.DesugaringError(vxml.blame, "had_href_attribute still there"))
+      False, True -> Error(infra.DesugaringError(vxml.blame, "had_href_attr still there"))
       _, _ -> Ok(vxml)
     }
   }

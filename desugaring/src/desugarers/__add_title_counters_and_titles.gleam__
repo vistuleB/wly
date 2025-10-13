@@ -7,7 +7,7 @@ import infrastructure.{
 } as infra
 import nodemaps_2_desugarer_transforms as n2t
 import nodemaps_2_desugarer_transforms as n2t
-import vxml.{type VXML, BlamedAttribute, BlamedContent, T, V}
+import vxml.{type VXML, BlamedAttr, BlamedContent, T, V}
 
 fn param_transform(
   node: VXML,
@@ -29,7 +29,7 @@ fn param_transform(
             False -> current_node
             True -> {
               let new_attribute =
-                BlamedAttribute(blame, "counter", counter_name)
+                BlamedAttr(blame, "counter", counter_name)
               V(blame, tag, [new_attribute, ..current_attributes], children)
             }
           }

@@ -14,7 +14,7 @@ import infrastructure.{
 } as infra
 import gleam/regexp.{type Regexp}
 import nodemaps_2_desugarer_transforms as n2t
-import vxml.{type VXML, V, Attribute}
+import vxml.{type VXML, V, Attr}
 import blame as bl
 import on
 
@@ -24,7 +24,7 @@ const stub_sub =
   V(
     const_blame,
     "Sub",
-    [Attribute(const_blame, "title", "Lorem Ipsum")],
+    [Attr(const_blame, "title", "Lorem Ipsum")],
     [],
   )
 
@@ -32,7 +32,7 @@ const stub_chapter =
   V(
     const_blame,
     "Chapter",
-    [Attribute(const_blame, "title", "Lorem Ipsum")],
+    [Attr(const_blame, "title", "Lorem Ipsum")],
     [],
   )
 
@@ -49,12 +49,12 @@ fn backfill_elements(
         case child {
           V(blame, t, _, _) if t == stub_tag -> {
             use number <- on.lazy_none_some(
-              infra.v_value_of_first_attribute_with_key(child, "should-be-number"),
-              fn() { Error(DesugaringError(blame, "expecting 'should-be-number' attribute on each " <> stub_tag <> " element")) },
+              infra.v_value_of_first_attr_with_key(child, "should-be-number"),
+              fn() { Error(DesugaringError(blame, "expecting 'should-be-number' attr on each " <> stub_tag <> " element")) },
             )
             use number <- on.error_ok(
               int.parse(number),
-              fn(_) { Error(DesugaringError(blame, "could not parse should-be-number attribute as integer")) }
+              fn(_) { Error(DesugaringError(blame, "could not parse should-be-number attr as integer")) }
             )
             use <- on.lazy_true_false(
               number <= acc.0,
@@ -116,7 +116,7 @@ type InnerParam = #(Regexp, Regexp)
 /// in VXML documents.
 ///
 /// this desugarer processes VXML elements that have a
-/// "should-be-number" attribute and fills in any gaps
+/// "should-be-number" attr and fills in any gaps
 /// in the numbering sequence by inserting stub elements.
 ///
 /// - for Chapter elements: fills missing Sub elements

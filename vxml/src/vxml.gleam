@@ -15,11 +15,11 @@ import on
 pub const ampersand_replacer_pattern = "&(?!(?:[a-z]{2,6};|#\\d{2,4};))"
 
 // ************************************************************
-// Attribute, Line, VXML (pretend 'blame' does not exist -> makes it more readable)
+// Attr, Line, VXML (pretend 'blame' does not exist -> makes it more readable)
 // ************************************************************
 
-pub type Attribute {
-  Attribute(blame: Blame, key: String, value: String)
+pub type Attr {
+  Attr(blame: Blame, key: String, value: String)
 }
 
 pub type Line {
@@ -27,7 +27,7 @@ pub type Line {
 }
 
 pub type VXML {
-  V(blame: Blame, tag: String, attributes: List(Attribute), children: List(VXML))
+  V(blame: Blame, tag: String, attrs: List(Attr), children: List(VXML))
   T(blame: Blame, lines: List(Line))
 }
 
@@ -38,7 +38,7 @@ pub type VXML {
 pub type VXMLParseError {
   VXMLParseErrorEmptyTag(Blame)
   VXMLParseErrorIllegalTagCharacter(Blame, String, String)
-  VXMLParseErrorIllegalAttributeKeyCharacter(Blame, String, String)
+  VXMLParseErrorIllegalAttrKeyCharacter(Blame, String, String)
   VXMLParseErrorIndentationTooLarge(Blame, String)
   VXMLParseErrorIndentationNotMultipleOfFour(Blame, String)
   VXMLParseErrorTextMissing(Blame)
@@ -66,7 +66,7 @@ pub type BadTagName {
 const vxml_indent = 2
 const debug_messages = False
 const tag_illegal_characters = ["-", ".", " ", "\""]
-const attribute_key_illegal_characters = [".", ";", "\"", " "]
+const attr_key_illegal_characters = [".", ";", "\"", " "]
 
 type FileHead =
   List(InputLine)
@@ -74,17 +74,17 @@ type FileHead =
 type TentativeTagName =
   Result(String, BadTagName)
 
-type BadAttributeKey {
-  IllegalAttributeKeyCharacter(String, String)
+type BadAttrKey {
+  IllegalAttrKeyCharacter(String, String)
 }
 
-type TentativeAttributeKey =
-  Result(String, BadAttributeKey)
+type TentativeAttrKey =
+  Result(String, BadAttrKey)
 
-type TentativeAttribute {
-  TentativeAttribute(
+type TentativeAttr {
+  TentativeAttr(
     blame: Blame,
-    key: TentativeAttributeKey,
+    key: TentativeAttrKey,
     value: String,
   )
 }
@@ -101,7 +101,7 @@ type TentativeVXML {
   TentativeV(
     blame: Blame,
     tag: TentativeTagName,
-    attributes: List(TentativeAttribute),
+    attrs: List(TentativeAttr),
     children: List(TentativeVXML),
   )
   TentativeErrorIndentationTooLarge(blame: Blame, message: String)
@@ -186,30 +186,30 @@ fn fast_forward_past_lines_of_indent_at_least(
   }
 }
 
-fn tentative_attribute(
+fn tentative_attr(
   blame: Blame,
   pair: #(String, String),
-) -> TentativeAttribute {
+) -> TentativeAttr {
   let #(key, value) = pair
   assert !string.is_empty(key)
-  let bad_character = contains_one_of(key, attribute_key_illegal_characters)
+  let bad_character = contains_one_of(key, attr_key_illegal_characters)
 
   case bad_character == "" {
-    True -> TentativeAttribute(blame: blame, key: Ok(key), value: value)
+    True -> TentativeAttr(blame: blame, key: Ok(key), value: value)
 
     False ->
-      TentativeAttribute(
+      TentativeAttr(
         blame: blame,
-        key: Error(IllegalAttributeKeyCharacter(key, bad_character)),
+        key: Error(IllegalAttrKeyCharacter(key, bad_character)),
         value: value,
       )
   }
 }
 
-fn fast_forward_past_attribute_lines_at_indent(
+fn fast_forward_past_attr_lines_at_indent(
   indent: Int,
   head: FileHead,
-) -> #(List(TentativeAttribute), FileHead) {
+) -> #(List(TentativeAttr), FileHead) {
   case current_line(head) {
     None -> #([], head)
 
@@ -226,21 +226,21 @@ fn fast_forward_past_attribute_lines_at_indent(
                 True -> #([], head)
 
                 False -> {
-                  let tentative_attribute_pair =
+                  let tentative_attr_pair =
                     suffix
                     |> string.split_once("=")
                     |> result.unwrap(#(suffix, ""))
-                    |> tentative_attribute(blame, _)
+                    |> tentative_attr(blame, _)
 
-                  let #(more_attribute_pairs, head_after_attributes) =
-                    fast_forward_past_attribute_lines_at_indent(
+                  let #(more_attr_pairs, head_after_attrs) =
+                    fast_forward_past_attr_lines_at_indent(
                       indent,
                       move_forward(head),
                     )
 
                   #(
-                    [tentative_attribute_pair, ..more_attribute_pairs],
-                    head_after_attributes,
+                    [tentative_attr_pair, ..more_attr_pairs],
+                    head_after_attrs,
                   )
                 }
               }
@@ -442,8 +442,8 @@ fn tentative_parse_at_indent(
 
                   case nonempty_suffix_diagnostic(suffix) {
                     TaggedCaret(annotation) -> {
-                      let #(tentative_attributes, head_after_attributes) =
-                        fast_forward_past_attribute_lines_at_indent(
+                      let #(tentative_attrs, head_after_attrs) =
+                        fast_forward_past_attr_lines_at_indent(
                           indent + vxml_indent,
                           move_forward(head),
                         )
@@ -451,14 +451,14 @@ fn tentative_parse_at_indent(
                       let #(children, remaining_after_children) =
                         tentative_parse_at_indent(
                           indent + vxml_indent,
-                          head_after_attributes,
+                          head_after_attrs,
                         )
 
                       let tentative_tag =
                         TentativeV(
                           blame: blame,
                           tag: validate_tag(string.trim(annotation)),
-                          attributes: tentative_attributes,
+                          attrs: tentative_attrs,
                           children: children,
                         )
 
@@ -529,14 +529,14 @@ fn tentative_parse_at_indent(
 // Tentative -> VXML
 // ************************************************************
 
-fn tentative_attribute_to_attribute(
-  t: TentativeAttribute,
-) -> Result(Attribute, VXMLParseError) {
+fn tentative_attr_to_attr(
+  t: TentativeAttr,
+) -> Result(Attr, VXMLParseError) {
   case t.key {
-    Ok(key) -> Ok(Attribute(blame: t.blame, key: key, value: t.value))
+    Ok(key) -> Ok(Attr(blame: t.blame, key: key, value: t.value))
 
-    Error(IllegalAttributeKeyCharacter(original_would_be_key, bad_char)) ->
-      Error(VXMLParseErrorIllegalAttributeKeyCharacter(
+    Error(IllegalAttrKeyCharacter(original_would_be_key, bad_char)) ->
+      Error(VXMLParseErrorIllegalAttrKeyCharacter(
         t.blame,
         original_would_be_key,
         bad_char,
@@ -544,17 +544,17 @@ fn tentative_attribute_to_attribute(
   }
 }
 
-fn tentative_attributes_to_attributes(
-  attrs: List(TentativeAttribute),
-) -> Result(List(Attribute), VXMLParseError) {
+fn tentative_attrs_to_attrs(
+  attrs: List(TentativeAttr),
+) -> Result(List(Attr), VXMLParseError) {
   case attrs {
     [] -> Ok([])
     [first, ..rest] ->
-      case tentative_attribute_to_attribute(first) {
+      case tentative_attr_to_attr(first) {
         Error(error) -> Error(error)
-        Ok(attribute) ->
-          case tentative_attributes_to_attributes(rest) {
-            Ok(attributes) -> Ok([attribute, ..attributes])
+        Ok(attr) ->
+          case tentative_attrs_to_attrs(rest) {
+            Ok(attrs) -> Ok([attr, ..attrs])
 
             Error(error) -> Error(error)
           }
@@ -607,7 +607,7 @@ fn parse_from_tentative(
 
     TentativeT(blame, lines) -> Ok(T(blame, lines))
 
-    TentativeV(blame, tentative_name, tentative_attributes, tentative_children) ->
+    TentativeV(blame, tentative_name, tentative_attrs, tentative_children) ->
       case tentative_name {
         Error(EmptyTag) -> Error(VXMLParseErrorEmptyTag(blame))
 
@@ -620,13 +620,13 @@ fn parse_from_tentative(
 
         Ok(name) ->
           case
-            tentative_attributes_to_attributes(
-              tentative_attributes,
+            tentative_attrs_to_attrs(
+              tentative_attrs,
             )
           {
             Error(error) -> Error(error)
 
-            Ok(attributes) ->
+            Ok(attrs) ->
               case parse_from_tentatives(tentative_children) {
                 Error(error) -> Error(error)
 
@@ -634,7 +634,7 @@ fn parse_from_tentative(
                   Ok(V(
                     blame: blame,
                     tag: name,
-                    attributes: attributes,
+                    attrs: attrs,
                     children: children,
                   ))
               }
@@ -698,19 +698,19 @@ fn tentative_to_output_lines_internal(
     TentativeV(
       blame,
       Ok(_) as tag_result,
-      tentative_attributes,
+      tentative_attrs,
       children,
     ) -> {
       [
         OutputLine(blame, indentation, "<> " <> ins(tag_result)),
         ..list.flatten([
-          list.map(tentative_attributes, fn(tentative_attribute) {
+          list.map(tentative_attrs, fn(tentative_attr) {
             OutputLine(
-              tentative_attribute.blame,
+              tentative_attr.blame,
               indentation + vxml_indent,
-              ins(tentative_attribute.key)
+              ins(tentative_attr.key)
                 <> " "
-                <> tentative_attribute.value,
+                <> tentative_attr.value,
             )
           }),
           tentatives_to_output_lines_internal(children, indentation + vxml_indent),
@@ -718,7 +718,7 @@ fn tentative_to_output_lines_internal(
       ]
     }
 
-    TentativeV(blame, Error(err), tentative_attributes, children) -> {
+    TentativeV(blame, Error(err), tentative_attrs, children) -> {
       [
         OutputLine(
           blame |> pc("ERROR BadTagName"),
@@ -726,13 +726,13 @@ fn tentative_to_output_lines_internal(
           "<> " <> ins(err),
         ),
         ..list.flatten([
-          list.map(tentative_attributes, fn(tentative_attribute) {
+          list.map(tentative_attrs, fn(tentative_attr) {
             OutputLine(
-              tentative_attribute.blame,
+              tentative_attr.blame,
               indentation + vxml_indent,
-              ins(tentative_attribute.key)
+              ins(tentative_attr.key)
                 <> " "
-                <> tentative_attribute.value,
+                <> tentative_attr.value,
             )
           }),
           tentatives_to_output_lines_internal(children, indentation + vxml_indent),
@@ -781,15 +781,15 @@ pub fn annotate_blames(vxml: VXML) -> VXML {
         }),
       )
     }
-    V(blame, tag, attributes, children) -> {
+    V(blame, tag, attrs, children) -> {
       V(
         blame |> pc("V"),
         tag,
-        list.index_map(attributes, fn(attribute, i) {
-          Attribute(
-            attribute.blame |> pc("Attribute(" <> ins(i + 1) <> ")"),
-            attribute.key,
-            attribute.value,
+        list.index_map(attrs, fn(attr, i) {
+          Attr(
+            attr.blame |> pc("Attr(" <> ins(i + 1) <> ")"),
+            attr.key,
+            attr.value,
           )
         }),
         list.map(children, annotate_blames),
@@ -818,15 +818,15 @@ fn vxml_to_output_lines_internal(
       })
     ]
 
-    V(blame, tag, attributes, children) -> {
+    V(blame, tag, attrs, children) -> {
       [
         OutputLine(blame, indentation, "<> " <> tag),
         ..list.append(
-          list.map(attributes, fn(attribute) {
+          list.map(attrs, fn(attr) {
             OutputLine(
-              attribute.blame,
+              attr.blame,
               indentation + vxml_indent,
-              attribute.key <> "=" <> attribute.value,
+              attr.key <> "=" <> attr.value,
             )
           }),
           children
@@ -893,25 +893,25 @@ fn jsx_string_processor(content: String, ampersand_replacer: regexp.Regexp) -> S
 }
 
 fn jsx_key_val(
-  attribute: Attribute,
+  attr: Attr,
   ampersand_replacer: regexp.Regexp,
 ) -> String {
-  let value = string.trim(attribute.value) |> jsx_string_processor(ampersand_replacer)
+  let value = string.trim(attr.value) |> jsx_string_processor(ampersand_replacer)
   case value == "false" || value == "true" || result.is_ok(int.parse(value)) {
-    True -> attribute.key <> "={" <> value <> "}"
-    False -> attribute.key <> "=\"" <> value <> "\""
+    True -> attr.key <> "={" <> value <> "}"
+    False -> attr.key <> "=\"" <> value <> "\""
   }
 }
 
-fn jsx_attribute_output_line(
-  attribute: Attribute,
+fn jsx_attr_output_line(
+  attr: Attr,
   indent: Int,
   ampersand_replacer: regexp.Regexp,
 ) -> OutputLine {
   OutputLine(
-    blame: attribute.blame,
+    blame: attr.blame,
     indent: indent,
-    suffix: jsx_key_val(attribute, ampersand_replacer)
+    suffix: jsx_key_val(attr, ampersand_replacer)
   )
 }
 
@@ -928,10 +928,10 @@ fn jsx_tag_open_output_lines(
   tag: String,
   indent: Int,
   closing: String,
-  attributes: List(Attribute),
+  attrs: List(Attr),
   ampersand_replacer: regexp.Regexp,
 ) -> List(OutputLine) {
-  case attributes {
+  case attrs {
     [] -> [
       OutputLine(blame: blame, indent: indent, suffix: "<" <> tag <> closing),
     ]
@@ -945,7 +945,7 @@ fn jsx_tag_open_output_lines(
     _ -> {
       [
         [OutputLine(blame: blame, indent: indent, suffix: "<" <> tag)],
-        attributes |> list.map(jsx_attribute_output_line(_, indent, ampersand_replacer)),
+        attrs |> list.map(jsx_attr_output_line(_, indent, ampersand_replacer)),
         [OutputLine(blame: blame, indent: indent, suffix: closing)],
       ]
       |> list.flatten
@@ -979,11 +979,11 @@ fn vxml_to_jsx_output_lines_internal(
       })
     }
 
-    V(blame, tag, attributes, children) -> {
+    V(blame, tag, attrs, children) -> {
       case list.is_empty(children) {
         False ->
           [
-            jsx_tag_open_output_lines(blame, tag, indent, ">", attributes, ampersand_replacer),
+            jsx_tag_open_output_lines(blame, tag, indent, ">", attrs, ampersand_replacer),
             children
             |> list.map(vxml_to_jsx_output_lines_internal(_, indent + 2, ampersand_replacer))
             |> list.flatten,
@@ -992,7 +992,7 @@ fn vxml_to_jsx_output_lines_internal(
           |> list.flatten
 
         True ->
-          jsx_tag_open_output_lines(blame, tag, indent, " />", attributes, ampersand_replacer)
+          jsx_tag_open_output_lines(blame, tag, indent, " />", attrs, ampersand_replacer)
       }
     }
   }
@@ -1135,8 +1135,8 @@ fn sticky_tree_2_sticky_lines(
   pour(already_stuck, closing_lines)
 }
 
-fn attributes_to_sticky_lines(
-  attributes: List(Attribute),
+fn attrs_to_sticky_lines(
+  attrs: List(Attr),
   indent: Int,
   inline: Bool,
 ) -> List(StickyLine) {
@@ -1144,7 +1144,7 @@ fn attributes_to_sticky_lines(
     True -> " "
     False -> ""
   }
-  attributes
+  attrs
   |> list.map(fn(t) {
     StickyLine(
       blame: t.blame,
@@ -1168,16 +1168,16 @@ fn opening_tag_to_sticky_lines(
   spaces: Int,
   pre: Bool,
 ) -> List(StickyLine) {
-  let assert V(blame, tag, attributes, _) = t
+  let assert V(blame, tag, attrs, _) = t
   let indent = case pre {
     True -> 0
     False -> indent
   }
   let sticky_outside = list.contains(sticky_tags, tag)
-  let sticky_inside = list.length(attributes) <= 1
+  let sticky_inside = list.length(attrs) <= 1
   list.flatten([
     [StickyLine(blame, indent, "<" <> tag, sticky_outside, sticky_inside)],
-    attributes_to_sticky_lines(attributes, indent + spaces, sticky_inside),
+    attrs_to_sticky_lines(attrs, indent + spaces, sticky_inside),
     [StickyLine(blame, indent, ">", sticky_inside, sticky_outside)],
   ])
 }
@@ -1437,13 +1437,13 @@ pub fn parse_file(
 // XMLM parser
 // ************************************************************
 
-fn xmlm_attribute_to_vxml_attributes(
+fn xmlm_attr_to_vxml_attrs(
   filename: String,
   line_no: Int,
-  xmlm_attribute: xmlm.Attribute,
-) -> Attribute {
+  xmlm_attr: xmlm.Attribute,
+) -> Attr {
   let blame = Src([], filename, line_no, 0)
-  Attribute(blame, xmlm_attribute.name.local, xmlm_attribute.value)
+  Attr(blame, xmlm_attr.name.local, xmlm_attr.value)
 }
 
 pub fn xmlm_based_html_parser(
@@ -1472,7 +1472,7 @@ pub fn xmlm_based_html_parser(
       "<img" <> middle <> "/>"
     })
 
-  // remove attributes in closing tags
+  // remove attrs in closing tags
   let assert Ok(re) = regexp.from_string("(<\\/)(\\w+)(\\s+[^>]*)(>)")
   let matches = regexp.scan(re, content)
 
@@ -1511,7 +1511,7 @@ pub fn xmlm_based_html_parser(
           Src([], filename, 0, 0),
           xmlm_tag.name.local,
           xmlm_tag.attributes
-            |> list.map(xmlm_attribute_to_vxml_attributes(filename, 0, _)),
+            |> list.map(xmlm_attr_to_vxml_attrs(filename, 0, _)),
           children,
         )
       },
@@ -1537,10 +1537,10 @@ pub fn xmlm_based_html_parser(
 
 pub type XMLStreamingParserLogicalUnit {
   XMLStreamingParserText(List(Line))
-  XMLStreamingParserOpeningTag(Blame, String, List(Attribute))
-  XMLStreamingParserSelfClosingTag(Blame, String, List(Attribute))
-  XMLStreamingParserXMLVersion(Blame, String, List(Attribute))
-  XMLStreamingParserDoctype(Blame, String, List(Attribute), Bool)
+  XMLStreamingParserOpeningTag(Blame, String, List(Attr))
+  XMLStreamingParserSelfClosingTag(Blame, String, List(Attr))
+  XMLStreamingParserXMLVersion(Blame, String, List(Attr))
+  XMLStreamingParserDoctype(Blame, String, List(Attr), Bool)
   XMLStreamingParserClosingTag(Blame, String)
   XMLStreamingParserComment(List(Line))
 }
@@ -1612,16 +1612,16 @@ fn tri_way(
   }
 }
 
-fn get_attributes_and_tag_end(
+fn get_attrs_and_tag_end(
   tag_start: xs.Event,
   rest: List(xs.Event),
 ) -> Result(
-  #(List(Attribute), xs.Event, List(xs.Event)), 
+  #(List(Attr), xs.Event, List(xs.Event)), 
   #(Blame, String),
 ) {
-  let prepend_attribute_if_ok = fn(
-    result: Result(#(List(Attribute), xs.Event, List(xs.Event)), #(Blame, String)),
-    attr: Attribute,
+  let prepend_attr_if_ok = fn(
+    result: Result(#(List(Attr), xs.Event, List(xs.Event)), #(Blame, String)),
+    attr: Attr,
   ) {
     case result {
       Error(e) -> Error(e)
@@ -1656,10 +1656,10 @@ fn get_attributes_and_tag_end(
   // (e.g. 'async' or 'async=') as an assignment to the
   // empty string; but if the '=' is not followed by a 
   // space or by tag end then whatever follows the '='
-  // will only be considered as a possible attribute value,
+  // will only be considered as a possible attr value,
   // and not as a possible next key (while considering the
   // current assignment as empty)
-  let proto = Attribute(key_blame, key_name, "")
+  let proto = Attr(key_blame, key_name, "")
 
   use #(second, rest) <- on_continuation(
     case tri_way(rest) {
@@ -1681,9 +1681,9 @@ fn get_attributes_and_tag_end(
         // if the key wasn't followed by '=' then it can only
         // be followed by spaces or by tag end, and either way
         // (tag end or spaces and no '=') it is fine for us to
-        // keep attributes parsing from scratch:
-        get_attributes_and_tag_end(tag_start, [second, ..rest])
-        |> prepend_attribute_if_ok(proto)
+        // keep attrs parsing from scratch:
+        get_attrs_and_tag_end(tag_start, [second, ..rest])
+        |> prepend_attr_if_ok(proto)
       )
     }
   )
@@ -1705,19 +1705,19 @@ fn get_attributes_and_tag_end(
 
   case third {
     xs.ValueDoubleQuoted(_, value) | xs.ValueSingleQuoted(_, value) -> {
-      get_attributes_and_tag_end(tag_start, rest)
-      |> prepend_attribute_if_ok(Attribute(..proto, value: value))
+      get_attrs_and_tag_end(tag_start, rest)
+      |> prepend_attr_if_ok(Attr(..proto, value: value))
     }
 
     xs.ValueMalformed(blame, value) ->
-      Error(#(blame, "malformed attribute value: " <> value))
+      Error(#(blame, "malformed attr value: " <> value))
 
     _ -> {
-      case get_attributes_and_tag_end(tag_start, rest) {
+      case get_attrs_and_tag_end(tag_start, rest) {
         Error(e) -> Error(e)
         Ok(#(attrs, end, rest)) -> case had_spaces, attrs {
           False, [some, ..] ->
-            Error(#(some.blame, "expecting attribute value after '='"))
+            Error(#(some.blame, "expecting attr value after '='"))
           _, _ ->
             Ok(#([proto, ..attrs], end, rest))
         }
@@ -1789,12 +1789,12 @@ fn xml_streaming_get_next_logical_unit(
     //   - XMLStreamingParserOpeningTag
     //   - XMLStreamingParserSelfClosingTag
     xs.TagStartOrdinary(blame, tag) -> {
-      use #(attributes, end, remaining) <- on.ok(get_attributes_and_tag_end(first, rest))
+      use #(attrs, end, remaining) <- on.ok(get_attrs_and_tag_end(first, rest))
       case end {
         xs.TagEndOrdinary(_) ->
-          Ok(#(XMLStreamingParserOpeningTag(blame, tag, attributes), remaining))
+          Ok(#(XMLStreamingParserOpeningTag(blame, tag, attrs), remaining))
         xs.TagEndSelfClosing(_) ->
-          Ok(#(XMLStreamingParserSelfClosingTag(blame, tag, attributes), remaining))
+          Ok(#(XMLStreamingParserSelfClosingTag(blame, tag, attrs), remaining))
         xs.TagEndXMLVersion(b) ->
           Error(#(b, "unexpected '?>' tag ending"))
         _ -> panic
@@ -1804,10 +1804,10 @@ fn xml_streaming_get_next_logical_unit(
     // construction of XMLStreamingParserXMLVersion
     xs.TagStartXMLVersion(blame, tag) -> {
       assert tag == "xml" || tag == "XML"
-      use #(attributes, end, remaining) <- on.ok(get_attributes_and_tag_end(first, rest))
+      use #(attrs, end, remaining) <- on.ok(get_attrs_and_tag_end(first, rest))
       case end {
         xs.TagEndXMLVersion(_) -> 
-          Ok(#(XMLStreamingParserXMLVersion(blame, tag, attributes), remaining))
+          Ok(#(XMLStreamingParserXMLVersion(blame, tag, attrs), remaining))
         xs.TagEndOrdinary(b) -> 
           Error(#(b, "expecting '?>' tag ending"))
         xs.TagEndSelfClosing(b) ->
@@ -1818,12 +1818,12 @@ fn xml_streaming_get_next_logical_unit(
 
     // construction of XMLStreamingParserDoctype
     xs.TagStartDoctype(blame, tag) -> {
-      use #(attributes, end, remaining) <- on.ok(get_attributes_and_tag_end(first, rest))
+      use #(attrs, end, remaining) <- on.ok(get_attrs_and_tag_end(first, rest))
       case end {
         xs.TagEndOrdinary(_) ->
-          Ok(#(XMLStreamingParserDoctype(blame, tag, attributes, False), remaining))
+          Ok(#(XMLStreamingParserDoctype(blame, tag, attrs, False), remaining))
         xs.TagEndSelfClosing(_) ->
-          Ok(#(XMLStreamingParserDoctype(blame, tag, attributes, True), remaining))
+          Ok(#(XMLStreamingParserDoctype(blame, tag, attrs, True), remaining))
         xs.TagEndXMLVersion(b) ->
           Error(#(b, "unexpected '?>' tag ending"))
         _ -> panic
@@ -1832,10 +1832,10 @@ fn xml_streaming_get_next_logical_unit(
 
     // construction of XMLStreamingParserClosingTag
     xs.TagStartClosing(blame, tag) -> {
-      use #(attributes, end, remaining) <- on.ok(get_attributes_and_tag_end(first, rest))
+      use #(attrs, end, remaining) <- on.ok(get_attrs_and_tag_end(first, rest))
       use <- on.nonempty_empty(
-        attributes,
-        fn(_, _) { Error(#(blame, "attributes in closing tag")) }
+        attrs,
+        fn(_, _) { Error(#(blame, "attrs in closing tag")) }
       )
       case end {
         xs.TagEndOrdinary(_) ->
@@ -1898,16 +1898,16 @@ fn list_of_digest(
   "[" <> { list.map(l, d) |> string.join(", ") } <> "]"
 }
 
-fn attribute_digest(
-  attr: Attribute
+fn attr_digest(
+  attr: Attr
 ) -> String {
   attr.key <> "=" <> attr.value
 }
 
-fn attributes_digest(
-  attrs: List(Attribute)
+fn attrs_digest(
+  attrs: List(Attr)
 ) -> String {
-  list_of_digest(attrs, attribute_digest)
+  list_of_digest(attrs, attr_digest)
 }
 
 pub fn lines_digest(
@@ -1924,16 +1924,16 @@ pub fn unit_digest(
       "Text(" <> lines_digest(lines) <> ")"
 
     XMLStreamingParserOpeningTag(_, tag, attrs) ->
-      "OpeningTag(" <> tag <> ", " <> attributes_digest(attrs) <> ")"
+      "OpeningTag(" <> tag <> ", " <> attrs_digest(attrs) <> ")"
 
     XMLStreamingParserSelfClosingTag(_, tag, attrs) ->
-      "SelfClosingTag(" <> tag <> ", " <> attributes_digest(attrs) <> ")"
+      "SelfClosingTag(" <> tag <> ", " <> attrs_digest(attrs) <> ")"
 
     XMLStreamingParserXMLVersion(_, tag, attrs) ->
-      "XMLVersion(" <> tag <> ", " <> attributes_digest(attrs) <> ")"
+      "XMLVersion(" <> tag <> ", " <> attrs_digest(attrs) <> ")"
 
     XMLStreamingParserDoctype(_, tag, attrs, _) ->
-      "Doctype(" <> tag <> ", " <> attributes_digest(attrs) <> ")"
+      "Doctype(" <> tag <> ", " <> attrs_digest(attrs) <> ")"
 
     XMLStreamingParserClosingTag(_, tag) ->
       "ClosingTag(" <> tag <> ")"
@@ -1956,7 +1956,7 @@ fn v_digest(
   "V(" <>
   { bl.blame_digest(bl) } <>
   ", " <> tag <>
-  ", " <> attributes_digest(attrs) <>
+  ", " <> attrs_digest(attrs) <>
   ", " <> "[" <>
   case children {
     [_] -> "1 child]"

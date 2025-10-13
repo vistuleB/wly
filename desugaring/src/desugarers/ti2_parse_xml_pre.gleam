@@ -3,7 +3,7 @@ import gleam/string
 import gleam/list
 import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as infra
 import nodemaps_2_desugarer_transforms as n2t
-import vxml.{type VXML, V, T, Attribute, Line}
+import vxml.{type VXML, V, T, Attr, Line}
 import xml_streamer as xs
 import blame.{type Blame} as bl
 
@@ -20,7 +20,7 @@ fn span(blame: Blame, class: String, content: String) -> VXML {
   V(
     blame,
     "span",
-    [Attribute(desugarer_blame(23), "class", class)],
+    [Attr(desugarer_blame(23), "class", class)],
     [T(blame, [Line(blame, content)])],
   )
 }
@@ -29,12 +29,12 @@ fn nodemap(
   vxml: VXML,
 ) -> VXML {
   case vxml {
-    V(_, "pre", attributes, children) -> {
+    V(_, "pre", attrs, children) -> {
       case infra.v_has_key_value(vxml, "language", "xml") {
         True -> {
-          let attributes =
-            attributes
-            |> infra.attributes_delete("language")
+          let attrs =
+            attrs
+            |> infra.attrs_delete("language")
           let children =
             children
             |> list.flat_map(fn(x) {
@@ -94,7 +94,7 @@ fn nodemap(
                 }
               }
             })
-          V(..vxml, attributes: attributes, children: children)
+          V(..vxml, attrs: attrs, children: children)
         }
         _ -> vxml
       }
@@ -130,7 +130,7 @@ type InnerParam = Param
 /// to syntax-highlighted HTML with detailed span markup.
 ///
 /// parses XML/HTML content and wraps different syntax
-/// elements (tags, attributes, values, comments) in spans
+/// elements (tags, attrs, values, comments) in spans
 /// with specific CSS classes for styling.
 pub fn constructor() -> Desugarer {
   Desugarer(

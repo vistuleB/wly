@@ -14,9 +14,9 @@ import io_lines.{
 } as io_l
 import vxml.{
   type VXML,
-  type Attribute,
+  type Attr,
   type Line,
-  Attribute,
+  Attr,
   Line,
   T,
   V,
@@ -172,11 +172,11 @@ pub fn left_right_delim_strings(delimiters: List(LatexDelimiterPair)) -> #(List(
 
 pub fn on_v_on_t(
   node: VXML,
-  f1: fn(Blame, String, List(Attribute), List(VXML)) -> c,
+  f1: fn(Blame, String, List(Attr), List(VXML)) -> c,
   f2: fn(Blame, List(Line)) -> c,
 ) -> c {
   case node {
-    V(blame, tag, attributes, children) -> f1(blame, tag, attributes, children)
+    V(blame, tag, attrs, children) -> f1(blame, tag, attrs, children)
     T(blame, lines) -> f2(blame, lines)
   }
 }
@@ -184,11 +184,11 @@ pub fn on_v_on_t(
 pub fn on_t_on_v(
   node: VXML,
   f1: fn(Blame, List(Line)) -> c,
-  f2: fn(Blame, String, List(Attribute), List(VXML)) -> c,
+  f2: fn(Blame, String, List(Attr), List(VXML)) -> c,
 ) -> c {
   case node {
     T(blame, lines) -> f1(blame, lines)
-    V(blame, tag, attributes, children) -> f2(blame, tag, attributes, children)
+    V(blame, tag, attrs, children) -> f2(blame, tag, attrs, children)
   }
 }
 
@@ -246,8 +246,12 @@ pub fn descendants_with_tag(vxml: VXML, tag: String) -> List(VXML) {
   filter_descendants(vxml, is_v_and_tag_equals(_, tag))
 }
 
-pub fn descendants_with_key_value(vxml: VXML, attr_key: String, attr_value: String) -> List(VXML) {
-  filter_descendants(vxml, is_v_and_has_key_value(_, attr_key, attr_value))
+pub fn descendants_with_key_value(
+  vxml: VXML,
+  key: String,
+  val: String,
+) -> List(VXML) {
+  filter_descendants(vxml, is_v_and_has_key_value(_, key, val))
 }
 
 pub fn descendants_with_class(vxml: VXML, class: String) -> List(VXML) {
@@ -1663,7 +1667,7 @@ pub fn v_attrs_constructor(
   tag: String,
   attrs: List(#(String, String)),
 ) -> VXML {
-  let attrs = list.map(attrs, fn(pair) { Attribute(blame, pair.0, pair.1) })
+  let attrs = list.map(attrs, fn(pair) { Attr(blame, pair.0, pair.1) })
   V(blame, tag, attrs, [])
 }
 
@@ -1805,18 +1809,18 @@ pub fn v_get_tag(vxml: VXML) -> String {
   tag
 }
 
-pub fn v_prepend_attribute(vxml: VXML, attr: Attribute) {
+pub fn v_prepend_attr(vxml: VXML, attr: Attr) {
   let assert V(_, _, attrs, _) = vxml
-  V(..vxml, attributes: [attr, ..attrs])
+  V(..vxml, attrs: [attr, ..attrs])
 }
 
-pub fn v_prepend_unique_key_attribute(
+pub fn v_prepend_unique_key_attr(
   vxml: VXML,
-  attr: Attribute,
+  attr: Attr,
 ) -> Result(VXML, Nil) {
-  case v_has_attribute_with_key(vxml, attr.key) {
+  case v_has_attr_with_key(vxml, attr.key) {
     True -> Error(Nil)
-    False -> Ok(v_prepend_attribute(vxml, attr))
+    False -> Ok(v_prepend_attr(vxml, attr))
   }
 }
 
@@ -1840,9 +1844,9 @@ pub fn v_append_child(node: VXML, child: VXML) {
   V(..node, children: list.append(children, [child]))
 }
 
-pub fn v_preprend_attribute(node: VXML, attr: Attribute) {
+pub fn v_preprend_attr(node: VXML, attr: Attr) {
   let assert V(_, _, attrs, _) = node
-  V(..node, attributes: [attr, ..attrs])
+  V(..node, attrs: [attr, ..attrs])
 }
 
 pub fn pour_before_first_in_list(nodes: List(VXML), to_insert: List(VXML), before: String) -> List(VXML) {
@@ -1879,25 +1883,25 @@ pub fn v_assert_append_to_second_child(node: VXML, child: VXML) {
   V(..node, children: [first, second, ..rest])
 }
 
-pub fn v_set_attribute(
+pub fn v_set_attr(
   vxml: VXML,
   blame: Blame,
   key: String,
   val: String,
 ) -> VXML {
   let assert V(_, _, attrs, _) = vxml
-  V(..vxml, attributes: attributes_set(attrs, blame, key, val))
+  V(..vxml, attrs: attrs_set(attrs, blame, key, val))
 }
 
-pub fn v_first_attribute_with_key(
+pub fn v_first_attr_with_key(
   vxml: VXML,
   key: String,
-) -> Option(Attribute) {
+) -> Option(Attr) {
   let assert V(_, _, attrs, _) = vxml
-  attributes_first_with_key(attrs, key)
+  attrs_first_with_key(attrs, key)
 }
 
-pub fn v_value_of_first_attribute_with_key(
+pub fn v_value_of_first_attr_with_key(
   vxml: VXML,
   key: String,
 ) -> Option(String) {
@@ -1909,32 +1913,32 @@ pub fn v_value_of_first_attribute_with_key(
   }
 }
 
-pub fn v_attributes_with_key(
+pub fn v_attrs_with_key(
   vxml: VXML,
   key: String,
-) -> List(Attribute) {
+) -> List(Attr) {
   let assert V(_, _, attrs, _) = vxml
   attrs
   |> list.filter(fn(b) {b.key == key})
 }
 
-pub fn v_has_attribute_with_key(vxml: VXML, key: String) -> Bool {
+pub fn v_has_attr_with_key(vxml: VXML, key: String) -> Bool {
   let assert V(_, _, attrs, _) = vxml
   let to_return = list.any(attrs, fn(b) {b.key == key})
-  let assert True = to_return == attributes_have_key(attrs, key)
+  let assert True = to_return == attrs_have_key(attrs, key)
   to_return
 }
 
-pub fn is_v_and_has_attribute_with_key(vxml: VXML, key: String) -> Bool {
+pub fn is_v_and_has_attr_with_key(vxml: VXML, key: String) -> Bool {
   case vxml {
-    V(_, _, _, _) -> v_has_attribute_with_key(vxml, key)
+    V(_, _, _, _) -> v_has_attr_with_key(vxml, key)
     _ -> False
   }
 }
 
 pub fn v_has_key_value(vxml: VXML, key: String, value: String) -> Bool {
   let assert V(_, _, attrs, _) = vxml
-  attributes_have_key_value(attrs, key, value)
+  attrs_have_key_value(attrs, key, value)
 }
 
 pub fn v_extract_children(vxml: VXML, condition: fn(VXML) -> Bool) -> #(VXML, List(VXML)) {
@@ -2017,10 +2021,10 @@ pub fn v_append_classes(
   node: VXML,
   classes: String,
 ) -> VXML {
-  let assert V(blame, _, attributes, _) = node
+  let assert V(blame, _, attrs, _) = node
   V(
     ..node,
-    attributes: attributes_append_classes(attributes, blame, classes),
+    attrs: attrs_append_classes(attrs, blame, classes),
   )
 }
 
@@ -2035,20 +2039,20 @@ pub fn v_append_classes_if(
   }
 }
 
-pub fn v_assert_pop_attribute(vxml: VXML, key: String) -> #(VXML, Attribute) {
+pub fn v_assert_pop_attr(vxml: VXML, key: String) -> #(VXML, Attr) {
   let assert V(b, t, a, c) = vxml
   let assert #([unique_guy_with_key], other_guys) = list.partition(a, fn(b){ b.key == key })
   #(V(b, t, other_guys, c), unique_guy_with_key)
 }
 
-pub fn v_assert_pop_attribute_value(vxml: VXML, key: String) -> #(VXML, String) {
-  let #(vxml, Attribute(_, _, value)) = v_assert_pop_attribute(vxml, key)
+pub fn v_assert_pop_attr_value(vxml: VXML, key: String) -> #(VXML, String) {
+  let #(vxml, Attr(_, _, value)) = v_assert_pop_attr(vxml, key)
   #(vxml, value)
 }
 
 pub fn v_has_class(vxml: VXML, class: String) -> Bool {
   let assert V(_, _, attrs, _) = vxml
-  attributes_have_class(attrs, class)
+  attrs_have_class(attrs, class)
 }
 
 pub type SelectorError {
@@ -2085,148 +2089,148 @@ pub fn expand_selector_shorthand(shorthand: String) -> Result(VXML, SelectorErro
     fn() { Error(InvalidTag) },
   )
 
-  let addendum_2_attribute = fn(mod: #(String, String)) -> Attribute {
+  let addendum_2_attr = fn(mod: #(String, String)) -> Attr {
     case mod.0 {
-      "." -> Attribute(blame, "class", mod.1)
-      "#" -> Attribute(blame, "id", mod.1)
+      "." -> Attr(blame, "class", mod.1)
+      "#" -> Attr(blame, "id", mod.1)
       "&" -> case string.split_once(mod.1, "=") {
-        Ok(#(bef, aft)) -> Attribute(blame, bef, aft)
-        _ -> Attribute(blame, mod.1, "")
+        Ok(#(bef, aft)) -> Attr(blame, bef, aft)
+        _ -> Attr(blame, mod.1, "")
       }
       _ -> panic as "some bug"
     }
   }
 
   let attrs =
-    list.map(addenda, addendum_2_attribute)
-    |> aggregate_attributes
+    list.map(addenda, addendum_2_attr)
+    |> aggregate_attrs
 
 
   Ok(V(blame, tag, attrs, []))
 }
 
 // ************************************************************
-// attributes
+// attrs
 // ************************************************************
 
-pub fn keys(attrs: List(Attribute)) -> List(String) {
+pub fn keys(attrs: List(Attr)) -> List(String) {
   attrs |> list.map(fn(attr) { attr.key })
 }
 
-pub fn attributes_delete(
-  attrs: List(Attribute),
+pub fn attrs_delete(
+  attrs: List(Attr),
   key: String,
-) -> List(Attribute) {
+) -> List(Attr) {
   attrs |> list.filter(fn(x) { x.key != key })
 }
 
-pub fn attributes_have_key(
-  attrs: List(Attribute),
+pub fn attrs_have_key(
+  attrs: List(Attr),
   key: String,
 ) -> Bool {
   list.any(attrs, fn(x) { x.key == key })
 }
 
-pub fn attributes_have_key_value(
-  attrs: List(Attribute),
+pub fn attrs_have_key_value(
+  attrs: List(Attr),
   key: String,
   value: String,
 ) -> Bool {
   list.any(attrs, fn(x) { x.key == key && x.value == value })
 }
 
-pub fn string_pair_2_attribute(
+pub fn string_pair_2_attr(
   pair: #(String, String),
   blame: Blame,
 ) {
-  Attribute(blame, pair.0, pair.1)
+  Attr(blame, pair.0, pair.1)
 }
 
-pub fn string_pairs_2_attributes(
+pub fn string_pairs_2_attrs(
   pairs: List(#(String, String)),
   blame: Blame,
 ) {
   pairs
-  |> list.map(string_pair_2_attribute(_, blame))
+  |> list.map(string_pair_2_attr(_, blame))
 }
 
-pub fn attributes_have_class(
-  attributes: List(Attribute),
+pub fn attrs_have_class(
+  attrs: List(Attr),
   class: String,
 ) -> Bool {
-  case attributes {
+  case attrs {
     [] -> False
     [first, ..rest] -> case first {
-      Attribute(_, "class", value) ->
+      Attr(_, "class", value) ->
         value
         |> string.split(" ")
         |> list.contains(class)
-      _ -> attributes_have_class(rest, class)
+      _ -> attrs_have_class(rest, class)
     }
   }
 }
 
-pub fn attributes_with_key(
-  attrs: List(Attribute),
+pub fn attrs_with_key(
+  attrs: List(Attr),
   key: String,
-) -> List(Attribute) {
+) -> List(Attr) {
   list.filter(attrs, fn(x) { x.key == key })
 }
 
-pub fn attributes_unique_key_or_none(
-  attrs: List(Attribute),
+pub fn attrs_unique_key_or_none(
+  attrs: List(Attr),
   key: String,
-) -> Result(Option(Attribute), DesugaringError) {
-  case attributes_with_key(attrs, key) {
+) -> Result(Option(Attr), DesugaringError) {
+  case attrs_with_key(attrs, key) {
     [one] -> Ok(Some(one))
     [] -> Ok(None)
     [_, second, ..] -> Error(DesugaringError(second.blame, "non-unique key: " <> key))
   }
 }
 
-pub fn attributes_unique_key(
-  attrs: List(Attribute),
+pub fn attrs_unique_key(
+  attrs: List(Attr),
   key: String,
   blame: Blame,
-) -> Result(Attribute, DesugaringError) {
-  case attributes_with_key(attrs, key) {
+) -> Result(Attr, DesugaringError) {
+  case attrs_with_key(attrs, key) {
     [one] -> Ok(one)
-    [] -> Error(DesugaringError(blame, "missing attribute: '" <> key <> "'"))
+    [] -> Error(DesugaringError(blame, "missing attr: '" <> key <> "'"))
     [_, second, ..] -> Error(DesugaringError(second.blame, "non-unique key: " <> key))
   }
 }
 
-pub fn attributes_value_of_unique_key(
-  attrs: List(Attribute),
+pub fn attrs_value_of_unique_key(
+  attrs: List(Attr),
   key: String,
   blame: Blame,
 ) -> Result(String, DesugaringError) {
-  case attributes_with_key(attrs, key) {
+  case attrs_with_key(attrs, key) {
     [one] -> Ok(one.value)
-    [] -> Error(DesugaringError(blame, "missing attribute: '" <> key <> "'"))
+    [] -> Error(DesugaringError(blame, "missing attr: '" <> key <> "'"))
     [_, second, ..] -> Error(DesugaringError(second.blame, "non-unique key: " <> key))
   }
 }
 
-pub fn attributes_extract_key_occurrences(
-  attrs: List(Attribute),
+pub fn attrs_extract_key_occurrences(
+  attrs: List(Attr),
   key: String
-) -> #(List(Attribute), List(Attribute)) {
+) -> #(List(Attr), List(Attr)) {
   list.partition(attrs, fn(attr) { attr.key == key})
 }
 
-pub fn attributes_extract_key_value(
-  attrs: List(Attribute),
+pub fn attrs_extract_key_value(
+  attrs: List(Attr),
   key: String,
   value: String,
-) -> #(List(Attribute), List(Attribute)) {
+) -> #(List(Attr), List(Attr)) {
   list.partition(attrs, fn(attr) { attr.key == key && attr.value == value })
 }
 
-pub fn attributes_extract_unique_key_or_none(
-  attrs: List(Attribute),
+pub fn attrs_extract_unique_key_or_none(
+  attrs: List(Attr),
   key: String,
-) -> Result(#(Option(Attribute), List(Attribute)), DesugaringError) {
+) -> Result(#(Option(Attr), List(Attr)), DesugaringError) {
   use #(extracted, remaining) <- on.ok(
     list.try_fold(
       attrs,
@@ -2251,29 +2255,37 @@ pub fn attributes_extract_unique_key_or_none(
   Ok(#(extracted, attrs))
 }
 
-pub fn substitute_in_attributes(
-  attrs: List(Attribute),
+pub fn attr_substitute(
+  attr: Attr,
+  from: String,
+  to: String,
+) -> Attr {
+  Attr(..attr, value: string.replace(attr.value, from, to))
+}
+
+pub fn substitute_in_attrs(
+  attrs: List(Attr),
   key: String,
   from: String,
   to: String,
-) -> List(Attribute) {
-  list.map(
-    attrs,
+) -> List(Attr) {
+  attrs
+  |> list.map(
     fn (attr) {
       case attr.key == key {
         False -> attr
-        True -> Attribute(..attr, value: string.replace(attr.value, from, to))
+        True -> attr |> attr_substitute(from, to)
       }
     }
   )
 }
 
-pub fn attributes_set(
-  attrs: List(Attribute),
+pub fn attrs_set(
+  attrs: List(Attr),
   blame: Blame,
   key: String,
   val: String,
-) -> List(Attribute) {
+) -> List(Attr) {
   let #(attrs, found) = 
     list.fold(
     attrs,
@@ -2284,10 +2296,10 @@ pub fn attributes_set(
         True -> {
           case acc.1 {
             True -> {
-              let msg = "attributes_set found second occurrence of key '" <> key <> "'"
+              let msg = "attrs_set found second occurrence of key '" <> key <> "'"
               panic as msg
             }
-            False -> #([Attribute(..attr, value: val), ..acc.0],  True)
+            False -> #([Attr(..attr, value: val), ..acc.0],  True)
           }
         }
       }
@@ -2296,14 +2308,14 @@ pub fn attributes_set(
 
   case found {
     True -> attrs |> list.reverse
-    False -> [Attribute(blame, key, val), ..attrs] |> list.reverse
+    False -> [Attr(blame, key, val), ..attrs] |> list.reverse
   }
 }
 
-pub fn attributes_first_with_key(
-  attrs: List(Attribute),
+pub fn attrs_first_with_key(
+  attrs: List(Attr),
   key: String,
-) -> Option(Attribute){
+) -> Option(Attr){
   case list.find(attrs, fn(b) { b.key == key })
   {
     Error(Nil) -> None
@@ -2311,34 +2323,34 @@ pub fn attributes_first_with_key(
   }
 }
 
-pub fn attributes_value_of_first_with_key(
-  attrs: List(Attribute),
+pub fn attrs_value_of_first_with_key(
+  attrs: List(Attr),
   key: String,
 ) -> Option(String) {
-  attributes_first_with_key(attrs, key)
+  attrs_first_with_key(attrs, key)
   |> option.map(fn(x) { x.value })
 }
 
-pub fn replace_attribute_value(
-  attr: Attribute,
+pub fn replace_attr_value(
+  attr: Attr,
   from: String,
   to: String,
-) -> Attribute {
+) -> Attr {
   case attr.value == from {
-    True -> Attribute(..attr, value: to)
+    True -> Attr(..attr, value: to)
     False -> attr
   }
 }
 
-pub fn attributes_replace_value(
-  attrs: List(Attribute),
+pub fn attrs_replace_value(
+  attrs: List(Attr),
   from: String,
   to: String,
-) -> List(Attribute) {
-  list.map(attrs, replace_attribute_value(_, from, to))
+) -> List(Attr) {
+  list.map(attrs, replace_attr_value(_, from, to))
 }
 
-pub fn replace_attribute_value_recursive(
+pub fn replace_attr_value_recursive(
   vxml: VXML,
   from: String,
   to: String,
@@ -2346,9 +2358,9 @@ pub fn replace_attribute_value_recursive(
   case vxml {
     T(..) -> vxml
     V(_, _, attrs, children) -> {
-      let children = list.map(children, replace_attribute_value_recursive(_, from, to))
-      let attrs = attributes_replace_value(attrs, from, to)
-      V(..vxml, attributes: attrs, children: children)
+      let children = list.map(children, replace_attr_value_recursive(_, from, to))
+      let attrs = attrs_replace_value(attrs, from, to)
+      V(..vxml, attrs: attrs, children: children)
     }
   }
 }
@@ -2476,17 +2488,17 @@ pub fn style_extract_unique_key_or_none(
 }
 
 pub fn optional_style_extract_unique_key_or_none(
-  style_attr: Option(Attribute),
+  style_attr: Option(Attr),
   key: String,
-) -> Result(#(Option(String), Option(Attribute)), DesugaringError) {
+) -> Result(#(Option(String), Option(Attr)), DesugaringError) {
   case style_attr {
     None -> Ok(#(None, None))
-    Some(Attribute(blame, k, style)) -> {
+    Some(Attr(blame, k, style)) -> {
       assert k == "style"
       use #(value, style) <- on.ok(style_extract_unique_key_or_none(style, key, blame))
       let style_attr = case style == "" {
         True -> None
-        False -> Some(Attribute(blame, "style", style))
+        False -> Some(Attr(blame, "style", style))
       }
       Ok(#(value, style_attr))
     }
@@ -2531,20 +2543,20 @@ pub fn concatenate_styles(a: String, b: String) -> String {
   |> compose_style
 }
 
-pub fn attributes_set_styles(attrs: List(Attribute), blame: Blame, styles: String) {
-  let #(index, new_attribute) = list.index_fold(
+pub fn attrs_set_styles(attrs: List(Attr), blame: Blame, styles: String) {
+  let #(index, new_attr) = list.index_fold(
     attrs,
-    #(-1, Attribute(blame, "", "")),
+    #(-1, Attr(blame, "", "")),
     fn (acc, attr, i) {
       case acc.0, attr.key {
-        -1, "style" -> #(i, Attribute(..attr, value: concatenate_styles(attr.value, styles)))
+        -1, "style" -> #(i, Attr(..attr, value: concatenate_styles(attr.value, styles)))
         _, _ -> acc
       }
     }
   )
   case index >= 0 {
-    True -> list_set(attrs, index, new_attribute)
-    False -> list.append(attrs, [Attribute(blame, "style", concatenate_styles("", styles))])
+    True -> list_set(attrs, index, new_attr)
+    False -> list.append(attrs, [Attr(blame, "style", concatenate_styles("", styles))])
   }
 }
 
@@ -2570,51 +2582,51 @@ pub fn concatenate_classes(a: String, b: String) -> String {
   |> string.join(" ")
 }
 
-pub fn attributes_append_classes(attrs: List(Attribute), blame: Blame, classes: String) -> List(Attribute) {
-  let #(index, new_attribute) = list.index_fold(
+pub fn attrs_append_classes(attrs: List(Attr), blame: Blame, classes: String) -> List(Attr) {
+  let #(index, new_attr) = list.index_fold(
     attrs,
-    #(-1, Attribute(blame, "", "")),
+    #(-1, Attr(blame, "", "")),
     fn (acc, attr, i) {
       case acc.0, attr.key {
-        -1, "class" -> #(i, Attribute(..attr, value: concatenate_classes(attr.value, classes)))
+        -1, "class" -> #(i, Attr(..attr, value: concatenate_classes(attr.value, classes)))
         _, _ -> acc
       }
     }
   )
   case index >= 0 {
-    True -> list_set(attrs, index, new_attribute)
-    False -> list.append(attrs, [Attribute(blame, "class", concatenate_classes("", classes))])
+    True -> list_set(attrs, index, new_attr)
+    False -> list.append(attrs, [Attr(blame, "class", concatenate_classes("", classes))])
   }
 }
 
-pub fn attributes_prepend_classes(attrs: List(Attribute), blame: Blame, classes: String) -> List(Attribute) {
-  let #(index, new_attribute) = list.index_fold(
+pub fn attrs_prepend_classes(attrs: List(Attr), blame: Blame, classes: String) -> List(Attr) {
+  let #(index, new_attr) = list.index_fold(
     attrs,
-    #(-1, Attribute(blame, "", "")),
+    #(-1, Attr(blame, "", "")),
     fn (acc, attr, i) {
       case acc.0, attr.key {
-        -1, "class" -> #(i, Attribute(..attr, value: concatenate_classes(classes, attr.value)))
+        -1, "class" -> #(i, Attr(..attr, value: concatenate_classes(classes, attr.value)))
         _, _ -> acc
       }
     }
   )
   case index >= 0 {
-    True -> list_set(attrs, index, new_attribute)
-    False -> list.append(attrs, [Attribute(blame, "class", concatenate_classes("", classes))])
+    True -> list_set(attrs, index, new_attr)
+    False -> list.append(attrs, [Attr(blame, "class", concatenate_classes("", classes))])
   }
 }
 
-pub fn substitute_in_class_attribute(
-  attrs: List(Attribute),
+pub fn substitute_in_class_attr(
+  attrs: List(Attr),
   from: String,
   to: String,
-) -> List(Attribute) {
+) -> List(Attr) {
   list.map(
     attrs,
     fn (attr) {
       case attr.key == "class" {
         False -> attr
-        True -> Attribute(..attr, value: case string.contains(attr.value, to) {
+        True -> Attr(..attr, value: case string.contains(attr.value, to) {
           True -> remove_class(attr.value, from)         // if 'to' is already there we just remove the 'from'
           False -> string.replace(attr.value, from, to)  // ...otherwise we substitute
         })
@@ -2623,10 +2635,10 @@ pub fn substitute_in_class_attribute(
   )
 }
 
-pub fn remove_in_class_attribute(
-  attrs: List(Attribute),
+pub fn remove_in_class_attr(
+  attrs: List(Attr),
   to_be_removed: String,
-) -> List(Attribute) {
+) -> List(Attr) {
   list.fold(
     attrs,
     [],
@@ -2638,7 +2650,7 @@ pub fn remove_in_class_attribute(
           assert new_value == string.trim(new_value)
           case new_value == "" {
             True -> acc
-            False -> [Attribute(attr.blame, "class", new_value), ..acc]
+            False -> [Attr(attr.blame, "class", new_value), ..acc]
           }
         }
       }
@@ -2647,17 +2659,17 @@ pub fn remove_in_class_attribute(
   |> list.reverse
 }
 
-pub fn supplement_in_class_attribute(
-  attrs: List(Attribute),
+pub fn supplement_in_class_attr(
+  attrs: List(Attr),
   if_this_is_there: String,
   then_add: String,
-) -> List(Attribute) {
+) -> List(Attr) {
   list.map(
     attrs,
     fn (attr) {
       case attr.key == "class" {
         False -> attr
-        True -> Attribute(..attr, value: case string.contains(attr.value, if_this_is_there) {
+        True -> Attr(..attr, value: case string.contains(attr.value, if_this_is_there) {
           True -> case string.contains(attr.value, then_add) {
             False -> attr.value <> " " <> then_add
             True -> attr.value
@@ -2669,9 +2681,9 @@ pub fn supplement_in_class_attribute(
   )
 }
 
-pub fn aggregate_attributes(
-  attrs: List(Attribute),
-) -> List(Attribute) {
+pub fn aggregate_attrs(
+  attrs: List(Attr),
+) -> List(Attr) {
   let acc = list.fold(
     attrs,
     #(None, None, None, []),
@@ -2695,7 +2707,7 @@ pub fn aggregate_attributes(
           )
           Some(guy) -> #(
             acc.0,
-            Some(Attribute(..guy, value: concatenate_classes(guy.value, attr.value))),
+            Some(Attr(..guy, value: concatenate_classes(guy.value, attr.value))),
             acc.2,
             acc.3,
           )
@@ -2710,7 +2722,7 @@ pub fn aggregate_attributes(
           Some(guy) -> #(
             acc.0,
             acc.1,
-            Some(Attribute(..guy, value: concatenate_styles(guy.value, attr.value))),
+            Some(Attr(..guy, value: concatenate_styles(guy.value, attr.value))),
             acc.3,
           )
         }
@@ -2961,7 +2973,7 @@ pub type Desugarer {
 /// variants:
 ///
 /// - VSLine: a tag "<> ..." of a V-node
-/// - ASLine: a key-attribute pair line "key=val" of a V-node
+/// - ASLine: a key-attr pair line "key=val" of a V-node
 /// - TSLine: the caret "<>" that marks the start of a T-node
 /// - LSLine: a content-line for a T-node
 ///
@@ -3010,11 +3022,11 @@ fn v_s_lines(
   vxml: VXML,
   indent: Int,
 ) -> List(SLine) {
-  let assert V(blame, tag, attributes, _) = vxml
-  let attributes =
-    attributes
+  let assert V(blame, tag, attrs, _) = vxml
+  let attrs =
+    attrs
     |> list.map(fn(a) {a_s_line(a.blame, indent + 2, a.key, a.value)})
-  [v_s_line(blame, indent, tag), ..attributes]
+  [v_s_line(blame, indent, tag), ..attrs]
 }
 
 fn t_s_lines(
@@ -3161,8 +3173,8 @@ pub fn extend_selection_up(
 pub fn extend_selection_to_ancestors(
   lines: List(SLine),
   with_elder_siblings w_s: Bool,
-  with_ancestor_attributes w_a_a: Bool,
-  with_elder_sibling_attributes w_e_a: Bool,
+  with_ancestor_attrs w_a_a: Bool,
+  with_elder_sibling_attrs w_e_a: Bool,
 ) -> List(SLine) {
   lines
   |> list.reverse
@@ -3221,8 +3233,8 @@ pub fn extend_selector_down(
 pub fn extend_selector_to_ancestors(
   f: Selector,
   with_elder_siblings with_siblings: Bool,
-  with_ancestor_attributes w_a_a: Bool,
-  with_elder_sibling_attributes w_e_a: Bool,
+  with_ancestor_attrs w_a_a: Bool,
+  with_elder_sibling_attrs w_e_a: Bool,
 ) -> Selector {
   fn (lines) {
     lines
@@ -3375,15 +3387,14 @@ pub fn pipeline_desugarers(
 
 pub fn desugarers_2_pipeline(
   desugarers: List(Desugarer),
-  selector: Selector,
-  tracking_mode: TrackingMode,
 ) -> Pipeline {
+  let id = fn(x) { x }
   desugarers
   |> list.map(fn (d) {
     Pipe(
       desugarer: d,
-      selector: selector,
-      tracking_mode: tracking_mode,
+      selector: id,
+      tracking_mode: TrackingOff,
       peek: False,
     )
   })

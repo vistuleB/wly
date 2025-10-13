@@ -7,19 +7,19 @@ import infrastructure.{
   DesugaringError, Pipe,
 } as infra
 import vxml.{
-  type Attribute, type VXML, Attribute, Line, T, V,
+  type Attr, type VXML, Attr, Line, T, V,
 }
 
 fn filter_out_handle_attributes(
-  attributes: List(Attribute),
-) -> #(List(Attribute), List(Attribute)) {
+  attributes: List(Attr),
+) -> #(List(Attr), List(Attr)) {
 
   list.fold(
     over: attributes,
     from: #([], []),
     with: fn(pairs, attribute) {
       let #(current_attrs, current_handles) = pairs
-      let Attribute(_, key, _) = attribute
+      let Attr(_, key, _) = attribute
 
       case key == "handle" {
         True -> #(current_attrs, [attribute, ..current_handles])
@@ -29,8 +29,8 @@ fn filter_out_handle_attributes(
   )
 }
 
-fn attribute_value(attribute: Attribute) -> String {
-  let Attribute(_, _, value) = attribute
+fn attribute_value(attribute: Attr) -> String {
+  let Attr(_, _, value) = attribute
   value
 }
 
@@ -40,12 +40,12 @@ fn counter_attributes_for_node(
   tuples: List(ManyStrings),
 ) {
   list.fold(over: tuples, from: [], with: fn(attributes_so_far, tuple) -> List(
-    Attribute,
+    Attr,
   ) {
     let #(parent, counter_name, _, _, _, _) = tuple
     case parent == tag {
       True -> [
-        Attribute(blame, "counter", counter_name),
+        Attr(blame, "counter", counter_name),
         ..attributes_so_far
       ]
       False -> attributes_so_far

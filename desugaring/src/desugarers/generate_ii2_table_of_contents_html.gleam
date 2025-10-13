@@ -13,7 +13,7 @@ import infrastructure.{
   DesugaringError,
 } as infra
 import nodemaps_2_desugarer_transforms as n2t
-import vxml.{type VXML, Attribute, Line, T, V}
+import vxml.{type VXML, Attr, Line, T, V}
 import on
 
 fn prepend_0(number: String) {
@@ -33,32 +33,32 @@ fn chapter_link(
   let item_blame = item.blame
 
   use label_attr <- on.none_some(
-    infra.v_first_attribute_with_key(item, "title_gr"),
+    infra.v_first_attr_with_key(item, "title_gr"),
     on_none: Error(DesugaringError(
       item_blame,
-      tp <> " missing title_gr attribute",
+      tp <> " missing title_gr attr",
     )),
   )
 
   use href_attr <- on.none_some(
-    infra.v_first_attribute_with_key(item, "title_en"),
+    infra.v_first_attr_with_key(item, "title_en"),
     on_none: Error(DesugaringError(
       item_blame,
-      tp <> " missing title_en attribute",
+      tp <> " missing title_en attr",
     )),
   )
 
-  use number_attribute <- on.none_some(
-    infra.v_first_attribute_with_key(item, "number"),
+  use number_attr <- on.none_some(
+    infra.v_first_attr_with_key(item, "number"),
     on_none: Error(DesugaringError(
       item_blame,
-      tp <> " missing number attribute",
+      tp <> " missing number attr",
     )),
   )
 
   let link =
     "lecture-notes/"
-    <> number_attribute.value
+    <> number_attr.value
     |> string.split(".")
     |> list.map(prepend_0)
     |> string.join("-")
@@ -67,7 +67,7 @@ fn chapter_link(
     <> ".html"
 
   // number span should always increament . for example we have sub-chapters 05-05-a and 05-05-b . so number span should be 5.5 and 5.6 for each
-  let assert [chapter_number, ..] = number_attribute.value |> string.split(".")
+  let assert [chapter_number, ..] = number_attr.value |> string.split(".")
 
   let number_span =
     V(item_blame, "span", [], [
@@ -87,7 +87,7 @@ fn chapter_link(
       item_blame,
       "a",
       [
-        Attribute(desugarer_blame(90), "href", link)
+        Attr(desugarer_blame(90), "href", link)
       ],
       [
         T(item_blame, [Line(item_blame, label_attr.value)]),
@@ -99,7 +99,7 @@ fn chapter_link(
     on.true_false(sub_chapter_number == "0", "0", fn() { "40px" })
 
   let style_attr =
-    Attribute(desugarer_blame(102), "style", "margin-left: " <> margin_left)
+    Attr(desugarer_blame(102), "style", "margin-left: " <> margin_left)
 
   Ok(V(item_blame, chapter_link_component_name, [style_attr], [number_span, a]))
 }
@@ -107,16 +107,16 @@ fn chapter_link(
 fn get_section_index(item: VXML, count: Int) -> Result(Int, DesugaringError) {
   let tp = "Chapter"
 
-  use number_attribute <- on.none_some(
-    infra.v_first_attribute_with_key(item, "number"),
+  use number_attr <- on.none_some(
+    infra.v_first_attr_with_key(item, "number"),
     on_none: Error(DesugaringError(
       item.blame,
-      tp <> " missing number attribute (b)",
+      tp <> " missing number attr (b)",
     )),
   )
 
   let assert [section_number, ..] =
-    number_attribute.value |> string.split(".") |> list.reverse()
+    number_attr.value |> string.split(".") |> list.reverse()
   let assert Ok(section_number) = int.parse(section_number)
 
   case section_number == 0 {
@@ -126,11 +126,11 @@ fn get_section_index(item: VXML, count: Int) -> Result(Int, DesugaringError) {
 }
 
 fn div_with_id_title_and_menu_items(id: String, menu_items: List(VXML)) -> VXML {
-  V(desugarer_blame(129), "div", [Attribute(desugarer_blame(129), "id", id)], [
+  V(desugarer_blame(129), "div", [Attr(desugarer_blame(129), "id", id)], [
     V(
       desugarer_blame(131),
       "ul",
-      [Attribute(desugarer_blame(133), "style", "list-style: none")],
+      [Attr(desugarer_blame(133), "style", "list-style: none")],
       menu_items,
     ),
   ])

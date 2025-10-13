@@ -5,22 +5,22 @@ import gleam/pair
 import gleam/string.{inspect as ins}
 import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as infra
 import nodemaps_2_desugarer_transforms as n2t
-import vxml.{type VXML, Attribute, V}
+import vxml.{type VXML, Attr, V}
 
 fn add_in_list(children: List(VXML), inner: InnerParam) -> List(VXML) {
   case children {
     [V(_, first_tag, _, _) as first, V(_, second_tag, _, _) as second, ..rest] -> {
       case dict.get(inner, #(first_tag, second_tag)) {
         Error(Nil) -> [first, ..add_in_list([second, ..rest], inner)]
-        Ok(#(new_element_tag, new_element_attributes)) -> {
+        Ok(#(new_element_tag, new_element_attrs)) -> {
           let blame = first.blame
           [
             first,
             V(
               blame,
               new_element_tag,
-              list.map(new_element_attributes, fn(pair) {
-                Attribute(blame, pair |> pair.first, pair |> pair.second)
+              list.map(new_element_attrs, fn(pair) {
+                Attr(blame, pair |> pair.first, pair |> pair.second)
               }),
               [],
             ),
@@ -59,7 +59,7 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
 
 type Param = List(#(#(String,          String), String,             List(#(String, String))))
 //                    ↖                ↗        ↖                   ↖
-//                    insert divs               tag name for        attributes for
+//                    insert divs               tag name for        attrs for
 //                    between adjacent          new element         new element
 //                    siblings of these
 //                    two names

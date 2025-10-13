@@ -13,10 +13,10 @@ fn nodemap(
         True ->
           V(
             ..vxml,
-            attributes:
+            attrs:
               attrs
-              |> infra.attributes_delete("language")
-              |> infra.attributes_append_classes(desugarer_blame(19), "redyellow"),
+              |> infra.attrs_delete("language")
+              |> infra.attrs_append_classes(desugarer_blame(19), "redyellow"),
           )
         _ -> vxml
       }
@@ -49,9 +49,9 @@ type InnerParam = Param
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 //------------------------------------------------53
 /// converts pre elements with language=redyellow to use
-/// redyellow CSS class instead of language attribute.
+/// redyellow CSS class instead of language attr.
 ///
-/// removes the language attribute and adds "redyellow"
+/// removes the language attr and adds "redyellow"
 /// to the element's CSS classes for proper styling.
 pub fn constructor() -> Desugarer {
   Desugarer(

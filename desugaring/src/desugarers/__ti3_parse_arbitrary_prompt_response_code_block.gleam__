@@ -4,7 +4,7 @@ import gleam/string
 import gleam/result
 import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as infra
 import nodemaps_2_desugarer_transforms as n2t
-import vxml.{type Line, type VXML, Attribute, Line, T, V}
+import vxml.{type Line, type VXML, Attr, Line, T, V}
 import blame as bl
 
 const newline_t =
@@ -22,7 +22,7 @@ const prompt =
   V(
     bl.Des([], name, 22),
     "span",
-    [Attribute(bl.Des([], name, 18), "class", "arbitrary-prompt")],
+    [Attr(bl.Des([], name, 18), "class", "arbitrary-prompt")],
     [],
   )
 
@@ -30,7 +30,7 @@ const terminal_prompt_span =
   V(
     bl.Des([], name, 31),
     "span",
-    [Attribute(bl.Des([], name, 18), "class", "terminal-prompt")],
+    [Attr(bl.Des([], name, 18), "class", "terminal-prompt")],
     [],
   )
 
@@ -38,7 +38,7 @@ const response =
   V(
     bl.Des([], name, 30),
     "span",
-    [Attribute(bl.Des([], name, 18), "class", "arbitrary-response")],
+    [Attr(bl.Des([], name, 18), "class", "arbitrary-response")],
     [],
   )
 
@@ -83,7 +83,7 @@ fn nodemap(
         True -> V(
           blame,
           "pre",
-          [Attribute(desugarer_blame(86), "class", "well highlight")],
+          [Attr(desugarer_blame(86), "class", "well highlight")],
           process_lines(lines),
         )
         _ -> vxml

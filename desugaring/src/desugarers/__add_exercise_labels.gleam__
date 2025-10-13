@@ -3,7 +3,7 @@ import gleam/option
 import gleam/string
 import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as infra
 import nodemaps_2_desugarer_transforms as n2t
-import vxml.{type VXML, BlamedAttribute, V}
+import vxml.{type VXML, BlamedAttr, V}
 
 fn nodemap(
   vxml: VXML,
@@ -11,7 +11,7 @@ fn nodemap(
   case vxml {
     V(blame, "Exercises", attributes, children) -> {
       let new_attribute = [
-        BlamedAttribute(
+        BlamedAttr(
           blame,
           "labels",
           "vec!"

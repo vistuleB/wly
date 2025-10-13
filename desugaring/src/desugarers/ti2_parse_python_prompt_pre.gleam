@@ -3,7 +3,7 @@ import gleam/option
 import gleam/string
 import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as infra
 import nodemaps_2_desugarer_transforms as n2t
-import vxml.{type Line, type VXML, Attribute, Line, T, V}
+import vxml.{type Line, type VXML, Attr, Line, T, V}
 import blame as bl
 
 const newline_t =
@@ -35,7 +35,7 @@ fn python_prompt_chunk_to_vxmls(
         V(
           desugarer_blame(36),
           "span",
-          [Attribute(desugarer_blame(38), "class", "terminal-prompt")],
+          [Attr(desugarer_blame(38), "class", "terminal-prompt")],
           [
             T(
               line.blame,
@@ -46,7 +46,7 @@ fn python_prompt_chunk_to_vxmls(
         V(
           desugarer_blame(47),
           "span",
-          [Attribute(desugarer_blame(49), "class", "terminal-prompt-content")],
+          [Attr(desugarer_blame(49), "class", "terminal-prompt-content")],
           [
             T(
               bl.advance(line.blame, z),
@@ -61,7 +61,7 @@ fn python_prompt_chunk_to_vxmls(
         V(
           desugarer_blame(62),
           "span",
-          [Attribute(desugarer_blame(64), "class", "python-prompt-carets")],
+          [Attr(desugarer_blame(64), "class", "python-prompt-carets")],
           [
             T(
               line.blame,
@@ -72,7 +72,7 @@ fn python_prompt_chunk_to_vxmls(
         V(
           desugarer_blame(73),
           "span",
-          [Attribute(desugarer_blame(75), "class", "python-prompt-content")],
+          [Attr(desugarer_blame(75), "class", "python-prompt-content")],
           [
             T(
               bl.advance(line.blame, 3),
@@ -87,7 +87,7 @@ fn python_prompt_chunk_to_vxmls(
         V(
           desugarer_blame(88),
           "span",
-          [Attribute(desugarer_blame(90), "class", "python-prompt-ok-response")],
+          [Attr(desugarer_blame(90), "class", "python-prompt-ok-response")],
           [
             T(
               lines |> infra.lines_first_blame,
@@ -102,7 +102,7 @@ fn python_prompt_chunk_to_vxmls(
         V(
           desugarer_blame(103),
           "span",
-          [Attribute(desugarer_blame(105), "class", "python-prompt-error-response")],
+          [Attr(desugarer_blame(105), "class", "python-prompt-error-response")],
           [
             T(
               lines |> infra.lines_first_blame,
@@ -155,8 +155,8 @@ fn nodemap(
             blame,
             "pre",
             attrs
-            |> infra.attributes_delete("language")
-            |> infra.attributes_append_classes(desugarer_blame(159), "python-prompt"),
+            |> infra.attrs_delete("language")
+            |> infra.attrs_append_classes(desugarer_blame(159), "python-prompt"),
             children,
           )
         }

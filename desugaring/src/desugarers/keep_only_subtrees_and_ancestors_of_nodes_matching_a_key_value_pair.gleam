@@ -29,7 +29,7 @@ pub const name = "keep_only_subtrees_and_ancestors_of_nodes_matching_a_key_value
 // 🏖️🏖️ Desugarer 🏖️🏖️
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 //------------------------------------------------53
-/// filters by identifying nodes whose attributes
+/// filters by identifying nodes whose attrs
 /// match at least one of the given #(key, value)
 /// pairs. (OR not AND); keeps only nodes that are
 /// descendants of such nodes, or ancestors of such

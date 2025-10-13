@@ -12,8 +12,8 @@ import infrastructure.{
 import nodemaps_2_desugarer_transforms as n2t
 import vxml.{
   type VXML,
-  type Attribute,
-  Attribute,
+  type Attr,
+  Attr,
   V,
 }
 import blame as bl
@@ -24,7 +24,7 @@ fn nodemap(
 ) -> #(VXML, TrafficLight) {
   case vxml {
     V(_, tag, attrs, _) if tag == inner.0 ->
-      #(V(..vxml, attributes: [inner.1, ..attrs]), inner.2)
+      #(V(..vxml, attrs: [inner.1, ..attrs]), inner.2)
     _ -> #(vxml, Continue)
   }
 }
@@ -41,7 +41,7 @@ fn transform_factory(inner: InnerParam) -> DesugarerTransform {
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
   #(
     param.0,
-    Attribute(desugarer_blame(44), "_", param.1 <> " ::++" <> param.1),
+    Attr(desugarer_blame(44), "_", param.1 <> " ::++" <> param.1),
     param.2,
   )
   |> Ok
@@ -50,7 +50,7 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
 type Param = #(String, String,  TrafficLight)
 //             ↖       ↖        ↖
 //             tag     counter  pursue-nested-or-not
-type InnerParam = #(String, Attribute, TrafficLight)
+type InnerParam = #(String, Attr, TrafficLight)
 fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
 
 pub const name = "prepend_counter_incrementing_attribute"
@@ -61,7 +61,7 @@ pub const name = "prepend_counter_incrementing_attribute"
 //------------------------------------------------53
 /// For each #(tag, counter_name, traffic_light)
 /// tuple in the parameter list, this desugarer adds
-/// an attribute of the form
+/// an attr of the form
 /// ```
 /// _=counter_name ::++counter_name
 /// ```

@@ -9,7 +9,7 @@ import infrastructure.{
   Continue,
 } as infra
 import nodemaps_2_desugarer_transforms as n2t
-import vxml.{type Attribute, Attribute, type VXML, V}
+import vxml.{type Attr, Attr, type VXML, V}
 import blame as bl
 
 fn nodemap(
@@ -19,7 +19,7 @@ fn nodemap(
   case vxml {
     V(_, tag, attrs, _) if tag == inner.0 ->
       #(
-        V(..vxml, attributes: [inner.1, ..attrs]),
+        V(..vxml, attrs: [inner.1, ..attrs]),
         inner.2,
       )
     _ -> #(vxml, Continue)
@@ -41,7 +41,7 @@ fn transform_factory(
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
   #(
     param.0,
-    Attribute(desugarer_blame(44), param.1, param.2),
+    Attr(desugarer_blame(44), param.1, param.2),
     param.3,
   )
   |> Ok
@@ -50,7 +50,7 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
 type Param = #(String, String, String, TrafficLight)
 //             ↖       ↖       ↖       ↖
 //             tag     attr    value   return-early-or-not
-type InnerParam = #(String, Attribute, TrafficLight)
+type InnerParam = #(String, Attr, TrafficLight)
 
 pub const name = "prepend_attribute__outside"
 fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
@@ -61,7 +61,7 @@ fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
 //------------------------------------------------53
 /// add a specific key-value pair to all tags of a
 /// given name and possibl early-return after
-/// attribute is added, depending on TrafficLight
+/// attr is added, depending on TrafficLight
 /// instructions of last argument
 pub fn constructor(param: Param, outside: List(String)) -> Desugarer {
   Desugarer(

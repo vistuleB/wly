@@ -3,7 +3,7 @@ import gleam/list
 import gleam/option
 import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as infra
 import nodemaps_2_desugarer_transforms as n2t
-import vxml.{type VXML, Attribute, T, V}
+import vxml.{type VXML, Attr, T, V}
 
 fn is_known_outer_element(vxml: VXML) -> Bool {
   case vxml {
@@ -60,7 +60,7 @@ fn nodemap(vxml: VXML, _: List(VXML)) -> n2t.EarlyReturn(VXML) {
   use <- on.lazy_true_false(is_known_inner_element(vxml), fn() {
     let blame = vxml.blame
     n2t.GoBack(
-      V(blame, "div", [Attribute(blame, "class", "slice")], [vxml]),
+      V(blame, "div", [Attr(blame, "class", "slice")], [vxml]),
     )
   })
 

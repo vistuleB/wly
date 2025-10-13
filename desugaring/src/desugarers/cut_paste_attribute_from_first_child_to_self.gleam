@@ -3,23 +3,23 @@ import gleam/option.{type Option, Some, None}
 import gleam/string.{inspect as ins}
 import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as infra
 import nodemaps_2_desugarer_transforms as n2t
-import vxml.{type VXML, V, type Attribute}
+import vxml.{type VXML, V, type Attr}
 import on
 
 /// return option of
-/// - attribute with key `key`
-/// - modified children (with removed attribute)
+/// - attr with key `key`
+/// - modified children (with removed attr)
 fn check_first_child(children: List(VXML), key: String)
--> Option(#(Attribute, List(VXML))) {
+-> Option(#(Attr, List(VXML))) {
   use first, rest <- on.empty_nonempty(children, None)
   use _, _, _, _ <- infra.on_t_on_v(first, fn(_, _){None})
-  let assert V(_, _, attributes, _) = first
-  use attribute <- on.error_ok(
-    list.find(attributes, fn(att) {att.key == key}),
+  let assert V(_, _, attrs, _) = first
+  use attr <- on.error_ok(
+    list.find(attrs, fn(att) {att.key == key}),
     fn(_) { None },
   )
-  let first = V(..first, attributes: list.filter(attributes, fn(att) { att.key != key }))
-  Some(#(attribute, [first, ..rest]))
+  let first = V(..first, attrs: list.filter(attrs, fn(att) { att.key != key }))
+  Some(#(attr, [first, ..rest]))
 }
 
 fn nodemap(
@@ -31,7 +31,7 @@ fn nodemap(
     V(_, tag, _, children) if tag == parent_tag -> {
       case check_first_child(children, key) {
         option.None -> Ok(node)
-        option.Some(#(att, children)) -> Ok(V(..node, attributes: list.append(node.attributes, [att]), children: children))
+        option.Some(#(att, children)) -> Ok(V(..node, attrs: list.append(node.attrs, [att]), children: children))
       }
     }
     _ -> Ok(node)
@@ -53,7 +53,7 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
 type Param =
   #(String, String)
 //  ↖       ↖
-//  parent  attribute
+//  parent  attr
 //  tag     key
 
 type InnerParam = Param
@@ -64,14 +64,14 @@ pub const name = "cut_paste_attribute_from_first_child_to_self"
 // 🏖️🏖️ Desugarer 🏖️🏖️
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 //------------------------------------------------53
-/// Moves an attribute with key `key` from the first
+/// Moves an attr with key `key` from the first
 /// child of a node with tag `parent_tag` to the 
 /// node itself.
 /// ```
 /// #Param:
 /// - parent tag
 /// - child tag
-/// - attribute key
+/// - attr key
 /// ```
 pub fn constructor(param: Param) -> Desugarer {
   Desugarer(

@@ -18,7 +18,7 @@ fn nodemap(
 ) -> VXML {
   case vxml {
     V(_, tag, attrs, _) if tag == inner.0 ->
-      V(..vxml, attributes: infra.remove_in_class_attribute(attrs, inner.1))
+      V(..vxml, attrs: infra.remove_in_class_attr(attrs, inner.1))
     _ -> vxml
   }
 }
@@ -47,7 +47,7 @@ pub const name = "delete_class"
 // 🏖️🏖️ Desugarer 🏖️🏖️
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 //------------------------------------------------53
-/// append to list of attributes of a given tag
+/// append to list of attrs of a given tag
 pub fn constructor(param: Param) -> Desugarer {
   Desugarer(
     name: name,

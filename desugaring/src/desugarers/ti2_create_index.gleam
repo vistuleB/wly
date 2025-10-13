@@ -11,7 +11,7 @@ import infrastructure.{
 } as infra
 import vxml.{
   type VXML,
-  Attribute,
+  Attr,
   Line,
   V,
   T,
@@ -28,25 +28,25 @@ fn header(document: VXML) -> VXML {
   let b = desugarer_blame(28)
 
   let title =
-    case infra.v_first_attribute_with_key(document, "title") {
+    case infra.v_first_attr_with_key(document, "title") {
       None -> "no title"
       Some(x) -> x.value
     }
 
   let program =
-    case infra.v_first_attribute_with_key(document, "program") {
+    case infra.v_first_attr_with_key(document, "program") {
       None -> "no program"
       Some(x) -> x.value
     }
 
   let institution =
-    case infra.v_first_attribute_with_key(document, "institution") {
+    case infra.v_first_attr_with_key(document, "institution") {
       None -> "no institution"
       Some(x) -> x.value
     }
 
   let lecturer =
-    case infra.v_first_attribute_with_key(document, "lecturer") {
+    case infra.v_first_attr_with_key(document, "lecturer") {
       None -> "no lecturer"
       Some(x) -> x.value
     }
@@ -55,14 +55,14 @@ fn header(document: VXML) -> VXML {
     b,
     "header",
     [
-      Attribute(b, "class", "index__header"),
+      Attr(b, "class", "index__header"),
     ],
     [
       V(
         b,
         "h1",
         [
-          Attribute(b, "class", "index__header__title"),
+          Attr(b, "class", "index__header__title"),
         ],
         [
           T(b, [Line(b, title)]),
@@ -72,7 +72,7 @@ fn header(document: VXML) -> VXML {
         b,
         "div",
         [
-          Attribute(b, "class", "index__header__subtitle"),
+          Attr(b, "class", "index__header__subtitle"),
         ],
         [
           T(b, [Line(b, program)]),
@@ -194,7 +194,7 @@ fn sub_item(ch_no: Int, sub_no: Int, sub: SubInfo) -> VXML {
         b,
         "a",
         [
-          Attribute(b, "href", href(ch_no, sub_no)),
+          Attr(b, "href", href(ch_no, sub_no)),
         ],
         title,
       )
@@ -224,7 +224,7 @@ fn chapter_item(
     b,
     "a",
     [
-      Attribute(b, "href", href(ch_no, 0)),
+      Attr(b, "href", href(ch_no, 0)),
     ],
     title,
   )
@@ -246,7 +246,7 @@ fn chapter_ol(chapters: List(ChapterInfo)) -> VXML {
     b,
     "ol",
     [
-      Attribute(b, "class", "index__toc"),
+      Attr(b, "class", "index__toc"),
     ],
     list.index_map(chapters |> list.reverse, fn(ch, i) { chapter_item(i + 1, ch) }),
   )
@@ -263,7 +263,7 @@ fn index(root: VXML) -> Result(VXML, DesugaringError) {
     desugarer_blame(263),
     "Index",
     [
-      Attribute(desugarer_blame(266), "path", "./index.html"),
+      Attr(desugarer_blame(266), "path", "./index.html"),
     ],
     [
       header(root),

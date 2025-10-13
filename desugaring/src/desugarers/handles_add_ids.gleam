@@ -3,23 +3,23 @@ import gleam/option.{Some, None}
 import gleam/string.{inspect as ins}
 import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError, DesugaringError} as infra
 import nodemaps_2_desugarer_transforms as n2t
-import vxml.{type VXML, Attribute, T, V}
+import vxml.{type VXML, Attr, T, V}
 import on
 
-fn ensure_has_id_attribute(
+fn ensure_has_id_attr(
   vxml: VXML, counter: Int
 ) -> #(VXML, Int, String) {
   let assert V(_, _, _, _) = vxml
-  case infra.v_first_attribute_with_key(vxml, "id") {
+  case infra.v_first_attr_with_key(vxml, "id") {
     Some(attr) -> #(vxml, counter, attr.value)
     None -> {
       let counter = counter + 1
       let id = "_" <> ins(counter) <> "_hgi_"
-      let attributes = list.append(
-        vxml.attributes,
-        [Attribute(vxml.blame, "id", id)]
+      let attrs = list.append(
+        vxml.attrs,
+        [Attr(vxml.blame, "id", id)]
       )
-      #(V(..vxml, attributes: attributes), counter, id)
+      #(V(..vxml, attrs: attrs), counter, id)
     }
   }
 }
@@ -31,27 +31,27 @@ fn nodemap(
   case node {
     T(_, _) -> Ok(#(node, counter))
 
-    V(_, _, attributes, _) -> {
-      let handle_attributes =
-        attributes
+    V(_, _, attrs, _) -> {
+      let handle_attrs =
+        attrs
         |> list.filter(fn(att) { string.starts_with(att.key, "handle")})
 
       use _, _ <- on.empty_nonempty(
-        handle_attributes,
+        handle_attrs,
         Ok(#(node, counter)),
       )
 
       let assert #(
-        V(_, _, attributes, _) as node,
+        V(_, _, attrs, _) as node,
         counter,
         id,
-      ) = ensure_has_id_attribute(node, counter)
+      ) = ensure_has_id_attr(node, counter)
 
       let assert True = id != ""
       let assert True = id == string.trim(id)
 
-      use attributes <- on.ok(
-        attributes
+      use attrs <- on.ok(
+        attrs
         |> list.try_map(
           fn(att) {
             case att.key == "handle" {
@@ -68,14 +68,14 @@ fn nodemap(
                     Error(_) -> Ok(#(att.value, ""))
                   }
                 )
-                Ok(Attribute(..att, value: handle_name <> "|" <> handle_value <> "|" <> id))
+                Ok(Attr(..att, value: handle_name <> "|" <> handle_value <> "|" <> id))
               }
             }
           }
         )
       )
 
-      Ok(#(V(..node, attributes: attributes), counter))
+      Ok(#(V(..node, attrs: attrs), counter))
     }
   }
 }
@@ -101,13 +101,13 @@ pub const name = "handles_add_ids"
 // 🏖️🏖️ Desugarer 🏖️🏖️
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 //------------------------------------------------53
-/// For each node that has an attribute of key
+/// For each node that has an attr of key
 /// 'handle':
 ///
-/// 1. generates a unique id attribute added to the
+/// 1. generates a unique id attr added to the
 ///    node, if not already present
 ///
-/// 2. parses each 'handle' attribute value in the
+/// 2. parses each 'handle' attr value in the
 ///    form
 /// ```
 /// handle=handle_name [handle_value]

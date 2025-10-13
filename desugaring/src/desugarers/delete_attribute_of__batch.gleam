@@ -12,14 +12,14 @@ fn nodemap(
 ) -> Result(VXML, DesugaringError) {
   case vxml {
     T(_, _) -> Ok(vxml)
-    V(blame, tag, attributes, children) -> {
+    V(blame, tag, attrs, children) -> {
       case dict.get(inner, tag) {
-        Ok(attributes_to_remove) -> {
+        Ok(attrs_to_remove) -> {
           Ok(V(
             blame,
             tag,
-            list.filter(attributes, fn(attribute) {
-              !list.contains(attributes_to_remove, attribute.key)
+            list.filter(attrs, fn(attr) {
+              !list.contains(attrs_to_remove, attr.key)
             }),
             children,
           ))
@@ -44,7 +44,7 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
 
 type Param = List(#(String, String))
 //                  ↖       ↖
-//                  tag     key of attribute
+//                  tag     key of attr
 //                          to remove
 type InnerParam = Dict(String, List(String))
 
@@ -55,7 +55,7 @@ pub const name = "delete_attribute_of__batch"
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 //------------------------------------------------53
 /// for all pairs #(tag_name, key_name) deletes the
-/// attribute of key key_name for all tags of tag
+/// attr of key key_name for all tags of tag
 /// tag_name
 pub fn constructor(param: Param) -> Desugarer {
   Desugarer(

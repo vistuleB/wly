@@ -12,7 +12,7 @@ fn nodemap(
   case vxml {
     V(blame, tag, atts, children) -> {
       use href <- on.none_some(
-        infra.v_first_attribute_with_key(vxml, "href"),
+        infra.v_first_attr_with_key(vxml, "href"),
         Ok(vxml),
       )
       use <- on.false_true(
@@ -24,7 +24,7 @@ fn nodemap(
         |> list.map(fn(att) {
           case att.key {
             "href" ->
-              vxml.Attribute(
+              vxml.Attr(
                 att.blame,
                 "href",
                 att.value

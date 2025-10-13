@@ -8,8 +8,8 @@ import infrastructure.{
 } as infra
 import vxml.{
   type VXML,
-  type Attribute,
-  Attribute,
+  type Attr,
+  Attr,
   Line,
   V,
   T,
@@ -42,11 +42,11 @@ type FourLinks {
 }
 
 const b = bl.Des([], name, 14)
-const id_prev_page_attribute = Attribute(b, "id", "prev-page")
-const id_next_page_attribute = Attribute(b, "id", "next-page")
+const id_prev_page_attribute = Attr(b, "id", "prev-page")
+const id_next_page_attribute = Attr(b, "id", "next-page")
 
-fn an_attribute(key: String, value: String) -> Attribute {
-  Attribute(desugarer_blame(49), key, value)
+fn an_attribute(key: String, value: String) -> Attr {
+  Attr(desugarer_blame(49), key, value)
 }
 
 fn string_2_text_node(content: String) -> VXML {

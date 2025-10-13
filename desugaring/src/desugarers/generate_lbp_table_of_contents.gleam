@@ -8,7 +8,7 @@ import infrastructure.{
   type DesugaringError,
   Desugarer,
 } as infra
-import vxml.{type VXML, Attribute, V}
+import vxml.{type VXML, Attr, V}
 import blame as bl
 import nodemaps_2_desugarer_transforms as n2t
 import on
@@ -30,8 +30,8 @@ fn chapter_link(
     blame,
     chapter_link_component_name,
     [
-      Attribute(desugarer_blame(33), "article_type", ins(count)),
-      Attribute(desugarer_blame(34), "href", tp <> ins(count)),
+      Attr(desugarer_blame(33), "article_type", ins(count)),
+      Attr(desugarer_blame(34), "href", tp <> ins(count)),
     ],
     title_element.children,
   )
@@ -45,7 +45,7 @@ fn type_of_chapters_title(
   V(
     desugarer_blame(46),
     type_of_chapters_title_component_name,
-    [Attribute(desugarer_blame(48), "label", label)],
+    [Attr(desugarer_blame(48), "label", label)],
     [],
   )
 }
@@ -60,7 +60,7 @@ fn div_with_id_title_and_menu_items(
     desugarer_blame(60),
     "div",
     [
-      Attribute(desugarer_blame(63), "id", id),
+      Attr(desugarer_blame(63), "id", id),
     ],
     [
       type_of_chapters_title(type_of_chapters_title_component_name, title_label),

@@ -20,7 +20,7 @@ fn nodemap(
   case vxml {
     V(_, tag, attrs, children) if tag == inner.0 -> {
       use maybe <- on.ok(
-        infra.attributes_unique_key_or_none(attrs, inner.1)
+        infra.attrs_unique_key_or_none(attrs, inner.1)
       )
 
       use x <- on.lazy_none_some(

@@ -3,10 +3,10 @@ import gleam/option
 import gleam/string.{inspect as ins}
 import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as infra
 import nodemaps_2_desugarer_transforms as n2t
-import vxml.{type Attribute, Attribute, type VXML, T, V}
+import vxml.{type Attr, Attr, type VXML, T, V}
 
-fn replacer(attr: Attribute, inner: InnerParam) -> Attribute {
-  Attribute(
+fn replacer(attr: Attr, inner: InnerParam) -> Attr {
+  Attr(
     attr.blame,
     attr.key,
     list.fold(inner, attr.value, fn(current, pair) {
@@ -23,7 +23,7 @@ fn nodemap(
   case vxml {
     T(_, _) -> vxml
     V(_, _, attrs, _) ->
-      V(..vxml, attributes: attrs |> list.map(replacer(_, inner)))
+      V(..vxml, attrs: attrs |> list.map(replacer(_, inner)))
   }
 }
 
@@ -52,7 +52,7 @@ pub const name = "replace_in_attribute_values"
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 //------------------------------------------------53
 /// performs exact match find-replace in every
-/// attribute value of every node using the
+/// attr value of every node using the
 /// 'string.replace' function
 pub fn constructor(param: Param) -> Desugarer {
   Desugarer(

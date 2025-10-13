@@ -22,14 +22,14 @@ fn nodemap(
             True -> option.None
             False ->
               option.Some(
-                V(blame: blame, tag: above_tag, attributes: [], children: []),
+                V(blame: blame, tag: above_tag, attrs: [], children: []),
               )
           }
           let some_none_below = case below_tag == "" {
             True -> option.None
             False ->
               option.Some(
-                V(blame: blame, tag: below_tag, attributes: [], children: []),
+                V(blame: blame, tag: below_tag, attrs: [], children: []),
               )
           }
           case some_none_above, some_none_below {

@@ -78,7 +78,7 @@ fn line_map(
         V(
           bl.advance(blame, string.length(before) + 2),
           inner,
-          [vxml.Attribute(desugarer_blame(81), "href", maybe_href)],
+          [vxml.Attr(desugarer_blame(81), "href", maybe_href)],
           [],
         ),
         ..line_map(
@@ -101,7 +101,7 @@ fn line_map(
         V(
           bl.advance(blame, string.length(before) + 2),
           inner,
-          [vxml.Attribute(desugarer_blame(104), "href", href)],
+          [vxml.Attr(desugarer_blame(104), "href", href)],
           [],
         ),
         ..line_map(

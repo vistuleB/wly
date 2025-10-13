@@ -44,7 +44,7 @@ pub const name = "insert_text_start_end_if_unique_attr"
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 //------------------------------------------------53
 /// inserts spectified 'begin' and 'end' text to
-/// nodes of a given tag whose attributes consist
+/// nodes of a given tag whose attrs consist
 /// of a list of length 1 that exactly matches a
 /// given key/value pair
 pub fn constructor(param: Param) -> Desugarer {

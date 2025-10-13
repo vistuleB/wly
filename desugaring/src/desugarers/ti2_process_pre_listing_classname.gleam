@@ -20,7 +20,7 @@ fn nodemap(
   case vxml {
     V(_, "pre", attrs, _) -> {
       use class_attr <- on.ok(
-        infra.attributes_unique_key_or_none(attrs, "class"),
+        infra.attrs_unique_key_or_none(attrs, "class"),
       )
       use class_attr <- on.none_some(
         class_attr,
@@ -41,7 +41,7 @@ fn nodemap(
               )
               case acc.1 {
                 None -> Ok(#(["listing", ..acc.0], Some(line_no)))
-                _ -> Error(DesugaringError(class_attr.blame, "found two different 'listing:' in class attribute"))
+                _ -> Error(DesugaringError(class_attr.blame, "found two different 'listing:' in class attr"))
               }
             }
           }
@@ -49,14 +49,14 @@ fn nodemap(
       ))
       let attrs = case line_no {
         None -> attrs
-        Some(x) -> infra.attributes_set_styles(
+        Some(x) -> infra.attrs_set_styles(
           attrs,
           desugarer_blame(54),
           "counter-set:listing " <> ins(x - 1),
         )
-        |> infra.attributes_set(desugarer_blame(57), "class", string.join(classes |> list.reverse, " "))
+        |> infra.attrs_set(desugarer_blame(57), "class", string.join(classes |> list.reverse, " "))
       }
-      Ok(V(..vxml, attributes: attrs))
+      Ok(V(..vxml, attrs: attrs))
     }
     _ -> Ok(vxml)
   }
@@ -85,7 +85,7 @@ type InnerParam = Param
 // 🏖️🏖️ Desugarer 🏖️🏖️
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 //------------------------------------------------53
-/// Parses the 'language' attribute value of 'pre'
+/// Parses the 'language' attr value of 'pre'
 /// elements according to a special format:
 ///
 /// 1. '-listing' suffix is removed and 'listing' is

@@ -2,7 +2,7 @@ import gleam/option.{Some}
 import gleam/string.{inspect as ins}
 import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as infra
 import nodemaps_2_desugarer_transforms as n2t
-import vxml.{ type VXML, Line, T, V, Attribute}
+import vxml.{ type VXML, Line, T, V, Attr}
 import blame as bl
 
 fn nodemap(
@@ -11,8 +11,8 @@ fn nodemap(
 ) -> VXML {
   case vxml {
     V(_, tag, _, children) if tag == inner.0 -> {
-      case infra.v_first_attribute_with_key(vxml, inner.1) {
-        Some(Attribute(_, _, value)) if value != "" ->
+      case infra.v_first_attr_with_key(vxml, inner.1) {
+        Some(Attr(_, _, value)) if value != "" ->
           V(..vxml, children: [
             T(
               desugarer_blame(18),
@@ -42,7 +42,7 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
 
 type Param = #(String, String)
 //             ↖       ↖
-//             tag     attribute_key
+//             tag     attr_key
 type InnerParam = Param
 
 pub const name = "prepend_attribute_as_text"
@@ -54,14 +54,14 @@ fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
 //------------------------------------------------53
 /// Given arguments
 /// ```
-/// tag, attribute_key
+/// tag, attr_key
 /// ```
-/// prepends the value of the attribute with key
-/// 'attribute_key' as a text node to nodes of tag
-/// 'tag'. If the attribute doesn't exist, the node
-/// is left unchanged. The attribute value is used
+/// prepends the value of the attr with key
+/// 'attr_key' as a text node to nodes of tag
+/// 'tag'. If the attr doesn't exist, the node
+/// is left unchanged. The attr value is used
 /// as-is without any newline splitting. Empty
-/// attribute values are ignored.
+/// attr values are ignored.
 ///
 /// Processes all matching nodes depth-first.
 pub fn constructor(param: Param) -> Desugarer {

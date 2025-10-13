@@ -9,18 +9,18 @@ import infrastructure.{
   DesugaringError, Pipe,
 } as infra
 import nodemaps_2_desugarer_transforms as n2t
-import vxml.{type BlamedAttribute, BlamedAttribute, type VXML, T, V}
+import vxml.{type BlamedAttr, BlamedAttr, type VXML, T, V}
 
 fn produce_attributes_and_increase_counters_for_tag(
   blame: Blame,
   counters: Dict(String, Int),
-) -> #(Dict(String, Int), List(BlamedAttribute)) {
+) -> #(Dict(String, Int), List(BlamedAttr)) {
   counters
   |> dict.to_list
   |> list.map_fold(from: counters, with: fn(current_counters, pair) {
     let #(counter_name, counter_value) = pair
     let new_attribute =
-      BlamedAttribute(blame, counter_name, int.to_string(counter_value))
+      BlamedAttr(blame, counter_name, int.to_string(counter_value))
     let new_current_counters =
       dict.insert(current_counters, counter_name, counter_value + 1)
     #(new_current_counters, new_attribute)
@@ -31,8 +31,8 @@ fn possibly_add_counter_attribute(
   tag: String,
   blame: Blame,
   state: CountingState,
-  attributes: List(BlamedAttribute),
-) -> #(List(BlamedAttribute), CountingState) {
+  attributes: List(BlamedAttr),
+) -> #(List(BlamedAttr), CountingState) {
   case dict.get(state, tag) {
     Error(_) -> #(attributes, state)
     Ok(counters_dict) -> {

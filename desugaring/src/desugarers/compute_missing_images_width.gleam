@@ -5,7 +5,7 @@ import gleam/int
 import gleam/option.{Some}
 import gleam/string.{inspect as ins}
 import infrastructure.{type Desugarer, Desugarer, type DesugaringError, DesugaringError, type DesugarerTransform} as infra
-import vxml.{type VXML, Attribute, V}
+import vxml.{type VXML, Attr, V}
 import gleam/regexp
 import nodemaps_2_desugarer_transforms as n2t
 import ansel/image.{read, get_width}
@@ -19,7 +19,7 @@ fn get_svg_width(blame: Blame, path: String) -> Result(Float, DesugaringError) {
   
   use match, _ <- on.empty_nonempty(
     regexp.scan(width_pattern, file),
-    Error(DesugaringError(blame, "Could not find width attribute in SVG file\n file: " <> path))
+    Error(DesugaringError(blame, "Could not find width attr in SVG file\n file: " <> path))
   )
 
   case match.submatches {
@@ -77,22 +77,22 @@ fn nodemap(
   node: VXML,
 ) -> Result(VXML, DesugaringError) {
   case node {
-    V(blame, tag, attributes, _) 
+    V(blame, tag, attrs, _) 
       if tag == "ImageLeft" || tag == "ImageRight" || tag == "Image" -> {
-        // if the image has a width attribute, we don't need to do anything
+        // if the image has a width attr, we don't need to do anything
         use <- on.some_none(
-          infra.v_first_attribute_with_key(node, "width"),
+          infra.v_first_attr_with_key(node, "width"),
           on_some: fn(_) {Ok(node)},
         )
 
-        // if the image doesn't have a src attribute, we need to error
+        // if the image doesn't have a src attr, we need to error
         use attr <- on.none_some(
-          infra.v_first_attribute_with_key(node, "src"),
-          on_none: Error(DesugaringError(blame, "Image tag must have a src attribute")),
+          infra.v_first_attr_with_key(node, "src"),
+          on_none: Error(DesugaringError(blame, "Image tag must have a src attr")),
         )
        
         use width <- on.ok(get_image_width(attr.blame, "../../../MrChaker/little-bo-peep-solid/public" <> attr.value))
-        Ok(V(..node, attributes: [Attribute(blame, "width", ins(width) <> "px"), ..attributes]))
+        Ok(V(..node, attrs: [Attr(blame, "width", ins(width) <> "px"), ..attrs]))
       }
     _ -> Ok(node)
   }

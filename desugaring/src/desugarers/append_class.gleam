@@ -21,8 +21,8 @@ fn nodemap(
 ) -> #(VXML, TrafficLight) {
   case vxml {
     V(_, tag, attrs, _) if tag == inner.0 -> {
-      let attrs = infra.attributes_append_classes(attrs, desugarer_blame(24), inner.2)
-      #(V(..vxml, attributes: attrs), inner.3)
+      let attrs = infra.attrs_append_classes(attrs, desugarer_blame(24), inner.2)
+      #(V(..vxml, attrs: attrs), inner.3)
     }
     _ -> #(vxml, Continue)
   }
@@ -53,7 +53,7 @@ fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
 // 🏖️🏖️ Desugarer 🏖️🏖️
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 //------------------------------------------------53
-/// append to list of attributes of a given tag
+/// append to list of attrs of a given tag
 pub fn constructor(param: Param) -> Desugarer {
   Desugarer(
     name: name,

@@ -56,7 +56,7 @@ pub const name = "insert_bookend_text_if_no_attributes"
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 //------------------------------------------------53
 /// inserts bookend text at the beginning and end of
-/// specified tags that have no attributes
+/// specified tags that have no attrs
 pub fn constructor(param: Param) -> Desugarer {
   Desugarer(
     name: name,

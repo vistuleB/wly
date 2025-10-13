@@ -3,7 +3,7 @@ import gleam/option
 import gleam/string.{inspect as ins}
 import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError, type TrafficLight, Continue} as infra
 import nodemaps_2_desugarer_transforms as n2t
-import vxml.{type VXML, type Attribute, Attribute, V}
+import vxml.{type VXML, type Attr, Attr, V}
 import blame as bl
 
 fn nodemap(
@@ -25,7 +25,7 @@ fn nodemap(
         |> list.map(fn(attr) { attr.value <> "<<" })
         |> string.join("")
 
-      let new_attribute = Attribute(
+      let new_attribute = Attr(
         ..inner.2, 
         value: inner.1 <> " " <> handles_str <> inner.2.value,
       )
@@ -57,7 +57,7 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
   #(
     param.0,
     param.1,
-    Attribute(
+    Attr(
       desugarer_blame(61),
       ".",
       "::++" <> param.1,
@@ -70,7 +70,7 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
 type Param = #(String, String, TrafficLight)
 //             ↖       ↖        ↖
 //             tag     counter   traffic_light
-type InnerParam = #(String, String, Attribute, TrafficLight)
+type InnerParam = #(String, String, Attr, TrafficLight)
 
 pub const name = "associate_counter_by_prepending_incrementing_attribute"
 fn desugarer_blame(line_no: Int) {bl.Des([], name, line_no)}

@@ -3,7 +3,7 @@ import gleam/list
 import gleam/option.{Some, None}
 import gleam/string.{inspect as ins}
 import infrastructure.{type Desugarer, Desugarer, type DesugaringError, DesugaringError, type DesugarerTransform} as infra
-import vxml.{type VXML, Attribute, T, V}
+import vxml.{type VXML, Attr, T, V}
 import nodemaps_2_desugarer_transforms as n2t
 import on
 
@@ -16,13 +16,13 @@ fn v_before_transforming_children(
   case list.contains(inner, tag) {
     False -> Ok(#(node, state))
     True -> {
-      case infra.v_first_attribute_with_key(node, "width") {
-        None -> Error(DesugaringError(blame, tag <> " tag must have width attribute"))
+      case infra.v_first_attr_with_key(node, "width") {
+        None -> Error(DesugaringError(blame, tag <> " tag must have width attr"))
         Some(attr) -> {
           use #(width, _) <- on.error_ok(
             infra.parse_number_and_optional_css_unit(attr.value),
             on_error: fn(_) {
-              Error(DesugaringError(attr.blame, "Could not parse digits in width attribute"))
+              Error(DesugaringError(attr.blame, "Could not parse digits in width attr"))
             }
           )
           Ok(#(node, float.max(state, width)))
@@ -44,9 +44,9 @@ fn v_after_transforming_children(
       Ok(#(
         V(
           ..node,
-          attributes: [
-            Attribute(node.blame, "max-element-width", ins(state)),
-            ..node.attributes
+          attrs: [
+            Attr(node.blame, "max-element-width", ins(state)),
+            ..node.attrs
           ]
         ),
         0. // reset state for next article

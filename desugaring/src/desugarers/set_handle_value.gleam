@@ -12,16 +12,16 @@ import infrastructure.{
 } as infra
 import nodemaps_2_desugarer_transforms as n2t
 import vxml.{
-  type Attribute,
+  type Attr,
   type VXML,
-  Attribute,
+  Attr,
   V,
 }
 
-fn map_attribute(
-  attr: Attribute,
+fn map_attr(
+  attr: Attr,
   inner: InnerParam,
-) -> Attribute {
+) -> Attr {
   case attr.key {
     "handle" -> {
       case attr.value |> string.split_once(" ") {
@@ -30,7 +30,7 @@ fn map_attribute(
           attr
         }
         _ ->
-          Attribute(..attr, value: attr.value <> " " <> inner.1)
+          Attr(..attr, value: attr.value <> " " <> inner.1)
       }
     }
     _ -> attr
@@ -44,7 +44,7 @@ fn nodemap(
   case vxml {
     V(_, tag, attrs, _) if tag == inner.0 ->
       #(
-        V(..vxml, attributes: list.map(attrs, map_attribute(_, inner))),
+        V(..vxml, attrs: list.map(attrs, map_attr(_, inner))),
         inner.2,
       )
     _ -> #(vxml, Continue)
@@ -79,7 +79,7 @@ pub const name = "set_handle_value"
 //------------------------------------------------53
 /// add a specific key-value pair to all tags of a
 /// given name and possibl early-return after
-/// attribute is added, depending on TrafficLight
+/// attr is added, depending on TrafficLight
 /// instructions
 pub fn constructor(param: Param) -> Desugarer {
   Desugarer(

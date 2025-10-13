@@ -11,8 +11,8 @@ import infrastructure.{
 } as infra
 import vxml.{
   type VXML,
-  type Attribute,
-  Attribute,
+  type Attr,
+  Attr,
   V,
 }
 import nodemaps_2_desugarer_transforms as n2t
@@ -54,7 +54,7 @@ fn gather_title_and_chiron(
     [V(_, "p", _, title)] -> title
     _ -> title
   }
-  use chiron <- on.ok(infra.attributes_value_of_unique_key(attrs, "number-chiron", blame))
+  use chiron <- on.ok(infra.attrs_value_of_unique_key(attrs, "number-chiron", blame))
   Ok(#(title, chiron))
 }
 
@@ -119,18 +119,18 @@ fn gather_pages(root: VXML) -> Result(List(Page), DesugaringError) {
 
 type PageDepositorState = #(List(Page), List(Page))
 
-fn attributes_4_page(
+fn attrs_4_page(
   page: Page
-) -> List(Attribute) {
+) -> List(Attr) {
   case page {
     Chapter(_, number_chiron, ch_no) -> [
-      Attribute(desugarer_blame(127), "ch_no", ins(ch_no)),
-      Attribute(desugarer_blame(128), "number-chiron", number_chiron),
+      Attr(desugarer_blame(127), "ch_no", ins(ch_no)),
+      Attr(desugarer_blame(128), "number-chiron", number_chiron),
     ]
     Sub(_, number_chiron, ch_no, sub_no) -> [
-      Attribute(desugarer_blame(131), "ch_no", ins(ch_no)),
-      Attribute(desugarer_blame(132), "sub_no", ins(sub_no)),
-      Attribute(desugarer_blame(133), "number-chiron", number_chiron),
+      Attr(desugarer_blame(131), "ch_no", ins(ch_no)),
+      Attr(desugarer_blame(132), "sub_no", ins(sub_no)),
+      Attr(desugarer_blame(133), "number-chiron", number_chiron),
     ]
   }
 }
@@ -144,7 +144,7 @@ fn deposit_next(
   let title = V(
     desugarer_blame(145),
     "NextChapterOrSubTitle",
-    attributes_4_page(next),
+    attrs_4_page(next),
     next.title,
   )
   V(..vxml, children: [title, ..children])
@@ -159,7 +159,7 @@ fn deposit_prev(
   let title = V(
     desugarer_blame(160),
     "PrevChapterOrSubTitle",
-    attributes_4_page(prev),
+    attrs_4_page(prev),
     prev.title,
   )
   V(..vxml, children: [title, ..children])
@@ -264,7 +264,7 @@ fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
 // 🏖️🏖️ Desugarer 🏖️🏖️
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 //------------------------------------------------53
-/// copies the title and number-chiron attributes
+/// copies the title and number-chiron attrs
 /// of the previous and next chapter/subchapter, if
 /// any, and dumps these into 'PrevChapterOrSubTitle'
 /// and 'NextChapterOrSubTitle' elements at the top

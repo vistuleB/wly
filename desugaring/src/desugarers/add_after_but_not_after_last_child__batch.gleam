@@ -61,7 +61,7 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
 
 type Param = List(#(String,        String,          List(#(String, String))))
 //                  ↖              ↖                ↖
-//                  insert after   tag name         attributes
+//                  insert after   tag name         attrs
 //                  tag of this    of new element
 //                  name (except
 //                  if last child)

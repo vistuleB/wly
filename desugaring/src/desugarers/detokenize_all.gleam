@@ -3,7 +3,7 @@ import gleam/list
 import gleam/option
 import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as infra
 import nodemaps_2_desugarer_transforms as n2t
-import vxml.{type VXML, Attribute, V, T, type Line, Line}
+import vxml.{type VXML, Attr, V, T, type Line, Line}
 
 fn detokenize_in_list(
   children: List(VXML),
@@ -31,9 +31,9 @@ fn detokenize_in_list(
           detokenize_in_list(rest, accumulated_lines, accumulated_nodes)
         }
 
-        V(blame, "__OneWord", attributes, _) -> {
+        V(blame, "__OneWord", attrs, _) -> {
           let assert [_, ..] = accumulated_lines
-          let assert [Attribute(_, "val", word)] = attributes
+          let assert [Attr(_, "val", word)] = attrs
           let accumulated_lines = append_word_to_accumlated_contents(blame, word)
           detokenize_in_list(rest, accumulated_lines, accumulated_nodes)
         }

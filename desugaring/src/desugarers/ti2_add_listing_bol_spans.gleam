@@ -2,7 +2,7 @@ import gleam/list
 import gleam/option.{None}
 import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as infra
 import nodemaps_2_desugarer_transforms as n2t
-import vxml.{type Line, type VXML, Attribute, T, V}
+import vxml.{type Line, type VXML, Attr, T, V}
 import blame as bl
 import on
 
@@ -10,7 +10,7 @@ const bol_span =
   V(
     bl.Des([], name, 11), // "functions can only be called within other functions..."
     "span",
-    [Attribute(bl.Des([], name, 13), "class", "listing-bol")],
+    [Attr(bl.Des([], name, 13), "class", "listing-bol")],
     [],
   )
 
@@ -35,7 +35,7 @@ fn nodemap(
   case vxml {
     V(_, "pre", attrs, children) -> {
       use <- on.false_true(
-        infra.attributes_have_class(attrs, "listing"),
+        infra.attrs_have_class(attrs, "listing"),
         vxml,
       )
       let children = list.flat_map(

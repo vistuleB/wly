@@ -17,8 +17,8 @@ fn nodemap(
         Error(Nil) -> Ok(vxml)
         Ok(new_tag_info) -> {
           let #(new_tag, new_attrs) = new_tag_info
-          let new_attributes = list.append(attrs, new_attrs)
-          Ok(V(blame, new_tag, new_attributes, children))
+          let new_attrs = list.append(attrs, new_attrs)
+          Ok(V(blame, new_tag, new_attrs, children))
         }
       }
     }
@@ -39,7 +39,7 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
       let #(old_tag, new_tag, attrs) = renaming
       let attrs_converted = list.map(attrs, fn(attr) {
         let #(key, value) = attr
-        vxml.Attribute(desugarer_blame(42), key, value)
+        vxml.Attr(desugarer_blame(42), key, value)
       })
       #(old_tag, #(new_tag, attrs_converted))
     })
@@ -49,8 +49,8 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
 
 type Param = List(#(String, String, List(#(String, String))))
 //                  ↖       ↖       ↖
-//                  old_tag new_tag list of attributes as key value pairs
-type InnerParam = Dict(String, #(String, List(vxml.Attribute)))
+//                  old_tag new_tag list of attrs as key value pairs
+type InnerParam = Dict(String, #(String, List(vxml.Attr)))
 
 pub const name = "rename_with_attributes__batch"
 fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
@@ -59,7 +59,7 @@ fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
 // 🏖️🏖️ Desugarer 🏖️🏖️
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 //------------------------------------------------53
-/// renames tags and adds attributes to them
+/// renames tags and adds attrs to them
 pub fn constructor(param: Param) -> Desugarer {
   Desugarer(
     name: name,

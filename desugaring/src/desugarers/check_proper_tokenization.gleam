@@ -25,11 +25,11 @@ fn remaining_properly_tokenized(
 }
 
 fn has_href(vxml: VXML) -> Bool {
-  infra.v_has_attribute_with_key(vxml, "href")
+  infra.v_has_attr_with_key(vxml, "href")
 }
 
 fn is_v_and_has_href(vxml: VXML) -> Bool {
-  infra.is_v_and_has_attribute_with_key(vxml, "href")
+  infra.is_v_and_has_attr_with_key(vxml, "href")
 }
 
 fn is_v_and_has_tag_starting_with(

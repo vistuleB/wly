@@ -54,7 +54,7 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
 
 type Param = List(#(String,                   String,          List(#(String, String))))
 //                  ↖                         ↖                ↖
-//                  insert new element        tag name         attributes for
+//                  insert new element        tag name         attrs for
 //                  between this tag          for new element  new element
 //                  and following text node
 type InnerParam = Dict(String, VXML)

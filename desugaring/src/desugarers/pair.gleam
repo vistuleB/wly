@@ -228,7 +228,7 @@ fn accumulator(
                           V(
                             dude.blame |> bl.append_comment(pairing_msg(dude.blame, first.blame)),
                             enclosing,
-                            first.attributes, // we only take the attributes of the closing tag, for now (we're lazy)
+                            first.attrs, // we only take the attrs of the closing tag, for now (we're lazy)
                             after_last_opening |> list.reverse,
                           ),
                           ..already_processed
@@ -269,7 +269,7 @@ fn accumulator(
                           V(
                             dude.blame |> bl.append_comment(pairing_msg(dude.blame, first.blame)),
                             enclosing,
-                            first.attributes, // we only take the attributes of the closing tag, for now (we're lazy),
+                            first.attrs, // we only take the attrs of the closing tag, for now (we're lazy),
                             after_last_opening |> list.reverse,
                           ),
                           ..already_processed

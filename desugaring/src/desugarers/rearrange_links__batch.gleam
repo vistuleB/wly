@@ -7,7 +7,7 @@ import gleam/result
 import gleam/string.{inspect as ins}
 import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError, DesugaringError} as infra
 import nodemaps_2_desugarer_transforms as n2t
-import vxml.{type VXML, T, V, Attribute, type Line, Line}
+import vxml.{type VXML, T, V, Attr, type Line, Line}
 import blame.{type Blame} as bl
 import on
 
@@ -61,9 +61,9 @@ fn detokenize_maybe(
           detokenize_maybe(rest, accumulated_lines, accumulated_nodes)
         }
 
-        V(blame, "__OneWord", attributes, _) -> {
+        V(blame, "__OneWord", attrs, _) -> {
           let assert [_, ..] = accumulated_lines
-          let assert [Attribute(_, "val", word)] = attributes
+          let assert [Attr(_, "val", word)] = attrs
           let accumulated_lines = append_word_to_accumlated_contents(blame, word)
           detokenize_maybe(rest, accumulated_lines, accumulated_nodes)
         }
@@ -92,7 +92,7 @@ fn detokenize_maybe(
         }
 
         V(_, _, _, children) -> {
-          case infra.v_has_attribute_with_key(first, "href") {
+          case infra.v_has_attr_with_key(first, "href") {
             True -> {
               let children = detokenize_maybe(children, [], [])
               detokenize_maybe(rest, [], [V(..first, children: children), ..accumulated_nodes])
@@ -149,11 +149,11 @@ fn generate_replacement_vxml_internal(
 
         A(_, classes, href_int, internal_pattern) -> {
           let assert Ok(vxml) = dict.get(match_data.href_var_dict, href_int)
-          let assert V(blame, tag, attributes, _) = vxml
+          let assert V(blame, tag, attrs, _) = vxml
           let a_node = V(
             blame,
             tag,
-            attributes |> infra.attributes_append_classes(blame, classes),
+            attrs |> infra.attrs_append_classes(blame, classes),
             generate_replacement_vxml_internal([], internal_pattern, match_data),
           )
           generate_replacement_vxml_internal(
@@ -260,7 +260,7 @@ fn match_internal(
     [Word(word), ..pattern_rest] -> {
       case atomized {
         [V(_, "__OneWord", _, _) as v, ..atomized_rest] -> {
-          let assert Some(attr) = infra.v_first_attribute_with_key(v, "val")
+          let assert Some(attr) = infra.v_first_attr_with_key(v, "val")
           case attr.value == word {
             True -> match_internal(atomized_rest, pattern_rest, match_data)
             False -> None
@@ -280,7 +280,7 @@ fn match_internal(
 
     [A(_, _, href_int, pattern_internal), ..pattern_rest] -> {
       case atomized {
-        [V(_, _, _, children) as v, ..atomized_rest] -> case infra.v_has_attribute_with_key(v, "href") {
+        [V(_, _, _, children) as v, ..atomized_rest] -> case infra.v_has_attr_with_key(v, "href") {
           True -> {
             let match_data = insert_new_href_key_val_into_match_data(match_data, href_int, v)
             case match_internal(children, pattern_internal, match_data) {
@@ -350,7 +350,7 @@ fn start_node(blame: Blame) {
 }
 
 fn word_node(blame: Blame, word: String) {
-  V(blame, "__OneWord", [Attribute(desugarer_blame(353), "val", word)], [])
+  V(blame, "__OneWord", [Attr(desugarer_blame(353), "val", word)], [])
 }
 
 fn space_node(blame: Blame) {
@@ -409,7 +409,7 @@ fn tokenize_t(vxml: VXML) -> List(VXML) {
 fn tokenize_if_t_or_has_href_tag_recursive(vxml: VXML) -> List(VXML) {
   case vxml {
     T(_, _) -> tokenize_t(vxml)
-    V(_, _, _, children) -> case infra.v_has_attribute_with_key(vxml, "href") {
+    V(_, _, _, children) -> case infra.v_has_attr_with_key(vxml, "href") {
       True -> [V(..vxml, children: list.flat_map(children, tokenize_if_t_or_has_href_tag_recursive))]
       False -> [vxml]
     }
@@ -421,7 +421,7 @@ fn tokenize_if_t_or_has_href_tag_recursive(vxml: VXML) -> List(VXML) {
 // }
 
 fn tokenize_maybe(children: List(VXML)) -> Option(List(VXML)) {
-  case list.any(children, infra.is_v_and_has_attribute_with_key(_, "href")) {
+  case list.any(children, infra.is_v_and_has_attr_with_key(_, "href")) {
     True -> {
       children
       |> list.flat_map(tokenize_if_t_or_has_href_tag_recursive)
@@ -704,22 +704,22 @@ fn vxml_to_link_pattern(
 
       assert tag == "a"
 
-      use href_attribute <- on.lazy_empty_gt1_singleton(
-        infra.attributes_with_key(attrs, "href"),
-        fn() { Error(DesugaringError(bl.no_blame, "<a>-tag missing 'href' attribute")) },
-        fn(_, _, _) { Error(DesugaringError(bl.no_blame, "<a>-tag with >1 'href' attribute")) },
+      use href_attr <- on.lazy_empty_gt1_singleton(
+        infra.attrs_with_key(attrs, "href"),
+        fn() { Error(DesugaringError(bl.no_blame, "<a>-tag missing 'href' attr")) },
+        fn(_, _, _) { Error(DesugaringError(bl.no_blame, "<a>-tag with >1 'href' attr")) },
       )
 
       use href_value <- on.error_ok(
-        int.parse(href_attribute.value),
-        fn(_) { Error(DesugaringError(bl.no_blame, "could not parse <a>-href attribute as integer: " <> href_attribute.value)) },
+        int.parse(href_attr.value),
+        fn(_) { Error(DesugaringError(bl.no_blame, "could not parse <a>-href attr as integer: " <> href_attr.value)) },
       )
 
       use classes <- on.ok(
-        case infra.attributes_with_key(attrs, "class") {
+        case infra.attrs_with_key(attrs, "class") {
           [] -> Ok("")
           [one] -> Ok(one.value)
-          _ -> Error(DesugaringError(bl.no_blame, "more than one class attribute inside <a> tag"))
+          _ -> Error(DesugaringError(bl.no_blame, "more than one class attr inside <a> tag"))
         }
       )
 
@@ -745,7 +745,7 @@ fn parse_link_pattern(
   |> Ok
 }
 
-fn make_sure_attributes_are_quoted(input: String, re: regexp.Regexp) -> String {
+fn make_sure_attrs_are_quoted(input: String, re: regexp.Regexp) -> String {
   regexp.match_map(re, input, fn(match: regexp.Match) {
     case match.submatches {
       [Some(key), Some(value)] -> key <> "=\"" <> value <> "\""
@@ -761,13 +761,13 @@ fn string_pair_to_link_pattern_pair(string_pair: #(String, String)) -> Result(#(
 
   use pattern1 <- on.ok(
     { "<root>" <> s1 <> "</root>" }
-    |> make_sure_attributes_are_quoted(re1)
+    |> make_sure_attrs_are_quoted(re1)
     |> parse_link_pattern(re2)
   )
 
   use pattern2 <- on.ok(
     { "<root>" <> s2 <> "</root>" }
-    |> make_sure_attributes_are_quoted(re1)
+    |> make_sure_attrs_are_quoted(re1)
     |> parse_link_pattern(re2)
   )
 

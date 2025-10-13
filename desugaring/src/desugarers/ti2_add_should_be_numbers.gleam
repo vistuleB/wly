@@ -31,7 +31,7 @@ fn process_sub(
       )
       let assert [Some(x)] = first.submatches
       let assert Ok(x) = int.parse(x)
-      Ok(infra.v_set_attribute(node, desugarer_blame(34), "should-be-number", ins(x)))
+      Ok(infra.v_set_attr(node, desugarer_blame(34), "should-be-number", ins(x)))
     }
     _ -> Ok(node)
   }
@@ -51,8 +51,8 @@ fn nodemap(
       let assert [Some(x)] = first.submatches
       let assert Ok(x) = int.parse(x)
       use children <- on.ok(list.try_map(children, process_sub(_, inner)))
-      let attrs = infra.attributes_set(attrs, desugarer_blame(54), "should-be-number", ins(x))
-      Ok(#(V(..node, attributes: attrs, children: children), GoBack))
+      let attrs = infra.attrs_set(attrs, desugarer_blame(54), "should-be-number", ins(x))
+      Ok(#(V(..node, attrs: attrs, children: children), GoBack))
     }
     _ -> Ok(#(node, Continue))
   }
@@ -84,11 +84,11 @@ type InnerParam = #(Regexp, Regexp)
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 //------------------------------------------------53
 /// Extracts chapter and subchapter numbers from file
-/// paths and adds them as "should-be-number" attributes.
+/// paths and adds them as "should-be-number" attrs.
 /// 
 /// Processes Chapter and Sub elements by parsing their
 /// file paths using regex patterns to extract numeric
-/// identifiers and adding appropriate attributes.
+/// identifiers and adding appropriate attrs.
 pub fn constructor() -> Desugarer {
   Desugarer(
     name: name,

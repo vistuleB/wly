@@ -43,7 +43,7 @@ pub const name = "unwrap_tags_if_no_attributes"
 // 🏖️🏖️ Desugarer 🏖️🏖️
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 //------------------------------------------------53
-/// unwraps specified tags if they have no attributes
+/// unwraps specified tags if they have no attrs
 pub fn constructor(param: Param) -> Desugarer {
   Desugarer(
     name: name,

@@ -13,7 +13,7 @@ fn updated_node(
   // string is for the wrapper tag
   rest: Line,
 ) -> VXML {
-  let assert V(blame, tag, attributes, children) = vxml
+  let assert V(blame, tag, attrs, children) = vxml
   let assert [T(t_blame, lines), ..] = children
 
   let prefix = on.none_some(prefix, [], fn(p) { [p] })
@@ -47,7 +47,7 @@ fn updated_node(
       },
     )
 
-  V(blame, tag, attributes, new_children)
+  V(blame, tag, attrs, new_children)
 }
 
 fn nodemap(

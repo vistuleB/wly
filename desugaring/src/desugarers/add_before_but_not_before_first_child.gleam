@@ -48,7 +48,7 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
 
 type Param = #(String,        String,          List(#(String, String)))
 //             ↖              ↖                ↖
-//             insert divs    tag name         attributes
+//             insert divs    tag name         attrs
 //             before tags    of new element
 //             of this name
 //             (except if tag is first child)

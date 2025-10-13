@@ -4,35 +4,35 @@ import gleam/option
 import gleam/string.{inspect as ins}
 import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as infra
 import nodemaps_2_desugarer_transforms as n2t
-import vxml.{type Attribute, Attribute, type VXML, T, V}
+import vxml.{type Attr, Attr, type VXML, T, V}
 
-fn update_attributes(
+fn update_attrs(
   tag: String,
-  attributes: List(Attribute),
+  attrs: List(Attr),
   inner: InnerParam,
-) -> List(Attribute) {
+) -> List(Attr) {
   list.fold(
     over: inner,
-    from: attributes,
+    from: attrs,
     with: fn(
-      current_attributes: List(Attribute),
+      current_attrs: List(Attr),
       tag_attr_name_pair: #(String, String),
-    ) -> List(Attribute) {
+    ) -> List(Attr) {
       let #(tag_name, attr_name) = tag_attr_name_pair
       case tag_name == "" || tag_name == tag {
-        False -> current_attributes
+        False -> current_attrs
         True -> {
           list.map(
-            current_attributes,
-            fn(attribute: Attribute) -> Attribute {
-              let Attribute(blame, key, value) = attribute
+            current_attrs,
+            fn(attr: Attr) -> Attr {
+              let Attr(blame, key, value) = attr
               case attr_name == "" || attr_name == key {
-                False -> attribute
+                False -> attr
                 True -> {
                   case int.parse(value) {
-                    Error(_) -> attribute
+                    Error(_) -> attr
                     Ok(z) ->
-                      Attribute(blame, key, int.to_string(z) <> ".0")
+                      Attr(blame, key, int.to_string(z) <> ".0")
                   }
                 }
               }
@@ -50,8 +50,8 @@ fn nodemap(
 ) -> Result(VXML, DesugaringError) {
   case node {
     T(_, _) -> Ok(node)
-    V(blame, tag, attributes, children) -> {
-      Ok(V(blame, tag, update_attributes(tag, attributes, inner), children))
+    V(blame, tag, attrs, children) -> {
+      Ok(V(blame, tag, update_attrs(tag, attrs, inner), children))
     }
   }
 }
@@ -71,8 +71,8 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
 type Param =
   List(#(String,              String))
 //       ↖                    ↖
-//       tag name,            attribute name,
-//       matches all          matches all attributes
+//       tag name,            attr name,
+//       matches all          matches all attrs
 //       tag if set to ""     if set to ""
 
 type InnerParam = Param
@@ -83,7 +83,7 @@ pub const name = "convert_int_attributes_to_float"
 // 🏖️🏖️ Desugarer 🏖️🏖️
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 //------------------------------------------------53
-/// converts int to float for all attributes keys
+/// converts int to float for all attrs keys
 /// that match one of the entries in 'param', per
 /// the matching rules above
 pub fn constructor(param: Param) -> Desugarer {

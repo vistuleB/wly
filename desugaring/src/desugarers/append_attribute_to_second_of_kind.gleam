@@ -3,7 +3,7 @@ import gleam/option
 import gleam/string.{inspect as ins}
 import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as infra
 import nodemaps_2_desugarer_transforms as n2t
-import vxml.{type VXML, Attribute, V}
+import vxml.{type VXML, Attr, V}
 import blame as bl
 
 fn nodemap(
@@ -13,8 +13,8 @@ fn nodemap(
 ) -> Result(VXML, DesugaringError) {
   case node, previous_unmapped_siblings {
     V(_, tag, attrs, _), [V(_, prev_tag, _, _), ..] if tag == inner.0 && prev_tag == inner.0 -> {
-      let new_attr = Attribute(desugarer_blame(16), inner.1, inner.2)
-      Ok(V(..node, attributes: list.append(attrs, [new_attr])))
+      let new_attr = Attr(desugarer_blame(16), inner.1, inner.2)
+      Ok(V(..node, attrs: list.append(attrs, [new_attr])))
     }
     _, _ -> Ok(node)
   }
@@ -47,7 +47,7 @@ fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
 // 🏖️🏖️ Desugarer 🏖️🏖️
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 //------------------------------------------------53
-/// Adds the specified attribute-value pair to nodes
+/// Adds the specified attr-value pair to nodes
 /// with the given tag name when the previous
 /// sibling is also a node with the same tag name
 pub fn constructor(param: Param) -> Desugarer {

@@ -2,7 +2,7 @@ import gleam/option.{Some}
 import gleam/string.{inspect as ins}
 import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as infra
 import nodemaps_2_desugarer_transforms as n2t
-import vxml.{ type VXML, V, Attribute}
+import vxml.{ type VXML, V, Attr}
 
 fn nodemap(
   vxml: VXML,
@@ -10,8 +10,8 @@ fn nodemap(
 ) -> VXML {
   case vxml {
     V(_, tag, _, _) if tag == inner.0 -> {
-      case infra.v_first_attribute_with_key(vxml, inner.1) {
-        Some(Attribute(_, _, value)) if value != "" ->
+      case infra.v_first_attr_with_key(vxml, inner.1) {
+        Some(Attr(_, _, value)) if value != "" ->
           infra.v_start_insert_text(vxml, value)
         _ -> vxml
       }
@@ -35,7 +35,7 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
 
 type Param = #(String, String)
 //             ↖       ↖
-//             tag     attribute key
+//             tag     attr key
 type InnerParam = Param
 
 pub const name = "insert_attribute_as_text"
@@ -46,16 +46,16 @@ pub const name = "insert_attribute_as_text"
 //------------------------------------------------53
 /// Given arguments
 /// ```
-/// tag, attribute_key
+/// tag, attr_key
 /// ```
-/// insert the value of the attribute with key
-/// 'attribute_key' into the first line of the first
+/// insert the value of the attr with key
+/// 'attr_key' into the first line of the first
 /// text node child of the tag, or else as a text
 /// node unto itself if the first child is not a 
-/// text node. If the attribute doesn't exist, the node
-/// is left unchanged. The attribute value is used
+/// text node. If the attr doesn't exist, the node
+/// is left unchanged. The attr value is used
 /// as-is without any newline splitting. Empty
-/// attribute values are ignored.
+/// attr values are ignored.
 pub fn constructor(param: Param) -> Desugarer {
   Desugarer(
     name: name,

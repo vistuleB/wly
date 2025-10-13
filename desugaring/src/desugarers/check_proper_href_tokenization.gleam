@@ -25,11 +25,11 @@ fn remaining_properly_tokenized(
 }
 
 fn has_href(vxml: VXML) -> Bool {
-  infra.v_has_attribute_with_key(vxml, "href")
+  infra.v_has_attr_with_key(vxml, "href")
 }
 
 fn is_v_and_has_href(vxml: VXML) -> Bool {
-  infra.is_v_and_has_attribute_with_key(vxml, "href")
+  infra.is_v_and_has_attr_with_key(vxml, "href")
 }
 
 fn is_v_and_has_tag_starting_with(
@@ -56,7 +56,7 @@ fn nodemap(
           }
         }
         False, True -> {
-          case remaining_properly_tokenized(False, children), infra.attributes_have_key(attrs, "had_href_child") {
+          case remaining_properly_tokenized(False, children), infra.attrs_have_key(attrs, "had_href_child") {
             True, True -> Ok(vxml)
             False, True -> Error(infra.DesugaringError(vxml.blame, "found tokenization error (2a)"))
             True, False -> Error(infra.DesugaringError(vxml.blame, "found tokenization error (2b)"))

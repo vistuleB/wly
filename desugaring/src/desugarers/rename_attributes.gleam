@@ -3,11 +3,11 @@ import gleam/option
 import gleam/string.{inspect as ins}
 import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as infra
 import nodemaps_2_desugarer_transforms as n2t
-import vxml.{type VXML, T, V, type Attribute, Attribute}
+import vxml.{type VXML, T, V, type Attr, Attr}
 
-fn rename_maybe(attr: Attribute, inner: InnerParam) -> Attribute {
+fn rename_maybe(attr: Attr, inner: InnerParam) -> Attr {
   case infra.use_list_pair_as_dict(inner, attr.key) {
-    Ok(key) -> Attribute(..attr, key: key)
+    Ok(key) -> Attr(..attr, key: key)
     Error(_) -> attr
   }
 }
@@ -19,7 +19,7 @@ fn nodemap(
   case vxml {
     T(_, _) -> Ok(vxml)
     V(_, _, attrs, _) -> {
-      Ok(V(..vxml, attributes: list.map(attrs, rename_maybe(_, inner))))
+      Ok(V(..vxml, attrs: list.map(attrs, rename_maybe(_, inner))))
     }
   }
 }
@@ -49,7 +49,7 @@ pub const name = "rename_attributes"
 // 🏖️🏖️ Desugarer 🏖️🏖️
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 //------------------------------------------------53
-/// renames attribute keys
+/// renames attr keys
 pub fn constructor(param: Param) -> Desugarer {
   Desugarer(
     name: name,

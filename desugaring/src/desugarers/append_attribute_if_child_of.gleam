@@ -3,7 +3,7 @@ import gleam/option
 import gleam/string.{inspect as ins}
 import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as infra
 import nodemaps_2_desugarer_transforms as n2t
-import vxml.{type VXML, Attribute, V}
+import vxml.{type VXML, Attr, V}
 import blame as bl
 
 fn child_mapper(
@@ -11,17 +11,17 @@ fn child_mapper(
   inner: InnerParam
 ) -> VXML {
   case vxml {
-    V(_, child_tag, attributes, _) if child_tag == inner.0 -> {
-      let old_keys = infra.keys(attributes)
-      let attributes =
+    V(_, child_tag, attrs, _) if child_tag == inner.0 -> {
+      let old_keys = infra.keys(attrs)
+      let attrs =
         case list.contains(old_keys, inner.2) {
-          True -> attributes
+          True -> attrs
           False -> list.append(
-            attributes,
-            [Attribute(desugarer_blame(21), inner.2, inner.3)],
+            attrs,
+            [Attr(desugarer_blame(21), inner.2, inner.3)],
           )
         }
-      V(..vxml, attributes: attributes)
+      V(..vxml, attrs: attrs)
     }
     _ -> vxml
   }
@@ -65,9 +65,9 @@ fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
 // 🏖️🏖️ Desugarer 🏖️🏖️
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 //------------------------------------------------53
-/// adds an attribute-pair to a tag when it is the 
+/// adds an attr-pair to a tag when it is the 
 /// child of another specified tag; will not 
-/// overwrite if attribute with that key already
+/// overwrite if attr with that key already
 /// exists
 pub fn constructor(param: Param) -> Desugarer {
   Desugarer(

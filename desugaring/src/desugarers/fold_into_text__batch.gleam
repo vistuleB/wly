@@ -368,7 +368,7 @@ pub const name = "fold_into_text__batch"
 /// strings that are glued to surrounding text nodes
 /// (in end-of-last-line glued to beginning-of-first-line
 /// fashion), without regards for the tag's contents
-/// or attributes, that are destroyed in the process
+/// or attrs, that are destroyed in the process
 pub fn constructor(param: Param) -> Desugarer {
   Desugarer(
     name: name,

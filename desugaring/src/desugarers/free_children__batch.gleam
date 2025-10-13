@@ -16,13 +16,13 @@ fn nodemap(
   inner: InnerParam,
 ) -> List(VXML) {
   case node {
-    V(blame, tag, attributes, children) -> {
+    V(blame, tag, attrs, children) -> {
       children
       |> infra.either_or_misceginator(child_must_escape(_, tag, inner))
       |> infra.regroup_ors
       |> infra.map_either_ors(
         fn(either: VXML) -> VXML { either },
-        fn(or: List(VXML)) -> VXML { V(blame, tag, attributes, or) },
+        fn(or: List(VXML)) -> VXML { V(blame, tag, attrs, or) },
       )
     }
     _ -> [node]
@@ -97,7 +97,7 @@ pub const name = "free_children__batch"
 ///
 ///         B[child]
 ///
-/// with the original attribute values of A
+/// with the original attr values of A
 /// copied over to the newly created 'copies' of
 /// A
 pub fn constructor(param: Param) -> Desugarer {

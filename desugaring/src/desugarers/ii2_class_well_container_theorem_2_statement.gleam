@@ -2,7 +2,7 @@ import gleam/option
 import gleam/string
 import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as infra
 import nodemaps_2_desugarer_transforms as n2t
-import vxml.{type VXML, V, T, Attribute}
+import vxml.{type VXML, V, T, Attr}
 import blame as bl
 
 fn nodemap(
@@ -25,7 +25,7 @@ fn nodemap(
                     desugarer_blame(25),
                     "Statement",
                     [
-                      Attribute(desugarer_blame(28), "title", "*" <> title <> "*"),
+                      Attr(desugarer_blame(28), "title", "*" <> title <> "*"),
                     ],
                     rest,
                   )

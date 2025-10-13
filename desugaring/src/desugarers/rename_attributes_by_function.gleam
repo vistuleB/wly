@@ -2,10 +2,10 @@ import gleam/list
 import gleam/option
 import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as infra
 import nodemaps_2_desugarer_transforms as n2t
-import vxml.{type VXML, T, V, type Attribute, Attribute}
+import vxml.{type VXML, T, V, type Attr, Attr}
 
-fn rename_attribute_key(attr: Attribute, transform_fn: fn(String) -> String) -> Attribute {
-  Attribute(..attr, key: transform_fn(attr.key))
+fn rename_attr_key(attr: Attr, transform_fn: fn(String) -> String) -> Attr {
+  Attr(..attr, key: transform_fn(attr.key))
 }
 
 fn nodemap(
@@ -15,7 +15,7 @@ fn nodemap(
   case vxml {
     T(_, _) -> Ok(vxml)
     V(_, _, attrs, _) -> {
-      Ok(V(..vxml, attributes: list.map(attrs, rename_attribute_key(_, inner))))
+      Ok(V(..vxml, attrs: list.map(attrs, rename_attr_key(_, inner))))
     }
   }
 }
@@ -43,7 +43,7 @@ pub const name = "rename_attributes_by_function"
 // 🏖️🏖️ Desugarer 🏖️🏖️
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 //------------------------------------------------53
-/// renames attribute keys using a provided
+/// renames attr keys using a provided
 /// transformation function
 pub fn constructor(param: Param) -> Desugarer {
   Desugarer(

@@ -9,9 +9,9 @@ fn nodemap(
   inner: InnerParam,
 ) -> VXML {
   case vxml {
-    V(_, tag, attributes, _) if tag == inner.0 -> {
-      let attributes = infra.supplement_in_class_attribute(attributes, inner.1, inner.2)
-      V(..vxml, attributes: attributes)
+    V(_, tag, attrs, _) if tag == inner.0 -> {
+      let attrs = infra.supplement_in_class_attr(attrs, inner.1, inner.2)
+      V(..vxml, attrs: attrs)
     }
     _ -> vxml
   }

@@ -54,7 +54,7 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
 
 type Param = #(String,         String,          List(#(String, String)))
 //             ↖               ↖                ↖
-//             insert          tag name         attributes
+//             insert          tag name         attrs
 //             before tags     of new
 //             of this name    element
 type InnerParam = #(String, VXML)

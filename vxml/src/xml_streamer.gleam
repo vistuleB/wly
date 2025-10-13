@@ -42,7 +42,7 @@ pub fn event_digest(
 }
 
 pub type Event {
-  Newline(blame: Blame)                              // all newlines are recorded, can occur in or outside of a tag, but we don't support multi-line attributes so it will be outside of an attribute value
+  Newline(blame: Blame)                              // all newlines are recorded, can occur in or outside of a tag, but we don't support multi-line attrs so it will be outside of an attr value
 
   TagStartOrdinary(blame: Blame, load: String)       // "<name"
   TagStartXMLVersion(blame: Blame, load: String)     // "<?xml" or "<?XML"

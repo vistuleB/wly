@@ -13,8 +13,8 @@ import infrastructure.{
 } as infra
 import vxml.{
   type VXML,
-  type Attribute,
-  Attribute,
+  type Attr,
+  Attr,
   Line,
   V,
   T,
@@ -23,9 +23,9 @@ import nodemaps_2_desugarer_transforms as n2t
 import blame as bl
 import on
 
-const prev_page_id_attr = Attribute(bl.Des([], name, 26), "id", "prev-page")
-const next_page_id_attr = Attribute(bl.Des([], name, 27), "id", "next-page")
-const hr_id_attr = Attribute(bl.Des([], name, 27), "id", "bottom-menu-hr")
+const prev_page_id_attr = Attr(bl.Des([], name, 26), "id", "prev-page")
+const next_page_id_attr = Attr(bl.Des([], name, 27), "id", "next-page")
+const hr_id_attr = Attr(bl.Des([], name, 27), "id", "bottom-menu-hr")
 const hr = V(bl.Des([], name, 15), "hr", [hr_id_attr], [])
 
 type Title = List(VXML)
@@ -54,8 +54,8 @@ type Menu {
   Bottom
 }
 
-fn an_attribute(key: String, value: String) -> Attribute {
-  Attribute(desugarer_blame(58), key, value)
+fn an_attr(key: String, value: String) -> Attr {
+  Attr(desugarer_blame(58), key, value)
 }
 
 fn string_2_text_node(content: String) -> VXML {
@@ -70,7 +70,7 @@ fn homepage_link(homepage_url: String) -> VXML {
   V(
     desugarer_blame(71),
     "a",
-    an_attribute("href", homepage_url) |> into_list,
+    an_attr("href", homepage_url) |> into_list,
     string_2_text_node("zür Kursübersicht") |> into_list,
   )
 }
@@ -79,12 +79,12 @@ fn index_link() -> VXML {
   V(
     desugarer_blame(80),
     "a",
-    an_attribute("href", "./index.html") |> into_list,
+    an_attr("href", "./index.html") |> into_list,
     [
       V(
         desugarer_blame(85),
         "span",
-        an_attribute("class", "inhalts_arrows") |> into_list, 
+        an_attr("class", "inhalts_arrows") |> into_list, 
         "<< " |> string_2_text_node |> into_list,
       ),
       "Inhaltsverzeichnis" |> string_2_text_node
@@ -118,8 +118,8 @@ fn tooltip(
     desugarer_blame(118),
     "span",
     [
-      an_attribute("style", "visibility:hidden"),
-      an_attribute("id", p1 <> p2 <> "page-tooltip"),
+      an_attr("style", "visibility:hidden"),
+      an_attr("id", p1 <> p2 <> "page-tooltip"),
     ],
     page.title,
   )
@@ -130,10 +130,10 @@ fn page_link(
   relation: Relation,
   which: Menu,
 ) -> VXML {
-  let href_attribute = 
+  let href_attr = 
     page
     |> page_href
-    |> an_attribute("href", _)
+    |> an_attr("href", _)
 
   let #(prev_prefix, next_suffix) = case relation {
     Prev -> #("<< ", "")
@@ -149,7 +149,7 @@ fn page_link(
     desugarer_blame(149),
     "a",
     [
-      href_attribute,
+      href_attr,
     ],
     [
       content |> string_2_text_node,
@@ -170,18 +170,18 @@ fn left_right_links_2_menu(
   V(
     desugarer_blame(171),
     tag,
-    an_attribute("id", p1 <> "menu") |> into_list,
+    an_attr("id", p1 <> "menu") |> into_list,
     [
       V(
         desugarer_blame(176),
         "MenuLeft",
-        an_attribute("id", p1 <> "menu-left") |> into_list,
+        an_attr("id", p1 <> "menu-left") |> into_list,
         left,
       ),
       V(
         desugarer_blame(182),
         "MenuRight",
-        an_attribute("id", p1 <> "menu-right") |> into_list,
+        an_attr("id", p1 <> "menu-right") |> into_list,
         right,
       ),
     ],
@@ -201,7 +201,7 @@ fn data_2_menu(
         ],
         [
           data.next |> option.map(page_link(_, Next, which)),
-        ] |> option.values |> infra.map_first(infra.v_prepend_attribute(_, next_page_id_attr)),
+        ] |> option.values |> infra.map_first(infra.v_prepend_attr(_, next_page_id_attr)),
         which,
       )
 
@@ -218,10 +218,10 @@ fn data_2_menu(
         [
           data.prev |> option.map(page_link(_, Prev, which)),
           Some(index_link()),
-        ] |> option.values |> infra.map_first(infra.v_prepend_attribute(_, prev_page_id_attr)) |> list.reverse,
+        ] |> option.values |> infra.map_first(infra.v_prepend_attr(_, prev_page_id_attr)) |> list.reverse,
         [
           Some(data.homepage_url |> homepage_link()),
-          data.next |> option.map(page_link(_, Next, which)) |> option.map(infra.v_prepend_attribute(_, next_page_id_attr)),
+          data.next |> option.map(page_link(_, Next, which)) |> option.map(infra.v_prepend_attr(_, next_page_id_attr)),
         ] |> option.values,
         which,
       )
@@ -252,10 +252,10 @@ fn page_from_title(
     Ok(None),
   )
   let assert V(blame, _, attrs, title) = title
-  use chiron <- on.ok(infra.attributes_value_of_unique_key(attrs, "number-chiron", blame))
-  use ch_no <- on.ok(infra.attributes_value_of_unique_key(attrs, "ch_no", blame))
+  use chiron <- on.ok(infra.attrs_value_of_unique_key(attrs, "number-chiron", blame))
+  use ch_no <- on.ok(infra.attrs_value_of_unique_key(attrs, "ch_no", blame))
   let assert Ok(ch_no) = int.parse(ch_no)
-  let sub_no = case infra.attributes_value_of_unique_key(attrs, "sub_no", blame) {
+  let sub_no = case infra.attrs_value_of_unique_key(attrs, "sub_no", blame) {
     Ok(x) -> {
       let assert Ok(x) = int.parse(x)
       Some(x)
@@ -354,7 +354,7 @@ fn at_root(
   root: VXML
 ) -> Result(VXML, DesugaringError) {
   let homepage_url =
-    infra.v_value_of_first_attribute_with_key(root, "external")
+    infra.v_value_of_first_attr_with_key(root, "external")
     |> option.unwrap("")
 
   n2t.early_return_one_to_one_nodemap_traverse_tree(

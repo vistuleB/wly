@@ -13,7 +13,7 @@ fn nodemap(
 ) -> VXML {
   case vxml {
     V(_, tag, attrs, _) if tag == inner.0 ->
-      V(..vxml, tag: inner.1, attributes: infra.attributes_append_classes(attrs, our_blame, inner.2))
+      V(..vxml, tag: inner.1, attrs: infra.attrs_append_classes(attrs, our_blame, inner.2))
     _ -> vxml
   }
 }
@@ -42,7 +42,7 @@ pub const name = "rename_with_class"
 // 🏖️🏖️ Desugarer 🏖️🏖️
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 //------------------------------------------------53
-/// renames tags and adds attributes to them
+/// renames tags and adds attrs to them
 pub fn constructor(param: Param) -> Desugarer {
   Desugarer(
     name: name,

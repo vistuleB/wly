@@ -10,7 +10,7 @@ fn nodemap(
 ) -> VXML {
   case vxml {
     V(_, tag, [singleton], _) if tag == inner.0 && singleton.key == inner.2 && singleton.value == inner.3 ->
-      V(..vxml, tag: inner.1, attributes: [])
+      V(..vxml, tag: inner.1, attrs: [])
     _ -> vxml
   }
 }
@@ -39,7 +39,7 @@ pub const name = "rename_if_has_singleton_key_value"
 // 🏖️🏖️ Desugarer 🏖️🏖️
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 //------------------------------------------------53
-/// renames tags of a given tag whose attribute list
+/// renames tags of a given tag whose attr list
 /// consists of a specific key-value pair
 /// 
 /// removes the key-value pair, while at it

@@ -3,7 +3,7 @@ import gleam/list
 import gleam/option
 import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as infra
 import nodemaps_2_desugarer_transforms as n2t
-import vxml.{type VXML, Attribute, V, T, type Line, Line}
+import vxml.{type VXML, Attr, V, T, type Line, Line}
 
 fn detokenize_children(
   children: List(VXML),
@@ -31,9 +31,9 @@ fn detokenize_children(
           detokenize_children(rest, accumulated_lines, accumulated_nodes)
         }
 
-        V(blame, "__OneWord", attributes, _) -> {
+        V(blame, "__OneWord", attrs, _) -> {
           let assert [_, ..] = accumulated_lines
-          let assert [Attribute(_, "val", word)] = attributes
+          let assert [Attr(_, "val", word)] = attrs
           let accumulated_lines = append_word_to_accumlated_contents(blame, word)
           detokenize_children(rest, accumulated_lines, accumulated_nodes)
         }
@@ -61,9 +61,9 @@ fn detokenize_children(
           detokenize_children(rest, [], [first, ..accumulated_nodes])
         }
 
-        V(_, _, attributes, children) -> {
+        V(_, _, attrs, children) -> {
           let assert [] = accumulated_lines
-          case infra.attributes_have_key(attributes, "href") {
+          case infra.attrs_have_key(attrs, "href") {
             False -> detokenize_children(rest, [], [first, ..accumulated_nodes])
             True -> {
               let children = detokenize_children(children, [], [])
@@ -82,13 +82,13 @@ fn nodemap(
 ) -> VXML {
   case vxml {
     T(_, _) -> vxml
-    V(_, _, attributes, children) -> {
-      case infra.attributes_have_key(attributes, "had_href_child") {
+    V(_, _, attrs, children) -> {
+      case infra.attrs_have_key(attrs, "had_href_child") {
         False -> vxml
         True -> {
-          let attributes = list.filter(attributes, fn(x){x.key != "had_href_child"})
+          let attrs = list.filter(attrs, fn(x){x.key != "had_href_child"})
           let children = detokenize_children(children, [], [])
-          V(..vxml, attributes: attributes, children: children)
+          V(..vxml, attrs: attrs, children: children)
         }
       }
     }

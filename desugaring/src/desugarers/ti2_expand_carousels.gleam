@@ -2,7 +2,7 @@ import gleam/list
 import gleam/option.{None, Some}
 import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError, DesugaringError} as infra
 import nodemaps_2_desugarer_transforms as n2t
-import vxml.{type VXML, V, Attribute}
+import vxml.{type VXML, V, Attr}
 import blame as bl
 import on
 
@@ -14,18 +14,18 @@ fn nodemap(
       case children {
         [] -> {
           let #(src_attrs, attrs) = 
-            infra.attributes_extract_key_occurrences(attrs, "src")
+            infra.attrs_extract_key_occurrences(attrs, "src")
 
           use #(width_attr, attrs) <- on.ok(
-            infra.attributes_extract_unique_key_or_none(attrs, "width")
+            infra.attrs_extract_unique_key_or_none(attrs, "width")
           )
 
           use #(height_attr, attrs) <- on.ok(
-            infra.attributes_extract_unique_key_or_none(attrs, "height")
+            infra.attrs_extract_unique_key_or_none(attrs, "height")
           )
 
           use #(style_attr, attrs) <- on.ok(
-            infra.attributes_extract_unique_key_or_none(attrs, "style")
+            infra.attrs_extract_unique_key_or_none(attrs, "style")
           )
 
           use #(width_style, style_attr) <- on.ok(
@@ -38,7 +38,7 @@ fn nodemap(
 
           use width_style <- on.ok(
             case width_attr, width_style {
-              Some(x), Some(_) -> Error(DesugaringError(x.blame, "duplicate width definition via attribute and style element"))
+              Some(x), Some(_) -> Error(DesugaringError(x.blame, "duplicate width definition via attr and style element"))
               Some(x), None -> Ok("width:" <> x.value)
               None, Some(value) -> Ok("width:" <> value)
               None, None -> Ok("")
@@ -47,7 +47,7 @@ fn nodemap(
 
           use height_style <- on.ok(
             case height_attr, height_style {
-              Some(x), Some(_) -> Error(DesugaringError(x.blame, "duplicate height definition via attribute and style element"))
+              Some(x), Some(_) -> Error(DesugaringError(x.blame, "duplicate height definition via attr and style element"))
               Some(x), None -> Ok("height:" <> x.value)
               None, Some(value) -> Ok("height:" <> value)
               None, None -> Ok("")
@@ -56,9 +56,9 @@ fn nodemap(
 
           let item_style_attr = case width_style, height_style {
             "", "" -> None
-            _, "" -> Some(Attribute(desugarer_blame(59), "style", width_style))
-            "", _ -> Some(Attribute(desugarer_blame(60), "style", height_style))
-            _, _ -> Some(Attribute(desugarer_blame(61), "style", width_style <> ";" <> height_style))
+            _, "" -> Some(Attr(desugarer_blame(59), "style", width_style))
+            "", _ -> Some(Attr(desugarer_blame(60), "style", height_style))
+            _, _ -> Some(Attr(desugarer_blame(61), "style", width_style <> ";" <> height_style))
           }
 
           let items = case item_style_attr {
@@ -89,12 +89,12 @@ fn nodemap(
         }
 
         _ -> {
-          // check if there are any src attributes - error if there are
+          // check if there are any src attrs - error if there are
           case list.any(attrs, fn(attr) { attr.key == "src" }) {
             True ->
               Error(DesugaringError(
                 blame,
-                "Carousel cannot have src attribute and children at the same time"
+                "Carousel cannot have src attr and children at the same time"
               ))
             False -> Ok(vxml)
           }
@@ -157,8 +157,8 @@ type InnerParam = Nil
 ///
 /// Validates that compressed Carousel has:
 /// - No children
-/// - Only src, width, and height attributes
-/// - At least one src attribute
+/// - Only src, width, and height attrs
+/// - At least one src attr
 pub fn constructor() -> Desugarer {
   Desugarer(
     name: name,
@@ -271,9 +271,9 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
 // Note: Error testing infrastructure is not available,
 // so we only include assertive tests for valid cases.
 // Invalid cases that would result in DesugaringError at runtime:
-// - Multiple width attributes: "Carousel should have only one width attribute."
-// - Multiple height attributes: "Carousel should have only one height attribute."
-// - src attributes with children: "Carousel cannot have src attribute and children at the same time."
+// - Multiple width attrs: "Carousel should have only one width attr."
+// - Multiple height attrs: "Carousel should have only one height attr."
+// - src attrs with children: "Carousel cannot have src attr and children at the same time."
 
 pub fn assertive_tests() {
   infra.assertive_test_collection_from_data_no_param(name, assertive_tests_data(), constructor)

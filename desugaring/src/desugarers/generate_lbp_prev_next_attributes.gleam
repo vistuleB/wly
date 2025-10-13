@@ -8,11 +8,11 @@ import infrastructure.{
   Desugarer,
   DesugaringError,
 } as infra
-import vxml.{type VXML, Attribute, V}
+import vxml.{type VXML, Attr, V}
 import nodemaps_2_desugarer_transforms as n2t
 
 fn prepend_link(vxml: VXML, link_value: String, link_key: String) -> VXML {
-  infra.v_prepend_attribute(vxml, Attribute(vxml.blame, link_key, link_value))
+  infra.v_prepend_attr(vxml, Attr(vxml.blame, link_key, link_value))
 }
 
 fn add_links_to_chapter(vxml: VXML, number: Int, num_chapters: Int) -> VXML {

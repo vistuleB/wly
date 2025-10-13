@@ -71,7 +71,7 @@ pub const name = "append_class_to_children_with_class"
 //------------------------------------------------53
 /// checks all children of a given parent tag for
 /// existence of a specific class value and if found,
-/// appends a new class value to the class attribute.
+/// appends a new class value to the class attr.
 /// takes tuples of (parent_tag, list_of_class_mappings).
 pub fn constructor(param: Param) -> Desugarer {
   Desugarer(

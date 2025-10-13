@@ -9,7 +9,7 @@ import infrastructure.{
   DesugaringError,
 } as infra
 import gleam/option
-import vxml.{type VXML, V, T, Line, Attribute}
+import vxml.{type VXML, V, T, Line, Attr}
 import blame as bl
 import nodemaps_2_desugarer_transforms as n2t
 import on
@@ -96,7 +96,7 @@ fn construct_breadcrumb(children: List(VXML), target_id: String, index: Int) -> 
   let link = V(
     desugarer_blame(97),
     "InChapterLink",
-    [Attribute(desugarer_blame(99), "href", "?id=" <> target_id)],
+    [Attr(desugarer_blame(99), "href", "?id=" <> target_id)],
     children
   )
 
@@ -104,8 +104,8 @@ fn construct_breadcrumb(children: List(VXML), target_id: String, index: Int) -> 
     desugarer_blame(104),
     "BreadcrumbItem",
     [
-      Attribute(desugarer_blame(107), "class", "breadcrumb"),
-      Attribute(desugarer_blame(108), "id", "breadcrumb-" <> ins(index)),
+      Attr(desugarer_blame(107), "class", "breadcrumb"),
+      Attr(desugarer_blame(108), "id", "breadcrumb-" <> ins(index)),
     ],
     [
       link

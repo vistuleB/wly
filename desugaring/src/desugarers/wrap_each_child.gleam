@@ -10,10 +10,10 @@ fn nodemap(
   inner: InnerParam,
 ) -> #(VXML, TrafficLight) {
   case vxml {
-    V(blame, tag, attributes, children) if tag == inner.0 -> {
+    V(blame, tag, attrs, children) if tag == inner.0 -> {
         let new_children =
           list.map(children, fn(x) { V(blame, inner.1, [], [x]) })
-        #(V(blame, tag, attributes, new_children), GoBack)
+        #(V(blame, tag, attrs, new_children), GoBack)
     }
     _ -> #(vxml, Continue)
   }

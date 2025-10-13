@@ -8,7 +8,7 @@ import gleam/result
 import gleam/string.{inspect as ins}
 import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError, DesugaringError} as infra
 import nodemaps_2_desugarer_transforms as n2t
-import vxml.{type VXML, Attribute, Line, T, V}
+import vxml.{type VXML, Attr, Line, T, V}
 import xmlm
 
 type LinkPatternToken {
@@ -38,7 +38,7 @@ fn word_to_node(blame: Blame, word: String) {
   V(
     blame,
     "__OneWord",
-    [Attribute(infra.blame_us("..."), "val", word)],
+    [Attr(infra.blame_us("..."), "val", word)],
     [],
   )
 }
@@ -76,7 +76,7 @@ fn deatomize_vxmls(
     [first, ..rest] -> {
       case first {
         V(blame, "__OneWord", attributes, _) -> {
-          let assert [Attribute(_, "val", word)] = attributes
+          let assert [Attr(_, "val", word)] = attributes
           let accumulated_contents = append_word_to_accumlated_contents(blame, word)
           deatomize_vxmls(rest, accumulated_contents, accumulated_nodes)
         }
@@ -386,7 +386,7 @@ fn atomize_text_node(vxml: VXML) -> List(VXML) {
     |> list.filter(fn(node) {
       case node {
         V(_, "__OneWord", attr, _) -> {
-          let assert [Attribute(_, "val", word)] = attr
+          let assert [Attr(_, "val", word)] = attr
           !{ word |> string.is_empty }
         }
         _ -> True
@@ -454,9 +454,9 @@ fn xmlm_tag_name(t: xmlm.Tag) -> String {
   ze_name
 }
 
-fn xmlm_attribute_equals(t: xmlm.Attribute, name: String) -> Bool {
+fn xmlm_attribute_equals(t: xmlm.Attr, name: String) -> Bool {
   case t {
-    xmlm.Attribute(xmlm.Name(_, ze_name), _) if ze_name == name -> True
+    xmlm.Attr(xmlm.Name(_, ze_name), _) if ze_name == name -> True
     _ -> False
   }
 }
@@ -492,7 +492,7 @@ fn match_tag_and_children(
   let class_attribute =
     xmlm_tag.attributes
     |> list.find(xmlm_attribute_equals(_, "class"))
-  let xmlm.Attribute(_, value) =
+  let xmlm.Attr(_, value) =
     href_attribute
   use value <- on.ok(
     int.parse(value)
@@ -505,7 +505,7 @@ fn match_tag_and_children(
   )
   let classes = case class_attribute {
     Ok(x) -> {
-      let xmlm.Attribute(_, value) = x
+      let xmlm.Attr(_, value) = x
       value
     }
     Error(_) -> ""

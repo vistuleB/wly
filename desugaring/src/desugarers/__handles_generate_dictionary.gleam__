@@ -4,26 +4,26 @@ import gleam/option.{type Option, Some, None}
 import gleam/string
 import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError, DesugaringError} as infra
 import nodemaps_2_desugarer_transforms as n2t
-import vxml.{type Attribute, type VXML, Attribute, V}
+import vxml.{type Attr, type VXML, Attr, V}
 import blame.{type Blame} as bl
 import splitter as sp
 import on
 
 fn grand_wrapper_attributes(
   handles: HandlesDict,
-) -> List(Attribute) {
+) -> List(Attr) {
   handles
   |> dict.map_values(
     fn (key, value) {
       let #(value, id, path, _) = value
-      Attribute(desugarer_blame(19), "handle", key <> "|" <> value <> "|" <> id <> "|" <> path)
+      Attr(desugarer_blame(19), "handle", key <> "|" <> value <> "|" <> id <> "|" <> path)
     }
   )
   |> dict.values
 }
 
 fn try_read_handle(
-  attr: Attribute
+  attr: Attr
 ) -> Result(#(String, String, String), DesugaringError) {
   assert attr.key == "handle"
   case string.split(attr.value, "|") {
@@ -49,11 +49,11 @@ fn try_insert_handle(
 }
 
 fn attributes_fold(
-  not_handles_acc: List(Attribute),
-  remaining: List(Attribute),
+  not_handles_acc: List(Attr),
+  remaining: List(Attr),
   handles: HandlesDict,
   path: String,
-) -> Result(#(HandlesDict, List(Attribute)), DesugaringError) {
+) -> Result(#(HandlesDict, List(Attr)), DesugaringError) {
   use first, rest <- on.empty_nonempty(
     remaining,
     Ok(#(handles, not_handles_acc |> list.reverse))
@@ -70,7 +70,7 @@ fn attributes_fold(
 }
 
 fn check_no_handles(
-  attrs: List(Attribute)
+  attrs: List(Attr)
 ) -> Result(List(Nil), DesugaringError) {
   list.try_map(
     attrs,
@@ -93,7 +93,7 @@ fn update_path(
 ) -> State {
   let assert V(_, _, _, _) = node
   case infra.v_first_attribute_with_key(node, inner) {
-    Some(Attribute(_, _, value)) -> State(..state, path: Some(value))
+    Some(Attr(_, _, value)) -> State(..state, path: Some(value))
     None -> state
   }
 }

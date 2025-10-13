@@ -18,7 +18,7 @@ fn nodemap(
 ) -> Result(#(VXML, TrafficLight), DesugaringError) {
   case vxml {
     V(_, tag, attrs, _) if tag == inner.0 -> {
-      use maybe <- on.ok(infra.attributes_unique_key_or_none(attrs, inner.1))
+      use maybe <- on.ok(infra.attrs_unique_key_or_none(attrs, inner.1))
       case maybe {
         None -> Ok(#(vxml, Continue))
         Some(x) -> Ok(

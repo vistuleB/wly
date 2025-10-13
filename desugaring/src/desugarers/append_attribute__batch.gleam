@@ -3,7 +3,7 @@ import gleam/list
 import gleam/option
 import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as infra
 import nodemaps_2_desugarer_transforms as n2t
-import vxml.{type Attribute, Attribute, type VXML, T, V}
+import vxml.{type Attr, Attr, type VXML, T, V}
 import blame as bl
 
 fn nodemap(
@@ -12,15 +12,15 @@ fn nodemap(
 ) -> VXML {
   case vxml {
     T(_, _) -> vxml
-    V(blame, tag, attributes, children) -> {
+    V(blame, tag, attrs, children) -> {
       case dict.get(inner, tag) {
-        Ok(new_attributes) -> {
+        Ok(new_attrs) -> {
           V(
             blame,
             tag,
             list.flatten([
-              attributes,
-              new_attributes,
+              attrs,
+              new_attrs,
             ]),
             children,
           )
@@ -43,7 +43,7 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
   param
   |> list.map(
     fn(t) {
-      #(t.0, Attribute(
+      #(t.0, Attr(
         desugarer_blame(47),
         t.1,
         t.2,
@@ -57,7 +57,7 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
 type Param = List(#(String, String, String))
 //                  ↖       ↖       ↖
 //                  tag     key     value
-type InnerParam = Dict(String, List(Attribute))
+type InnerParam = Dict(String, List(Attr))
 
 pub const name = "append_attribute__batch"
 fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
@@ -70,10 +70,10 @@ fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
 /// ```
 /// #(tag, key, value)
 /// ```
-/// and appends an attribute key=value to the list 
-/// of attributes of each v-node of tag 'tag'. The 
+/// and appends an attr key=value to the list 
+/// of attrs of each v-node of tag 'tag'. The 
 /// 'tag' value can be repeated in the list, and all
-/// attributes for that tag will be added.
+/// attrs for that tag will be added.
 pub fn constructor(param: Param) -> Desugarer {
   Desugarer(
     name: name,

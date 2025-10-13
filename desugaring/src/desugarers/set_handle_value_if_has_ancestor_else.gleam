@@ -3,9 +3,9 @@ import gleam/list
 import gleam/string.{inspect as ins}
 import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as infra
 import nodemaps_2_desugarer_transforms as n2t
-import vxml.{ type VXML, V, type Attribute, Attribute}
+import vxml.{ type VXML, V, type Attr, Attr}
 
-fn map_attribute(attr: Attribute, state: State, inner: InnerParam) -> Attribute {
+fn map_attr(attr: Attr, state: State, inner: InnerParam) -> Attr {
   case attr.key {
     "handle" -> {
       case attr.value |> string.split_once(" ") {
@@ -18,7 +18,7 @@ fn map_attribute(attr: Attribute, state: State, inner: InnerParam) -> Attribute 
             True -> inner.2
             False -> inner.3
           }
-          Attribute(..attr, value: attr.value <> " " <> appended_value)
+          Attr(..attr, value: attr.value <> " " <> appended_value)
         }
       }
     }
@@ -36,7 +36,7 @@ fn v_before_nodemap(
   case tag == inner.0 {
     False -> #(vxml, state)
     True -> {
-      #(V(..vxml, attributes: attrs |> list.map(map_attribute(_, state, inner))), state)
+      #(V(..vxml, attrs: attrs |> list.map(map_attr(_, state, inner))), state)
     }
   }
 }
@@ -73,7 +73,7 @@ pub const name = "set_handle_value_if_has_ancestor_else"
 // 🏖️🏖️ Desugarer 🏖️🏖️
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 //------------------------------------------------53
-/// append value to handle attribute based on
+/// append value to handle attr based on
 /// if it has the given ancestor or else append
 /// the else version
 pub fn constructor(param: Param) -> Desugarer {

@@ -18,9 +18,9 @@ fn nodemap(
         fn(_, _) { #(node, GoBack) },
       )
 
-      // return early if we don't have a attribute_key == inner.2:
-      use attribute, _ <- on.empty_nonempty(
-        infra.v_attributes_with_key(node, inner.2),
+      // return early if we don't have a attr_key == inner.2:
+      use attr, _ <- on.empty_nonempty(
+        infra.v_attrs_with_key(node, inner.2),
         #(node, GoBack),
       )
 
@@ -32,7 +32,7 @@ fn nodemap(
               desugarer_blame(32),
               inner.1,
               [],
-              [T(attribute.blame, [Line(attribute.blame, attribute.value)])],
+              [T(attr.blame, [Line(attr.blame, attr.value)])],
             ),
             ..node.children,
           ]
@@ -59,7 +59,7 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
 
 type Param = #(String, String, String)
 //             ↖       ↖       ↖        
-//             parent  child   attribute
+//             parent  child   attr
 //             tag     tag              
 type InnerParam = Param
 
@@ -72,13 +72,13 @@ fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
 //------------------------------------------------53
 /// Given first 3 arguments
 /// ```
-/// parent_tag, child_tag, attribute_key
+/// parent_tag, child_tag, attr_key
 /// ```
 /// will, for each node of tag `parent_tag`,
 /// generate, if the node has no existing children
 /// tag `child_tag`, by using the value of 
-/// attribute_key as the contents of the child of 
-/// tag child_tag. If no such attribute exists, does
+/// attr_key as the contents of the child of 
+/// tag child_tag. If no such attr exists, does
 /// nothing to the node of tag parent_tag.
 /// 
 /// Early-returns from subtree rooted at parent_tag.

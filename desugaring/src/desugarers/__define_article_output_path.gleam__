@@ -6,7 +6,7 @@ import infrastructure.{
   DesugaringError, Pipe,
 } as infra
 import nodemaps_2_desugarer_transforms as n2t
-import vxml.{type VXML, Attribute, T, V}
+import vxml.{type VXML, Attr, T, V}
 
 fn define_article_output_path_transform(
   node: VXML,
@@ -20,7 +20,7 @@ fn define_article_output_path_transform(
       let #(index, new_attribute) = case tag == t {
         True -> {
           #(index + 1, [
-            Attribute(
+            Attr(
               b,
               key,
               path <> string.inspect(index),

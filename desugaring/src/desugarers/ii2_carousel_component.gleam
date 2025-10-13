@@ -20,7 +20,7 @@ fn nodemap(
         on_true: Ok(T(blame, [])),
       )
       use <- on.true_false(
-        infra.v_first_attribute_with_key(vxml, "data-slide-to") |> option.is_some,
+        infra.v_first_attr_with_key(vxml, "data-slide-to") |> option.is_some,
         on_true: Ok(T(blame, [])),
       )
       // carousel
@@ -31,11 +31,11 @@ fn nodemap(
       // vxml is node with carousel class
       // get only images from children
       let images = infra.descendants_with_tag(vxml, "img")
-      let attributes = case infra.v_has_key_value(vxml, "id", "cyk-demo") {
-        True -> [vxml.Attribute(blame, "jumpToLast", "true")]
+      let attrs = case infra.v_has_key_value(vxml, "id", "cyk-demo") {
+        True -> [vxml.Attr(blame, "jumpToLast", "true")]
         False -> []
       }
-      let carousel_node = V(blame, "Carousel", attributes, images)
+      let carousel_node = V(blame, "Carousel", attrs, images)
       Ok(carousel_node)
     }
     _ -> Ok(vxml)

@@ -3,7 +3,7 @@ import gleam/option
 import gleam/string.{inspect as ins}
 import infrastructure.{type DesugaringError, type Pipe,} as infra
 import nodemaps_2_desugarer_transforms as n2t
-import vxml.{type VXML, BlamedAttribute, V}
+import vxml.{type VXML, BlamedAttr, V}
 
 fn try_prepend_link(vxml: VXML, link_value: String, class: String) -> VXML {
   case link_value {
@@ -15,8 +15,8 @@ fn try_prepend_link(vxml: VXML, link_value: String, class: String) -> VXML {
           vxml.blame,
           "a",
           [
-            BlamedAttribute(vxml.blame, "class", class),
-            BlamedAttribute(vxml.blame, "href", link_value),
+            BlamedAttr(vxml.blame, "class", class),
+            BlamedAttr(vxml.blame, "href", link_value),
           ],
           [],
         ),

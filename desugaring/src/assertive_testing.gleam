@@ -149,31 +149,37 @@ fn run_assertive_test_collection(test_group: AssertiveTestCollection) -> Bool {
 pub fn run_assertive_desugarer_tests_on(
   desugarer_names names: List(String),
 ) {
-  let colls = list.map(dl.assertive_tests, fn(constructor){constructor()})
+  let collections = list.map(dl.assertive_tests, fn(constructor){constructor()})
+
   let #(all, dont_have_tests) =
     list.fold(
-      colls,
+      collections,
       #([], []),
-      fn(acc, coll) {
-        case list.length(coll.tests()) > 0 {
+      fn(acc, collection) {
+        case list.length(collection.tests()) > 0 {
           True -> #(
-            [coll.desugarer_name, ..acc.0],
+            [collection, ..acc.0],
             acc.1,
           )
           False -> #(
-            [coll.desugarer_name, ..acc.0],
-            [coll.desugarer_name, ..acc.1],
+            [collection, ..acc.0],
+            [collection, ..acc.1],
           )
         }
       }
     )
 
+  let all_names = all |> list.map(fn(c) { c.desugarer_name })
+
   let names = case list.is_empty(names) {
-    True -> all
+    True -> all_names
     False -> names
   }
 
-  let dont_have_tests = list.filter(dont_have_tests, list.contains(names, _))
+  let dont_have_tests = list.filter(
+    dont_have_tests,
+    fn(c) { list.contains(names, c.desugarer_name) }
+  )
 
   case list.is_empty(dont_have_tests) {
     True -> Nil
@@ -182,7 +188,7 @@ pub fn run_assertive_desugarer_tests_on(
       io.println("the following desugarers have empty test data:")
       list.each(
         dont_have_tests |> list.reverse,
-        fn(name) { io.println(" - " <> name)}
+        fn(c) { io.println(" - " <> c.desugarer_name) }
       )
     }
   }
@@ -190,7 +196,7 @@ pub fn run_assertive_desugarer_tests_on(
   io.println("")
   let #(num_performed, num_failed) =
     list.fold(
-      colls,
+      collections,
       #(0, 0),
       fn(acc, coll) {
         case {
@@ -220,7 +226,8 @@ pub fn run_assertive_desugarer_tests_on(
     }
   )
 
-  let desugarers_with_no_test_group = list.filter(names, fn(name) { !list.contains(all, name)})
+  let desugarers_with_no_test_group = list.filter(names, fn(name) { !list.contains(all_names, name)})
+
   case list.is_empty(desugarers_with_no_test_group) {
     True -> Nil
     False -> {

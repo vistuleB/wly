@@ -4,10 +4,10 @@ import gleam/pair
 import gleam/string.{inspect as ins}
 import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as infra
 import nodemaps_2_desugarer_transforms as n2t
-import vxml.{type Attribute, type VXML, T, V}
+import vxml.{type Attr, type VXML, T, V}
 
 fn matches_all_key_value_pairs(
-  attrs: List(Attribute),
+  attrs: List(Attr),
   key_value_pairs: List(#(String, String)),
 ) -> Bool {
   list.all(key_value_pairs, fn(key_value) {
@@ -51,7 +51,7 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
 
 type Param = List(#(String, List(#(String, String))))
 //              ↖       ↖
-//              tag     attributes to match
+//              tag     attrs to match
 
 type InnerParam = Param
 
@@ -61,7 +61,7 @@ pub const name = "unwrap_tags_if_attributes_match"
 // 🏖️🏖️ Desugarer 🏖️🏖️
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 //------------------------------------------------53
-/// unwraps tags if all specified attributes match
+/// unwraps tags if all specified attrs match
 pub fn constructor(param: Param) -> Desugarer {
   Desugarer(
     name: name,

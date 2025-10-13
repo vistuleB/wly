@@ -536,7 +536,7 @@ pub fn basic_cli_usage() {
   io.println("")
   io.println(margin <> "--only <key1=val1> <key2=val2> ...")
   io.println(margin <> "  -> restrict source to elements that have at least one of the")
-  io.println(margin <> "     given key-value pairs as attributes (& ancestors of such)")
+  io.println(margin <> "     given key-value pairs as attrs (& ancestors of such)")
   io.println("")
   io.println(margin <> "--table / --no-table")
   io.println(margin <> "  -> force / suppress a printout of the pipeline table in the")
@@ -665,7 +665,7 @@ pub fn process_command_line_arguments(
         "--only" -> {
           let args =
             values
-            |> list.map(parse_attribute_value_args_in_filename)
+            |> list.map(parse_attr_value_args_in_filename)
             |> list.flatten()
           Ok(amendments |> amend_only_args(args))
         }
@@ -839,7 +839,7 @@ fn amend_only_args(
   )
 }
 
-fn parse_attribute_value_args_in_filename(
+fn parse_attr_value_args_in_filename(
   path: String,
 ) -> List(#(String, String, String)) {
   let assert [path, ..args] = string.split(path, "&")
@@ -993,22 +993,22 @@ fn parse_track_args(
 
   let #(with_ancestors, values) = infra.delete(values, "with-ancestors")
   let #(with_elder_siblings, values) = infra.delete(values, "with-elder-siblings")
-  let #(with_attributes, values) = infra.delete(values, "with-attributes")
-  let #(with_ancestor_attributes, values) = infra.delete(values, "with-ancestor-attributes")
-  let #(with_elder_sibling_attributes, values) = infra.delete(values, "with-elder-sibling-attributes")
+  let #(with_attrs, values) = infra.delete(values, "with-attrs")
+  let #(with_ancestor_attrs, values) = infra.delete(values, "with-ancestor-attrs")
+  let #(with_elder_sibling_attrs, values) = infra.delete(values, "with-elder-sibling-attrs")
 
-  let with_elder_sibling_attributes = with_elder_sibling_attributes || with_attributes
-  let with_ancestor_attributes = with_ancestor_attributes || with_elder_sibling_attributes
-  let with_elder_siblings = with_elder_siblings || with_elder_sibling_attributes
-  let with_ancestors = with_ancestors || with_elder_siblings || with_ancestor_attributes
+  let with_elder_sibling_attrs = with_elder_sibling_attrs || with_attrs
+  let with_ancestor_attrs = with_ancestor_attrs || with_elder_sibling_attrs
+  let with_elder_siblings = with_elder_siblings || with_elder_sibling_attrs
+  let with_ancestors = with_ancestors || with_elder_siblings || with_ancestor_attrs
 
   let selector = case with_ancestors {
     False -> selector
     True -> infra.extend_selector_to_ancestors(
       selector,
       with_elder_siblings,
-      with_ancestor_attributes,
-      with_elder_sibling_attributes,
+      with_ancestor_attrs,
+      with_elder_sibling_attrs,
     )
   }
 

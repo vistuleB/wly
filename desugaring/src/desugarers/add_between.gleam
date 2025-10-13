@@ -57,7 +57,7 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
 
 type Param = #(String,          String, String,         List(#(String, String)))
 //             ↖                ↗       ↖               ↖
-//             insert divs              tag name for    attributes for
+//             insert divs              tag name for    attrs for
 //             between adjacent         new element     new element
 //             siblings of these
 //             two names

@@ -40,7 +40,7 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
       let #(old_tag, new_tag, text, attrs) = renaming
       let attrs_converted = list.map(attrs, fn(attr) {
         let #(key, value) = attr
-        vxml.Attribute(desugarer_blame(43), key, value)
+        vxml.Attr(desugarer_blame(43), key, value)
       })
       #(old_tag, #(new_tag, text, attrs_converted))
     })
@@ -51,10 +51,10 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
 type Param =
   List(#(String, String, String, List(#(String, String))))
 //       ↖       ↖        ↖      ↖
-//       old_tag new_tag  text   list of attributes as key value pairs
+//       old_tag new_tag  text   list of attrs as key value pairs
 
 type InnerParam =
-  Dict(String, #(String, String, List(vxml.Attribute)))
+  Dict(String, #(String, String, List(vxml.Attr)))
 
 pub const name = "rename_with_appended_attributes_and_prepended_text"
 fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
@@ -63,7 +63,7 @@ fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
 // 🏖️🏖️ Desugarer 🏖️🏖️
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 //------------------------------------------------53
-/// renames tags while adding attributes and
+/// renames tags while adding attrs and
 /// prepending a new text node as the first child
 /// of the renamed tag
 pub fn constructor(param: Param) -> Desugarer {

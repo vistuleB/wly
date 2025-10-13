@@ -35,7 +35,7 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
 
 type Param = #(String,          String,         List(#(String, String)))
 //             ↖                ↖               ↖
-//             prepend node     tag name for    attributes for
+//             prepend node     tag name for    attrs for
 //             with this tag    new element     new element
 type InnerParam = #(String, VXML)
 
