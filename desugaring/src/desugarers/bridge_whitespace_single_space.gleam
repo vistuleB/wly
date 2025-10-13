@@ -8,7 +8,7 @@ import infrastructure.{
   Desugarer,
 } as infra
 import nodemaps_2_desugarer_transforms as n2t
-import vxml.{type VXML, TextLine, T, V}
+import vxml.{type VXML, Line, T, V}
 import blame as bl
 
 fn accumulator(
@@ -155,7 +155,7 @@ fn accumulator(
             }
           )
           let whitespace = case any_space_or_newline {
-            True -> [[TextLine(desugarer_blame(158), " ")]]
+            True -> [[Line(desugarer_blame(158), " ")]]
             False -> []
           }
           let all_lists = list.flatten([

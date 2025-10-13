@@ -4,15 +4,15 @@ import gleam/string
 import gleam/result
 import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as infra
 import nodemaps_2_desugarer_transforms as n2t
-import vxml.{type TextLine, type VXML, Attribute, TextLine, T, V}
+import vxml.{type Line, type VXML, Attribute, Line, T, V}
 import blame as bl
 
 const newline_t =
   T(
     bl.Des([], name, 12),
     [
-      TextLine(bl.Des([], name, 14), ""),
-      TextLine(bl.Des([], name, 15), ""),
+      Line(bl.Des([], name, 14), ""),
+      Line(bl.Des([], name, 15), ""),
     ]
   )
 
@@ -50,11 +50,11 @@ const response_span =
     [],
   )
 
-fn line_2_t(line: TextLine) -> VXML {
+fn line_2_t(line: Line) -> VXML {
   T(line.blame, [line])
 }
 
-fn elements_for_line(line: TextLine) -> List(VXML) {
+fn elements_for_line(line: Line) -> List(VXML) {
   let #(before, after) =
     string.split_once(line.content, "<- ")
     |> result.unwrap(
@@ -66,18 +66,18 @@ fn elements_for_line(line: TextLine) -> List(VXML) {
   let after_blame = bl.advance(line.blame, string.length(before) + 2)
   case before == terminal_prompt {
     False -> [
-      prompt_span |> infra.v_prepend_child(line_2_t(TextLine(line.blame, before))),
-      response_span |> infra.v_prepend_child(line_2_t(TextLine(after_blame, after))),
+      prompt_span |> infra.v_prepend_child(line_2_t(Line(line.blame, before))),
+      response_span |> infra.v_prepend_child(line_2_t(Line(after_blame, after))),
     ]
     True -> [
-      terminal_prompt_span |> infra.v_prepend_child(line_2_t(TextLine(line.blame, before))),
-      terminal_prompt_content_span |> infra.v_prepend_child(line_2_t(TextLine(after_blame, after))),
+      terminal_prompt_span |> infra.v_prepend_child(line_2_t(Line(line.blame, before))),
+      terminal_prompt_content_span |> infra.v_prepend_child(line_2_t(Line(after_blame, after))),
     ]
   }
 }
 
 fn process_lines(
-  lines: List(TextLine),
+  lines: List(Line),
 ) -> List(VXML) {
   lines
   |> list.fold([], fn(acc, line) {[elements_for_line(line), ..acc]})

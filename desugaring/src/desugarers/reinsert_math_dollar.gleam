@@ -4,7 +4,7 @@ import gleam/option
 import gleam/string.{inspect as ins}
 import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as infra
 import nodemaps_2_desugarer_transforms as n2t
-import vxml.{type VXML, TextLine, T, V}
+import vxml.{type VXML, Line, T, V}
 
 type Where {
   First
@@ -16,17 +16,17 @@ fn insert_dollar(node: VXML, dollar: String, where: Where) -> List(VXML) {
   case node {
     T(blame, contents) -> {
       case where {
-        First -> [T(blame, [TextLine(blame, dollar), ..contents])]
+        First -> [T(blame, [Line(blame, dollar), ..contents])]
         Last -> [
-          T(blame, list.append(contents, [TextLine(blame, dollar)])),
+          T(blame, list.append(contents, [Line(blame, dollar)])),
         ]
         Both -> [
           T(
             blame,
             list.flatten([
-              [TextLine(blame, dollar)],
+              [Line(blame, dollar)],
               contents,
-              [TextLine(blame, dollar)],
+              [Line(blame, dollar)],
             ]),
           ),
         ]
@@ -34,12 +34,12 @@ fn insert_dollar(node: VXML, dollar: String, where: Where) -> List(VXML) {
     }
     V(blame, _, _, _) -> {
       case where {
-        First -> [T(blame, [TextLine(blame, dollar)]), node]
-        Last -> [node, T(blame, [TextLine(blame, dollar)])]
+        First -> [T(blame, [Line(blame, dollar)]), node]
+        Last -> [node, T(blame, [Line(blame, dollar)])]
         Both -> [
-          T(blame, [TextLine(blame, dollar)]),
+          T(blame, [Line(blame, dollar)]),
           node,
-          T(blame, [TextLine(blame, dollar)]),
+          T(blame, [Line(blame, dollar)]),
         ]
       }
     }

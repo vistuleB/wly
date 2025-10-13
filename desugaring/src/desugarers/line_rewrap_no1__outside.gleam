@@ -3,7 +3,7 @@ import gleam/option
 import gleam/string.{inspect as ins}
 import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as infra
 import nodemaps_2_desugarer_transforms as n2t
-import vxml.{type VXML, T, V, TextLine }
+import vxml.{type VXML, T, V, Line }
 
 fn line_wrap_in_list(
   already_wrapped: List(VXML),
@@ -40,7 +40,7 @@ fn line_wrap_in_list(
       let #(deficit, already_wrapped) = case deficit > inner.0 {
         True -> #(
           infra.total_chars(first),
-          [first, T(first.blame, [TextLine(first.blame, "")]), ..already_wrapped]
+          [first, T(first.blame, [Line(first.blame, "")]), ..already_wrapped]
         )
         False -> #(deficit, [first, ..already_wrapped])
       }

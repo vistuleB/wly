@@ -2,7 +2,7 @@ import gleam/list
 import gleam/option.{None}
 import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as infra
 import nodemaps_2_desugarer_transforms as n2t
-import vxml.{type TextLine, type VXML, Attribute, T, V}
+import vxml.{type Line, type VXML, Attribute, T, V}
 import blame as bl
 import on
 
@@ -17,7 +17,7 @@ const bol_span =
 const empty_line =
   T(
     bl.Des([], name, 19),
-    [vxml.TextLine(bl.Des([], name, 20), "")],
+    [vxml.Line(bl.Des([], name, 20), "")],
   )
 
 const bol_span_with_texts = [
@@ -25,7 +25,7 @@ const bol_span_with_texts = [
   bol_span,
 ]
 
-fn line_2_t(line: TextLine) -> VXML {
+fn line_2_t(line: Line) -> VXML {
   T(line.blame, [line])
 }
 

@@ -3,13 +3,13 @@ import gleam/option.{None}
 import gleam/string
 import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as infra
 import nodemaps_2_desugarer_transforms as n2t
-import vxml.{type TextLine, type VXML, Attribute, TextLine, T, V}
+import vxml.{type Line, type VXML, Attribute, Line, T, V}
 import blame as bl
 import on
 
 const t_1_empty_line = T(
   bl.Des([], name, 11),
-  [TextLine(bl.Des([], name, 12), "")]
+  [Line(bl.Des([], name, 12), "")]
 )
 
 const orange =
@@ -20,24 +20,24 @@ const orange =
     [],
   )
 
-fn line_2_t(line: TextLine) -> VXML {
+fn line_2_t(line: Line) -> VXML {
   T(line.blame, [line])
 }
 
-fn elements_for_line(line: TextLine) -> List(VXML) {
+fn elements_for_line(line: Line) -> List(VXML) {
   case string.split_once(line.content, "//") {
     Error(_) -> [line_2_t(line)]
     Ok(#(before, after)) -> {
       let after_blame = bl.advance(line.blame, string.length(before) + 2)
-      let before = line_2_t(TextLine(line.blame, before))
-      let orange = orange |> infra.v_prepend_child(line_2_t(TextLine(after_blame, after)))
+      let before = line_2_t(Line(line.blame, before))
+      let orange = orange |> infra.v_prepend_child(line_2_t(Line(after_blame, after)))
       [before, orange, t_1_empty_line]
     }
   }
 }
 
 fn process_orange_comment_lines(
-  lines: List(TextLine),
+  lines: List(Line),
 ) -> List(VXML) {
   lines
   |> list.fold([], fn(acc, line) { infra.pour(elements_for_line(line), acc)})

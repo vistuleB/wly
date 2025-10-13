@@ -4,7 +4,7 @@ import gleam/option
 import gleam/string.{inspect as ins}
 import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as infra
 import nodemaps_2_desugarer_transforms as n2t
-import vxml.{type VXML, TextLine, T, V}
+import vxml.{type VXML, Line, T, V}
 import blame.{type Blame} as bl
 
 fn substitute_blames_in(node: VXML, new_blame: Blame) -> VXML {
@@ -12,7 +12,7 @@ fn substitute_blames_in(node: VXML, new_blame: Blame) -> VXML {
   T(
     new_blame,
     list.map(lines, fn(line) {
-      TextLine(new_blame, line.content)
+      Line(new_blame, line.content)
     }),
   )
 }
@@ -21,15 +21,15 @@ fn last_line_concatenate_with_first_line(node1: VXML, node2: VXML) -> VXML {
   let assert T(blame1, lines1) = node1
   let assert T(_, lines2) = node2
 
-  let assert [TextLine(blame_last, content_last), ..other_lines1] =
+  let assert [Line(blame_last, content_last), ..other_lines1] =
     lines1 |> list.reverse
-  let assert [TextLine(_, content_first), ..other_lines2] = lines2
+  let assert [Line(_, content_first), ..other_lines2] = lines2
 
   T(
     blame1,
     list.flatten([
       other_lines1 |> list.reverse,
-      [TextLine(blame_last, content_last <> content_first)],
+      [Line(blame_last, content_last <> content_first)],
       other_lines2,
     ]),
   )
@@ -84,14 +84,14 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
       T(
         desugarer_blame(85),
         list.map(contents1, fn(content) {
-          TextLine(desugarer_blame(87), content)
+          Line(desugarer_blame(87), content)
         }),
       )
     let v2 =
       T(
         desugarer_blame(92),
         list.map(contents2, fn(content) {
-          TextLine(desugarer_blame(94), content)
+          Line(desugarer_blame(94), content)
         }),
       )
     #(tag, #(v1, v2))

@@ -2,7 +2,7 @@ import gleam/option.{Some}
 import gleam/string.{inspect as ins}
 import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as infra
 import nodemaps_2_desugarer_transforms as n2t
-import vxml.{ type VXML, TextLine, T, V, Attribute}
+import vxml.{ type VXML, Line, T, V, Attribute}
 import blame as bl
 
 fn nodemap(
@@ -16,7 +16,7 @@ fn nodemap(
           V(..vxml, children: [
             T(
               desugarer_blame(18),
-              [TextLine(desugarer_blame(19), value)]
+              [Line(desugarer_blame(19), value)]
             ),
             ..children
           ])

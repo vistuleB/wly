@@ -7,7 +7,7 @@ import gleam/result
 import gleam/string.{inspect as ins}
 import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError, DesugaringError} as infra
 import nodemaps_2_desugarer_transforms as n2t
-import vxml.{type VXML, T, V, Attribute, TextLine}
+import vxml.{type VXML, T, V, Attribute, Line}
 import blame.{type Blame} as bl
 import on
 
@@ -535,7 +535,7 @@ fn vxml_to_link_pattern(
   re: regexp.Regexp,
 ) -> Result(LinkPattern, DesugaringError) {
   case vxml {
-    T(_, [TextLine(_, content)]) ->
+    T(_, [Line(_, content)]) ->
       text_to_link_pattern(content, re)
 
     T(_, lines) ->

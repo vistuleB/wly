@@ -3,7 +3,7 @@ import gleam/string
 import gleam/list
 import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as infra
 import nodemaps_2_desugarer_transforms as n2t
-import vxml.{type VXML, V, T, Attribute, TextLine}
+import vxml.{type VXML, V, T, Attribute, Line}
 import xml_streamer as xs
 import blame.{type Blame} as bl
 
@@ -11,8 +11,8 @@ const newline_t =
   T(
     bl.Des([], name, 11),
     [
-      TextLine(bl.Des([], name, 13), ""),
-      TextLine(bl.Des([], name, 14), ""),
+      Line(bl.Des([], name, 13), ""),
+      Line(bl.Des([], name, 14), ""),
     ]
   )
 
@@ -21,7 +21,7 @@ fn span(blame: Blame, class: String, content: String) -> VXML {
     blame,
     "span",
     [Attribute(desugarer_blame(23), "class", class)],
-    [T(blame, [TextLine(blame, content)])],
+    [T(blame, [Line(blame, content)])],
   )
 }
 
@@ -60,7 +60,7 @@ fn nodemap(
                         xs.InTagWhitespace(b, load) -> {
                           assert !string.contains(load, "\n")
                           assert !string.contains(load, "\r")
-                          [T(b, [TextLine(b, load)])]
+                          [T(b, [Line(b, load)])]
                         }
                         xs.Key(b, load) ->
                           [span(b, "xml-2", load)]

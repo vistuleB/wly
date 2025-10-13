@@ -12,7 +12,7 @@ import infrastructure.{
 import vxml.{
   type VXML,
   Attribute,
-  TextLine,
+  Line,
   V,
   T,
 }
@@ -65,7 +65,7 @@ fn header(document: VXML) -> VXML {
           Attribute(b, "class", "index__header__title"),
         ],
         [
-          T(b, [TextLine(b, title)]),
+          T(b, [Line(b, title)]),
         ],
       ),
       V(
@@ -75,9 +75,9 @@ fn header(document: VXML) -> VXML {
           Attribute(b, "class", "index__header__subtitle"),
         ],
         [
-          T(b, [TextLine(b, program)]),
+          T(b, [Line(b, program)]),
           V(b, "br", [], []),
-          T(b, [TextLine(b, lecturer <> ", " <> institution)]),
+          T(b, [Line(b, lecturer <> ", " <> institution)]),
         ],
       ),
     ]

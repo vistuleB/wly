@@ -4,7 +4,7 @@ import gleam/option
 import gleam/string
 import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as infra
 import nodemaps_2_desugarer_transforms as n2t
-import vxml.{ type VXML, TextLine, T, V }
+import vxml.{ type VXML, Line, T, V }
 
 fn nodemap(
   vxml: VXML,
@@ -21,7 +21,7 @@ fn nodemap(
               blame,
               list.map(
                 contents,
-                fn (content) { TextLine(blame, content) }
+                fn (content) { Line(blame, content) }
               )
             )
           V(blame, tag, attrs, [new_text_node, ..children])

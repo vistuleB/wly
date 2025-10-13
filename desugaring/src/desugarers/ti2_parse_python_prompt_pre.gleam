@@ -3,15 +3,15 @@ import gleam/option
 import gleam/string
 import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as infra
 import nodemaps_2_desugarer_transforms as n2t
-import vxml.{type TextLine, type VXML, Attribute, TextLine, T, V}
+import vxml.{type Line, type VXML, Attribute, Line, T, V}
 import blame as bl
 
 const newline_t =
   T(
     bl.Des([], name, 11),
     [
-      TextLine(bl.Des([], name, 13), ""),
-      TextLine(bl.Des([], name, 14), ""),
+      Line(bl.Des([], name, 13), ""),
+      Line(bl.Des([], name, 14), ""),
     ]
   )
 
@@ -19,10 +19,10 @@ const terminal_prompt = "user@home:~$"
 const terminal_prompt_length = 12
 
 type PythonPromptChunk {
-  TerminalPrompt(TextLine)
-  PromptLine(TextLine)
-  OkResponseLines(List(TextLine))
-  ErrorResponseLines(List(TextLine))
+  TerminalPrompt(Line)
+  PromptLine(Line)
+  OkResponseLines(List(Line))
+  ErrorResponseLines(List(Line))
 }
 
 fn python_prompt_chunk_to_vxmls(
@@ -39,7 +39,7 @@ fn python_prompt_chunk_to_vxmls(
           [
             T(
               line.blame,
-              [TextLine(line.blame, terminal_prompt)]
+              [Line(line.blame, terminal_prompt)]
             )
           ]
         ),
@@ -50,7 +50,7 @@ fn python_prompt_chunk_to_vxmls(
           [
             T(
               bl.advance(line.blame, z),
-              [TextLine(bl.advance(line.blame, z), line.content |> string.drop_start(z))]
+              [Line(bl.advance(line.blame, z), line.content |> string.drop_start(z))]
             )
           ]
         )
@@ -65,7 +65,7 @@ fn python_prompt_chunk_to_vxmls(
           [
             T(
               line.blame,
-              [TextLine(line.blame, ">>>")]
+              [Line(line.blame, ">>>")]
             )
           ]
         ),
@@ -76,7 +76,7 @@ fn python_prompt_chunk_to_vxmls(
           [
             T(
               bl.advance(line.blame, 3),
-              [TextLine(bl.advance(line.blame, 3), line.content |> string.drop_start(3))]
+              [Line(bl.advance(line.blame, 3), line.content |> string.drop_start(3))]
             )
           ]
         )
@@ -115,7 +115,7 @@ fn python_prompt_chunk_to_vxmls(
   }
 }
 
-fn process_python_prompt_lines(lines: List(TextLine)) -> List(PythonPromptChunk) {
+fn process_python_prompt_lines(lines: List(Line)) -> List(PythonPromptChunk) {
   lines
   |> infra.either_or_misceginator(fn(line) {
     string.starts_with(line.content, ">>>") || string.starts_with(line.content, terminal_prompt)

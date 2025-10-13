@@ -4,11 +4,11 @@ import gleam/option
 import gleam/string.{inspect as ins}
 import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as infra
 import nodemaps_2_desugarer_transforms as n2t
-import vxml.{ type VXML, T, V, TextLine }
+import vxml.{ type VXML, T, V, Line }
 import blame.{ Des }
 
 const const_blame = Des([], name, 9)
-const one_empty_line = T(const_blame, [TextLine(const_blame, "")])
+const one_empty_line = T(const_blame, [Line(const_blame, "")])
 
 fn line_wrap_in_list(
   already_wrapped: List(VXML),

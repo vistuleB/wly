@@ -3,7 +3,7 @@ import gleam/list
 import gleam/string.{inspect as ins}
 import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as infra
 import nodemaps_2_desugarer_transforms as n2t
-import vxml.{type VXML, type TextLine, V, T, TextLine}
+import vxml.{type VXML, type Line, V, T, Line}
 import blame.{type Blame} as bl
 import on
 import splitter as sp
@@ -12,7 +12,7 @@ fn t_1_line(
   b: Blame,
   c: String
 ) -> VXML {
-  T(b, [TextLine(b, c)])
+  T(b, [Line(b, c)])
 }
 
 fn get_to_zero(
@@ -36,7 +36,7 @@ fn get_to_zero(
 }
 
 fn line_map(
-  l: TextLine,
+  l: Line,
   inner: InnerParam,
 ) -> List(VXML) {
   let blame = l.blame
@@ -58,11 +58,11 @@ fn line_map(
       let #(href_bef, href_af) = pair
       let continue_with_bef = before <> "](" <> href_bef <> " "
       let continue_with_af = href_af <> ")" <> after
-      let assert [first, ..rest] = line_map(TextLine(bl.advance(blame, string.length(continue_with_bef)), continue_with_af), inner)
+      let assert [first, ..rest] = line_map(Line(bl.advance(blame, string.length(continue_with_bef)), continue_with_af), inner)
       case first {
         T(_, lines) -> {
           let assert [first, ..more] = lines
-          [T(blame, [TextLine(blame, continue_with_bef <> first.content), ..more]), ..rest]
+          [T(blame, [Line(blame, continue_with_bef <> first.content), ..more]), ..rest]
         }
         V(..) -> [t_1_line(blame, continue_with_bef), ..rest]
       }
@@ -82,7 +82,7 @@ fn line_map(
           [],
         ),
         ..line_map(
-          TextLine(
+          Line(
             bl.advance(blame, string.length(before) + string.length(maybe_href) + 3),
             after,
           ),
@@ -105,7 +105,7 @@ fn line_map(
           [],
         ),
         ..line_map(
-          TextLine(
+          Line(
             bl.advance(blame, string.length(before) + string.length(href) + 3),
             after,
           ),
@@ -116,11 +116,11 @@ fn line_map(
     Error(_) -> {
       let continue_with_bef = before <> "]("
       let continue_with_af = original_after
-      let assert [first, ..rest] = line_map(TextLine(bl.advance(blame, string.length(continue_with_bef)), continue_with_af), inner)
+      let assert [first, ..rest] = line_map(Line(bl.advance(blame, string.length(continue_with_bef)), continue_with_af), inner)
       case first {
         T(_, lines) -> {
           let assert [first, ..more] = lines
-          [T(blame, [TextLine(blame, continue_with_bef <> first.content), ..more]), ..rest]
+          [T(blame, [Line(blame, continue_with_bef <> first.content), ..more]), ..rest]
         }
         V(..) -> [t_1_line(blame, continue_with_bef), ..rest]
       }

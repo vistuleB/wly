@@ -2,15 +2,15 @@ import gleam/list
 import gleam/option.{None}
 import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as infra
 import nodemaps_2_desugarer_transforms as n2t
-import vxml.{type VXML, T, V, TextLine}
+import vxml.{type VXML, T, V, Line}
 import blame as bl
 
 const newline_t =
   T(
     bl.Des([], name, 11),
     [
-      TextLine(bl.Des([], name, 13), ""),
-      TextLine(bl.Des([], name, 14), ""),
+      Line(bl.Des([], name, 13), ""),
+      Line(bl.Des([], name, 14), ""),
     ]
   )
 

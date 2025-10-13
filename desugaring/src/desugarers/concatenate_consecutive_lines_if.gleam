@@ -2,14 +2,14 @@ import gleam/list
 import gleam/option
 import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as infra
 import nodemaps_2_desugarer_transforms as n2t
-import vxml.{ type VXML, V, T, type TextLine, TextLine }
+import vxml.{ type VXML, V, T, type Line, Line }
 
 fn lines_folder(
   condition: fn(String, String) -> Bool,
-  bundled: List(TextLine),
-  current: TextLine,
-  remaining: List(TextLine),
-) -> List(TextLine) {
+  bundled: List(Line),
+  current: Line,
+  remaining: List(Line),
+) -> List(Line) {
   case remaining {
     [] -> [current, ..bundled] |> list.reverse
     [first, ..rest] -> case condition(current.content, first.content) {
@@ -17,7 +17,7 @@ fn lines_folder(
       True -> lines_folder(
         condition,
         bundled,
-        TextLine(current.blame, current.content <> first.content), 
+        Line(current.blame, current.content <> first.content), 
         rest,
       )
     }

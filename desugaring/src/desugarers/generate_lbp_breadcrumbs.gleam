@@ -9,7 +9,7 @@ import infrastructure.{
   DesugaringError,
 } as infra
 import gleam/option
-import vxml.{type VXML, V, T, TextLine, Attribute}
+import vxml.{type VXML, V, T, Line, Attribute}
 import blame as bl
 import nodemaps_2_desugarer_transforms as n2t
 import on
@@ -41,7 +41,7 @@ fn remove_period(nodes: List(VXML)) -> List(VXML) {
 fn lowercase_t(t: VXML) -> VXML{
   let assert T(b, contents) = t
   contents
-  |> list.map(fn(line) { TextLine(..line, content: string.lowercase(line.content)) })
+  |> list.map(fn(line) { Line(..line, content: string.lowercase(line.content)) })
   |> T(b, _)
 }
 
@@ -100,7 +100,7 @@ fn generate_sections_list(
     [one] -> {
       [
         construct_breadcrumb(
-          [T(one.blame, [TextLine(one.blame, "exercises")])],
+          [T(one.blame, [Line(one.blame, "exercises")])],
           "exercises",
           list.length(sections_nodes)
         )

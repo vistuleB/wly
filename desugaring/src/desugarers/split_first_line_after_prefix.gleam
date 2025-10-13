@@ -2,7 +2,7 @@ import gleam/option
 import gleam/string.{inspect as ins}
 import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as infra
 import nodemaps_2_desugarer_transforms as n2t
-import vxml.{type VXML, V, T, TextLine}
+import vxml.{type VXML, V, T, Line}
 import blame as bl
 
 fn do_it(
@@ -23,7 +23,7 @@ fn do_it(
             True -> T(
               blame,
               [
-                TextLine(first.blame, prefix),
+                Line(first.blame, prefix),
                 ..rest
               ]
             )
@@ -33,8 +33,8 @@ fn do_it(
               T(
                 blame,
                 [
-                  TextLine(first.blame, prefix),
-                  TextLine(scnd_blame, trimmed_end),
+                  Line(first.blame, prefix),
+                  Line(scnd_blame, trimmed_end),
                   ..rest,
                 ]
               )

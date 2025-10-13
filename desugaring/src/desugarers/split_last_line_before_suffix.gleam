@@ -3,7 +3,7 @@ import gleam/list
 import gleam/string.{inspect as ins}
 import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as infra
 import nodemaps_2_desugarer_transforms as n2t
-import vxml.{type VXML, V, T, TextLine}
+import vxml.{type VXML, V, T, Line}
 import blame as bl
 
 fn do_it(
@@ -26,15 +26,15 @@ fn do_it(
             True -> T(
               blame,
               [
-                TextLine(suffix_blame, suffix), ..rest
+                Line(suffix_blame, suffix), ..rest
               ] |> list.reverse
             )
             False -> {
               T(
                 blame,
                 [
-                  TextLine(suffix_blame, suffix),
-                  TextLine(first.blame, trimmed_start),
+                  Line(suffix_blame, suffix),
+                  Line(first.blame, trimmed_start),
                   ..rest,
                 ] |> list.reverse
               )

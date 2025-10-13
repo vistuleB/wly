@@ -2,7 +2,7 @@ import gleam/option
 import gleam/string.{inspect as ins}
 import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError, type TrafficLight, Continue, GoBack} as infra
 import nodemaps_2_desugarer_transforms as n2t
-import vxml.{type VXML, V, T, TextLine}
+import vxml.{type VXML, V, T, Line}
 import blame as bl
 import on
 
@@ -32,7 +32,7 @@ fn nodemap(
               desugarer_blame(32),
               inner.1,
               [],
-              [T(attribute.blame, [TextLine(attribute.blame, attribute.value)])],
+              [T(attribute.blame, [Line(attribute.blame, attribute.value)])],
             ),
             ..node.children,
           ]

@@ -10,7 +10,7 @@ import gleam/result
 import gleam/regexp.{type Regexp}
 import gleam/string.{inspect as ins}
 import simplifile
-import vxml.{type Attribute, type TextLine, type VXML, Attribute, TextLine, T, V}
+import vxml.{type Attribute, type Line, type VXML, Attribute, Line, T, V}
 import dirtree as dt
 import splitter
 import on
@@ -42,12 +42,12 @@ pub type Writerly {
   )
   Blurb(
     blame: Blame,
-    lines: List(TextLine),
+    lines: List(Line),
   )
   CodeBlock(
     blame: Blame,
     attributes: List(Attribute),
-    lines: List(TextLine),
+    lines: List(Line),
   )
   Tag(
     blame: Blame,
@@ -123,11 +123,11 @@ type NonemptySuffixDiagnostic {
 
 type TentativeWriterly {
   TentativeBlankLine(blame: Blame)
-  TentativeBlurb(blame: Blame, contents: List(TextLine))
+  TentativeBlurb(blame: Blame, contents: List(Line))
   TentativeCodeBlock(
     blame: Blame,
     attributes: List(TentativeAttribute),
-    contents: List(TextLine),
+    contents: List(Line),
   )
   TentativeTag(
     blame: Blame,
@@ -371,7 +371,7 @@ fn fast_forward_past_attribute_lines_at_indent(
 fn fast_forward_past_other_lines_at_indent(
   indent: Int,
   head: FileHead,
-) -> #(List(TextLine), FileHead) {
+) -> #(List(Line), FileHead) {
   case current_line(head) {
     None -> #([], head)
 
@@ -387,7 +387,7 @@ fn fast_forward_past_other_lines_at_indent(
             True -> #([], head)
 
             False -> {
-              let line = TextLine(blame, suffix)
+              let line = Line(blame, suffix)
 
               let #(more_lines, head_after_others) =
                 fast_forward_past_other_lines_at_indent(
@@ -410,7 +410,7 @@ fn fast_forward_past_other_lines_at_indent(
 fn fast_forward_to_closing_backticks(
   indent: Int,
   head: FileHead,
-) -> Result(#(List(TextLine), FileHead), ClosingBackTicksError) {
+) -> Result(#(List(Line), FileHead), ClosingBackTicksError) {
   case current_line(head) {
     None -> Error(NoBackticksFound(head))
 
@@ -420,7 +420,7 @@ fn fast_forward_to_closing_backticks(
           case fast_forward_to_closing_backticks(indent, move_forward(head)) {
             Ok(#(lines, head_after_closing_backticks)) -> {
               let line =
-                TextLine(
+                Line(
                   blame,
                   string.repeat(" ", int.max(0, suffix_indent - indent)),
                 )
@@ -444,7 +444,7 @@ fn fast_forward_to_closing_backticks(
               let assert True = padded_suffix_length >= string.length(suffix)
               let padded_suffix =
                 string.pad_start(suffix, to: padded_suffix_length, with: " ")
-              let line = TextLine(blame, padded_suffix)
+              let line = Line(blame, padded_suffix)
 
               case
                 suffix_indent > indent || !string.starts_with(suffix, "```")
@@ -507,14 +507,14 @@ fn tentative_first_non_blank_line_is_blurb(
   }
 }
 
-fn remove_starting_escapes(contents: List(TextLine)) -> List(TextLine) {
+fn remove_starting_escapes(contents: List(Line)) -> List(Line) {
   let assert Ok(re) = regexp.from_string("^\\\\+\\s")
   list.map(contents, fn(line) {
     let new_content = case regexp.check(re, line.content) {
       False -> line.content
       True -> line.content |> string.drop_start(1)
     }
-    TextLine(line.blame, new_content)
+    Line(line.blame, new_content)
   })
 }
 
@@ -882,7 +882,7 @@ fn tentative_parse_at_indent(
                       }
 
                     Other(_) -> {
-                      let line = TextLine(blame, suffix)
+                      let line = Line(blame, suffix)
 
                       let #(more_lines, head_after_others) =
                         fast_forward_past_other_lines_at_indent(
@@ -1016,14 +1016,14 @@ fn tentative_error_blame_and_type_and_message(
 }
 
 fn line_to_output_line(
-  line: TextLine,
+  line: Line,
   indentation: Int,
 ) -> OutputLine {
   OutputLine(line.blame, indentation, line.content)
 }
 
 fn lines_to_output_lines(
-  lines: List(TextLine),
+  lines: List(Line),
   indentation: Int,
 ) -> List(OutputLine) {
   lines
@@ -1190,9 +1190,9 @@ pub fn writerly_annotate_blames(writerly: Writerly) -> Writerly {
       Blurb(
         blame |> pc("Blurb"),
         list.index_map(lines, fn(line, i) {
-          TextLine(
+          Line(
             line.blame
-              |> pc("Blurb > TextLine(" <> ins(i + 1) <> ")"),
+              |> pc("Blurb > Line(" <> ins(i + 1) <> ")"),
             line.content,
           )
         }),
@@ -1203,9 +1203,9 @@ pub fn writerly_annotate_blames(writerly: Writerly) -> Writerly {
         blame |> pc("CodeBlock:" <> annotation),
         attrs,
         list.index_map(lines, fn(line, i) {
-          TextLine(
+          Line(
             line.blame
-              |> pc("CodeBlock > TextLine(" <> ins(i + 1) <> ")"),
+              |> pc("CodeBlock > Line(" <> ins(i + 1) <> ")"),
             line.content,
           )
         }),
@@ -1702,10 +1702,10 @@ fn escape_left_spaces_in_string(s: String) -> String {
 }
 
 fn escape_left_spaces(
-  contents: List(TextLine),
-) -> List(TextLine) {
+  contents: List(Line),
+) -> List(Line) {
   list.map(contents, fn(line) {
-    TextLine(
+    Line(
       line.blame,
       line.content |> escape_left_spaces_in_string,
     )

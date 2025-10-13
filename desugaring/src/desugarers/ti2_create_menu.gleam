@@ -15,7 +15,7 @@ import vxml.{
   type VXML,
   type Attribute,
   Attribute,
-  TextLine,
+  Line,
   V,
   T,
 }
@@ -59,7 +59,7 @@ fn an_attribute(key: String, value: String) -> Attribute {
 }
 
 fn string_2_text_node(content: String) -> VXML {
-  T(desugarer_blame(62), [TextLine(desugarer_blame(62), content)])
+  T(desugarer_blame(62), [Line(desugarer_blame(62), content)])
 }
 
 fn into_list(a: a) -> List(a) {

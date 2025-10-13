@@ -3,7 +3,7 @@ import gleam/option.{type Option}
 import gleam/string.{inspect as ins}
 import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as infra
 import nodemaps_2_desugarer_transforms as n2t
-import vxml.{type VXML, T, V, TextLine}
+import vxml.{type VXML, T, V, Line}
 import blame as bl
 
 fn accumulator(
@@ -20,7 +20,7 @@ fn accumulator(
     let lines = 
       inner.1(node)
       |> string.split("\n")
-      |> list.map(fn(s) { TextLine(blame, s ) })
+      |> list.map(fn(s) { Line(blame, s ) })
     T(blame, lines)
   }
 
@@ -374,7 +374,7 @@ fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no )}
 ///
 /// The text replacement is folded into surrounding
 /// text nodes in last-line-to-first-line fashion.
-/// Newlines inside the string start a new TextLine.
+/// Newlines inside the string start a new Line.
 pub fn constructor(param: Param) -> Desugarer {
   Desugarer(
     name: name,

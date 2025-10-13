@@ -3,7 +3,7 @@ import gleam/option.{None, Some}
 import gleam/regexp.{type Regexp}
 import gleam/string.{inspect as ins}
 import infrastructure as infra
-import vxml.{type TextLine, type VXML, Attribute, TextLine, T, V}
+import vxml.{type Line, type VXML, Attribute, Line, T, V}
 import blame.{type Blame} as bl
 import on
 
@@ -40,7 +40,7 @@ pub fn split_content_with_replacement(
 ) -> List(VXML) {
   use <- on.true_false(
     content == "",
-    [T(blame, [TextLine(blame, content)])]
+    [T(blame, [Line(blame, content)])]
   )
 
   let splits = regexp.split(w.re, content)
@@ -60,8 +60,8 @@ pub fn split_content_with_replacement(
       let updated_blame = bl.advance(blame, acc)
       let node_replacement = case instruction {
         Trash -> None
-        Keep -> Some([T(updated_blame, [TextLine(updated_blame, split)])])
-        DropLast -> Some([T(updated_blame, [TextLine(updated_blame, string.drop_end(split, 1))])])
+        Keep -> Some([T(updated_blame, [Line(updated_blame, split)])])
+        DropLast -> Some([T(updated_blame, [Line(updated_blame, string.drop_end(split, 1))])])
         Tag(tag) -> Some([V(updated_blame, tag, [], [])])
         TagWithAttribute(tag, key) -> Some([V(
           updated_blame,
@@ -79,14 +79,14 @@ pub fn split_content_with_replacement(
           updated_blame,
           tag,
           [],
-          [T(updated_blame, [TextLine(updated_blame, split)])],
+          [T(updated_blame, [Line(updated_blame, split)])],
         )])
         TagFwdText(tag, txt) -> Some([
           V(updated_blame, tag, [], []),
-          T(updated_blame, [TextLine(updated_blame, txt)]),
+          T(updated_blame, [Line(updated_blame, txt)]),
         ])
         TagBwdText(tag, txt) -> Some([
-          T(updated_blame, [TextLine(updated_blame, txt)]),
+          T(updated_blame, [Line(updated_blame, txt)]),
           V(updated_blame, tag, [], []),
         ])
       }
@@ -102,7 +102,7 @@ pub fn split_content_with_replacement(
 }
 
 fn split_blamed_line_with_replacement(
-  line: TextLine,
+  line: Line,
   w: RegexpWithGroupReplacementInstructions,
 ) -> List(VXML) {
   split_content_with_replacement(line.blame, line.content, w)

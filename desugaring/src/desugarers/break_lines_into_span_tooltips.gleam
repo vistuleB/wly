@@ -3,11 +3,11 @@ import gleam/option
 import gleam/string.{inspect as ins}
 import infrastructure.{ type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError } as infra
 import nodemaps_2_desugarer_transforms as n2t
-import vxml.{ type TextLine, type VXML, Attribute, TextLine, T, V }
+import vxml.{ type Line, type VXML, Attribute, Line, T, V }
 import blame as bl
 
 fn line_to_tooltip_span(
-  line: TextLine,
+  line: Line,
   inner: InnerParam,
 ) -> VXML {
   let location =
@@ -30,7 +30,7 @@ fn line_to_tooltip_span(
           Attribute(line.blame, "class", "tooltip-3003-text")
         ],
         [
-          T(line.blame, [TextLine(line.blame, line.content)])
+          T(line.blame, [Line(line.blame, line.content)])
         ],
       ),
       V(
@@ -41,7 +41,7 @@ fn line_to_tooltip_span(
           Attribute(line.blame, "onClick", "sendCmdTo3003('code --goto " <> location <> "');"),
         ],
         [
-          T(line.blame, [TextLine(line.blame, location)])
+          T(line.blame, [Line(line.blame, location)])
         ],
       ),
     ],
@@ -62,7 +62,7 @@ fn nodemap(
           lines
             |> list.map(line_to_tooltip_span(_, inner))
             |> list.intersperse(
-              T(blame, [TextLine(blame, ""), TextLine(blame, "")]),
+              T(blame, [Line(blame, ""), Line(blame, "")]),
             ),
         ),
       ]

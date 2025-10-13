@@ -3,7 +3,7 @@ import gleam/list
 import gleam/string.{inspect as ins}
 import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError, type TrafficLight, Continue, GoBack} as infra
 import nodemaps_2_desugarer_transforms as n2t
-import vxml.{ type VXML, TextLine, T, V }
+import vxml.{ type VXML, Line, T, V }
 import blame as bl
 
 fn nodemap(
@@ -35,7 +35,7 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
       desugarer_blame(35),
       param.1
       |> string.split("\n")
-      |> list.map(TextLine(desugarer_blame(38), _))
+      |> list.map(Line(desugarer_blame(38), _))
     )
   )
   |> Ok
@@ -60,7 +60,7 @@ fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
 /// prepends a text node wit content 'text' to nodes
 /// of tag 'tag'. The newline character can be
 /// included in 'text', which will be translated to
-/// >1 TextLine.
+/// >1 Line.
 ///
 /// Early-returns from nodes of tag 'tag'.
 pub fn constructor(param: Param) -> Desugarer {

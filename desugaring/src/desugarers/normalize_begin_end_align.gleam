@@ -3,7 +3,7 @@ import gleam/option
 import gleam/string.{inspect as ins}
 import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError, type LatexDelimiterPair, DoubleDollar} as infra
 import nodemaps_2_desugarer_transforms as n2t
-import vxml.{type VXML, type TextLine, TextLine, V, T}
+import vxml.{type VXML, type Line, Line, V, T}
 import blame as bl
 
 fn do_if(f, b) {
@@ -14,11 +14,11 @@ fn do_if(f, b) {
 }
 
 fn split_and_insert_before_unless_allowable_ending_found_ez_version(
-  lines: List(TextLine),
+  lines: List(Line),
   splitter: String,                      // this will be called with splitter == "\begin{align"
   allowable_endings: List(String),       // this will almost always be ["$$"], but could be ["\[", "$$"] for ex
   if_no_allowable_found_insert: String,  // will almost always be "$$"
-) -> List(TextLine) {
+) -> List(Line) {
   let blame = desugarer_blame(22)
 
   let add_prescribed_to_end_if_missing = fn(lines) {
@@ -32,7 +32,7 @@ fn split_and_insert_before_unless_allowable_ending_found_ez_version(
     ) {
       True -> trimmed |> list.reverse
       False -> [
-        TextLine(blame, if_no_allowable_found_insert),
+        Line(blame, if_no_allowable_found_insert),
         ..trimmed
       ] |> list.reverse
     }
@@ -41,7 +41,7 @@ fn split_and_insert_before_unless_allowable_ending_found_ez_version(
   let add_splitter_back_in = fn(lines) {
     let assert [first, ..rest] = lines
     [
-      TextLine(..first, content: splitter <> first.content),
+      Line(..first, content: splitter <> first.content),
       ..rest
     ]
   }
@@ -94,11 +94,11 @@ fn split_and_insert_before_unless_allowable_ending_found_ez_version(
 }
 
 fn split_and_insert_after_unless_allowable_beginning_found_ez_version(
-  lines: List(TextLine),
+  lines: List(Line),
   splitter: String,
   allowable_beginnings: List(String),    // this will almost always be ["$$"], but could be ["\]", "$$"] for ex
   if_no_allowable_found_insert: String,  // this will almost always be "$$"
-) -> List(TextLine) {
+) -> List(Line) {
   let blame = desugarer_blame(102)
 
   let add_prescribed_to_start_if_missing = fn(lines) {
@@ -109,7 +109,7 @@ fn split_and_insert_after_unless_allowable_beginning_found_ez_version(
     ) {
       True -> trimmed
       False -> [
-        TextLine(blame, if_no_allowable_found_insert),
+        Line(blame, if_no_allowable_found_insert),
         ..trimmed,
       ]
     }
@@ -118,7 +118,7 @@ fn split_and_insert_after_unless_allowable_beginning_found_ez_version(
   let add_splitter_back_in = fn(lines) {
     let assert [first, ..rest] = lines |> list.reverse
     [
-      TextLine(..first, content: first.content <> splitter),
+      Line(..first, content: first.content <> splitter),
       ..rest
     ] |> list.reverse
   }
@@ -142,11 +142,11 @@ fn split_and_insert_after_unless_allowable_beginning_found_ez_version(
 // ***
 
 // fn split_and_insert_before_unless_allowable_ending_found(
-//   lines: List(TextLine),
+//   lines: List(Line),
 //   splitter: String,                      // this will be called with splitter == "\begin{align"
 //   allowable_endings: List(String),       // this will almost always be ["$$"], but could be ["\[", "$$"] for ex
 //   if_no_allowable_found_insert: String,  // will almost always be "$$"
-// ) -> List(TextLine) {
+// ) -> List(Line) {
 //   let blame = infra.blame_us("split_and_insert_before_unless_allowable_ending_found")
 
 //   let add_prescribed_to_end_if_missing = fn(lines) {
@@ -159,21 +159,21 @@ fn split_and_insert_after_unless_allowable_beginning_found_ez_version(
 //       fn(x) { infra.first_line_ends_with(trimmed, x) }
 //     ) {
 //       True -> [
-//         TextLine(blame, ""),
+//         Line(blame, ""),
 //         ..trimmed
 //       ]
 //       False -> [
-//         TextLine(blame, ""),
-//         TextLine(blame, if_no_allowable_found_insert),
+//         Line(blame, ""),
+//         Line(blame, if_no_allowable_found_insert),
 //         ..trimmed
 //       ]
 //     }
 //   }
 
 //   let add_splitter_back_in = fn(lines) {
-//     let assert [TextLine(blame, content), ..rest] = lines
+//     let assert [Line(blame, content), ..rest] = lines
 //     [
-//       TextLine(blame, splitter <> content),
+//       Line(blame, splitter <> content),
 //       ..rest
 //     ]
 //   }
@@ -193,11 +193,11 @@ fn split_and_insert_after_unless_allowable_beginning_found_ez_version(
 // }
 
 // fn split_and_insert_after_unless_allowable_beginning_found(
-//   lines: List(TextLine),
+//   lines: List(Line),
 //   splitter: String,
 //   allowable_beginnings: List(String),    // this will almost always be ["$$"], but could be ["\]", "$$"] for ex
 //   if_no_allowable_found_insert: String,  // this will almost always be "$$"
-// ) -> List(TextLine) {
+// ) -> List(Line) {
 //   let blame = infra.blame_us("split_and_insert_after_unless_allowable_beginning_found")
 
 //   let add_prescribed_to_start_if_missing = fn(lines) {
@@ -207,21 +207,21 @@ fn split_and_insert_after_unless_allowable_beginning_found_ez_version(
 //       fn(x) { infra.first_line_starts_with(trimmed, x) }
 //     ) {
 //       True -> [
-//         TextLine(blame, ""),
+//         Line(blame, ""),
 //         ..trimmed,
 //       ]
 //       False -> [
-//         TextLine(blame, ""),
-//         TextLine(blame, if_no_allowable_found_insert),
+//         Line(blame, ""),
+//         Line(blame, if_no_allowable_found_insert),
 //         ..trimmed,
 //       ]
 //     }
 //   }
 
 //   let add_splitter_back_in = fn(lines) {
-//     let assert [TextLine(blame, content), ..rest] = list.reverse(lines)
+//     let assert [Line(blame, content), ..rest] = list.reverse(lines)
 //     [
-//       TextLine(blame, content <> splitter),
+//       Line(blame, content <> splitter),
 //       ..rest
 //     ]
 //   }

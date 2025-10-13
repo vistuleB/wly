@@ -15,20 +15,20 @@ import on
 pub const ampersand_replacer_pattern = "&(?!(?:[a-z]{2,6};|#\\d{2,4};))"
 
 // ************************************************************
-// Attribute, TextLine, VXML (pretend 'blame' does not exist -> makes it more readable)
+// Attribute, Line, VXML (pretend 'blame' does not exist -> makes it more readable)
 // ************************************************************
 
 pub type Attribute {
   Attribute(blame: Blame, key: String, value: String)
 }
 
-pub type TextLine {
-  TextLine(blame: Blame, content: String)
+pub type Line {
+  Line(blame: Blame, content: String)
 }
 
 pub type VXML {
   V(blame: Blame, tag: String, attributes: List(Attribute), children: List(VXML))
-  T(blame: Blame, lines: List(TextLine))
+  T(blame: Blame, lines: List(Line))
 }
 
 // ************************************************************
@@ -97,7 +97,7 @@ type NonemptySuffixDiagnostic {
 }
 
 type TentativeVXML {
-  TentativeT(blame: Blame, lines: List(TextLine))
+  TentativeT(blame: Blame, lines: List(Line))
   TentativeV(
     blame: Blame,
     tag: TentativeTagName,
@@ -265,7 +265,7 @@ fn add_quotes(s: String) -> String {
 fn fast_forward_past_double_quoted_lines_at_indent(
   indent: Int,
   head: FileHead,
-) -> #(List(TextLine), FileHead) {
+) -> #(List(Line), FileHead) {
   case current_line(head) {
     None -> #([], head)
 
@@ -283,7 +283,7 @@ fn fast_forward_past_double_quoted_lines_at_indent(
 
                 True -> {
                   let double_quoted =
-                    TextLine(blame, strip_quotes(string.trim(suffix)))
+                    Line(blame, strip_quotes(string.trim(suffix)))
 
                   let #(more_double_quoteds, head_after_double_quoteds) =
                     fast_forward_past_double_quoted_lines_at_indent(
@@ -773,9 +773,9 @@ pub fn annotate_blames(vxml: VXML) -> VXML {
       T(
         blame |> pc("T"),
         list.index_map(lines, fn(line, i) {
-          TextLine(
+          Line(
             line.blame
-              |> pc("T > TextLine(" <> ins(i + 1) <> ")"),
+              |> pc("T > Line(" <> ins(i + 1) <> ")"),
             line.content,
           )
         }),
@@ -1520,7 +1520,7 @@ pub fn xmlm_based_html_parser(
           content
           |> string.split("\n")
           |> list.map(fn(content) {
-            TextLine(Src([], filename, 0, 0), content)
+            Line(Src([], filename, 0, 0), content)
           })
         T(Src([], filename, 0, 0), lines)
       },
@@ -1536,13 +1536,13 @@ pub fn xmlm_based_html_parser(
 // ************************************************************
 
 pub type XMLStreamingParserLogicalUnit {
-  XMLStreamingParserText(List(TextLine))
+  XMLStreamingParserText(List(Line))
   XMLStreamingParserOpeningTag(Blame, String, List(Attribute))
   XMLStreamingParserSelfClosingTag(Blame, String, List(Attribute))
   XMLStreamingParserXMLVersion(Blame, String, List(Attribute))
   XMLStreamingParserDoctype(Blame, String, List(Attribute), Bool)
   XMLStreamingParserClosingTag(Blame, String)
-  XMLStreamingParserComment(List(TextLine))
+  XMLStreamingParserComment(List(Line))
 }
 
 fn take_while_text_or_newline_acc(
@@ -1777,7 +1777,7 @@ fn xml_streaming_get_next_logical_unit(
         guys,
         fn(x) { case x {
           xs.Newline(_) -> None
-          xs.Text(b, c) -> Some(TextLine(b, c))
+          xs.Text(b, c) -> Some(Line(b, c))
           _ -> panic
         }}
       )
@@ -1853,7 +1853,7 @@ fn xml_streaming_get_next_logical_unit(
       use #(events, remaining) <- on.ok(reach_end_of_comments(first, rest))
       let lines = list.map(events, fn(e) {
         let assert xs.CommentContents(b, l) = e
-        TextLine(b, l)
+        Line(b, l)
       })
       Ok(#(XMLStreamingParserComment(lines), remaining))
     }
@@ -1911,7 +1911,7 @@ fn attributes_digest(
 }
 
 pub fn lines_digest(
-  lines: List(TextLine)
+  lines: List(Line)
 ) -> String {
   list_of_digest(lines, fn(l) { ins(l.content) })
 }

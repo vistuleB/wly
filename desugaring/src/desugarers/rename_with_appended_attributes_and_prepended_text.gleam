@@ -4,7 +4,7 @@ import gleam/option
 import gleam/string.{inspect as ins}
 import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as infra
 import nodemaps_2_desugarer_transforms as n2t
-import vxml.{type VXML, V, T, TextLine}
+import vxml.{type VXML, V, T, Line}
 import blame as bl
 
 fn nodemap(
@@ -17,7 +17,7 @@ fn nodemap(
       case dict.get(inner, tag) {
         Error(Nil) -> Ok(vxml)
         Ok(#(new_tag, text, new_attrs)) -> {
-          let text_node = T(blame, [TextLine(blame, text)])
+          let text_node = T(blame, [Line(blame, text)])
           let attrs = list.append(attrs, new_attrs)
           Ok(V(blame, new_tag, attrs, [text_node, ..children]))
         }

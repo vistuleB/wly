@@ -3,15 +3,15 @@ import gleam/option.{type Option}
 import gleam/string.{inspect as ins}
 import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as infra
 import nodemaps_2_desugarer_transforms as n2t
-import vxml.{type TextLine, type VXML, TextLine, T, V}
+import vxml.{type Line, type VXML, Line, T, V}
 import on
 
 fn updated_node(
   vxml: VXML,
-  prefix: Option(TextLine),
-  cc: #(TextLine, Option(String)),
+  prefix: Option(Line),
+  cc: #(Line, Option(String)),
   // string is for the wrapper tag
-  rest: TextLine,
+  rest: Line,
 ) -> VXML {
   let assert V(blame, tag, attributes, children) = vxml
   let assert [T(t_blame, lines), ..] = children
@@ -75,10 +75,10 @@ fn nodemap(
 
           case found_prefix, list.is_empty(prefixes) {
             Ok(found_prefix), _ -> {
-              let blamed_cc = TextLine(first_line.blame, counter_command)
-              let blamed_prefix = TextLine(first_line.blame, found_prefix)
+              let blamed_cc = Line(first_line.blame, counter_command)
+              let blamed_prefix = Line(first_line.blame, found_prefix)
               let rest =
-                TextLine(
+                Line(
                   first_line.blame,
                   string.length(found_prefix)
                     |> string.drop_start(first_line.content, _),
@@ -93,7 +93,7 @@ fn nodemap(
               |> Ok
             }
             Error(_), True -> {
-              let blamed_cc = TextLine(t_blame, counter_command)
+              let blamed_cc = Line(t_blame, counter_command)
               updated_node(vxml, option.None, #(blamed_cc, wrapper), first_line) |> Ok
             }
             Error(_), False -> Ok(vxml)

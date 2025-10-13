@@ -8,7 +8,7 @@ import gleam/string.{inspect as ins}
 import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError, DesugaringError} as infra
 import roman
 import nodemaps_2_desugarer_transforms as n2t
-import vxml.{type Attribute, type TextLine, type VXML, Attribute, TextLine, T, V}
+import vxml.{type Attribute, type Line, type VXML, Attribute, Line, T, V}
 import blame as bl
 import on
 
@@ -252,26 +252,26 @@ fn substitute_counters_and_generate_handle_assignments(
 }
 
 fn update_line(
-  bl: TextLine,
+  bl: Line,
   counters: CounterDict,
   regexes: #(Regexp, Regexp),
 ) -> Result(
-  #(TextLine, CounterDict, List(HandleAssignment)),
+  #(Line, CounterDict, List(HandleAssignment)),
   DesugaringError,
 ) {
   case substitute_counters_and_generate_handle_assignments(bl.content, counters, regexes) {
     Ok(#(updated_content, counters, handles)) ->
-      Ok(#(TextLine(..bl, content: updated_content), counters, handles))
+      Ok(#(Line(..bl, content: updated_content), counters, handles))
     Error(e) -> Error(DesugaringError(bl.blame, e))
   }
 }
 
 fn update_lines(
-  lines: List(TextLine),
+  lines: List(Line),
   counters: CounterDict,
   regexes: #(Regexp, Regexp),
 ) -> Result(
-  #(List(TextLine), CounterDict, List(HandleAssignment)),
+  #(List(Line), CounterDict, List(HandleAssignment)),
   DesugaringError,
 ) {
   lines

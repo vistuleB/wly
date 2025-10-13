@@ -10,8 +10,8 @@ import infrastructure.{
 import nodemaps_2_desugarer_transforms as n2t
 import vxml.{
   type VXML,
-  type TextLine,
-  TextLine,
+  type Line,
+  Line,
   T,
   V,
 }
@@ -19,7 +19,7 @@ import blame.{type Blame}
 
 type HotPayload {
   Hot1(Blame, String)
-  Hot2(Blame, List(TextLine), String)
+  Hot2(Blame, List(Line), String)
 }
 
 type ColdPayload = VXML // a 'T'
@@ -49,11 +49,11 @@ fn hot_and_t_concatenation(h: HotPayload, t: VXML) -> ColdPayload {
   let assert T(_, [first, ..rest]) = t
   case h {
     Hot1(blame, string) -> {
-      let rest = [TextLine(first.blame, first.content <> string), ..rest]
+      let rest = [Line(first.blame, first.content <> string), ..rest]
       T(blame, rest)
     }
     Hot2(blame, lines, string) -> {
-      let rest = [TextLine(first.blame, first.content <> string), ..rest]
+      let rest = [Line(first.blame, first.content <> string), ..rest]
       T(blame, infra.pour(lines, rest))
     }
   }
@@ -87,12 +87,12 @@ fn smash_cold_v(
     Cold(t) -> #([smashee, t, ..previous], Nothing)
 
     Hot(Hot1(blame, string)) -> {
-      let t = T(blame, [TextLine(blame, string)])
+      let t = T(blame, [Line(blame, string)])
       #([smashee, t, ..previous], Nothing)
     }
 
     Hot(Hot2(blame, lines, string)) -> {
-      let t = T(blame, [TextLine(blame, string), ..lines] |> list.reverse)
+      let t = T(blame, [Line(blame, string), ..lines] |> list.reverse)
       #([smashee, t, ..previous], Nothing)
     }
   }
@@ -128,11 +128,11 @@ fn accumulator(
     [] -> case stack {
       #(previous, Nothing) -> previous |> list.reverse
       #(previous, Hot(Hot1(blame, string))) -> {
-        let t = T(blame, [TextLine(blame, string)])
+        let t = T(blame, [Line(blame, string)])
         [t, ..previous] |> list.reverse
       }
       #(previous, Hot(Hot2(blame, lines, string))) -> {
-        let t = T(blame, [TextLine(blame, string), ..lines] |> list.reverse)
+        let t = T(blame, [Line(blame, string), ..lines] |> list.reverse)
         [t, ..previous] |> list.reverse
       }
       #(previous, Cold(t)) -> [t, ..previous] |> list.reverse

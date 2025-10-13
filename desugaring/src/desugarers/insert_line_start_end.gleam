@@ -2,7 +2,7 @@ import gleam/option
 import gleam/string.{inspect as ins}
 import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as infra
 import nodemaps_2_desugarer_transforms as n2t
-import vxml.{type VXML, V, type TextLine, TextLine}
+import vxml.{type VXML, V, type Line, Line}
 import blame as bl
 
 fn nodemap(
@@ -30,8 +30,8 @@ fn transform_factory(inner: InnerParam) -> DesugarerTransform {
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
   #(
     param.0,
-    TextLine(desugarer_blame(33), param.1.0),
-    TextLine(desugarer_blame(34), param.1.1),
+    Line(desugarer_blame(33), param.1.0),
+    Line(desugarer_blame(34), param.1.1),
   )
   |> Ok
 }
@@ -40,7 +40,7 @@ type Param = #(String, #(String,    String))
 //             ↖         ↖          ↖
 //             tag       insert     insert
 //                       at start   at end
-type InnerParam = #(String, TextLine, TextLine)
+type InnerParam = #(String, Line, Line)
 
 pub const name = "insert_line_start_end"
 fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }

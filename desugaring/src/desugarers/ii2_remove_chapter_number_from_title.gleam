@@ -9,7 +9,7 @@ import infrastructure.{
   DesugaringError,
 } as infra
 import nodemaps_2_desugarer_transforms as n2t
-import vxml.{type VXML, TextLine, T, V}
+import vxml.{type VXML, Line, T, V}
 import on
 
 fn nodemap(
@@ -27,7 +27,7 @@ fn nodemap(
         [
           T(
             t_blame,
-            [TextLine(l_blame, first_text_node_line), ..rest_contents],
+            [Line(l_blame, first_text_node_line), ..rest_contents],
           ),
           ..rest_children,
         ] -> {
@@ -37,7 +37,7 @@ fn nodemap(
             on_false: Ok(vxml),
           )
           let new_line = regexp.replace(re, first_text_node_line, "")
-          let contents = T(t_blame, [TextLine(l_blame, new_line), ..list.drop(rest_contents, 1)])
+          let contents = T(t_blame, [Line(l_blame, new_line), ..list.drop(rest_contents, 1)])
           let children = [contents, ..list.drop(rest_children, 1)]
           Ok(V(blame, t, atts, children))
         }

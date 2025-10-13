@@ -9,7 +9,7 @@ import infrastructure.{
   DesugaringError,
 } as infra
 import gleam/option
-import vxml.{type VXML, V, T, TextLine, Attribute}
+import vxml.{type VXML, V, T, Line, Attribute}
 import blame as bl
 import nodemaps_2_desugarer_transforms as n2t
 import on
@@ -46,11 +46,11 @@ fn remove_period(nodes: List(VXML)) -> List(VXML) {
 
   let new_last_line = case string.ends_with(last_line.content, ".") {
     True -> {
-      TextLine(last_line.blame, string.drop_end(last_line.content, 1))
+      Line(last_line.blame, string.drop_end(last_line.content, 1))
     }
     False -> last_line
   }
-  // replace last TextLine
+  // replace last Line
   let new_t = T(b, list.flatten([
     list.take(lines, list.length(lines) - 1),
     [new_last_line]
@@ -66,7 +66,7 @@ fn small_caps_t(t: VXML) -> VXML{
   let assert T(b, contents) = t
   contents
   |> list.map(fn(line){
-    TextLine(line.blame, string.lowercase(line.content))
+    Line(line.blame, string.lowercase(line.content))
   })
   |> T(b, _)
 }
@@ -135,7 +135,7 @@ fn generate_sections_list(sections: List(VXML), exercises: List(VXML)) -> Result
     [one] -> {
       [
         construct_breadcrumb(
-          [T(one.blame, [TextLine(one.blame, "exercises")])],
+          [T(one.blame, [Line(one.blame, "exercises")])],
           "exercises",
           list.length(sections_nodes)
         )

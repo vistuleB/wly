@@ -3,7 +3,7 @@ import gleam/option
 import gleam/string.{inspect as ins}
 import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError, DesugaringError, type LatexDelimiterPair} as infra
 import nodemaps_2_desugarer_transforms as n2t
-import vxml.{type VXML, T, V, TextLine}
+import vxml.{type VXML, T, V, Line}
 
 fn remove_first_prefix_found(c: String, prefixes: List(String)) -> String {
   case prefixes {
@@ -33,13 +33,13 @@ fn normalize_t(
   let lines = infra.lines_trim_start(lines)
   let assert [first, ..rest] = lines
   let lines = [
-    TextLine(..first, content: inner.2 <> remove_first_prefix_found(first.content, inner.0)),
+    Line(..first, content: inner.2 <> remove_first_prefix_found(first.content, inner.0)),
     ..rest
   ]
   let lines = infra.reversed_lines_trim_end(lines |> list.reverse)
   let assert [first, ..rest] = lines
   let lines = [
-    TextLine(..first, content: remove_first_suffix_found(first.content, inner.1) <> inner.3),
+    Line(..first, content: remove_first_suffix_found(first.content, inner.1) <> inner.3),
     ..rest
   ]
   let lines = lines |> list.reverse
