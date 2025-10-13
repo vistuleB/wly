@@ -30,7 +30,7 @@ fn nodemap(
 ) -> VXML {
   case vxml {
     V(_, "pre", attrs, children) -> {
-      case infra.v_has_key_value(vxml, "language", "xml") {
+      case infra.v_has_key_val(vxml, "language", "xml") {
         True -> {
           let attrs =
             attrs

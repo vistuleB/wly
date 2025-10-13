@@ -1,75 +1,54 @@
-import blame as bl
 import gleam/list
-import gleam/option
+import gleam/option.{Some, None}
 import gleam/result
 import gleam/string.{inspect as ins}
-import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError, DesugaringError} as infra
+import infrastructure.{
+  type DesugarerTransform,
+  type DesugaringError,
+  type Desugarer,
+  DesugaringError,
+  Desugarer,
+} as infra
 import nodemaps_2_desugarer_transforms as n2t
-import vxml.{type Attr, Attr, type VXML, T, V}
-
-fn lookup_attrs_by_key(
-  in: List(Attr),
-  key: String,
-) -> Result(#(Attr, List(Attr)), Nil) {
-  let #(matches, non_matches) = list.partition(in, fn(b) { b.key == key })
-  let assert True = list.length(matches) <= 1
-  case matches {
-    [] -> Error(Nil)
-    [unique] -> Ok(#(unique, non_matches))
-    _ -> panic as "more than one match"
-  }
-}
-
-fn maybe_semicolon(thing: String) -> String {
-  case string.ends_with(thing, ";") {
-    True -> ""
-    False -> ";"
-  }
+import vxml.{
+  type Attr,
+  type VXML,
+  T,
+  V,
 }
 
 fn merge_one_attr(
   attrs: List(Attr),
   to_merge: Attr,
 ) -> Result(List(Attr), DesugaringError) {
-  let Attr(blame, key, value) = to_merge
-  let res = lookup_attrs_by_key(attrs, key)
-  case res {
-    Error(Nil) -> Ok([to_merge, ..attrs])
-    Ok(#(existing, remaining)) -> {
-      case key == "style" {
-        False ->
-          Error(DesugaringError(
-            existing.blame,
-            "attr of key '"
-              <> key
-              <> "' already exists in child (value '"
-              <> value
-              <> "' in parent)",
-          ))
-        True ->
-          Ok([
-            Attr(
-              existing.blame |> bl.append_comment(blame |> ins),
-              "style",
-              existing.value <> maybe_semicolon(existing.value) <> value,
-            ),
-            ..remaining
-          ])
-      }
+  case to_merge.key {
+    "style" -> Ok(infra.attrs_append_styles(attrs, to_merge.blame, to_merge.val))
+    "class" -> Ok(infra.attrs_append_classes(attrs, to_merge.blame, to_merge.val))
+    key -> case infra.attrs_val_of_first_with_key(attrs, key) {
+      Some(child_val) -> Error(DesugaringError(
+        to_merge.blame,
+        "attr of key '"
+        <> key
+        <> "' already exists in child (value '"
+        <> to_merge.val
+        <> "' in parent, '"
+        <> child_val
+        <> "' in child)",
+      ))
+      None -> Ok([to_merge, ..attrs])
     }
   }
 }
 
 fn merge_attrs(
-  attrs1: List(Attr),
-  attrs2: List(Attr),
+  from: List(Attr),
+  onto: List(Attr),
 ) -> Result(List(Attr), DesugaringError) {
-  list.fold(attrs1, Ok(attrs2), fn(attrs, attr) {
-    case attrs {
-      Error(e) -> Error(e)
-      Ok(attrs) -> merge_one_attr(attrs, attr)
-    }
-  })
+  list.try_fold(
+    from,
+    onto,
+    merge_one_attr
+  )
 }
 
 fn nodemap(
@@ -119,10 +98,9 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
   Ok(param)
 }
 
-type Param =
-  List(#(String, String))
-//       ↖       ↖
-//       parent  child
+type Param = List(#(String, String))
+//                  ↖       ↖
+//                  parent  child
 
 type InnerParam = Param
 

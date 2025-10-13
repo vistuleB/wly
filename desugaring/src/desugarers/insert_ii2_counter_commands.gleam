@@ -60,7 +60,7 @@ fn nodemap(
     T(_, _) -> Ok(vxml)
     V(_, _, _, children) -> {
       use <- on.false_true(
-        infra.v_has_key_value(vxml, key, value),
+        infra.v_has_key_val(vxml, key, value),
         on_false: Ok(vxml),
       )
 

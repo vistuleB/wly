@@ -54,8 +54,8 @@ type Menu {
   Bottom
 }
 
-fn an_attr(key: String, value: String) -> Attr {
-  Attr(desugarer_blame(58), key, value)
+fn an_attr(key: String, val: String) -> Attr {
+  Attr(desugarer_blame(58), key, val)
 }
 
 fn string_2_text_node(content: String) -> VXML {
@@ -252,10 +252,10 @@ fn page_from_title(
     Ok(None),
   )
   let assert V(blame, _, attrs, title) = title
-  use chiron <- on.ok(infra.attrs_value_of_unique_key(attrs, "number-chiron", blame))
-  use ch_no <- on.ok(infra.attrs_value_of_unique_key(attrs, "ch_no", blame))
+  use chiron <- on.ok(infra.attrs_val_of_unique_key(attrs, "number-chiron", blame))
+  use ch_no <- on.ok(infra.attrs_val_of_unique_key(attrs, "ch_no", blame))
   let assert Ok(ch_no) = int.parse(ch_no)
-  let sub_no = case infra.attrs_value_of_unique_key(attrs, "sub_no", blame) {
+  let sub_no = case infra.attrs_val_of_unique_key(attrs, "sub_no", blame) {
     Ok(x) -> {
       let assert Ok(x) = int.parse(x)
       Some(x)
@@ -354,7 +354,7 @@ fn at_root(
   root: VXML
 ) -> Result(VXML, DesugaringError) {
   let homepage_url =
-    infra.v_value_of_first_attr_with_key(root, "external")
+    infra.v_val_of_first_attr_with_key(root, "external")
     |> option.unwrap("")
 
   n2t.early_return_one_to_one_nodemap_traverse_tree(

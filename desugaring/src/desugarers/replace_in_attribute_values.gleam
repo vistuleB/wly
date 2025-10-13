@@ -9,7 +9,7 @@ fn replacer(attr: Attr, inner: InnerParam) -> Attr {
   Attr(
     attr.blame,
     attr.key,
-    list.fold(inner, attr.value, fn(current, pair) {
+    list.fold(inner, attr.val, fn(current, pair) {
       let #(from, to) = pair
       string.replace(current, from, to)
     }),

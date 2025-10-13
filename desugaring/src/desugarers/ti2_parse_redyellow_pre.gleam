@@ -9,7 +9,7 @@ fn nodemap(
 ) -> VXML {
   case vxml {
     V(_, "pre", attrs, _) -> {
-      case infra.v_has_key_value(vxml, "language", "redyellow") {
+      case infra.v_has_key_val(vxml, "language", "redyellow") {
         True ->
           V(
             ..vxml,

@@ -58,16 +58,16 @@ fn chapter_link(
 
   let link =
     "lecture-notes/"
-    <> number_attr.value
+    <> number_attr.val
     |> string.split(".")
     |> list.map(prepend_0)
     |> string.join("-")
     <> "-"
-    <> href_attr.value |> string.replace(" ", "-")
+    <> href_attr.val |> string.replace(" ", "-")
     <> ".html"
 
   // number span should always increament . for example we have sub-chapters 05-05-a and 05-05-b . so number span should be 5.5 and 5.6 for each
-  let assert [chapter_number, ..] = number_attr.value |> string.split(".")
+  let assert [chapter_number, ..] = number_attr.val |> string.split(".")
 
   let number_span =
     V(item_blame, "span", [], [
@@ -90,7 +90,7 @@ fn chapter_link(
         Attr(desugarer_blame(90), "href", link)
       ],
       [
-        T(item_blame, [Line(item_blame, label_attr.value)]),
+        T(item_blame, [Line(item_blame, label_attr.val)]),
       ]
     )
 
@@ -116,7 +116,7 @@ fn get_section_index(item: VXML, count: Int) -> Result(Int, DesugaringError) {
   )
 
   let assert [section_number, ..] =
-    number_attr.value |> string.split(".") |> list.reverse()
+    number_attr.val |> string.split(".") |> list.reverse()
   let assert Ok(section_number) = int.parse(section_number)
 
   case section_number == 0 {

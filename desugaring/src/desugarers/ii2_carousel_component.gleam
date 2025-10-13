@@ -12,11 +12,11 @@ fn nodemap(
     V(blame, _, _, _) -> {
       // remove carousel buttons
       use <- on.true_false(
-        infra.v_has_key_value(vxml, "data-slide", "prev"),
+        infra.v_has_key_val(vxml, "data-slide", "prev"),
         on_true: Ok(T(blame, [])),
       )
       use <- on.true_false(
-        infra.v_has_key_value(vxml, "data-slide", "next"),
+        infra.v_has_key_val(vxml, "data-slide", "next"),
         on_true: Ok(T(blame, [])),
       )
       use <- on.true_false(
@@ -25,13 +25,13 @@ fn nodemap(
       )
       // carousel
       use <- on.true_false(
-        !{ infra.v_has_key_value(vxml, "class", "carousel") },
+        !{ infra.v_has_key_val(vxml, "class", "carousel") },
         on_true: Ok(vxml),
       )
       // vxml is node with carousel class
       // get only images from children
       let images = infra.descendants_with_tag(vxml, "img")
-      let attrs = case infra.v_has_key_value(vxml, "id", "cyk-demo") {
+      let attrs = case infra.v_has_key_val(vxml, "id", "cyk-demo") {
         True -> [vxml.Attr(blame, "jumpToLast", "true")]
         False -> []
       }

@@ -224,15 +224,15 @@ fn process_lines(
 
 fn grand_wrapper_load(
   state: State,
-  attrs: List(Attr)
+  attrs: List(Attr),
 ) -> State {
   let #(handles, ids) = list.partition(attrs, fn(attr) {attr.key == "handle"})
 
   let handles = list.fold(
     handles,
     dict.new(),
-    fn(acc, att) {
-      let assert [handle_name, page, value, id, path] = att.value |> string.split("|")
+    fn(acc, attr) {
+      let assert [handle_name, page, value, id, path] = attr.val |> string.split("|")
       let page = case page {
         ":page" -> True
         "" -> False
@@ -246,7 +246,7 @@ fn grand_wrapper_load(
     ids,
     fn(attr) {
       assert attr.key == "id"
-      let assert [id, path] = attr.value |> string.split(" ")
+      let assert [id, path] = attr.val |> string.split(" ")
       #(id, path)
     }
   )
@@ -259,8 +259,8 @@ fn substitute_handle_in_href(
   attr: Attr,
   state: State,
 ) -> Result(Attr, DesugaringWarning) {
-  assert attr.value |> string.starts_with(">>")
-  let handle_name = attr.value |> string.drop_start(2)
+  assert attr.val |> string.starts_with(">>")
+  let handle_name = attr.val |> string.drop_start(2)
   let page = handle_name |> string.ends_with(":page")
   let handle_name = case page {
     True -> handle_name |> string.drop_end(5)
@@ -269,10 +269,10 @@ fn substitute_handle_in_href(
   case dict.get(state.handles, handle_name) {
     Ok(#(page_by_default, _, id, target_path)) -> {
       case page || page_by_default {
-        True -> Ok(Attr(..attr, value: target_path))
+        True -> Ok(Attr(..attr, val: target_path))
         False -> case target_path == option.unwrap(state.path, "") {
-          True -> Ok(Attr(..attr, value: "#" <> id))
-          False -> Ok(Attr(..attr, value: target_path <> "#" <> id))
+          True -> Ok(Attr(..attr, val: "#" <> id))
+          False -> Ok(Attr(..attr, val: target_path <> "#" <> id))
         }
       }
     }
@@ -284,8 +284,8 @@ fn substitute_id_in_href(
   attr: Attr,
   state: State,
 ) -> Result(#(Attr, Option(DesugaringWarning)), DesugaringError) {
-  assert attr.value |> string.starts_with("#")
-  let id = attr.value |> string.drop_start(1)
+  assert attr.val |> string.starts_with("#")
+  let id = attr.val |> string.drop_start(1)
   let #(id, page) = case id |> string.ends_with(":page") {
     True -> #(id |> string.drop_end(5), True)
     False -> #(id, False)
@@ -306,7 +306,7 @@ fn substitute_id_in_href(
       // the page we're pointing to is
       // the current page, nothing to do
       case page {
-        True -> Ok(#(Attr(..attr, value: path), None)) // (this case is a bit weird but whatever the user says...)
+        True -> Ok(#(Attr(..attr, val: path), None)) // (this case is a bit weird but whatever the user says...)
         False -> Ok(#(attr, None))
       }
 
@@ -314,8 +314,8 @@ fn substitute_id_in_href(
     False -> case paths {
       [] -> panic as "each id should have at least 1 path?"
       [one] -> case page {
-        True -> Ok(#(Attr(..attr, value: one), None))
-        False -> Ok(#(Attr(..attr, value: one <> attr.value), None))
+        True -> Ok(#(Attr(..attr, val: one), None))
+        False -> Ok(#(Attr(..attr, val: one <> attr.val), None))
       }
       _ -> Error(DesugaringError(attr.blame, "unresolved id '" <> id <> "' appearing out-of-own-page but with several target pages to choose from"))
     }
@@ -331,7 +331,7 @@ fn substitute_in_href(
     Ok(#(attr, None)),
   )
 
-  let #(attr, warning) = case attr.value |> string.starts_with(">>") {
+  let #(attr, warning) = case attr.val |> string.starts_with(">>") {
     False -> #(attr, None)
     True -> case substitute_handle_in_href(attr, state) {
       Ok(attr) -> #(attr, None)
@@ -340,7 +340,7 @@ fn substitute_in_href(
   }
 
   use <- on.lazy_false_true(
-    attr.value |> string.starts_with("#"),
+    attr.val |> string.starts_with("#"),
     fn() { Ok(#(attr, warning)) }
   )
 

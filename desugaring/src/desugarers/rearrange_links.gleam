@@ -262,7 +262,7 @@ fn match_internal(
       case atomized {
         [V(_, "__OneWord", _, _) as v, ..atomized_rest] -> {
           let assert Some(attr) = infra.v_first_attr_with_key(v, "val")
-          case attr.value == word {
+          case attr.val == word {
             True -> match_internal(atomized_rest, pattern_rest, match_data)
             False -> None
           }
@@ -711,14 +711,14 @@ fn vxml_to_link_pattern(
       )
 
       use href_value <- on.error_ok(
-        int.parse(href_attr.value),
-        fn(_) { Error(DesugaringError(bl.no_blame, "could not parse <a>-href attr as integer: " <> href_attr.value)) },
+        int.parse(href_attr.val),
+        fn(_) { Error(DesugaringError(bl.no_blame, "could not parse <a>-href attr as integer: " <> href_attr.val)) },
       )
 
       use classes <- on.ok(
         case infra.attrs_with_key(attrs, "class") {
           [] -> Ok("")
-          [one] -> Ok(one.value)
+          [one] -> Ok(one.val)
           _ -> Error(DesugaringError(bl.no_blame, "more than one class attr inside <a> tag"))
         }
       )

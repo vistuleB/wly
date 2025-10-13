@@ -49,7 +49,7 @@ fn backfill_elements(
         case child {
           V(blame, t, _, _) if t == stub_tag -> {
             use number <- on.lazy_none_some(
-              infra.v_value_of_first_attr_with_key(child, "should-be-number"),
+              infra.v_val_of_first_attr_with_key(child, "should-be-number"),
               fn() { Error(DesugaringError(blame, "expecting 'should-be-number' attr on each " <> stub_tag <> " element")) },
             )
             use number <- on.error_ok(

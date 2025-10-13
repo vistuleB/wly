@@ -19,7 +19,7 @@ pub const ampersand_replacer_pattern = "&(?!(?:[a-z]{2,6};|#\\d{2,4};))"
 // ************************************************************
 
 pub type Attr {
-  Attr(blame: Blame, key: String, value: String)
+  Attr(blame: Blame, key: String, val: String)
 }
 
 pub type Line {
@@ -85,7 +85,7 @@ type TentativeAttr {
   TentativeAttr(
     blame: Blame,
     key: TentativeAttrKey,
-    value: String,
+    val: String,
   )
 }
 
@@ -190,18 +190,18 @@ fn tentative_attr(
   blame: Blame,
   pair: #(String, String),
 ) -> TentativeAttr {
-  let #(key, value) = pair
+  let #(key, val) = pair
   assert !string.is_empty(key)
   let bad_character = contains_one_of(key, attr_key_illegal_characters)
 
   case bad_character == "" {
-    True -> TentativeAttr(blame: blame, key: Ok(key), value: value)
+    True -> TentativeAttr(blame: blame, key: Ok(key), val: val)
 
     False ->
       TentativeAttr(
         blame: blame,
         key: Error(IllegalAttrKeyCharacter(key, bad_character)),
-        value: value,
+        val: val,
       )
   }
 }
@@ -533,7 +533,7 @@ fn tentative_attr_to_attr(
   t: TentativeAttr,
 ) -> Result(Attr, VXMLParseError) {
   case t.key {
-    Ok(key) -> Ok(Attr(blame: t.blame, key: key, value: t.value))
+    Ok(key) -> Ok(Attr(blame: t.blame, key: key, val: t.val))
 
     Error(IllegalAttrKeyCharacter(original_would_be_key, bad_char)) ->
       Error(VXMLParseErrorIllegalAttrKeyCharacter(
@@ -710,7 +710,7 @@ fn tentative_to_output_lines_internal(
               indentation + vxml_indent,
               ins(tentative_attr.key)
                 <> " "
-                <> tentative_attr.value,
+                <> tentative_attr.val,
             )
           }),
           tentatives_to_output_lines_internal(children, indentation + vxml_indent),
@@ -732,7 +732,7 @@ fn tentative_to_output_lines_internal(
               indentation + vxml_indent,
               ins(tentative_attr.key)
                 <> " "
-                <> tentative_attr.value,
+                <> tentative_attr.val,
             )
           }),
           tentatives_to_output_lines_internal(children, indentation + vxml_indent),
@@ -789,7 +789,7 @@ pub fn annotate_blames(vxml: VXML) -> VXML {
           Attr(
             attr.blame |> pc("Attr(" <> ins(i + 1) <> ")"),
             attr.key,
-            attr.value,
+            attr.val,
           )
         }),
         list.map(children, annotate_blames),
@@ -826,7 +826,7 @@ fn vxml_to_output_lines_internal(
             OutputLine(
               attr.blame,
               indentation + vxml_indent,
-              attr.key <> "=" <> attr.value,
+              attr.key <> "=" <> attr.val,
             )
           }),
           children
@@ -896,10 +896,10 @@ fn jsx_key_val(
   attr: Attr,
   ampersand_replacer: regexp.Regexp,
 ) -> String {
-  let value = string.trim(attr.value) |> jsx_string_processor(ampersand_replacer)
-  case value == "false" || value == "true" || result.is_ok(int.parse(value)) {
-    True -> attr.key <> "={" <> value <> "}"
-    False -> attr.key <> "=\"" <> value <> "\""
+  let val = string.trim(attr.val) |> jsx_string_processor(ampersand_replacer)
+  case val == "false" || val == "true" || result.is_ok(int.parse(val)) {
+    True -> attr.key <> "={" <> val <> "}"
+    False -> attr.key <> "=\"" <> val <> "\""
   }
 }
 
@@ -1149,7 +1149,7 @@ fn attrs_to_sticky_lines(
     StickyLine(
       blame: t.blame,
       indent: indent,
-      content: space <> t.key <> "=\"" <> t.value <> "\"",
+      content: space <> t.key <> "=\"" <> t.val <> "\"",
       sticky_start: inline,
       sticky_end: inline,
     )
@@ -1656,7 +1656,7 @@ fn get_attrs_and_tag_end(
   // (e.g. 'async' or 'async=') as an assignment to the
   // empty string; but if the '=' is not followed by a 
   // space or by tag end then whatever follows the '='
-  // will only be considered as a possible attr value,
+  // will only be considered as a possible attr val,
   // and not as a possible next key (while considering the
   // current assignment as empty)
   let proto = Attr(key_blame, key_name, "")
@@ -1704,20 +1704,20 @@ fn get_attrs_and_tag_end(
   )
 
   case third {
-    xs.ValueDoubleQuoted(_, value) | xs.ValueSingleQuoted(_, value) -> {
+    xs.ValueDoubleQuoted(_, val) | xs.ValueSingleQuoted(_, val) -> {
       get_attrs_and_tag_end(tag_start, rest)
-      |> prepend_attr_if_ok(Attr(..proto, value: value))
+      |> prepend_attr_if_ok(Attr(..proto, val: val))
     }
 
-    xs.ValueMalformed(blame, value) ->
-      Error(#(blame, "malformed attr value: " <> value))
+    xs.ValueMalformed(blame, val) ->
+      Error(#(blame, "malformed attr val: " <> val))
 
     _ -> {
       case get_attrs_and_tag_end(tag_start, rest) {
         Error(e) -> Error(e)
         Ok(#(attrs, end, rest)) -> case had_spaces, attrs {
           False, [some, ..] ->
-            Error(#(some.blame, "expecting attr value after '='"))
+            Error(#(some.blame, "expecting attr val after '='"))
           _, _ ->
             Ok(#([proto, ..attrs], end, rest))
         }
@@ -1901,7 +1901,7 @@ fn list_of_digest(
 fn attr_digest(
   attr: Attr
 ) -> String {
-  attr.key <> "=" <> attr.value
+  attr.key <> "=" <> attr.val
 }
 
 fn attrs_digest(

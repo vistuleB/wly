@@ -9,7 +9,7 @@ import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type 
 import roman
 import nodemaps_2_desugarer_transforms as n2t
 import vxml.{type Attr, type Line, type VXML, Attr, Line, T, V}
-import blame as bl
+import blame.{type Blame} as bl
 import on
 
 type CounterType {
@@ -156,6 +156,7 @@ fn handle_matches(
     [] -> {
       Ok(#(string.join(splits, ""), counters, []))
     }
+
     [first, ..rest] -> {
       let regexp.Match(content, sub_matches) = first
       let assert [_, handle_name, ..] = sub_matches
@@ -196,10 +197,11 @@ fn handle_matches(
 }
 
 fn substitute_counters_and_generate_handle_assignments(
+  blame: Blame,
   content: String,
   counters: CounterDict,
   regexes: #(Regexp, Regexp),
-) -> Result(#(String, CounterDict, List(HandleAssignment)), String) {
+) -> Result(#(String, CounterDict, List(HandleAssignment)), DesugaringError) {
   // examples
 
   // 1) one handle | one counter
@@ -248,22 +250,27 @@ fn substitute_counters_and_generate_handle_assignments(
   let #(_, re) = regexes
   let matches = regexp.scan(re, content)
   let splits = regexp.split(re, content)
-  handle_matches(matches, splits, counters, regexes)
+  use error <- on.error(handle_matches(matches, splits, counters, regexes))
+  Error(DesugaringError(blame, error))
 }
 
 fn update_line(
-  bl: Line,
+  line: Line,
   counters: CounterDict,
   regexes: #(Regexp, Regexp),
 ) -> Result(
   #(Line, CounterDict, List(HandleAssignment)),
   DesugaringError,
 ) {
-  case substitute_counters_and_generate_handle_assignments(bl.content, counters, regexes) {
-    Ok(#(updated_content, counters, handles)) ->
-      Ok(#(Line(..bl, content: updated_content), counters, handles))
-    Error(e) -> Error(DesugaringError(bl.blame, e))
-  }
+  use #(content, counters, handles) <- on.ok(
+    substitute_counters_and_generate_handle_assignments(
+      line.blame,
+      line.content,
+      counters,
+      regexes,
+    )
+  )
+  Ok(#(Line(..line, content: content), counters, handles))
 }
 
 fn update_lines(
@@ -313,7 +320,7 @@ fn take_existing_counters(
 fn handle_non_unary_att_value(
   attr: Attr,
 ) -> Result(#(String, Int, Int), DesugaringError) {
-  let splits = string.split(attr.value, " ")
+  let splits = string.split(attr.val, " ")
 
   use counter_name, rest <- on.lazy_empty_nonempty(
     splits,
@@ -349,7 +356,7 @@ fn handle_non_unary_att_value(
 fn handle_unary_att_value(
  attr: Attr,
 ) -> Result(#(String, String), DesugaringError) {
-  let splits = string.split(attr.value, " ")
+  let splits = string.split(attr.val, " ")
   case splits {
     [counter_name, unary_char] -> Ok(#(counter_name, unary_char))
     [counter_name] -> Ok(#(counter_name, "1"))
@@ -390,21 +397,21 @@ fn read_counter_definition(
 }
 
 fn fancy_one_attr_processor(
-  to_process: Attr,
+  attr: Attr,
   counters: CounterDict,
   regexes: #(Regexp, Regexp),
 ) -> Result(
   #(Attr, CounterDict, List(HandleAssignment)),
   DesugaringError,
 ) {
+  let Attr(blame, original_key, val) = attr
+
   use #(key, counters, assignments1) <- on.ok(
-    result.map_error(
-      substitute_counters_and_generate_handle_assignments(
-        to_process.key,
-        counters,
-        regexes,
-      ),
-      fn(e) { DesugaringError(blame: to_process.blame, message: e) },
+    substitute_counters_and_generate_handle_assignments(
+      blame,
+      original_key,
+      counters,
+      regexes,
     ),
   )
 
@@ -413,24 +420,22 @@ fn fancy_one_attr_processor(
   use <- on.true_false(
     key == "",
     Error(DesugaringError(
-      to_process.blame,
-      "empty key after processing counters; original key: '" <> to_process.key <> "'",
+      blame,
+      "empty key after processing counters; original key: '" <> original_key <> "'",
     )),
   )
 
-  use #(value, counters, assignments2) <- on.ok(
-    result.map_error(
-      substitute_counters_and_generate_handle_assignments(
-        to_process.value,
-        counters,
-        regexes,
-      ),
-      fn(e) { DesugaringError(blame: to_process.blame, message: e) },
+  use #(val, counters, assignments2) <- on.ok(
+    substitute_counters_and_generate_handle_assignments(
+      blame,
+      val,
+      counters,
+      regexes,
     ),
   )
 
   Ok(#(
-    Attr(to_process.blame, key, value),
+    Attr(blame, key, val),
     counters,
     list.flatten([assignments1, assignments2]),
   ))

@@ -6,11 +6,11 @@ import infrastructure.{type DesugaringError, type Desugarer, Desugarer} as infra
 import vxml.{type VXML, V}
 import nodemaps_2_desugarer_transforms as n2t
 
-fn matches_a_key_value_pair(vxml: VXML, inner: InnerParam) -> Bool {
+fn matches_a_key_val_pair(vxml: VXML, inner: InnerParam) -> Bool {
   let assert V(_, _, attrs, _) = vxml
   list.any(inner, fn(selector) {
     let #(key, value) = selector
-    list.any(attrs, fn(attr) { attr.key == key && attr.value == value })
+    list.any(attrs, fn(attr) { attr.key == key && attr.val == value })
   })
 }
 
@@ -23,7 +23,7 @@ type Param = List(#(String, String))
 //                  key     value
 type InnerParam = Param
 
-pub const name = "keep_only_subtrees_and_ancestors_of_nodes_matching_a_key_value_pair"
+pub const name = "keep_only_subtrees_and_ancestors_of_nodes_matching_a_key_val_pair"
 
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 // 🏖️🏖️ Desugarer 🏖️🏖️
@@ -45,7 +45,7 @@ pub fn constructor(
       Error(error) -> fn(_) { Error(error) }
       Ok(inner) -> case inner {
         [] -> n2t.identity_transform
-        _ -> delete_outside_subtrees(matches_a_key_value_pair(_, inner)).transform
+        _ -> delete_outside_subtrees(matches_a_key_val_pair(_, inner)).transform
       }
     }
   )

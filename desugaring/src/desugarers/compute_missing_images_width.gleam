@@ -91,7 +91,7 @@ fn nodemap(
           on_none: Error(DesugaringError(blame, "Image tag must have a src attr")),
         )
        
-        use width <- on.ok(get_image_width(attr.blame, "../../../MrChaker/little-bo-peep-solid/public" <> attr.value))
+        use width <- on.ok(get_image_width(attr.blame, "../../../MrChaker/little-bo-peep-solid/public" <> attr.val))
         Ok(V(..node, attrs: [Attr(blame, "width", ins(width) <> "px"), ..attrs]))
       }
     _ -> Ok(node)

@@ -60,24 +60,24 @@ fn chapter_link(
   }
 
   let link =
-    number_attr.value
+    number_attr.val
     |> string.split(".")
     |> list.map(prepand_0)
     |> string.join("-")
     <> "-"
-    <> href_attr.value |> string.replace(" ", "-")
+    <> href_attr.val |> string.replace(" ", "-")
 
   Ok(
     V(
       item_blame,
       chapter_link_component_name,
       [
-        Attr(label_attr.blame, "label", label_attr.value),
-        Attr(on_mobile_attr.blame, "on_mobile", on_mobile_attr.value),
+        Attr(label_attr.blame, "label", label_attr.val),
+        Attr(on_mobile_attr.blame, "on_mobile", on_mobile_attr.val),
         Attr(
           number_attr.blame,
           "number",
-          number_attr.value,
+          number_attr.val,
         ),
         Attr(desugarer_blame(82), "href", link),
       ],

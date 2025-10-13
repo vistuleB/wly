@@ -18,8 +18,8 @@ fn nodemap(
   case vxml {
     V(blame, t, atts, children) -> {
       use <- on.false_true(
-        infra.v_has_key_value(vxml, "class", "chapterTitle") ||
-        infra.v_has_key_value(vxml, "class", "subChapterTitle"),
+        infra.v_has_key_val(vxml, "class", "chapterTitle") ||
+        infra.v_has_key_val(vxml, "class", "subChapterTitle"),
         on_false: Ok(vxml),
       )
 

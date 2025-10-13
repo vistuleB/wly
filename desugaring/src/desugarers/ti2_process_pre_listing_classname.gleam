@@ -26,7 +26,7 @@ fn nodemap(
         class_attr,
         Ok(vxml),
       )
-      let classes = string.split(class_attr.value, " ")
+      let classes = string.split(class_attr.val, " ")
       use #(classes, line_no) <- on.ok(list.try_fold(
         classes,
         #([], None),
@@ -49,7 +49,7 @@ fn nodemap(
       ))
       let attrs = case line_no {
         None -> attrs
-        Some(x) -> infra.attrs_set_styles(
+        Some(x) -> infra.attrs_append_styles(
           attrs,
           desugarer_blame(54),
           "counter-set:listing " <> ins(x - 1),

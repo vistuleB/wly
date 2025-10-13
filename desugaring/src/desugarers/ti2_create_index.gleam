@@ -1,5 +1,5 @@
 import gleam/list
-import gleam/option.{Some,None}
+import gleam/option
 import gleam/string.{inspect as ins}
 import infrastructure.{
   type Desugarer,
@@ -26,31 +26,11 @@ import on
 
 fn header(document: VXML) -> VXML {
   let b = desugarer_blame(28)
-
-  let title =
-    case infra.v_first_attr_with_key(document, "title") {
-      None -> "no title"
-      Some(x) -> x.value
-    }
-
-  let program =
-    case infra.v_first_attr_with_key(document, "program") {
-      None -> "no program"
-      Some(x) -> x.value
-    }
-
-  let institution =
-    case infra.v_first_attr_with_key(document, "institution") {
-      None -> "no institution"
-      Some(x) -> x.value
-    }
-
-  let lecturer =
-    case infra.v_first_attr_with_key(document, "lecturer") {
-      None -> "no lecturer"
-      Some(x) -> x.value
-    }
-
+  let get = infra.v_val_of_first_attr_with_key(document, _)
+  let title = get("title") |> option.unwrap("no title")
+  let program = get("program") |> option.unwrap("no program")
+  let institution = get("institution") |> option.unwrap("no institution")
+  let lecturer = get("lecturer") |> option.unwrap("no lecturer")
   V(
     b,
     "header",

@@ -6,13 +6,13 @@ import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type 
 import nodemaps_2_desugarer_transforms as n2t
 import vxml.{type Attr, type VXML, T, V}
 
-fn matches_all_key_value_pairs(
+fn matches_all_key_val_pairs(
   attrs: List(Attr),
   key_value_pairs: List(#(String, String)),
 ) -> Bool {
   list.all(key_value_pairs, fn(key_value) {
     let #(key, value) = key_value
-    list.any(attrs, fn(attr) { attr.key == key && attr.value == value })
+    list.any(attrs, fn(attr) { attr.key == key && attr.val == value })
   })
 }
 
@@ -26,7 +26,7 @@ fn nodemap(
       case list.find(inner, fn(pair) { pair |> pair.first == tag }) {
         Error(Nil) -> Ok([node])
         Ok(#(_, attrs_to_match)) -> {
-          case matches_all_key_value_pairs(attrs, attrs_to_match) {
+          case matches_all_key_val_pairs(attrs, attrs_to_match) {
             False -> Ok([node])
             True -> Ok(children)
             // bye-bye

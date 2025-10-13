@@ -8,7 +8,7 @@ import vxml.{ type VXML, V, type Attr, Attr}
 fn map_attr(attr: Attr, state: State, inner: InnerParam) -> Attr {
   case attr.key {
     "handle" -> {
-      case attr.value |> string.split_once(" ") {
+      case attr.val |> string.split_once(" ") {
         Ok(#(_, handle_value)) -> {
           assert string.trim(handle_value) != ""
           attr
@@ -18,7 +18,7 @@ fn map_attr(attr: Attr, state: State, inner: InnerParam) -> Attr {
             True -> inner.2
             False -> inner.3
           }
-          Attr(..attr, value: attr.value <> " " <> appended_value)
+          Attr(..attr, val: attr.val <> " " <> appended_value)
         }
       }
     }

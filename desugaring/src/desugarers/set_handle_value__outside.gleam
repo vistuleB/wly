@@ -23,13 +23,13 @@ fn map_attr(
 ) -> Attr {
   case attr.key {
     "handle" -> {
-      case attr.value |> string.split_once(" ") {
+      case attr.val |> string.split_once(" ") {
         Ok(#(_, handle_value)) -> {
           assert string.trim(handle_value) != ""
           attr
         }
         _ ->
-          Attr(..attr, value: attr.value <> " " <> inner.1)
+          Attr(..attr, val: attr.val <> " " <> inner.1)
       }
     }
     _ -> attr

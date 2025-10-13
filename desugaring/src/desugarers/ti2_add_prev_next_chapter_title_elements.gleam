@@ -54,7 +54,7 @@ fn gather_title_and_chiron(
     [V(_, "p", _, title)] -> title
     _ -> title
   }
-  use chiron <- on.ok(infra.attrs_value_of_unique_key(attrs, "number-chiron", blame))
+  use chiron <- on.ok(infra.attrs_val_of_unique_key(attrs, "number-chiron", blame))
   Ok(#(title, chiron))
 }
 

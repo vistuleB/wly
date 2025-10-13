@@ -10,7 +10,7 @@ fn nodemap(
 ) -> VXML {
   case vxml {
     V(_, tag, attrs, _) if tag == inner.0 -> {
-      let #(trash, remaining) = infra.attrs_extract_key_value(attrs, inner.2, inner.3)
+      let #(trash, remaining) = infra.attrs_extract_key_val(attrs, inner.2, inner.3)
       case trash {
         [] -> vxml
         _ -> V(..vxml, tag: inner.1, attrs: remaining)
@@ -38,7 +38,7 @@ type Param = #(String,  String,  String,  String)
 //             tag      class    key      value
 type InnerParam = Param
 
-pub const name = "rename_if_has_key_value"
+pub const name = "rename_if_has_key_val"
 
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 // 🏖️🏖️ Desugarer 🏖️🏖️

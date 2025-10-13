@@ -142,7 +142,7 @@ fn nodemap(
 ) -> VXML {
   case vxml {
     V(blame, "pre", attrs, [T(_, lines)]) -> {
-      case infra.v_has_key_value(vxml, "language", "python-prompt") {
+      case infra.v_has_key_val(vxml, "language", "python-prompt") {
         True -> {
           let children =
             lines

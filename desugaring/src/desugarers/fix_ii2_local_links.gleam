@@ -16,24 +16,24 @@ fn nodemap(
         Ok(vxml),
       )
       use <- on.false_true(
-        string.starts_with(href.value, "../../demo"),
+        string.starts_with(href.val, "../../demo"),
         Ok(vxml),
       )
       let atts =
         atts
-        |> list.map(fn(att) {
-          case att.key {
+        |> list.map(fn(attr) {
+          case attr.key {
             "href" ->
               vxml.Attr(
-                att.blame,
+                attr.blame,
                 "href",
-                att.value
+                attr.val
                   |> string.replace(
                     "../../demos",
                     "https://www.tu-chemnitz.de/informatik/theoretische-informatik/demos",
                   ),
               )
-            _ -> att
+            _ -> attr
           }
         })
       Ok(V(blame, tag, atts, children))

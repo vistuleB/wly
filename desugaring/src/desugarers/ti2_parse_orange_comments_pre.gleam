@@ -51,7 +51,7 @@ fn nodemap(
   case vxml {
     V(blame, "pre", attrs, [T(_, lines)]) -> {
       use language <- on.none_some(
-        infra.v_value_of_first_attr_with_key(vxml, "language"),
+        infra.v_val_of_first_attr_with_key(vxml, "language"),
         vxml,
       )
 

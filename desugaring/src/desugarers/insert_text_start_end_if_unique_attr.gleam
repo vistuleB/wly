@@ -9,7 +9,7 @@ fn nodemap(
   inner: InnerParam,
 ) -> VXML {
   case vxml {
-    V(_, tag, [one], _) if tag == inner.0 && one.key == inner.1 && one.value == inner.2 -> {
+    V(_, tag, [one], _) if tag == inner.0 && one.key == inner.1 && one.val == inner.2 -> {
       vxml
       |> infra.v_start_insert_text(inner.3)
       |> infra.v_end_insert_text(inner.4)

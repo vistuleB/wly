@@ -11,7 +11,7 @@ fn ensure_has_id_attr(
 ) -> #(VXML, Int, String) {
   let assert V(_, _, _, _) = vxml
   case infra.v_first_attr_with_key(vxml, "id") {
-    Some(attr) -> #(vxml, counter, attr.value)
+    Some(attr) -> #(vxml, counter, attr.val)
     None -> {
       let counter = counter + 1
       let id = "_" <> ins(counter) <> "_hgi_"
@@ -53,22 +53,22 @@ fn nodemap(
       use attrs <- on.ok(
         attrs
         |> list.try_map(
-          fn(att) {
-            case att.key == "handle" {
-              False -> Ok(att)
+          fn(attr) {
+            case attr.key == "handle" {
+              False -> Ok(attr)
               True -> {
                 use #(handle_name, handle_value) <- on.ok(
-                    case string.split_once(att.value |> infra.normalize_spaces, " ") {
+                    case string.split_once(attr.val |> infra.normalize_spaces, " ") {
                     Ok(#(first, second)) -> {
                       case string.contains(first, "|") || string.contains(second, "|") {
-                        True -> Error(DesugaringError(att.blame, "handle value contains splitting charachter '|'"))
+                        True -> Error(DesugaringError(attr.blame, "handle value contains splitting charachter '|'"))
                         False -> Ok(#(first, second))
                       }
                     }
-                    Error(_) -> Ok(#(att.value, ""))
+                    Error(_) -> Ok(#(attr.val, ""))
                   }
                 )
-                Ok(Attr(..att, value: handle_name <> "|" <> handle_value <> "|" <> id))
+                Ok(Attr(..attr, val: handle_name <> "|" <> handle_value <> "|" <> id))
               }
             }
           }

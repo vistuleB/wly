@@ -3,18 +3,14 @@ import gleam/option
 import gleam/string.{inspect as ins}
 import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as infra
 import nodemaps_2_desugarer_transforms as n2t
-import vxml.{type Attr, Attr, type VXML, V}
-
-fn replace_value(value: String, replacement: String) -> String {
-  string.replace(replacement, "()", value)
-}
+import vxml.{type Attr, type VXML, V}
 
 fn update_attr(
   attr: Attr,
   inner: InnerParam,
 ) -> Attr {
   case list.find(inner, fn(x) {x.0 == attr.key}) {
-    Ok(#(_, replacement)) -> Attr(..attr, value: replace_value(attr.value, replacement))
+    Ok(#(_, replacement)) -> infra.attr_substitute(attr, "()", replacement)
     _ -> attr
   }
 }

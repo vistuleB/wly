@@ -51,7 +51,7 @@ fn nodemap(
   case vxml {
     V(blame, "CodeBlock", _, [T(_, lines)]) -> {
       use language <- on.none_some(
-        infra.v_value_of_first_attribute_with_key(vxml, "language"),
+        infra.v_val_of_first_attribute_with_key(vxml, "language"),
         vxml,
       )
       case string.starts_with(language, "orange-comment") {

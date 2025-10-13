@@ -21,9 +21,9 @@ fn nodemap(
       use maybe <- on.ok(infra.attrs_unique_key_or_none(attrs, inner.1))
       case maybe {
         None -> Ok(#(vxml, Continue))
-        Some(x) -> Ok(
+        Some(attr) -> Ok(
           #(
-            vxml |> infra.v_start_insert_text(x.value <> inner.2),
+            vxml |> infra.v_start_insert_text(attr.val <> inner.2),
             inner.3,
           )
         )

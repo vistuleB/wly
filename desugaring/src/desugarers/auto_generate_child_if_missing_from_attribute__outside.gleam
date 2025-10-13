@@ -32,7 +32,7 @@ fn nodemap(
               desugarer_blame(32),
               inner.1,
               [],
-              [T(attr.blame, [Line(attr.blame, attr.value)])],
+              [T(attr.blame, [Line(attr.blame, attr.val)])],
             ),
             ..node.children,
           ]

@@ -9,7 +9,7 @@ fn nodemap(
   inner: InnerParam,
 ) -> VXML {
   case vxml {
-    V(_, tag, [singleton], _) if tag == inner.0 && singleton.key == "class" && singleton.value == inner.2 ->
+    V(_, tag, [singleton], _) if tag == inner.0 && singleton.key == "class" && singleton.val == inner.2 ->
       V(..vxml, tag: inner.1, attrs: [])
     _ -> vxml
   }

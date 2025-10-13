@@ -39,14 +39,14 @@ fn try_read_handle(
   attr: Attr
 ) -> Result(#(String, Bool, String, String), DesugaringError) {
   assert attr.key == "handle"
-  case string.split(attr.value, "|") {
+  case string.split(attr.val, "|") {
     [name, value, id] -> {
       case name |> string.ends_with(":page") {
         False -> Ok(#(name, False, value, id))
         True -> Ok(#(name |> string.drop_end(5), True, value, id))
       }
     }
-    _ -> Error(DesugaringError(attr.blame, "handle attr not in form <name>|<value>|<id>; found: “" <> attr.value <> "”"))
+    _ -> Error(DesugaringError(attr.blame, "handle attr not in form <name>|<value>|<id>; found: “" <> attr.val <> "”"))
   }
 }
 
@@ -74,7 +74,7 @@ fn try_insert_id(
 ) -> Result(Ids, DesugaringError) {
   assert attr.key == "id"
 
-  let id = attr.value
+  let id = attr.val
 
   use <- on.lazy_true_false(
     id == "",
@@ -135,7 +135,7 @@ fn check_no_handles_no_ids(
     fn(attr) {
       case attr.key {
         "handle" -> {
-          let #(name, _, _) = sp.split(sp.new(["|"]), attr.value)
+          let #(name, _, _) = sp.split(sp.new(["|"]), attr.val)
           Error(DesugaringError(attr.blame, "no page path at handle '" <> name <> "'"))
         }
         "id" -> {

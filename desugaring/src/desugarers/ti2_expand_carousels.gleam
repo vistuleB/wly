@@ -38,18 +38,18 @@ fn nodemap(
 
           use width_style <- on.ok(
             case width_attr, width_style {
-              Some(x), Some(_) -> Error(DesugaringError(x.blame, "duplicate width definition via attr and style element"))
-              Some(x), None -> Ok("width:" <> x.value)
-              None, Some(value) -> Ok("width:" <> value)
+              Some(attr), Some(_) -> Error(DesugaringError(attr.blame, "duplicate width definition via attr and style element"))
+              Some(attr), None -> Ok("width:" <> attr.val)
+              None, Some(x) -> Ok("width:" <> x)
               None, None -> Ok("")
             }
           )
 
           use height_style <- on.ok(
             case height_attr, height_style {
-              Some(x), Some(_) -> Error(DesugaringError(x.blame, "duplicate height definition via attr and style element"))
-              Some(x), None -> Ok("height:" <> x.value)
-              None, Some(value) -> Ok("height:" <> value)
+              Some(attr), Some(_) -> Error(DesugaringError(attr.blame, "duplicate height definition via attr and style element"))
+              Some(attr), None -> Ok("height:" <> attr.val)
+              None, Some(x) -> Ok("height:" <> x)
               None, None -> Ok("")
             }
           )

@@ -20,7 +20,7 @@ fn v_before_transforming_children(
         None -> Error(DesugaringError(blame, tag <> " tag must have width attr"))
         Some(attr) -> {
           use #(width, _) <- on.error_ok(
-            infra.parse_number_and_optional_css_unit(attr.value),
+            infra.parse_number_and_optional_css_unit(attr.val),
             on_error: fn(_) {
               Error(DesugaringError(attr.blame, "Could not parse digits in width attr"))
             }

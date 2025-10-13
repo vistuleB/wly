@@ -19,12 +19,12 @@ fn nodemap(
 ) -> Result(#(VXML, TrafficLight), DesugaringError) {
   case vxml {
     V(_, tag, attrs, children) if tag == inner.0 -> {
-      use maybe <- on.ok(
+      use attr <- on.ok(
         infra.attrs_unique_key_or_none(attrs, inner.1)
       )
 
-      use x <- on.lazy_none_some(
-        maybe,
+      use attr <- on.lazy_none_some(
+        attr,
         fn() { Ok(#(vxml, Continue)) },
       )
 
@@ -35,7 +35,7 @@ fn nodemap(
       case first {
         T(..) -> Error(DesugaringError(first.blame, "first child is text node instead of V-node"))
         V(..) -> {
-          let first = first |> infra.v_start_insert_text(x.value <> inner.2)
+          let first = first |> infra.v_start_insert_text(attr.val <> inner.2)
           Ok(#(V(..vxml, children: [first, ..rest]), inner.3))
         }
       }

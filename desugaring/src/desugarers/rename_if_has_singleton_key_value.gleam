@@ -9,7 +9,7 @@ fn nodemap(
   inner: InnerParam,
 ) -> VXML {
   case vxml {
-    V(_, tag, [singleton], _) if tag == inner.0 && singleton.key == inner.2 && singleton.value == inner.3 ->
+    V(_, tag, [singleton], _) if tag == inner.0 && singleton.key == inner.2 && singleton.val == inner.3 ->
       V(..vxml, tag: inner.1, attrs: [])
     _ -> vxml
   }
@@ -33,7 +33,7 @@ type Param = #(String,  String,  String,  String)
 //             tag      class    key      value
 type InnerParam = Param
 
-pub const name = "rename_if_has_singleton_key_value"
+pub const name = "rename_if_has_singleton_key_val"
 
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 // 🏖️🏖️ Desugarer 🏖️🏖️

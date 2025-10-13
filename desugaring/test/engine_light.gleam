@@ -4,7 +4,6 @@ import gleam/string.{inspect as ins}
 import infrastructure as infra
 import desugaring as ds
 import desugarer_library as dl
-import selector_library as sl
 import on
 
 fn pipeline() -> infra.Pipeline {
@@ -12,10 +11,7 @@ fn pipeline() -> infra.Pipeline {
     dl.identity(),
     dl.rearrange_links(#("Theorem <a href=1>_1_</a>", "<a href=1>Theorem _1_</a>")),
   ]
-  |> infra.desugarers_2_pipeline(
-    sl.all(),
-    infra.TrackingOff,
-  )
+  |> infra.desugarers_2_pipeline
 }
 
 pub fn main() {

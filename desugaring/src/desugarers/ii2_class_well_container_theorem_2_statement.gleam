@@ -17,7 +17,7 @@ fn nodemap(
       } {
         True -> case children {
           [V(_, "span", _, span_children) as span, ..rest] -> {
-            case infra.v_has_key_value(span, "class", "numbered-title") {
+            case infra.v_has_key_val(span, "class", "numbered-title") {
               True -> case span_children {
                 [T(_, [one_line]), ..] -> {
                   let title = one_line.content |> string.trim

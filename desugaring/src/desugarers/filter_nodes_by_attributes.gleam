@@ -20,7 +20,7 @@ fn matches_a_selector(vxml: VXML, inner: InnerParam) -> Bool {
       && {
         key == ""
         || list.any(attrs, fn(attr) {
-          { attr.key == key && attr.value == value }
+          { attr.key == key && attr.val == value }
         })
       }
     }

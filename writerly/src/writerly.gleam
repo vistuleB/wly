@@ -106,7 +106,7 @@ type TentativeAttr {
   TentativeAttr(
     blame: Blame,
     key: TentativeAttrKey,
-    value: String,
+    val: String,
   )
 }
 
@@ -165,7 +165,7 @@ fn tentative_attr_to_attr(
   t: TentativeAttr,
 ) -> Result(Attr, ParseError) {
   case t.key {
-    Ok(key) -> Ok(Attr(blame: t.blame, key: key, value: t.value))
+    Ok(key) -> Ok(Attr(blame: t.blame, key: key, val: t.val))
     Error(BadTentativeKey(key)) -> Error(BadKey(t.blame, key))
     Error(DuplicateId) -> Error(DuplicateIdInCodeBlockLanguageAnnotation(t.blame))
   }
@@ -300,18 +300,18 @@ fn tentative_attr(
   pair: #(String, String),
   key_re: Regexp,
 ) -> TentativeAttr {
-  let #(key, value) = pair
+  let #(key, val) = pair
   assert !string.contains(key, "=")
   assert !string.is_empty(key)
 
   case regexp.check(key_re, key) {
-    True -> TentativeAttr(blame: blame, key: Ok(key), value: value)
+    True -> TentativeAttr(blame: blame, key: Ok(key), val: val)
 
     False ->
       TentativeAttr(
         blame: blame,
         key: Error(BadTentativeKey(key)),
-        value: value,
+        val: val,
       )
   }
 }
@@ -336,15 +336,15 @@ fn fast_forward_past_attr_lines_at_indent(
           case string.split_once(suffix, "=") {
             Error(_) -> #([], head)
 
-            Ok(#(key, value)) -> {
-              case string.contains(key, " ") || key == "" || string.starts_with(value, " ") {
+            Ok(#(key, val)) -> {
+              case string.contains(key, " ") || key == "" || string.starts_with(val, " ") {
                 True -> #([], head)
 
                 False -> {
-                  let value = string.trim(value)
+                  let val = string.trim(val)
 
                   let attr_pair =
-                    #(key, value)
+                    #(key, val)
                     |> tentative_attr(blame, _, key_re)
 
                   let #(more_attr_pairs, head_after_attrs) =
@@ -609,10 +609,10 @@ fn code_block_annotation_to_attrs_v2(
     })
   }
   let other_attrs = list.map(ampersands, fn(a) {
-    let assert Ampersand(blame, key, value) = a
+    let assert Ampersand(blame, key, val) = a
     case regexp.check(key_re, key) {
-      True -> TentativeAttr(blame, Ok(key), value)
-      False -> TentativeAttr(blame, Error(BadTentativeKey(key)), value)
+      True -> TentativeAttr(blame, Ok(key), val)
+      False -> TentativeAttr(blame, Error(BadTentativeKey(key)), val)
     }
   })
   list.flatten([
@@ -1039,21 +1039,21 @@ fn tentative_attr_to_output_line(
       OutputLine(
         attr.blame,
         indentation,
-        ins(attr.key) <> "=" <> attr.value,
+        ins(attr.key) <> "=" <> attr.val,
       )
     Error(BadTentativeKey(bad_key)) ->
       OutputLine(
         attr.blame
           |> pc("ERROR bad xml key"),
         indentation,
-        bad_key <> "=" <> attr.value,
+        bad_key <> "=" <> attr.val,
       )
     Error(DuplicateId) ->
       OutputLine(
         attr.blame
           |> pc("ERROR duplicate 'id'"),
         indentation,
-        "id=" <> attr.value,
+        "id=" <> attr.val,
       )
   }
 }
@@ -1078,8 +1078,8 @@ fn tentative_attrs_to_code_block_annotation(
         Ok(key) -> key
       }
       case i == 0 && key == "language" {
-        True -> attr.value
-        False -> key <> "=" <> attr.value
+        True -> attr.val
+        False -> key <> "=" <> attr.val
       }
     }
   )
@@ -1093,8 +1093,8 @@ fn attrs_to_code_block_annotation(
     attrs,
     fn (attr, i) {
       case i == 0 && attr.key == "language" {
-        True -> attr.value
-        False -> attr.key <> "=" <> attr.value
+        True -> attr.val
+        False -> attr.key <> "=" <> attr.val
       }
     }
   )
@@ -1219,7 +1219,7 @@ pub fn writerly_annotate_blames(writerly: Writerly) -> Writerly {
           Attr(
             attr.blame |> pc("Tag > Attr(" <> ins(i + 1) <> ")"),
             attr.key,
-            attr.value,
+            attr.val,
           )
         }),
         children
@@ -1235,7 +1235,7 @@ fn attr_to_output_line(
   OutputLine(
     attr.blame,
     indentation,
-    attr.key <> "=" <> attr.value,
+    attr.key <> "=" <> attr.val,
   )
 }
 
