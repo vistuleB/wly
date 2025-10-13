@@ -879,24 +879,6 @@ pub fn vxml_table(vxml: VXML, banner: String, indent: Int) -> String {
   |> io_l.output_lines_table(banner, indent)
 }
 
-// pub fn echo_vxml(vxml: VXML, banner: String) -> VXML {
-//   vxml
-//   |> vxml_to_output_lines
-//   |> io_l.echo_output_lines(banner)
-//   vxml
-// }
-
-// pub fn echo_vxmls(vxmls: List(VXML), banner: String) -> List(VXML) {
-//   vxmls
-//   |> list.index_map(fn(vxml, i) {echo_vxml(vxml, banner <> "-" <> ins(i + 1))})
-//   vxmls
-// }
-
-// pub fn echo_vxmls_with_root(vxmls: List(VXML), tag: String, banner: String) -> List(VXML) {
-//   echo_vxml(V(bl.no_blame, tag, [], vxmls), banner)
-//   vxmls
-// }
-
 // ************************************************************
 // VXML -> jsx
 // ************************************************************

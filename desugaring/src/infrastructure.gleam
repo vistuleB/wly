@@ -1,7 +1,5 @@
 import gleam/float
 import gleam/int
-import blame.{type Blame} as bl
-import io_lines.{type OutputLine, OutputLine} as io_l
 import gleam/dict.{type Dict}
 import gleam/io
 import gleam/list
@@ -9,7 +7,20 @@ import gleam/pair
 import gleam/option.{type Option, None, Some}
 import gleam/result
 import gleam/string.{inspect as ins}
-import vxml.{type Attribute, Attribute, type TextLine, type VXML, TextLine, T, V}
+import blame.{type Blame} as bl
+import io_lines.{
+  type OutputLine,
+  OutputLine,
+} as io_l
+import vxml.{
+  type VXML,
+  type Attribute,
+  type TextLine,
+  Attribute,
+  TextLine,
+  T,
+  V,
+}
 import splitter
 import on
 
