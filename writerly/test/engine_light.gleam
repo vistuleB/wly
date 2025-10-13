@@ -33,16 +33,14 @@ fn contents_test() -> Result(Nil, String) {
   list.index_map(
     writerlys,
     fn (writerly, i) {
-      wp.echo_writerly(writerly, "#" <> ins(i + 1))
-      io.println("")
+      wp.writerly_table(writerly, "#" <> ins(i + 1), 0) |> io.println
     }
   )
 
   list.index_map(
     vxmls,
     fn (vxml, i) {
-      vxml.echo_vxml(vxml, "#" <> ins(i + 1))
-      io.println("")
+      vxml.vxml_table(vxml, "#" <> ins(i + 1), 0) |> io.println
     }
   )
 
@@ -73,8 +71,7 @@ fn sample_test() -> Result(Nil, String) {
   writerlys
   |> list.index_map(
     fn (writerly, i) {
-      wp.echo_writerly(writerly, "sample_test writerly " <> ins(i + 1))
-      io.println("")
+      wp.writerly_table(writerly, "sample_test writerly " <> ins(i + 1), 0) |> io.println
     }
   )
 
@@ -86,8 +83,7 @@ fn sample_test() -> Result(Nil, String) {
   vxmls
   |> list.index_map(
     fn (wxml, i) {
-      vxml.echo_vxml(wxml, "sample_test vxml" <> ins(i + 1))
-      io.println("")
+      vxml.vxml_table(wxml, "sample_test vxml" <> ins(i + 1), 0) |> io.println
     }
   )
 
@@ -120,8 +116,11 @@ fn html_test() -> Result(Nil, String) {
   writerlys
   |> list.index_map(
     fn (writerly, i) {
-      wp.echo_writerly(writerly, "html_test " <> ins(i + 1))
-      io.println("")
+      wp.writerly_table(
+        writerly,
+        "html_test " <> ins(i + 1),
+        0,
+      ) |> io.println
     }
   )
 

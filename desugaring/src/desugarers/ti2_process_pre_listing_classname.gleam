@@ -51,10 +51,10 @@ fn nodemap(
         None -> attrs
         Some(x) -> infra.attributes_set_styles(
           attrs,
-          desugarer_blame(55),
+          desugarer_blame(54),
           "counter-set:listing " <> ins(x - 1),
         )
-        |> infra.attributes_set(desugarer_blame(0), "class", string.join(classes |> list.reverse, " "))
+        |> infra.attributes_set(desugarer_blame(57), "class", string.join(classes |> list.reverse, " "))
       }
       Ok(V(..vxml, attributes: attrs))
     }

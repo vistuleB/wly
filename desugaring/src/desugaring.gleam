@@ -1378,8 +1378,13 @@ fn run_pipeline(
       let #(selected_2_print, next_tracking_output) = case mode == TrackingOff && !peek {
         True -> #([], last_tracking_output)
         False -> {
-          let selected_2_print = vxml |> infra.vxml_to_s_lines |> selector
-          let next_tracking_output = selected_2_print |> infra.s_lines_annotated_table("", True, 0)
+          let selected_2_print =
+            vxml
+            |> infra.vxml_to_s_lines
+            |> selector
+          let next_tracking_output =
+            selected_2_print
+            |> infra.s_lines_table("", True, 0)
           let selected_2_print = case peek {
             True -> vxml |> infra.vxml_to_s_lines |> sl.all()
             False -> selected_2_print
@@ -1396,7 +1401,7 @@ fn run_pipeline(
           )
           io.println("    💠")
           selected_2_print
-          |> infra.s_lines_annotated_table("", False, 2)
+          |> infra.s_lines_table("", False, 2)
           |> io.println
           False
         }
@@ -1508,10 +1513,9 @@ pub fn run_renderer(
   case debug_options.assembler_debug_options.echo_ {
     False -> Nil
     True -> {
-      io_l.input_lines_annotated_table_at_indent(assembled, "",  2)
-      |> string.join("\n")
+      assembled
+      |> io_l.input_lines_table("",  2)
       |> io.println
-      Nil
     }
   }
 
@@ -1644,8 +1648,8 @@ pub fn run_renderer(
       True -> {
         fr.payload
         |> vp.vxml_to_output_lines
-        |> io_l.echo_output_lines("fr:" <> fr.path)
-        Nil
+        |> io_l.output_lines_table("fr:" <> fr.path, 2)
+        |> io.println
       }
     }
   })
@@ -1671,8 +1675,8 @@ pub fn run_renderer(
           False -> Nil
           True -> {
             fr.payload
-            |> io_l.echo_output_lines("fr-ol:" <> fr.path)
-            Nil
+            |> io_l.output_lines_table("fr-ol:" <> fr.path, 2)
+            |> io.println
           }
         }
       }

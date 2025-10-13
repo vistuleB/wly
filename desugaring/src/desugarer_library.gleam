@@ -63,7 +63,7 @@ import desugarers/delete_outside_subtrees
 import desugarers/delete_text_nodes_with_singleton_empty_line
 import desugarers/detokenize_all
 import desugarers/detokenize_href_surroundings
-import desugarers/echo_if_see_text
+import desugarers/echo_v_if_see_text
 import desugarers/extract_starting_and_ending_spaces
 import desugarers/filter_nodes_by_attributes
 import desugarers/find_replace__batch__outside
@@ -275,7 +275,7 @@ pub const delete_outside_subtrees = delete_outside_subtrees.constructor
 pub const delete_text_nodes_with_singleton_empty_line = delete_text_nodes_with_singleton_empty_line.constructor
 pub const detokenize_all = detokenize_all.constructor
 pub const detokenize_href_surroundings = detokenize_href_surroundings.constructor
-pub const echo_if_see_text = echo_if_see_text.constructor
+pub const echo_v_if_see_text = echo_v_if_see_text.constructor
 pub const extract_starting_and_ending_spaces = extract_starting_and_ending_spaces.constructor
 pub const filter_nodes_by_attributes = filter_nodes_by_attributes.constructor
 pub const find_replace__batch__outside = find_replace__batch__outside.constructor
@@ -488,7 +488,7 @@ pub const assertive_tests : List(fn() -> infra.AssertiveTestCollection) = [
   delete_text_nodes_with_singleton_empty_line.assertive_tests,
   detokenize_all.assertive_tests,
   detokenize_href_surroundings.assertive_tests,
-  echo_if_see_text.assertive_tests,
+  echo_v_if_see_text.assertive_tests,
   extract_starting_and_ending_spaces.assertive_tests,
   filter_nodes_by_attributes.assertive_tests,
   find_replace__batch__outside.assertive_tests,

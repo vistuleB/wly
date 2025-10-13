@@ -160,7 +160,6 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
       expected: "
                   <> root
                     <> pre
-                      class=html
                       <> span
                         class=xml-0
                         <>
@@ -209,14 +208,13 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
       source:   "
                   <> root
                     <> pre
-                      language=html
+                      language=xml
                       <>
                         \"<img src=\\\"test.jpg\\\" />\"
                 ",
       expected: "
                   <> root
                     <> pre
-                      class=html
                       <> span
                         class=xml-0
                         <>

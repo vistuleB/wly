@@ -650,9 +650,11 @@ fn tentative_parse_input_lines(
   assert list.is_empty(final_head)
 
   case debug_messages {
-    True -> echo_tentatives(parsed, "tentative_parsed")
-    False -> parsed
+    True -> tentatives_table(parsed, "tentative_parsed", 0) |> io.println
+    False -> Nil
   }
+
+  parsed
 }
 
 // ************************************************************
@@ -755,11 +757,10 @@ fn tentatives_to_output_lines_internal(
   |> list.flatten
 }
 
-fn echo_tentatives(tentatives: List(TentativeVXML), banner: String) -> List(TentativeVXML) {
+fn tentatives_table(tentatives: List(TentativeVXML), banner: String, indent: Int) -> String {
   tentatives
   |> tentatives_to_output_lines_internal(0)
-  |> io_l.echo_output_lines(banner)
-  tentatives
+  |> io_l.output_lines_table(banner, indent)
 }
 
 // ************************************************************
@@ -872,24 +873,29 @@ pub fn vxmls_to_string(vxmls: List(VXML)) -> String {
 // echo_vxml
 // ************************************************************
 
-pub fn echo_vxml(vxml: VXML, banner: String) -> VXML {
+pub fn vxml_table(vxml: VXML, banner: String, indent: Int) -> String {
   vxml
-  |> annotate_blames
   |> vxml_to_output_lines
-  |> io_l.echo_output_lines(banner)
-  vxml
+  |> io_l.output_lines_table(banner, indent)
 }
 
-pub fn echo_vxmls(vxmls: List(VXML), banner: String) -> List(VXML) {
-  vxmls
-  |> list.index_map(fn(vxml, i) {echo_vxml(vxml, banner <> "-" <> ins(i + 1))})
-  vxmls
-}
+// pub fn echo_vxml(vxml: VXML, banner: String) -> VXML {
+//   vxml
+//   |> vxml_to_output_lines
+//   |> io_l.echo_output_lines(banner)
+//   vxml
+// }
 
-pub fn echo_vxmls_with_root(vxmls: List(VXML), tag: String, banner: String) -> List(VXML) {
-  echo_vxml(V(bl.no_blame, tag, [], vxmls), banner)
-  vxmls
-}
+// pub fn echo_vxmls(vxmls: List(VXML), banner: String) -> List(VXML) {
+//   vxmls
+//   |> list.index_map(fn(vxml, i) {echo_vxml(vxml, banner <> "-" <> ins(i + 1))})
+//   vxmls
+// }
+
+// pub fn echo_vxmls_with_root(vxmls: List(VXML), tag: String, banner: String) -> List(VXML) {
+//   echo_vxml(V(bl.no_blame, tag, [], vxmls), banner)
+//   vxmls
+// }
 
 // ************************************************************
 // VXML -> jsx
@@ -1633,7 +1639,7 @@ fn get_attributes_and_tag_end(
 ) {
   let prepend_attribute_if_ok = fn(
     result: Result(#(List(Attribute), xs.Event, List(xs.Event)), #(Blame, String)),
-    attr: Attribute
+    attr: Attribute,
   ) {
     case result {
       Error(e) -> Error(e)

@@ -99,7 +99,6 @@ fn detokenize_maybe(
 
         T(_, _) -> {
           let assert [] = accumulated_lines
-          vxml.echo_vxmls(children, "children")
           panic as "how did T not become tokenized"
         }
       }
@@ -117,25 +116,25 @@ fn generate_replacement_vxml_internal(
     [p, ..pattern_rest] -> {
       case p {
         StartT -> generate_replacement_vxml_internal(
-          [start_node(desugarer_blame(120)), ..already_ready],
+          [start_node(desugarer_blame(119)), ..already_ready],
           pattern_rest,
           match_data,
         )
 
         EndT -> generate_replacement_vxml_internal(
-          [end_node(desugarer_blame(126)), ..already_ready],
+          [end_node(desugarer_blame(125)), ..already_ready],
           pattern_rest,
           match_data,
         )
 
         Space -> generate_replacement_vxml_internal(
-          [space_node(desugarer_blame(132)), ..already_ready],
+          [space_node(desugarer_blame(131)), ..already_ready],
           pattern_rest,
           match_data,
         )
 
         Word(word) -> generate_replacement_vxml_internal(
-          [word_node(desugarer_blame(138), word), ..already_ready],
+          [word_node(desugarer_blame(137), word), ..already_ready],
           pattern_rest,
           match_data,
         )
@@ -353,7 +352,7 @@ fn start_node(blame: Blame) {
 }
 
 fn word_node(blame: Blame, word: String) {
-  V(blame, "__OneWord", [Attribute(desugarer_blame(356), "val", word)], [])
+  V(blame, "__OneWord", [Attribute(desugarer_blame(355), "val", word)], [])
 }
 
 fn space_node(blame: Blame) {
@@ -844,22 +843,22 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
 
   use unique_href_vars <- on.ok(
     collect_unique_href_vars(pattern1)
-    |> result.map_error(fn(var){ DesugaringError(desugarer_blame(847), "Source pattern " <> param.0 <>" has duplicate declaration of href variable: " <> ins(var) ) })
+    |> result.map_error(fn(var){ DesugaringError(desugarer_blame(846), "Source pattern " <> param.0 <>" has duplicate declaration of href variable: " <> ins(var) ) })
   )
 
   use unique_content_vars <- on.ok(
     collect_unique_content_vars(pattern1)
-    |> result.map_error(fn(var){ DesugaringError(desugarer_blame(852), "Source pattern " <> param.0 <>" has duplicate declaration of content variable: " <> ins(var)) })
+    |> result.map_error(fn(var){ DesugaringError(desugarer_blame(851), "Source pattern " <> param.0 <>" has duplicate declaration of content variable: " <> ins(var)) })
   )
 
   use _ <- on.ok(
     check_each_href_var_is_sourced(pattern2, unique_href_vars)
-    |> result.map_error(fn(var){ DesugaringError(desugarer_blame(857), "Target pattern " <> param.1 <> " has a declaration of unsourced href variable: " <> ins(var)) })
+    |> result.map_error(fn(var){ DesugaringError(desugarer_blame(856), "Target pattern " <> param.1 <> " has a declaration of unsourced href variable: " <> ins(var)) })
   )
 
   use _ <- on.ok(
     check_each_content_var_is_sourced(pattern2, unique_content_vars)
-    |> result.map_error(fn(var){ DesugaringError(desugarer_blame(862), "Target pattern " <> param.1 <> " has a declaration of unsourced content variable: " <> ins(var)) })
+    |> result.map_error(fn(var){ DesugaringError(desugarer_blame(861), "Target pattern " <> param.1 <> " has a declaration of unsourced content variable: " <> ins(var)) })
   )
 
   Ok(#(pattern1, pattern2))

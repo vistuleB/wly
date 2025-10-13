@@ -1920,10 +1920,7 @@ pub fn is_v_and_has_attribute_with_key(vxml: VXML, key: String) -> Bool {
 
 pub fn v_has_key_value(vxml: VXML, key: String, value: String) -> Bool {
   let assert V(_, _, attrs, _) = vxml
-  case list.find(attrs, fn(b) { b.key == key && b.value == value }) {
-    Error(Nil) -> False
-    Ok(_) -> True
-  }
+  attributes_have_key_value(attrs, key, value)
 }
 
 pub fn v_extract_children(vxml: VXML, condition: fn(VXML) -> Bool) -> #(VXML, List(VXML)) {
@@ -2114,6 +2111,14 @@ pub fn attributes_have_key(
   key: String,
 ) -> Bool {
   list.any(attrs, fn(x) { x.key == key })
+}
+
+pub fn attributes_have_key_value(
+  attrs: List(Attribute),
+  key: String,
+  value: String,
+) -> Bool {
+  list.any(attrs, fn(x) { x.key == key && x.value == value })
 }
 
 pub fn string_pair_2_attribute(
@@ -2793,7 +2798,7 @@ pub type AssertiveTestDataWithOutside(a) {
   )
 }
 
-pub type FirstDifferentLine = #(Int, String, String)
+pub type FirstDifferentLine = Int
 
 pub type AssertiveTestError {
   VXMLParseError(vxml.VXMLParseError)
@@ -3315,7 +3320,7 @@ pub fn s_lines_2_output_lines(
   |> list.reverse
 }
 
-pub fn s_lines_annotated_table(
+pub fn s_lines_table(
   lines: List(SLine),
   banner: String,
   dry_run: Bool,
@@ -3323,8 +3328,7 @@ pub fn s_lines_annotated_table(
 ) -> String {
   lines
   |> s_lines_2_output_lines(dry_run)
-  |> io_l.output_lines_annotated_table_at_indent(banner, indent)
-  |> string.join("\n")
+  |> io_l.output_lines_table(banner, indent)
 }
 
 // ************************************************************

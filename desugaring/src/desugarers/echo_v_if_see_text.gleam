@@ -1,4 +1,5 @@
 import gleam/list
+import gleam/io
 import gleam/option
 import gleam/string.{inspect as ins}
 import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as infra
@@ -12,9 +13,10 @@ fn nodemap(
   case vxml {
     V(_, tag, _, children) if tag == inner.0 -> {
       case list.any(children, infra.is_t_and_text_contains(_, inner.1)) {
-        True -> vxml.echo_vxml(vxml, "echo_if_see_text")
-        False -> vxml
+        True -> vxml.vxml_table(vxml, name, 2) |> io.println
+        False -> Nil
       }
+      vxml
     }
     _ -> vxml
   }
@@ -37,7 +39,7 @@ type Param = #(String,   String)
 //             parent    text to search for
 type InnerParam = Param
 
-pub const name = "echo_if_see_text"
+pub const name = "echo_v_if_see_text"
 
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 // 🏖️🏖️ Desugarer 🏖️🏖️

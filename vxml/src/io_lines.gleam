@@ -1,4 +1,3 @@
-import gleam/io
 import gleam/list
 import gleam/result
 import gleam/string.{length as len}
@@ -82,66 +81,43 @@ pub fn input_lines_to_output_lines(
 // OutputLine -> String & List(OutputLine) -> String
 // **************************************************
 
+pub fn output_line_to_string(line: OutputLine) -> String {
+  spaces(line.indent) <> line.suffix
+}
+
 pub fn output_lines_to_string(lines: List(OutputLine)) -> String {
   lines
-  |> list.map(fn(c) {spaces(c.indent) <> c.suffix})
+  |> list.map(output_line_to_string)
   |> string.join("\n")
 }
 
 // **************************************************
-// List(OutputLine) & List(InputLine) pretty-printer (no1)
+// List(InputLine) -> String table pretty-printer &
+// List(OutputLine) -> String table pretty-printer
 // **************************************************
 
-pub fn input_lines_annotated_table_at_indent(
+pub fn input_lines_table(
   content: List(InputLine),
   banner: String,
   indent: Int,
-) -> List(String) {
+) -> String {
   let margin = spaces(indent)
   content
   |> list.map(fn(c) {#(c.blame, spaces(c.indent) <> c.suffix)})
   |> bl.blamed_strings_annotated_table_no1(banner)
   |> list.map(fn(s) {margin <> s})
+  |> string.join("\n")
 }
 
-pub fn output_lines_annotated_table_at_indent(
+pub fn output_lines_table(
   content: List(OutputLine),
   banner: String,
   indent: Int,
-) -> List(String) {
+) -> String {
   let margin = spaces(indent)
   content
   |> list.map(fn(c) {#(c.blame, spaces(c.indent) <> c.suffix)})
   |> bl.blamed_strings_annotated_table_no1(banner)
   |> list.map(fn(s) {margin <> s})
-}
-
-// **************************************************
-// echo_output_lines & echo_input_lines
-// **************************************************
-
-pub fn echo_output_lines(
-  lines: List(OutputLine),
-  banner: String,
-) -> List(OutputLine) {
-  lines
-  |> output_lines_annotated_table_at_indent(banner, 0)
   |> string.join("\n")
-  |> io.println
-  lines
-}
-
-pub fn echo_input_lines(
-  lines: List(InputLine),
-  banner: String,
-) -> List(InputLine) {
-  lines
-  |> input_lines_annotated_table_at_indent(banner, 0)
-  |> string.join("\n")
-  |> io.println
-  lines
-}
-
-pub fn main() {
-  io.println("Hello from blamedlines!")
 }

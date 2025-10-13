@@ -946,7 +946,7 @@ fn tentative_parse_input_lines(
   case debug {
     True -> {
       io.println("\n\n(tentative parse:)")
-      echo_tentatives(parsed, "tentative_parse_input_lines")
+      tentatives_table(parsed, "tentative_parse_input_lines", 0)
       io.println("(tentative end)\n\n")
     }
     False -> Nil
@@ -1169,14 +1169,14 @@ fn tentatives_to_output_lines_internal(
   |> list.flatten
 }
 
-fn echo_tentatives(
+fn tentatives_table(
   tentatives: List(TentativeWriterly),
   banner: String,
-) -> List(TentativeWriterly) {
+  indent: Int,
+) -> String {
   tentatives
   |> tentatives_to_output_lines_internal(0)
-  |> io_l.echo_output_lines(banner)
-  tentatives
+  |> io_l.output_lines_table(banner, indent)
 }
 
 //*************************************
@@ -1352,12 +1352,11 @@ pub fn writerlys_to_string(
 //* echo_writerly api
 //*********************************
 
-pub fn echo_writerly(writerly: Writerly, banner: String) -> Writerly {
+pub fn writerly_table(writerly: Writerly, banner: String, indent: Int) -> String {
   writerly
   |> writerly_annotate_blames
   |> writerly_to_output_lines_internal(0, True)
-  |> io_l.echo_output_lines(banner)
-  writerly
+  |> io_l.output_lines_table(banner, indent)
 }
 
 //*******************************
