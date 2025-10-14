@@ -53,7 +53,7 @@ fn update_info(
   }
 }
 
-fn render_info(
+fn render_counter(
   info: CounterInfo
 ) -> String {
   case info.counter_type {
@@ -68,24 +68,25 @@ fn get_all_handles_from_match_content(match_content: String) -> List(String) {
   list.reverse(rest)
 }
 
-fn split_expressions(
+type CounterBundle {
+  CounterBundle(
+    split_char: String,
+    insert_or_not: String,
+    mutation: String,
+    counter_name: String,
+  )
+}
+
+fn counter_bundles_from_counter_splits(
   splits: List(String),
-) -> List(#(String, String, String, Option(String))) {
+) -> List(CounterBundle) {
   case splits {
     [] -> []
+    [""] -> []
     splits -> {
-      let assert [_, insert_or_not, mutation, counter_name, ..rest] = splits
-      let #(split_char, rest) = case list.length(rest) > 1 {
-        True -> {
-          let assert [split_char, ..rest_rest] = rest
-          #(option.Some(split_char), ["", ..rest_rest])
-        }
-        False -> #(option.None, [])
-      }
-      [
-        #(insert_or_not, mutation, counter_name, split_char),
-        ..split_expressions(rest)
-      ]
+      let assert [split_char, insert_or_not, mutation, counter_name, ..rest] = splits
+      let bundle = CounterBundle(split_char, insert_or_not, mutation, counter_name)
+      [bundle, ..counter_bundles_from_counter_splits(rest)]
     }
   }
 }
@@ -93,57 +94,48 @@ fn split_expressions(
 fn get_all_counters_from_match_content(
   match_content: String,
   regexes: #(Regexp, Regexp),
-) -> List(#(String, String, String, Option(String))) {
+) -> List(CounterBundle) {
   let assert [last, ..] = string.split(match_content, "<<") |> list.reverse()
   let #(re, _) = regexes
   let splits = regexp.split(re, last)
-  split_expressions(splits)
+  counter_bundles_from_counter_splits(splits)
 }
 
-fn handle_counter_expressions(
-  expressions: List(#(String, String, String, Option(String))),
+type TwoValues {
+  TwoValues(
+    handle_value: String,
+    echoed_value: String,
+  )
+}
+
+type LeftMostSplitChar = String
+
+const empty_values = TwoValues("", "")
+
+fn serialize_counter_bundles(
+  bundles: List(CounterBundle),
   counters: CounterDict,
-  // ignores insert_or_not  output that
-  // to be used as          will be put
-  // value of handles       in the result
-  //           |           /
-  //           |          /
-  //           |         /
-) -> Result(#(String, String, CounterDict), String) {
-  case expressions {
-    [] -> Ok(#("", "", counters))
-    [#(insert_or_not, mutation, counter_name, split_char), ..rest] -> {
-      case dict.get(counters, counter_name) {
-        Error(_) -> Error("counter " <> counter_name <> " is not defined")
-        Ok(info) -> {
-          let info = update_info(info, mutation)
-          let counters = dict.insert(counters, counter_name, info)
-          use #(rest_handles_value, rest_string_output, counters) <- on.ok(
-            handle_counter_expressions(rest, counters),
-          )
-          let split_char = case split_char {
-            Some(s) -> s
-            None -> ""
-          }
-          let info_rendering = render_info(info)
-          case insert_or_not == "::" {
-            True ->
-              Ok(#(
-                info_rendering <> split_char <> rest_handles_value,
-                info_rendering <> split_char <> rest_string_output,
-                counters,
-              ))
-            False ->
-              Ok(#(
-                info_rendering <> split_char <> rest_handles_value,
-                rest_string_output,
-                counters,
-              ))
-          }
-        }
-      }
-    }
+) -> Result(#(LeftMostSplitChar, TwoValues, CounterDict), String) {
+  use first, rest <- on.empty_nonempty(bundles, Ok(#("", empty_values, counters)))
+  let CounterBundle(our_split_char, insert_or_not, mutation, counter_name) = first
+  use info <- on.error_ok(
+    dict.get(counters, counter_name),
+    fn(_) { Error("counter " <> counter_name <> " is not defined") },
+  )
+  let info = info |> update_info(mutation)
+  let counters = counters |> dict.insert(counter_name, info)
+  use #(rest_split_char, rest_two_values, counters) <- on.ok(serialize_counter_bundles(rest, counters))
+  let counter_string = render_counter(info)
+  let #(bequeathed_split_char, echoed_prefix) = case insert_or_not {
+    _ if insert_or_not == loud.string -> #(our_split_char, counter_string <> rest_split_char)
+    _ if insert_or_not == soft.string -> #(rest_split_char, "") 
+    _ -> panic
   }
+  let two_values = TwoValues(
+    handle_value: our_split_char <> counter_string <> rest_two_values.handle_value,
+    echoed_value: echoed_prefix <> rest_two_values.echoed_value,
+  )
+  Ok(#(bequeathed_split_char, two_values, counters))
 }
 
 fn handle_matches(
@@ -154,7 +146,8 @@ fn handle_matches(
 ) -> Result(#(String, CounterDict, List(HandleAssignment)), String) {
   case matches {
     [] -> {
-      Ok(#(string.join(splits, ""), counters, []))
+      let assert [first_split] = splits
+      Ok(#(first_split, counters, []))
     }
 
     [first, ..rest] -> {
@@ -163,8 +156,8 @@ fn handle_matches(
       let counter_expressions =
         get_all_counters_from_match_content(content, regexes)
 
-      use #(handles_value, expressions_output, updated_counters) <- on.ok(
-        handle_counter_expressions(counter_expressions, counters),
+      use #(_, two_values, updated_counters) <- on.ok(
+        serialize_counter_bundles(counter_expressions, counters),
       )
 
       let handle_names = case handle_name {
@@ -173,12 +166,7 @@ fn handle_matches(
       }
 
       let handle_assignments =
-        handle_names |> list.map(fn(x) {
-          #(
-            x,
-            handles_value,
-          )
-        })
+        handle_names |> list.map(fn(x) { #(x, two_values.handle_value) })
 
       let assert [first_split, _, _, _, _, _, _, _, _, _, _, _, ..rest_splits] =
         splits
@@ -188,7 +176,7 @@ fn handle_matches(
       )
 
       Ok(#(
-        first_split <> expressions_output <> rest_output,
+        first_split <> two_values.echoed_value <> rest_output,
         updated_counters,
         list.flatten([handle_assignments, rest_handle_assignments]),
       ))
@@ -209,7 +197,7 @@ fn substitute_counters_and_generate_handle_assignments(
 
   // "more handle<<::++MyCounter more" will result in
   // sub-matches of first match :
-  //   [Some("handle<<"), Some("handle"), Some("<<"), Some("::"), Some("++"), Some   ("MyCounter")]
+  //   [Some("handle<<"), Some("handle"), Some("<<"), Some("::"), Some("++"), Some("MyCounter")]
   // splits:
   //   ["more ", "handle<<", "handle", "<<", "::", "++", "MyCounter", " more"]
 
@@ -686,20 +674,58 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
                 <> root
                   counter=QCounter -3
                   <>
-                    \"z<<::++QCounter\"
+                    \"::--QCounter;::--QCounter\"
+                ",
+      expected: "
+                <> root
+                  counter=QCounter -3
+                  <>
+                    \"-4;-5\"
+                ",
+    ),
+    infra.AssertiveTestDataNoParam(
+      source:   "
+                <> root
+                  counter=QCounter -3
+                  <>
+                    \"t<<::--QCounter;..--QCounter\"
+                    \"u<<..--QCounter;::--QCounter\"
+                    \"GooseMan..--QCounter;::--QCounter;..--QCounter;..--QCounter.::--QCounter@hoverboard\"
+                ",
+      expected: "
+                <> root
+                  counter=QCounter -3
+                  handle=t -4;-5
+                  handle=u -6;-7
+                  <>
+                    \"-4\"
+                    \"-7\"
+                    \"GooseMan-9.-12@hoverboard\"
+                ",
+    ),
+    infra.AssertiveTestDataNoParam(
+      source:   "
+                <> root
+                  counter=QCounter -3
+                  <>
+                    \"z<<::++QCounter t<<..øøQCounter\"
                     \"w<<::--QCounter\"
-                    \"a<<::++QCounter.::++QCounter\"
+                    \"b<<a<<::++QCounter.::++QCounter f<<g<<..øøQCounter\"
                 ",
       expected: "
                 <> root
                   counter=QCounter -3
                   handle=z -2
+                  handle=t -2
                   handle=w -3
+                  handle=b -2.-1
                   handle=a -2.-1
+                  handle=f -1
+                  handle=g -1
                   <>
-                    \"-2\"
+                    \"-2 \"
                     \"-3\"
-                    \"-2.-1\"
+                    \"-2.-1 \"
                 ",
     ),
     infra.AssertiveTestDataNoParam(
@@ -740,7 +766,7 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
                     \"2\"
                     \"1\"
                 ",
-    )
+    ),
   ]
 }
 
