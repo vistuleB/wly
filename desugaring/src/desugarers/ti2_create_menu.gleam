@@ -354,7 +354,7 @@ fn at_root(
   root: VXML
 ) -> Result(VXML, DesugaringError) {
   let homepage_url =
-    infra.v_val_of_first_attr_with_key(root, "external")
+    infra.v_val_of_first_attr_with_key(root, "homepage")
     |> option.unwrap("")
 
   n2t.early_return_one_to_one_nodemap_traverse_tree(
