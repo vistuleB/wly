@@ -13,6 +13,7 @@ pub fn spaces(num: Int) -> String { string.repeat(" ", num) }
 pub fn dots(num: Int) -> String { string.repeat(".", num) }
 pub fn threedots(num: Int) -> String { string.repeat("…", num) }
 pub fn twodots(num: Int) -> String { string.repeat("‥", num) }
+pub fn underscores(num: Int) -> String { string.repeat("_", num) }
 
 pub fn how_many(
   singular: String,
@@ -103,7 +104,7 @@ pub fn four_column_table(
   let one_line = fn(tuple: #(String, String, String, String), index: Int) -> String {
     case string.starts_with(tuple.1, "table_marker") {
       True -> {
-        let starter = string.repeat("er>██████████<mark", total_width / 10)
+        let starter = string.repeat("er█████████████dl.table_mark", total_width / 10)
         let starter_length = string.length(starter)
         starter |> string.drop_start(starter_length - total_width)
       }
@@ -111,7 +112,7 @@ pub fn four_column_table(
         "│ " <> tuple.0 <> spaces(maxes.0 - string.length(tuple.0) + padding.0) <>
         "│ " <> tuple.1 <> case index % 2 {
           1 -> dots(maxes.1 - string.length(tuple.1) + padding.1)
-          _ if index >= 0 -> twodots(maxes.1 - string.length(tuple.1) + padding.1)
+          _ if index >= 0 -> underscores(maxes.1 - string.length(tuple.1) + padding.1)
           _ -> spaces(maxes.1 - string.length(tuple.1) + padding.1)
         } <>
         "│ " <> tuple.2 <> spaces(maxes.2 - string.length(tuple.2) + padding.2) <>

@@ -240,6 +240,11 @@ fn substitute_counters_and_generate_handle_assignments(
 
   // if there are multiple appearances of last regex part - only last one will be in splits and matches . so we need to use match content to get all of them
 
+  use <- on.false_true(
+    string.contains(content, "::") || string.contains(content, ".."),
+    Ok(#(content, counters, [])),
+  )
+
   let #(_, re) = regexes
   let matches = regexp.scan(re, content)
   case matches {
@@ -278,6 +283,8 @@ fn update_lines(
   #(List(Line), CounterDict, List(HandleAssignment)),
   DesugaringError,
 ) {
+  // nb: tried doing an early-return test here on
+  // 'lines' to improve speed, didn't help much
   lines
   |> list.try_fold(
     #([], counters, []),

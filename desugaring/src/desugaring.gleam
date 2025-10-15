@@ -26,7 +26,7 @@ import on
 // ************************************************************
 
 pub type Assembler(a) =
-  fn(String) -> Result(List(InputLine), a)
+  fn(String) -> Result(#(List(InputLine), List(String)), a)    // the 'List(String)' is a feedback/success message on assembly
 
 pub type AssemblerDebugOptions {
   AssemblerDebugOptions(echo_: Bool)
@@ -39,21 +39,11 @@ pub type AssemblerDebugOptions {
 pub fn default_assembler(
   spotlight_paths: List(String),
 ) -> Assembler(wp.AssemblyError) {
-  let spaces = 
-    string.repeat(" ", string.length("  -> assembled "))
   fn(input_dir) {
-    io.print("  -> assembled ")
     use #(directory_tree, assembled) <- on.ok(
       wp.assemble_input_lines_advanced_mode(input_dir, spotlight_paths),
     )
-    let directory_tree =
-      list.map(directory_tree, fn(line) { spaces <> line }) |> list.drop(1)
-    io.println(input_dir)
-    case directory_tree {
-      [] -> Nil
-      _ -> io.println(string.join(directory_tree, "\n"))
-    }
-    Ok(assembled)
+    Ok(#(assembled, directory_tree))
   }
 }
 
@@ -405,6 +395,7 @@ pub type RendererParameters {
     input_dir: String,
     output_dir: String,
     prettifier_behavior: PrettifierMode,
+    verbose: Bool,
   )
 }
 
@@ -485,6 +476,7 @@ pub type CommandLineAmendments {
     track: Option(PipelineTrackingModifier),
     peek: Option(List(Int)),
     table: Option(Bool),
+    verbose: Option(Bool),
     echo_assembled: Bool,
     vxml_fragments_local_paths_to_echo: Option(List(String)),
     output_lines_fragments_local_paths_to_echo: Option(List(String)),
@@ -501,19 +493,20 @@ pub type CommandLineAmendments {
 pub fn empty_command_line_amendments() -> CommandLineAmendments {
   CommandLineAmendments(
     help: False,
-    table: None,
     input_dir: None,
     output_dir: None,
-    echo_assembled: False,
+    only_paths: [],
+    only_key_values: [],
+    prettier: None,
     track: None,
     peek: None,
+    table: None,
+    verbose: None,
+    echo_assembled: False,
     vxml_fragments_local_paths_to_echo: None,
     output_lines_fragments_local_paths_to_echo: None,
     printed_string_fragments_local_paths_to_echo: None,
     prettified_string_fragments_local_paths_to_echo: None,
-    only_key_values: [],
-    only_paths: [],
-    prettier: None,
     user_args: dict.from_list([]),
   )
 }
@@ -583,6 +576,12 @@ pub fn basic_cli_usage() {
   io.println(margin <> "  -> turn the prettifier on and have the prettifier output to")
   io.println(margin <> "     <dir>; if absent, <dir> defaults to")
   io.println(margin <> "     renderer_parameters.output_dir")
+  io.println("")
+  io.println(margin <> "--succinct")
+  io.println(margin <> "  -> suppress verbose output (turn 'succinct_output' option on)")
+  io.println("")
+  io.println(margin <> "--verbose")
+  io.println(margin <> "  -> force verbose output (turn 'succinct_output' option off)")
   io.println("")
 }
 
@@ -771,6 +770,22 @@ pub fn process_command_line_arguments(
               ..amendments,
               prettified_string_fragments_local_paths_to_echo: Some(values),
             ),
+          )
+
+        "--succinct" ->
+          Ok(
+            CommandLineAmendments(
+              ..amendments,
+              verbose: Some(False),
+            )
+          )
+
+        "--verbose" ->
+          Ok(
+            CommandLineAmendments(
+              ..amendments,
+              verbose: Some(True),
+            )
           )
 
         _ -> {
@@ -1120,6 +1135,7 @@ pub fn amend_renderer_paramaters_by_command_line_amendments(
     input_dir: option.unwrap(amendments.input_dir, parameters.input_dir),
     output_dir: option.unwrap(amendments.output_dir, parameters.output_dir),
     prettifier_behavior: option.unwrap(amendments.prettier, parameters.prettifier_behavior),
+    verbose: option.unwrap(amendments.verbose, parameters.verbose),
   )
 }
 
@@ -1488,14 +1504,14 @@ pub fn run_renderer(
   parameters: RendererParameters,
   debug_options: RendererDebugOptions(d),
 ) -> Result(Nil, RendererError(a, c, e, f, g, h)) {
-  // io.println("")
-
   let parameters = sanitize_output_dir(parameters)
+
   let RendererParameters(
     table,
     input_dir,
     output_dir,
     prettifier_mode,
+    verbose,
   ) = parameters
 
   case table {
@@ -1509,7 +1525,7 @@ pub fn run_renderer(
 
   io.println("• assembling...")
 
-  use assembled <- on.error_ok(
+  use #(assembled, feedback) <- on.error_ok(
     renderer.assembler(input_dir),
     fn(error_a) {
       io.println("\n  ...assembler error on input_dir " <> input_dir <> ":")
@@ -1522,6 +1538,23 @@ pub fn run_renderer(
       Error(FileOrParseError(error_a))
     },
   )
+
+  case verbose {
+    False -> Nil
+    True -> {
+      let spaces = 
+        string.repeat(" ", string.length("  -> assembled "))
+
+      list.index_map(
+        feedback,
+        fn(line, i) {
+          case i == 0 { True -> "  -> assembled " False -> spaces}
+          <> line
+        }
+      )
+      |> string.join("\n") |> io.println
+    }
+  }
 
   case debug_options.assembler_debug_options.echo_ {
     False -> Nil
@@ -1593,14 +1626,14 @@ pub fn run_renderer(
       |> list.flatten
       |> pr.boxed_error_announcer("💥", 2, #(1, 0))
       Error(PipelineError(e))
-    },
+    }
   )
 
   let t1 = timestamp.system_time()
   let seconds =
-    timestamp.difference(t0, t1) |> duration.to_seconds |> float.to_precision(2)
+    timestamp.difference(t0, t1) |> duration.to_seconds |> float.to_precision(3)
 
-  io.println("  ...ended pipeline (" <> ins(seconds) <> "s);")
+  io.println("  ..ended pipeline (" <> ins(seconds) <> "s)")
 
   case list.length(times) > 0 {
     False -> Nil
@@ -1648,11 +1681,17 @@ pub fn run_renderer(
   let fragments_types_and_paths_4_table =
     list.map(fragments, fn(fr) { #(ins(fr.classifier), prefix <> fr.path) })
 
-  io.println("  -> obtained " <> pr.how_many("fragment", "fragments", list.length(fragments)) <> ":")
-  
-  [#("classifier", "path"), ..fragments_types_and_paths_4_table]
-  |> pr.two_column_table
-  |> pr.print_lines_at_indent(2)
+  case verbose {
+    False -> {
+      io.println("  -> obtained " <> pr.how_many("fragment", "fragments", list.length(fragments)))
+    }
+    True -> {
+      io.println("  -> obtained " <> pr.how_many("fragment", "fragments", list.length(fragments)) <> ":")
+      [#("classifier", "path"), ..fragments_types_and_paths_4_table]
+      |> pr.two_column_table
+      |> pr.print_lines_at_indent(2)
+    }
+  }
 
   fragments
   |> list.each(fn(fr) {
@@ -1768,20 +1807,32 @@ pub fn run_renderer(
     }
   })
 
-  let fragments =
+  let #(count, fragments) =
     fragments
-    |> list.map(
-      fn(result) {
-        use fr <- on.ok(result)
+    |> list.map_fold(
+      0,
+      fn(acc, result) {
+        use fr <- on.error_ok(
+          result,
+          fn(e) { #(acc, Error(e)) }
+        )
         case renderer.writer(output_dir, fr) {
-          Error(e) -> Error(P2(e))
+          Error(e) -> #(acc, Error(P2(e)))
           Ok(z) -> {
-            io.println("  wrote [" <> output_dir <> "/]" <> fr.path)
-            Ok(z)
+            case verbose {
+              False -> Nil
+              True -> io.println("  wrote [" <> output_dir <> "/]" <> fr.path)
+            }
+            #(acc + 1, Ok(z))
           }
         }
       }
     )
+
+  case verbose {
+    False -> io.println("  -> wrote " <> ins(count) <> " files")
+    True -> Nil
+  }
 
   // 🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸
   // 🌸 prettifying 🌸
