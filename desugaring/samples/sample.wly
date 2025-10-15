@@ -1,6 +1,6 @@
 |> Book
     |> Chapter
-        
+
         Theorem 
         |> InChapterLink
             href=rr
