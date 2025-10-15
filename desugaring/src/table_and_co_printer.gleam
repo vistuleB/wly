@@ -14,6 +14,7 @@ pub fn dots(num: Int) -> String { string.repeat(".", num) }
 pub fn threedots(num: Int) -> String { string.repeat("…", num) }
 pub fn twodots(num: Int) -> String { string.repeat("‥", num) }
 pub fn underscores(num: Int) -> String { string.repeat("_", num) }
+pub fn blocks(num: Int) -> String { string.repeat("█", num) }
 
 pub fn how_many(
   singular: String,
@@ -69,6 +70,57 @@ pub fn two_column_table(
     list.map(rest, one_line),
     [
       "└─" <> sds.0 <> "┴─" <> sds.1 <> "┘"
+    ],
+  ]
+  |> list.flatten
+}
+
+// **********************
+// 3-column table printer
+// **********************
+
+pub fn three_column_maxes(
+  lines: List(#(String, String, String))
+) -> #(Int, Int, Int) {
+  list.fold(
+    lines,
+    #(0, 0, 0),
+    fn(acc, triple) {
+      #(
+        int.max(acc.0, string.length(triple.0)),
+        int.max(acc.1, string.length(triple.1)),
+        int.max(acc.2, string.length(triple.2)),
+      )
+    }
+  )
+}
+
+pub fn three_column_table(
+  lines: List(#(String, String, String)),
+) -> List(String) {
+  let maxes = three_column_maxes(lines)
+  let padding = #(1, 2, 1)
+  let one_line = fn(cols: #(String, String, String)) -> String {
+    "│ " <> cols.0 <> spaces(maxes.0 - string.length(cols.0) + padding.0) <>
+    "│ " <> cols.1 <> spaces(maxes.1 - string.length(cols.1) + padding.1) <>
+    "│ " <> cols.2 <> spaces(maxes.2 - string.length(cols.2) + padding.2) <>
+    "│"
+  }
+  let sds = #(
+    solid_dashes(maxes.0 + padding.0),
+    solid_dashes(maxes.1 + padding.1),
+    solid_dashes(maxes.2 + padding.2),
+  )
+  let assert [first, ..rest] = lines
+  [
+    [
+      "┌─" <> sds.0 <> "┬─" <> sds.1 <> "┬─" <> sds.2 <> "┐",
+      one_line(first),
+      "├─" <> sds.0 <> "┼─" <> sds.1 <> "┼─" <> sds.2 <> "┤"
+    ],
+    list.map(rest, one_line),
+    [
+      "└─" <> sds.0 <> "┴─" <> sds.1 <> "┴─" <> sds.2 <> "┘"
     ],
   ]
   |> list.flatten

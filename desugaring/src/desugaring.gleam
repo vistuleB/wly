@@ -1,16 +1,17 @@
-import blame.{Ext, type Blame} as bl
-import io_lines.{type InputLine, type OutputLine, OutputLine} as io_l
-import desugarer_library as dl
 import gleam/dict.{type Dict}
 import gleam/float
+import gleam/pair
 import gleam/int
 import gleam/io
 import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/result
 import gleam/string.{inspect as ins}
-import gleam/time/duration
+import gleam/time/duration.{type Duration}
 import gleam/time/timestamp.{type Timestamp}
+import blame.{Ext, type Blame} as bl
+import io_lines.{type InputLine, type OutputLine, OutputLine} as io_l
+import desugarer_library as dl
 import infrastructure.{type Desugarer, Pipe, type Pipeline, TrackingOff, TrackingForced, TrackingOnChange} as infra
 import selector_library as sl
 import shellout
@@ -108,6 +109,16 @@ pub fn default_xml_parser(
 }
 
 pub const default_html_parser = default_xml_parser
+
+// ************************************************************
+// PipelineDebugOptions
+// ************************************************************
+
+pub type PipelineDebugOptions {
+  PipelineDebugOptions(
+    times: Bool,
+  )
+}
 
 // ************************************************************
 // Splitter(d, e)                                              // 'd' is fragment classifier type, 'e' is splitter error type
@@ -407,6 +418,7 @@ pub type RendererDebugOptions(d) {
   RendererDebugOptions(
     assembler_debug_options: AssemblerDebugOptions,
     parser_debug_options: ParserDebugOptions,
+    pipeline_debug_options: PipelineDebugOptions,
     splitter_debug_options: SplitterDebugOptions(d),
     emitter_debug_options: EmitterDebugOptions(d),
     writer_debug_options: WriterDebugOptions(d),
@@ -424,6 +436,10 @@ pub fn empty_assembler_debug_options() -> AssemblerDebugOptions {
 
 pub fn empty_parser_debug_options() -> ParserDebugOptions {
   ParserDebugOptions(echo_: False)
+}
+
+pub fn empty_pipeline_debug_options() -> PipelineDebugOptions {
+  PipelineDebugOptions(times: False)
 }
 
 pub fn empty_splitter_debug_options() -> SplitterDebugOptions(d) {
@@ -446,6 +462,7 @@ pub fn default_renderer_debug_options() -> RendererDebugOptions(d) {
   RendererDebugOptions(
     assembler_debug_options: empty_assembler_debug_options(),
     parser_debug_options: empty_parser_debug_options(),
+    pipeline_debug_options: empty_pipeline_debug_options(),
     splitter_debug_options: empty_splitter_debug_options(),
     emitter_debug_options: empty_emitter_debug_options(),
     writer_debug_options: empty_writer_debug_options(),
@@ -476,7 +493,9 @@ pub type CommandLineAmendments {
     track: Option(PipelineTrackingModifier),
     peek: Option(List(Int)),
     table: Option(Bool),
+    times: Bool,
     verbose: Option(Bool),
+    timing: Option(Bool),
     echo_assembled: Bool,
     vxml_fragments_local_paths_to_echo: Option(List(String)),
     output_lines_fragments_local_paths_to_echo: Option(List(String)),
@@ -501,7 +520,9 @@ pub fn empty_command_line_amendments() -> CommandLineAmendments {
     track: None,
     peek: None,
     table: None,
+    times: False,
     verbose: None,
+    timing: None,
     echo_assembled: False,
     vxml_fragments_local_paths_to_echo: None,
     output_lines_fragments_local_paths_to_echo: None,
@@ -530,10 +551,6 @@ pub fn basic_cli_usage() {
   io.println(margin <> "--only <key1=val1> <key2=val2> ...")
   io.println(margin <> "  -> restrict source to elements that have at least one of the")
   io.println(margin <> "     given key-value pairs as attrs (& ancestors of such)")
-  io.println("")
-  io.println(margin <> "--table / --no-table")
-  io.println(margin <> "  -> force / suppress a printout of the pipeline table in the")
-  io.println(margin <> "     rendering output (overriding RendererParamater default)")
   io.println("")
   io.println(margin <> "--peek <step numbers>")
   io.println(margin <> "  -> show entire document at given pipeline step numbers; leave")
@@ -577,11 +594,15 @@ pub fn basic_cli_usage() {
   io.println(margin <> "     <dir>; if absent, <dir> defaults to")
   io.println(margin <> "     renderer_parameters.output_dir")
   io.println("")
-  io.println(margin <> "--succinct")
-  io.println(margin <> "  -> suppress verbose output (turn 'succinct_output' option on)")
+  io.println(margin <> "--verbose / --succinct")
+  io.println(margin <> "  -> force /suppress verbose output")
   io.println("")
-  io.println(margin <> "--verbose")
-  io.println(margin <> "  -> force verbose output (turn 'succinct_output' option off)")
+  io.println(margin <> "--table / --no-table")
+  io.println(margin <> "  -> force / suppress a printout of the pipeline table in the")
+  io.println(margin <> "     rendering output (overriding RendererParamater default)")
+  io.println("")
+  io.println(margin <> "--times")
+  io.println(margin <> "  -> show performance table with individual desugaring times")
   io.println("")
 }
 
@@ -654,6 +675,13 @@ pub fn process_command_line_arguments(
           io.println("")
           case list.is_empty(values) {
             True -> Ok(CommandLineAmendments(..amendments, help: True))
+            False -> Error(UnexpectedArgumentsToOption("option"))
+          }
+        }
+
+        "--times" -> {
+          case list.is_empty(values) {
+            True -> Ok(CommandLineAmendments(..amendments, times: True))
             False -> Error(UnexpectedArgumentsToOption("option"))
           }
         }
@@ -741,53 +769,41 @@ pub fn process_command_line_arguments(
           }
 
         "--echo-fragments" ->
-          Ok(
-            CommandLineAmendments(
-              ..amendments,
-              vxml_fragments_local_paths_to_echo: Some(values),
-            ),
-          )
+          case list.is_empty(values) {
+            True -> Ok(CommandLineAmendments(..amendments, vxml_fragments_local_paths_to_echo: Some(values)))
+            False -> Error(UnexpectedArgumentsToOption(option))
+          }
 
         "--echo-fragments-ol" ->
-          Ok(
-            CommandLineAmendments(
-              ..amendments,
-              output_lines_fragments_local_paths_to_echo: Some(values),
-            ),
-          )
+          case list.is_empty(values) {
+            True -> Ok(CommandLineAmendments(..amendments, output_lines_fragments_local_paths_to_echo: Some(values)))
+            False -> Error(UnexpectedArgumentsToOption(option))
+          }
 
         "--echo-fragments-printed" ->
-          Ok(
-            CommandLineAmendments(
-              ..amendments,
-              printed_string_fragments_local_paths_to_echo: Some(values),
-            ),
-          )
+          case list.is_empty(values) {
+            True -> Ok(CommandLineAmendments(..amendments, printed_string_fragments_local_paths_to_echo: Some(values)))
+            False -> Error(UnexpectedArgumentsToOption(option))
+          }
 
         "--echo-fragments-prettified" ->
-          Ok(
-            CommandLineAmendments(
-              ..amendments,
-              prettified_string_fragments_local_paths_to_echo: Some(values),
-            ),
-          )
+          case list.is_empty(values) {
+            True -> Ok(CommandLineAmendments(..amendments, prettified_string_fragments_local_paths_to_echo: Some(values)))
+            False -> Error(UnexpectedArgumentsToOption(option))
+          }
 
         "--succinct" ->
-          Ok(
-            CommandLineAmendments(
-              ..amendments,
-              verbose: Some(False),
-            )
-          )
-
+          case list.is_empty(values) {
+            True -> Ok(CommandLineAmendments(..amendments, verbose: Some(False)))
+            False -> Error(UnexpectedArgumentsToOption(option))
+          }
+        
         "--verbose" ->
-          Ok(
-            CommandLineAmendments(
-              ..amendments,
-              verbose: Some(True),
-            )
-          )
-
+          case list.is_empty(values) {
+            True -> Ok(CommandLineAmendments(..amendments, verbose: Some(True)))
+            False -> Error(UnexpectedArgumentsToOption(option))
+          }
+        
         _ -> {
           case list.contains(user_keys, option) {
             True -> Ok(CommandLineAmendments(..amendments, user_args: dict.insert(amendments.user_args, option, values)))
@@ -1163,6 +1179,15 @@ pub fn db_amend_assembler_debug_options(
   )
 }
 
+pub fn db_amend_pipeline_debug_options(
+  _options: PipelineDebugOptions,
+  amendments: CommandLineAmendments,
+) -> PipelineDebugOptions {
+  PipelineDebugOptions(
+    times: amendments.times
+  )
+}
+
 pub fn db_amend_splitter_debug_options(
   previous: SplitterDebugOptions(d),
   amendments: CommandLineAmendments,
@@ -1240,6 +1265,10 @@ pub fn amend_renderer_debug_options_by_command_line_amendments(
       amendments,
     ),
     debug_options.parser_debug_options,
+    db_amend_pipeline_debug_options(
+      debug_options.pipeline_debug_options,
+      amendments,
+    ),
     db_amend_splitter_debug_options(
       debug_options.splitter_debug_options,
       amendments,
@@ -1367,19 +1396,36 @@ pub type InSituDesugaringWarning {
 fn run_pipeline(
   vxml: VXML,
   pipeline: Pipeline,
-) -> Result(#(VXML, List(InSituDesugaringWarning), List(#(Int, Timestamp))), InSituDesugaringError) {
+) -> Result(#(
+    VXML,
+    List(InSituDesugaringWarning),
+    List(Timestamp),
+    List(#(Int, Timestamp)),
+  ),
+  InSituDesugaringError
+) {
   let track_any = list.any(pipeline, fn(p) { p.tracking_mode != TrackingOff })
   let last_step = list.length(pipeline)
 
   pipeline
   |> list.try_fold(
-    #(vxml, 1, "", [], [], False),
+    #(vxml, [], [], [], 1, "", False),
     fn(acc, pipe) {
-      let #(vxml, step_no, last_tracking_output, times, warnings, got_arrow) = acc
+      let #(
+        vxml,
+        warnings,
+        all_times,
+        requested_times,
+        step_no,
+        last_tracking_output,
+        got_arrow,
+      ) = acc
       let Pipe(desugarer, selector, mode, peek) = pipe
-      let times = case desugarer.name == "timer" {
-        True -> [#(step_no, timestamp.system_time()), ..times]
-        False -> times
+      let now = timestamp.system_time()
+      let all_times = [now, ..all_times]
+      let requested_times = case desugarer.name == "timer" {
+        True -> [#(step_no, now), ..requested_times]
+        False -> requested_times
       }
       let printed_arrow = case track_any && !got_arrow {
         True -> {
@@ -1388,22 +1434,28 @@ fn run_pipeline(
         }
         False -> False
       }
-      use #(vxml, new_warnings) <- on.error_ok(desugarer.transform(vxml), fn(error) {
-        Error(InSituDesugaringError(
-          desugarer: desugarer,
-          step_no: step_no,
-          blame: error.blame,
-          message: error.message,
-        ))
-      })
-      let new_warnings = list.map(new_warnings, fn(warning) {
-        InSituDesugaringWarning(
-          desugarer: desugarer,
-          step_no: step_no,
-          blame: warning.blame,
-          message: warning.message,
-        )
-      })
+      use #(vxml, new_warnings) <- on.error_ok(
+        desugarer.transform(vxml),
+        fn(error) {
+          Error(InSituDesugaringError(
+            desugarer: desugarer,
+            step_no: step_no,
+            blame: error.blame,
+            message: error.message,
+          ))
+        }
+      )
+      let new_warnings = list.map(
+        new_warnings,
+        fn(warning) {
+          InSituDesugaringWarning(
+            desugarer: desugarer,
+            step_no: step_no,
+            blame: warning.blame,
+            message: warning.message,
+          )
+        }
+      )
       let #(selected_2_print, next_tracking_output) = case mode == TrackingOff && !peek {
         True -> #([], last_tracking_output)
         False -> {
@@ -1442,11 +1494,19 @@ fn run_pipeline(
           False -> True
         }
       }
-      #(vxml, step_no + 1, next_tracking_output, times, list.append(warnings, new_warnings), got_arrow)
+      #(
+        vxml,
+        list.append(warnings, new_warnings),
+        all_times,
+        requested_times,
+        step_no + 1,
+        next_tracking_output,
+        got_arrow,
+      )
       |> Ok
     }
   )
-  |> result.map(fn(acc) { #(acc.0, acc.4, acc.3) })
+  |> result.map(fn(acc) { #(acc.0, acc.1, acc.2, acc.3) })
 }
 
 // ************************************************************
@@ -1498,6 +1558,19 @@ pub type RendererError(a, c, e, f, g, h) {
 // ************************************************************
 // run_renderer
 // ************************************************************
+
+fn durations(
+  times: List(Timestamp)
+) -> List(Duration) {
+  case times {
+    [] -> panic
+    [_] -> []
+    [t_later, t_earlier, ..rest] -> [
+      timestamp.difference(t_earlier, t_later),
+      ..durations([t_earlier, ..rest]),
+    ]
+  }
+}
 
 pub fn run_renderer(
   renderer: Renderer(a, c, d, e, f, g, h),
@@ -1603,7 +1676,7 @@ pub fn run_renderer(
   io.println("• starting pipeline...")
   let t0 = timestamp.system_time()
 
-  use #(desugared, warnings, times) <- on.error_ok(
+  use #(desugared, warnings, all_times, requested_times) <- on.error_ok(
     run_pipeline(parsed, renderer.pipeline),
     on_error: fn(e: InSituDesugaringError) {
       let assert [first, ..rest] =
@@ -1635,11 +1708,43 @@ pub fn run_renderer(
 
   io.println("  ..ended pipeline (" <> ins(seconds) <> "s)")
 
-  case list.length(times) > 0 {
+  case debug_options.pipeline_debug_options.times {
     False -> Nil
     True -> {
-      let times = [#(list.length(renderer.pipeline), t1), ..times]
-      list.fold(times |> list.reverse, #(0, t0), fn(acc, next) {
+      let all_times = [t1, ..all_times]
+      let all_seconds = durations(all_times) |> list.map(duration.to_seconds)
+      let assert Ok(max_secs) = list.max(all_seconds, float.compare)
+      let one_hundreth_seconds_num_bars = 14
+      let num_hundreth_seconds = float.round(float.ceiling(max_secs *. 100.0))
+      let scale =
+        list.repeat(Nil, num_hundreth_seconds)
+        |> list.map_fold(0.0, fn(x, _) { #(x +. 0.01, x) })
+        |> pair.second
+        |> list.map(fn(x) {
+          let x = ins(x |> float.to_precision(2)) <> "s"
+          let num_spaces = one_hundreth_seconds_num_bars - string.length(x)
+          x <> string.repeat(" ", num_spaces)
+        })
+        |> string.join("")
+      assert list.length(all_seconds) == list.length(renderer.pipeline)
+      let bars = list.index_map(
+        list.zip(renderer.pipeline, all_seconds),
+        fn (pair, i) {
+          let #(pipe, seconds) = pair
+          let num_bars = float.round(seconds *. 100.0 *. int.to_float(one_hundreth_seconds_num_bars))
+          #(ins(i + 1) <> ".", pipe.desugarer.name, pr.blocks(num_bars))
+        }
+      )
+      pr.three_column_table([#("#.", "name", scale), ..bars])
+      |> pr.print_lines_at_indent(2)
+    }
+  }
+
+  case list.length(requested_times) > 0 {
+    False -> Nil
+    True -> {
+      let requested_times = [#(list.length(renderer.pipeline), t1), ..requested_times]
+      list.fold(requested_times |> list.reverse, #(0, t0), fn(acc, next) {
         let #(step0, t0) = acc
         let #(step1, t1) = next
         let seconds =
