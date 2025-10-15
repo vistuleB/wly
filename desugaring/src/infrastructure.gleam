@@ -388,6 +388,11 @@ pub fn drop_last(z: List(a)) -> List(a) {
   z |> list.reverse |> list.drop(1) |> list.reverse
 }
 
+pub fn assert_drop_last(z: List(a)) -> List(a) {
+  let assert [_, ..rest] = z |> list.reverse 
+  rest |> list.reverse
+}
+
 fn index_of_internal(ze_list: List(a), thing: a, current_index: Int) -> Int {
   case ze_list {
     [] -> -1

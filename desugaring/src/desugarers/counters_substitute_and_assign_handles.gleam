@@ -41,6 +41,26 @@ const increment = StringAndRegexVersion(string: "++", regex_string: "\\+\\+")
 const decrement = StringAndRegexVersion(string: "--", regex_string: "--")
 const no_change = StringAndRegexVersion(string: "øø", regex_string: "øø")
 
+type CounterBundle {
+  CounterBundle(
+    split_char: String,
+    insert_or_not: String,
+    mutation: String,
+    counter_name: String,
+  )
+}
+
+type TwoValues {
+  TwoValues(
+    handle_value: String,
+    echoed_value: String,
+  )
+}
+
+const empty_values = TwoValues("", "")
+
+type LeftMostSplitChar = String
+
 fn update_info(
   info: CounterInfo,
   mutation: String,
@@ -64,17 +84,7 @@ fn render_counter(
 }
 
 fn get_all_handles_from_match_content(match_content: String) -> List(String) {
-  let assert [_, ..rest] = string.split(match_content, "<<") |> list.reverse()
-  list.reverse(rest)
-}
-
-type CounterBundle {
-  CounterBundle(
-    split_char: String,
-    insert_or_not: String,
-    mutation: String,
-    counter_name: String,
-  )
+  string.split(match_content, "<<") |> infra.assert_drop_last
 }
 
 fn counter_bundles_from_counter_splits(
@@ -101,30 +111,25 @@ fn get_all_counters_from_match_content(
   counter_bundles_from_counter_splits(splits)
 }
 
-type TwoValues {
-  TwoValues(
-    handle_value: String,
-    echoed_value: String,
-  )
-}
-
-type LeftMostSplitChar = String
-
-const empty_values = TwoValues("", "")
-
 fn serialize_counter_bundles(
+  blame: Blame,
   bundles: List(CounterBundle),
   counters: CounterDict,
-) -> Result(#(LeftMostSplitChar, TwoValues, CounterDict), String) {
-  use first, rest <- on.empty_nonempty(bundles, Ok(#("", empty_values, counters)))
+) -> Result(#(LeftMostSplitChar, TwoValues, CounterDict), DesugaringError) {
+  use first, rest <- on.empty_nonempty(
+    bundles,
+    Ok(#("", empty_values, counters))
+  )
   let CounterBundle(our_split_char, insert_or_not, mutation, counter_name) = first
   use info <- on.error_ok(
     dict.get(counters, counter_name),
-    fn(_) { Error("counter " <> counter_name <> " is not defined") },
+    fn(_) { Error(DesugaringError(blame, "counter " <> counter_name <> " is not defined" ))}
   )
   let info = info |> update_info(mutation)
   let counters = counters |> dict.insert(counter_name, info)
-  use #(rest_split_char, rest_two_values, counters) <- on.ok(serialize_counter_bundles(rest, counters))
+  use #(rest_split_char, rest_two_values, counters) <- on.ok(
+    serialize_counter_bundles(blame, rest, counters)
+  )
   let counter_string = render_counter(info)
   let #(bequeathed_split_char, echoed_prefix) = case insert_or_not {
     _ if insert_or_not == loud.string -> #(our_split_char, counter_string <> rest_split_char)
@@ -139,49 +144,49 @@ fn serialize_counter_bundles(
 }
 
 fn handle_matches(
+  blame: Blame,
   matches: List(regexp.Match),
   splits: List(String),
   counters: CounterDict,
   regexes: #(Regexp, Regexp),
-) -> Result(#(String, CounterDict, List(HandleAssignment)), String) {
-  case matches {
-    [] -> {
-      let assert [first_split] = splits
-      Ok(#(first_split, counters, []))
+) -> Result(#(String, CounterDict, List(HandleAssignment)), DesugaringError) {
+  use first, rest <- on.lazy_empty_nonempty(
+    matches,
+    fn() {
+      let assert[split] = splits
+      Ok(#(split, counters, []))
     }
+  )
 
-    [first, ..rest] -> {
-      let regexp.Match(content, sub_matches) = first
-      let assert [_, handle_name, ..] = sub_matches
-      let counter_expressions =
-        get_all_counters_from_match_content(content, regexes)
+  let regexp.Match(content, sub_matches) = first
+  let assert [_, handle_name, ..] = sub_matches
+  let counter_bundles =
+    get_all_counters_from_match_content(content, regexes)
 
-      use #(_, two_values, updated_counters) <- on.ok(
-        serialize_counter_bundles(counter_expressions, counters),
-      )
+  use #(_, two_values, updated_counters) <- on.ok(
+    serialize_counter_bundles(blame, counter_bundles, counters),
+  )
 
-      let handle_names = case handle_name {
-        None -> []
-        Some(_) -> get_all_handles_from_match_content(content)
-      }
-
-      let handle_assignments =
-        handle_names |> list.map(fn(x) { #(x, two_values.handle_value) })
-
-      let assert [first_split, _, _, _, _, _, _, _, _, _, _, _, ..rest_splits] =
-        splits
-
-      use #(rest_output, updated_counters, rest_handle_assignments) <- on.ok(
-        handle_matches(rest, rest_splits, updated_counters, regexes),
-      )
-
-      Ok(#(
-        first_split <> two_values.echoed_value <> rest_output,
-        updated_counters,
-        list.flatten([handle_assignments, rest_handle_assignments]),
-      ))
-    }
+  let handle_names = case handle_name {
+    None -> []
+    Some(_) -> get_all_handles_from_match_content(content)
   }
+
+  let handle_assignments =
+    handle_names |> list.map(fn(x) { #(x, two_values.handle_value) })
+
+  let assert [first_split, _, _, _, _, _, _, _, _, _, _, _, ..rest_splits] =
+    splits
+
+  use #(rest_output, updated_counters, rest_handle_assignments) <- on.ok(
+    handle_matches(blame, rest, rest_splits, updated_counters, regexes),
+  )
+
+  Ok(#(
+    first_split <> two_values.echoed_value <> rest_output,
+    updated_counters,
+    list.flatten([handle_assignments, rest_handle_assignments]),
+  ))
 }
 
 fn substitute_counters_and_generate_handle_assignments(
@@ -237,9 +242,13 @@ fn substitute_counters_and_generate_handle_assignments(
 
   let #(_, re) = regexes
   let matches = regexp.scan(re, content)
-  let splits = regexp.split(re, content)
-  use error <- on.error(handle_matches(matches, splits, counters, regexes))
-  Error(DesugaringError(blame, error))
+  case matches {
+    [] -> Ok(#(content, counters, []))
+    _ -> {
+      let splits = regexp.split(re, content)
+      handle_matches(blame, matches, splits, counters, regexes)
+    }
+  }
 }
 
 fn update_line(
