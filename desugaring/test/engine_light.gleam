@@ -43,10 +43,11 @@ pub fn main() {
 
   let parameters =
     ds.RendererParameters(
-      table: True,
       input_dir: "samples/sample.wly",
       output_dir: "samples/output",
       prettifier_behavior: ds.PrettifierOff,
+      table: False,
+      verbose: False,
     )
     |> ds.amend_renderer_paramaters_by_command_line_amendments(amendments)
 

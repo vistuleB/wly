@@ -18,8 +18,8 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
 }
 
 type Param = grs.RegexpWithGroupReplacementInstructions
-//             ↖
-//             semantics in name
+//           ↖
+//           semantics in name
 type InnerParam = Param
 
 pub const name = "regex_split_and_replace__outside"

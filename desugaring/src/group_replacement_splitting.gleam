@@ -12,11 +12,10 @@ pub type GroupReplacementInstruction {
   Trash
   DropLast
   Tag(String)
-  TagWithAttr(String, String)
-  TagWithAttrAndReplace(String, String, String, String)
+  TagWithSplitAsVal(String, String)
   TagWithTextChild(String)
-  TagFwdText(String, String)
-  TagBwdText(String, String)
+  TagAndText(String, String)
+  TextAndTag(String, String)
 }
 
 pub type RegexpWithGroupReplacementInstructions {
@@ -57,37 +56,29 @@ pub fn split_content_with_replacement(
         True -> infra.get_at(w.instructions, mod_index)
         False -> Ok(Keep)
       }
-      let updated_blame = bl.advance(blame, acc)
+      let b = bl.advance(blame, acc)
       let node_replacement = case instruction {
         Trash -> None
-        Keep -> Some([T(updated_blame, [Line(updated_blame, split)])])
-        DropLast -> Some([T(updated_blame, [Line(updated_blame, string.drop_end(split, 1))])])
-        Tag(tag) -> Some([V(updated_blame, tag, [], [])])
-        TagWithAttr(tag, key) -> Some([V(
-          updated_blame,
-          tag,
-          [Attr(updated_blame, key, split)],
-          [],
-        )])
-        TagWithAttrAndReplace(tag, key, seq1, seq2) -> Some([V(
-          updated_blame,
-          tag,
-          [Attr(updated_blame, key, split |> string.replace(seq1, seq2))],
-          [],
-        )])
-        TagWithTextChild(tag) -> Some([V(
-          updated_blame,
-          tag,
-          [],
-          [T(updated_blame, [Line(updated_blame, split)])],
-        )])
-        TagFwdText(tag, txt) -> Some([
-          V(updated_blame, tag, [], []),
-          T(updated_blame, [Line(updated_blame, txt)]),
+        Keep -> Some([T(b, [Line(b, split)])])
+        DropLast -> Some([
+          T(b, [Line(b, string.drop_end(split, 1))]),
         ])
-        TagBwdText(tag, txt) -> Some([
-          T(updated_blame, [Line(updated_blame, txt)]),
-          V(updated_blame, tag, [], []),
+        Tag(tag) -> Some([
+          V(b, tag, [], []),
+        ])
+        TagWithSplitAsVal(tag, key) -> Some([
+          V(b, tag, [Attr(b, key, split)], []),
+        ])
+        TagWithTextChild(tag) -> Some([
+          V(b, tag, [], [T(b, [Line(b, split)])],
+        )])
+        TagAndText(tag, txt) -> Some([
+          V(b, tag, [], []),
+          T(b, [Line(b, txt)]),
+        ])
+        TextAndTag(tag, txt) -> Some([
+          T(b, [Line(b, txt)]),
+          V(b, tag, [], []),
         ])
       }
       let new_acc = acc + string.length(split)
@@ -164,7 +155,7 @@ pub fn unescaped_suffix(suffix: String) -> String {
   regex_prefix_to_make_unescaped <> "(?:" <> suffix <> ")"
 }
 
-pub fn group(s: String) -> String {
+pub fn parenthesize(s: String) -> String {
   "(" <> s <> ")"
 }
 
@@ -175,7 +166,7 @@ pub fn unescaped_suffix_replacement_splitter(
   let string = 
     suffix
     |> unescaped_suffix
-    |> group
+    |> parenthesize
 
   let assert Ok(re) = string |> regexp.from_string
 
@@ -194,7 +185,7 @@ pub fn for_groups(
       pairs,
       "",
       fn (acc, p) {
-        #(acc <> group(p.0), p.1)
+        #(acc <> parenthesize(p.0), p.1)
       }
     )
   let assert Ok(re) = regexp.from_string(re_string)

@@ -1706,10 +1706,10 @@ pub fn run_renderer(
   let seconds =
     timestamp.difference(t0, t1) |> duration.to_seconds |> float.to_precision(3)
 
-  io.println("  ..ended pipeline (" <> ins(seconds) <> "s)")
-
   case debug_options.pipeline_debug_options.times {
-    False -> Nil
+    False -> {
+      io.println("  ..ended pipeline (" <> ins(seconds) <> "s)")
+    }
     True -> {
       let all_times = [t1, ..all_times]
       let all_seconds = durations(all_times) |> list.map(duration.to_seconds) |> list.reverse
@@ -1737,6 +1737,7 @@ pub fn run_renderer(
       )
       pr.three_column_table([#("#.", "name", scale), ..bars])
       |> pr.print_lines_at_indent(2)
+      io.println("  ...ended pipeline in " <> ins(seconds) <> "s")
     }
   }
 
