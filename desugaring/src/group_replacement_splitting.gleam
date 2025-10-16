@@ -180,7 +180,7 @@ pub fn parenthesize(s: String) -> String {
   "(" <> s <> ")"
 }
 
-pub fn rrs_unescaped_suffix_splitter(
+pub fn unescaped_suffix_rr_splitter(
   re_suffix suffix: String,
   replacement instruction: SplitReplacementInstruction,
 ) -> RegexpReplacementerSplitter {

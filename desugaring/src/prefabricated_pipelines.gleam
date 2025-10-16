@@ -42,37 +42,37 @@ fn split_pair_fold_data(
 ) -> SplitPairFoldData {
   case which {
     DoubleDollarSingleton -> SplitPairFoldData(
-      grs.rrs_unescaped_suffix_splitter(re_suffix: "\\$\\$", replacement: grs.Tag("DoubleDollar")),
+      grs.unescaped_suffix_rr_splitter(re_suffix: "\\$\\$", replacement: grs.Tag("DoubleDollar")),
       "DoubleDollar",
       "$$",
     )
 
     SingleDollarSingleton -> SplitPairFoldData(
-      grs.rrs_unescaped_suffix_splitter(re_suffix: "\\$", replacement: grs.Tag("SingleDollar")),
+      grs.unescaped_suffix_rr_splitter(re_suffix: "\\$", replacement: grs.Tag("SingleDollar")),
       "SingleDollar",
       "$",
     )
 
     BackslashOpeningParenthesis -> SplitPairFoldData(
-      grs.rrs_unescaped_suffix_splitter(re_suffix: "\\\\\\(", replacement: grs.Tag("LatexOpeningPar")),
+      grs.unescaped_suffix_rr_splitter(re_suffix: "\\\\\\(", replacement: grs.Tag("LatexOpeningPar")),
         "LatexOpeningPar",
         "\\(",
       )
 
     BackslashClosingParenthesis -> SplitPairFoldData(
-      grs.rrs_unescaped_suffix_splitter(re_suffix: "\\\\\\)", replacement: grs.Tag("LatexClosingPar")),
+      grs.unescaped_suffix_rr_splitter(re_suffix: "\\\\\\)", replacement: grs.Tag("LatexClosingPar")),
       "LatexClosingPar",
       "\\)",
     )
 
     BackslashOpeningSquareBracket -> SplitPairFoldData(
-      grs.rrs_unescaped_suffix_splitter(re_suffix: "\\\\\\[", replacement: grs.Tag("LatexOpeningBra")),
+      grs.unescaped_suffix_rr_splitter(re_suffix: "\\\\\\[", replacement: grs.Tag("LatexOpeningBra")),
       "LatexOpeningBra",
       "\\[",
     )
 
     BackslashClosingSquareBracket -> SplitPairFoldData(
-      grs.rrs_unescaped_suffix_splitter(re_suffix: "\\\\\\]", replacement: grs.Tag("LatexClosingBra")),
+      grs.unescaped_suffix_rr_splitter(re_suffix: "\\\\\\]", replacement: grs.Tag("LatexClosingBra")),
       "LatexClosingBra",
       "\\]",
     )
@@ -274,7 +274,7 @@ pub fn barbaric_symmetric_delim_splitting(
   tag: String,
   forbidden: List(String),
 ) -> List(Desugarer) {
-  let opening_or_closing_grs = grs.rrs_unescaped_suffix_splitter(
+  let opening_or_closing_grs = grs.unescaped_suffix_rr_splitter(
     re_suffix: delim_regex_form,
     replacement: grs.Tag("OpeningOrClosingSymmetricDelim")
   )
@@ -301,7 +301,7 @@ pub fn annotated_backtick_splitting(
   }
   let start_tag = "AnnotatedBackticksOpening"
   let end_tag = "AnnotatedBackticksClosing"
-  let start_splitter = grs.rrs_unescaped_suffix_splitter("`", grs.Tag(start_tag))
+  let start_splitter = grs.unescaped_suffix_rr_splitter("`", grs.Tag(start_tag))
   let end_splitter = grs.rr_splitter_for_groups([
     #("`{", grs.Trash),
     #("[a-zA-Z0-9\\-\\.#_]*", grs.TagWithSplitAsVal(end_tag, annotation_key)),
@@ -336,7 +336,7 @@ pub fn markdown_link_splitting(
   }
   let start_tag = "MDLinkOpening"
   let end_tag = "MDLinkClosing"
-  let start_splitter = grs.rrs_unescaped_suffix_splitter("\\[", grs.Tag(start_tag))
+  let start_splitter = grs.unescaped_suffix_rr_splitter("\\[", grs.Tag(start_tag))
   [
     dl.markdown_link_closing_handrolled_splitter(end_tag, forbidden),
     dl.regex_split_and_replace__outside(start_splitter, forbidden),
