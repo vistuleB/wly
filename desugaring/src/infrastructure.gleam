@@ -368,20 +368,24 @@ pub fn get_at(ze_list: List(a), index: Int) -> Result(a, Nil) {
   }
 }
 
-pub fn list_param_stringifier(param: List(p)) -> String {
+pub fn list_string_stringifier(param: List(String)) -> String {
   "[" <> {
     param
     |> list.index_map(
       fn(p, i) {
-        case i > 0 {
-          True -> ", " <> ins(p)
-          False -> " " <> ins(p)
-        }
+        case i > 0 { True -> "\n, " False -> " " }
+        <> p
       }
     )
-    |> string.join("\n")
+    |> string.join("")
   }
-  <> " ]"
+  <> "\n]"
+}
+
+pub fn list_param_stringifier(param: List(p)) -> String {
+  param
+  |> list.map(ins)
+  |> list_string_stringifier
 }
 
 pub fn drop_last(z: List(a)) -> List(a) {

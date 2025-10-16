@@ -17,7 +17,7 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
   Ok(param)
 }
 
-type Param = List(grs.RegexpWithGroupReplacementInstructions)
+type Param = List(grs.RegexpReplacementerSplitter)
 //           ↖
 //           replacement_instructions
 type InnerParam = Param

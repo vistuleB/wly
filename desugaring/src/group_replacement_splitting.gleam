@@ -18,45 +18,54 @@ pub type GroupReplacementInstruction {
   TextAndTag(String, String)
 }
 
-pub type RegexpWithGroupReplacementInstructions {
-  RegexpWithGroupReplacementInstructions(
-    re: Regexp,
-    from: String,
-    instructions: List(GroupReplacementInstruction),
+pub type RegexpGroupSourceAndInstruction {
+  RegexpGroupSourceAndInstruction(
+    source: String,
+    instruction: GroupReplacementInstruction,
   )
 }
 
-pub fn human_inspect(
-  gri: RegexpWithGroupReplacementInstructions
+pub type RegexpReplacementerSplitter {
+  RegexpReplacementerSplitter(
+    re: Regexp,
+    groups: List(RegexpGroupSourceAndInstruction),
+  )
+}
+
+pub fn rrs_param_stringifier(
+  rrs: RegexpReplacementerSplitter
 ) -> String {
-  ins(gri.instructions) <> " " <> gri.from
+  rrs.groups
+  |> list.map(fn(g) { ins(g.source) <> " -> " <> ins(g.instruction) })
+  |> infra.list_string_stringifier
 }
 
 pub fn split_content_with_replacement(
   blame: Blame,
   content: String,
-  w: RegexpWithGroupReplacementInstructions,
+  w: RegexpReplacementerSplitter,
 ) -> List(VXML) {
   use <- on.true_false(
     content == "",
-    [T(blame, [Line(blame, content)])]
+    [T(blame, [Line(blame, content)])],
   )
-
   let splits = regexp.split(w.re, content)
-  let num_groups = list.length(w.instructions)
+  let num_groups = list.length(w.groups)
   let num_matches: Int = { list.length(splits) - 1 } / { num_groups + 1 }
   let assert True = { num_matches * { num_groups + 1 } } + 1 == list.length(splits)
-
   let #(_, results) = infra.index_map_fold(
     splits,
-    0, // <-- the 'acc' is the char_offset from start of content for next split
-    fn(acc, split, index) {
+    #(blame, []),
+    fn(acc: #(Blame, List(RegexpGroupSourceAndInstruction)), split, index) {
+      let #(b, grps) = acc
       let mod_index = index % { num_groups + 1 } - 1
-      let assert Ok(instruction) = case mod_index != -1 {
-        True -> infra.get_at(w.instructions, mod_index)
-        False -> Ok(Keep)
+      let #(instruction, grps) = case mod_index == -1 {
+        True -> #(Keep, w.groups)
+        False -> {
+          let assert [group, ..grps] = grps
+          #(group.instruction, grps)
+        }
       }
-      let b = bl.advance(blame, acc)
       let node_replacement = case instruction {
         Trash -> None
         Keep -> Some([T(b, [Line(b, split)])])
@@ -81,8 +90,8 @@ pub fn split_content_with_replacement(
           V(b, tag, [], []),
         ])
       }
-      let new_acc = acc + string.length(split)
-      #(new_acc, node_replacement)
+      let b = bl.advance(b, string.length(split))
+      #(#(b, grps), node_replacement)
     }
   )
 
@@ -94,14 +103,17 @@ pub fn split_content_with_replacement(
 
 fn split_blamed_line_with_replacement(
   line: Line,
-  w: RegexpWithGroupReplacementInstructions,
+  w: RegexpReplacementerSplitter,
 ) -> List(VXML) {
-  split_content_with_replacement(line.blame, line.content, w)
+  case regexp.check(w.re, line.content) {
+    False -> [T(line.blame, [line])]
+    True -> split_content_with_replacement(line.blame, line.content, w)
+  }
 }
 
 fn split_if_t_with_replacement_in_node(
   vxml: VXML,
-  re: RegexpWithGroupReplacementInstructions,
+  re: RegexpReplacementerSplitter,
 ) -> List(VXML) {
   case vxml {
     V(_, _, _, _) -> [vxml]
@@ -116,7 +128,7 @@ fn split_if_t_with_replacement_in_node(
 
 fn split_if_t_with_replacement_in_nodes(
   nodes: List(VXML),
-  re: RegexpWithGroupReplacementInstructions,
+  re: RegexpReplacementerSplitter,
 ) -> List(VXML) {
   nodes
   |> list.map(split_if_t_with_replacement_in_node(_, re))
@@ -129,7 +141,7 @@ fn split_if_t_with_replacement_in_nodes(
 
 pub fn split_if_t_with_replacement_nodemap__batch(
   vxml: VXML,
-  rules: List(RegexpWithGroupReplacementInstructions),
+  rules: List(RegexpReplacementerSplitter),
 ) -> List(VXML) {
   list.fold(
     rules,
@@ -140,13 +152,13 @@ pub fn split_if_t_with_replacement_nodemap__batch(
 
 pub fn split_if_t_with_replacement_nodemap(
   vxml: VXML,
-  rule: RegexpWithGroupReplacementInstructions,
+  rule: RegexpReplacementerSplitter,
 ) -> List(VXML) {
   split_if_t_with_replacement_in_nodes([vxml], rule)
 }
 
 // *****************
-// RegexpWithGroupReplacementInstructions constructor helpers API
+// RegexpReplacementerSplitter constructor helpers API
 // *****************
 
 pub const regex_prefix_to_make_unescaped = "(?<!\\\\)(?:(?:\\\\\\\\)*)"
@@ -162,36 +174,24 @@ pub fn parenthesize(s: String) -> String {
 pub fn unescaped_suffix_replacement_splitter(
   suffix: String,
   tag: String,
-) -> RegexpWithGroupReplacementInstructions {
+) -> RegexpReplacementerSplitter {
   let string = 
     suffix
     |> unescaped_suffix
-    |> parenthesize
 
-  let assert Ok(re) = string |> regexp.from_string
+  let assert Ok(re) = string |> parenthesize |> regexp.from_string
 
-  RegexpWithGroupReplacementInstructions(
+  RegexpReplacementerSplitter(
     re: re,
-    from: string,
-    instructions: [Tag(tag)],
+    groups: [RegexpGroupSourceAndInstruction(string, Tag(tag))],
   )
 }
 
 pub fn for_groups(
   pairs: List(#(String, GroupReplacementInstruction)),
-) -> RegexpWithGroupReplacementInstructions {
-  let #(re_string, instructions) =
-    list.map_fold(
-      pairs,
-      "",
-      fn (acc, p) {
-        #(acc <> parenthesize(p.0), p.1)
-      }
-    )
+) -> RegexpReplacementerSplitter {
+  let re_string = list.map(pairs, fn(p) { parenthesize(p.0) }) |> string.join("")
   let assert Ok(re) = regexp.from_string(re_string)
-  RegexpWithGroupReplacementInstructions(
-    re: re,
-    from: re_string,
-    instructions: instructions,
-  )
+  let groups = list.map(pairs, fn(p) { RegexpGroupSourceAndInstruction(p.0, p.1) })
+  RegexpReplacementerSplitter(re: re, groups: groups)
 }

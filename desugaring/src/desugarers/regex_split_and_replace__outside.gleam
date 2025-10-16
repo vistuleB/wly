@@ -17,7 +17,7 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
   Ok(param)
 }
 
-type Param = grs.RegexpWithGroupReplacementInstructions
+type Param = grs.RegexpReplacementerSplitter
 //           ↖
 //           semantics in name
 type InnerParam = Param
@@ -34,7 +34,7 @@ pub const name = "regex_split_and_replace__outside"
 pub fn constructor(param: Param, outside: List(String)) -> Desugarer {
   Desugarer(
     name: name,
-    stringified_param: option.Some(grs.human_inspect(param)),
+    stringified_param: option.Some(param |> grs.rrs_param_stringifier),
     stringified_outside: option.Some(ins(outside)),
     transform: case param_to_inner_param(param) {
       Error(error) -> fn(_) { Error(error) }

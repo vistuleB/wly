@@ -31,7 +31,7 @@ fn closing_equals_opening(
 
 fn split_pair_fold_data(
   which: LatexDelimiterSingleton
-) -> #(grs.RegexpWithGroupReplacementInstructions, String, String) {
+) -> #(grs.RegexpReplacementerSplitter, String, String) {
   case which {
     DoubleDollarSingleton -> #(grs.unescaped_suffix_replacement_splitter("\\$\\$", "DoubleDollar"), "DoubleDollar", "$$")
     SingleDollarSingleton -> #(grs.unescaped_suffix_replacement_splitter("\\$", "SingleDollar"), "SingleDollar", "$")
