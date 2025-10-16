@@ -40,24 +40,54 @@ pub fn rrs_param_stringifier(
   |> infra.list_string_stringifier
 }
 
+fn apply_instruction(
+  b: Blame,
+  split: String,
+  instruction: GroupReplacementInstruction,
+) -> List(VXML) {
+  case instruction {
+    Trash -> [
+    ]
+    Keep -> [
+      T(b, [Line(b, split)]),
+    ]
+    DropLast -> [
+      T(b, [Line(b, string.drop_end(split, 1))]),
+    ]
+    Tag(tag) -> [
+      V(b, tag, [], []),
+    ]
+    TagWithSplitAsVal(tag, key) -> [
+      V(b, tag, [Attr(b, key, split)], []),
+    ]
+    TagWithTextChild(tag) -> [
+      V(b, tag, [], [T(b, [Line(b, split)])]),
+    ]
+    TagAndText(tag, txt) -> [
+      V(b, tag, [], []),
+      T(b, [Line(b, txt)]),
+    ]
+    TextAndTag(tag, txt) -> [
+      T(b, [Line(b, txt)]),
+      V(b, tag, [], []),
+    ]
+  }
+}
+
 pub fn split_content_with_replacement(
   blame: Blame,
   content: String,
   w: RegexpReplacementerSplitter,
 ) -> List(VXML) {
-  use <- on.true_false(
-    content == "",
-    [T(blame, [Line(blame, content)])],
-  )
   let splits = regexp.split(w.re, content)
   let num_groups = list.length(w.groups)
-  let num_matches: Int = { list.length(splits) - 1 } / { num_groups + 1 }
+  let num_matches = { list.length(splits) - 1 } / { num_groups + 1 }
   let assert True = { num_matches * { num_groups + 1 } } + 1 == list.length(splits)
-  let #(_, results) = infra.index_map_fold(
+  let #(_, _, reversed) = list.index_fold(
     splits,
-    #(blame, []),
-    fn(acc: #(Blame, List(RegexpGroupSourceAndInstruction)), split, index) {
-      let #(b, grps) = acc
+    #(blame, [], []),
+    fn(acc: #(Blame, List(RegexpGroupSourceAndInstruction), List(VXML)), split, index) {
+      let #(b, grps, reversed) = acc
       let mod_index = index % { num_groups + 1 } - 1
       let #(instruction, grps) = case mod_index == -1 {
         True -> #(Keep, w.groups)
@@ -66,38 +96,15 @@ pub fn split_content_with_replacement(
           #(group.instruction, grps)
         }
       }
-      let node_replacement = case instruction {
-        Trash -> None
-        Keep -> Some([T(b, [Line(b, split)])])
-        DropLast -> Some([
-          T(b, [Line(b, string.drop_end(split, 1))]),
-        ])
-        Tag(tag) -> Some([
-          V(b, tag, [], []),
-        ])
-        TagWithSplitAsVal(tag, key) -> Some([
-          V(b, tag, [Attr(b, key, split)], []),
-        ])
-        TagWithTextChild(tag) -> Some([
-          V(b, tag, [], [T(b, [Line(b, split)])],
-        )])
-        TagAndText(tag, txt) -> Some([
-          V(b, tag, [], []),
-          T(b, [Line(b, txt)]),
-        ])
-        TextAndTag(tag, txt) -> Some([
-          T(b, [Line(b, txt)]),
-          V(b, tag, [], []),
-        ])
-      }
+      let vxmls = apply_instruction(b, split, instruction)
+      let reversed = infra.pour(vxmls, reversed)
       let b = bl.advance(b, string.length(split))
-      #(#(b, grps), node_replacement)
+      #(b, grps, reversed)
     }
   )
 
-  results
-  |> option.values
-  |> list.flatten
+  reversed
+  |> list.reverse
   |> infra.last_to_first_concatenation
 }
 
