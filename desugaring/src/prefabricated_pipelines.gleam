@@ -29,20 +29,77 @@ fn closing_equals_opening(
   z.0 == z.1
 }
 
+type SplitPairFoldData {
+  SplitPairFoldData(
+    splitter: grs.RegexpReplacementerSplitter,
+    tag: String,
+    original: String,
+  )
+}
+
 fn split_pair_fold_data(
   which: LatexDelimiterSingleton
-) -> #(grs.RegexpReplacementerSplitter, String, String) {
+) -> SplitPairFoldData {
   case which {
-    DoubleDollarSingleton -> #(grs.unescaped_suffix_replacement_splitter("\\$\\$", "DoubleDollar"), "DoubleDollar", "$$")
-    SingleDollarSingleton -> #(grs.unescaped_suffix_replacement_splitter("\\$", "SingleDollar"), "SingleDollar", "$")
-    BackslashOpeningParenthesis -> #(grs.unescaped_suffix_replacement_splitter("\\\\\\(", "LatexOpeningPar"), "LatexOpeningPar", "\\(")
-    BackslashClosingParenthesis -> #(grs.unescaped_suffix_replacement_splitter("\\\\\\)", "LatexClosingPar"), "LatexClosingPar", "\\)")
-    BackslashOpeningSquareBracket -> #(grs.unescaped_suffix_replacement_splitter("\\\\\\[", "LatexOpeningBra"), "LatexOpeningBra", "\\[")
-    BackslashClosingSquareBracket -> #(grs.unescaped_suffix_replacement_splitter("\\\\\\]", "LatexClosingBra"), "LatexClosingBra", "\\]")
-    BeginAlign -> #(grs.for_groups([#("\\\\begin{align}", grs.TagAndText("BeginAlign", "\\begin{align}"))]), "BeginAlign", "\\begin{align}")
-    EndAlign -> #(grs.for_groups([#("\\\\end{align}", grs.TextAndTag("EndAlign", "\\end{align}"))]), "EndAlign", "\\end{align}")
-    BeginAlignStar -> #(grs.for_groups([#("\\\\begin{align\\*}", grs.TagAndText("BeginAlignStar", "\\begin{align*}"))]), "BeginAlignStar", "\\begin{align*}")
-    EndAlignStar -> #(grs.for_groups([#("\\\\end{align\\*}", grs.TextAndTag("EndAlignStar", "\\end{align*}"))]), "EndAlignStar", "\\end{align*}")
+    DoubleDollarSingleton -> SplitPairFoldData(
+      grs.rrs_unescaped_suffix_splitter(re_suffix: "\\$\\$", replacement: grs.Tag("DoubleDollar")),
+      "DoubleDollar",
+      "$$",
+    )
+
+    SingleDollarSingleton -> SplitPairFoldData(
+      grs.rrs_unescaped_suffix_splitter(re_suffix: "\\$", replacement: grs.Tag("SingleDollar")),
+      "SingleDollar",
+      "$",
+    )
+
+    BackslashOpeningParenthesis -> SplitPairFoldData(
+      grs.rrs_unescaped_suffix_splitter(re_suffix: "\\\\\\(", replacement: grs.Tag("LatexOpeningPar")),
+        "LatexOpeningPar",
+        "\\(",
+      )
+
+    BackslashClosingParenthesis -> SplitPairFoldData(
+      grs.rrs_unescaped_suffix_splitter(re_suffix: "\\\\\\)", replacement: grs.Tag("LatexClosingPar")),
+      "LatexClosingPar",
+      "\\)",
+    )
+
+    BackslashOpeningSquareBracket -> SplitPairFoldData(
+      grs.rrs_unescaped_suffix_splitter(re_suffix: "\\\\\\[", replacement: grs.Tag("LatexOpeningBra")),
+      "LatexOpeningBra",
+      "\\[",
+    )
+
+    BackslashClosingSquareBracket -> SplitPairFoldData(
+      grs.rrs_unescaped_suffix_splitter(re_suffix: "\\\\\\]", replacement: grs.Tag("LatexClosingBra")),
+      "LatexClosingBra",
+      "\\]",
+    )
+
+    BeginAlign -> SplitPairFoldData(
+      grs.rr_splitter(re_string: "\\\\begin{align}", replacement: grs.TagAndText("BeginAlign", "\\begin{align}")),
+      "BeginAlign",
+      "\\begin{align}",
+    )
+
+    EndAlign -> SplitPairFoldData(
+      grs.rr_splitter(re_string: "\\\\end{align}", replacement: grs.TextAndTag("EndAlign", "\\end{align}")),
+      "EndAlign",
+      "\\end{align}",
+    )
+
+    BeginAlignStar -> SplitPairFoldData(
+      grs.rr_splitter(re_string: "\\\\begin{align\\*}", replacement: grs.TagAndText("BeginAlignStar", "\\begin{align*}")),
+      "BeginAlignStar",
+      "\\begin{align*}",
+    )
+
+    EndAlignStar -> SplitPairFoldData(
+      grs.rr_splitter(re_string: "\\\\end{align\\*}", replacement: grs.TextAndTag("EndAlignStar", "\\end{align*}")),
+      "EndAlignStar",
+      "\\end{align*}",
+    )
   }
 }
 
@@ -55,19 +112,19 @@ fn split_pair_fold_for_delimiter_pair(
   let #(d1, d2) = infra.opening_and_closing_singletons_for_pair(pair)
   case closing_equals_opening(pair) {
     True -> {
-      let #(g, tag, original) = split_pair_fold_data(d1)
+      let SplitPairFoldData(rrs, tag, original) = split_pair_fold_data(d1)
       [
-        dl.regex_split_and_replace__outside(g, forbidden),
+        dl.regex_split_and_replace__outside(rrs, forbidden),
         dl.pair(#(tag, tag, wrapper, unbridgeable)),
         dl.fold_into_text(#(tag, original))
       ]
     }
     False -> {
-      let #(g1, tag1, replacement1) = split_pair_fold_data(d1)
-      let #(g2, tag2, replacement2) = split_pair_fold_data(d2)
+      let SplitPairFoldData(rrs1, tag1, replacement1) = split_pair_fold_data(d1)
+      let SplitPairFoldData(rrs2, tag2, replacement2) = split_pair_fold_data(d2)
       [
-        dl.regex_split_and_replace__outside(g1, forbidden),
-        dl.regex_split_and_replace__outside(g2, forbidden),
+        dl.regex_split_and_replace__outside(rrs1, forbidden),
+        dl.regex_split_and_replace__outside(rrs2, forbidden),
         dl.pair(#(tag1, tag2, wrapper, unbridgeable)),
         dl.fold_into_text(#(tag1, replacement1)),
         dl.fold_into_text(#(tag2, replacement2)),
@@ -144,19 +201,19 @@ pub fn symmetric_delim_splitting(
   tag: String,
   forbidden: List(String),
 ) -> List(Desugarer) {
-  let opening_grs = grs.for_groups([
+  let opening_grs = grs.rr_splitter_for_groups([
     #("[\\s]", grs.Keep),
     #(delim_regex_form, grs.Tag("OpeningSymmetricDelim")),
     #("[^\\s\\]})]|$", grs.Keep),
   ])
 
-  let opening_or_closing_grs = grs.for_groups([
+  let opening_or_closing_grs = grs.rr_splitter_for_groups([
     #("[^\\s]|^", grs.Keep),
     #(grs.unescaped_suffix(delim_regex_form), grs.Tag("OpeningOrClosingSymmetricDelim")),
     #("[^\\s\\]})]|$", grs.Keep),
   ])
 
-  let closing_grs = grs.for_groups([
+  let closing_grs = grs.rr_splitter_for_groups([
     #("[^\\s\\[{(]|^", grs.Keep),
     #(grs.unescaped_suffix(delim_regex_form), grs.Tag("ClosingSymmetricDelim")),
     #("[\\s\\]})]", grs.Keep),
@@ -186,13 +243,13 @@ pub fn asymmetric_delim_splitting(
   tag: String,
   forbidden: List(String),
 ) -> List(Desugarer) {
-  let opening_grs = grs.for_groups([
+  let opening_grs = grs.rr_splitter_for_groups([
     #("[\\s]|^", grs.Keep),
     #(opening_regex_form, grs.Tag("OpeningAsymmetricDelim")),
     #("[^\\s]|$", grs.Keep),
   ])
 
-  let closing_grs = grs.for_groups([
+  let closing_grs = grs.rr_splitter_for_groups([
     #("[^\\s]|^", grs.Keep),
     #(closing_regex_form, grs.Tag("ClosingAsymmetricDelim")),
     #("[\\s]|$", grs.Keep),
@@ -217,7 +274,10 @@ pub fn barbaric_symmetric_delim_splitting(
   tag: String,
   forbidden: List(String),
 ) -> List(Desugarer) {
-  let opening_or_closing_grs = grs.unescaped_suffix_replacement_splitter(delim_regex_form, "OpeningOrClosingSymmetricDelim")
+  let opening_or_closing_grs = grs.rrs_unescaped_suffix_splitter(
+    re_suffix: delim_regex_form,
+    replacement: grs.Tag("OpeningOrClosingSymmetricDelim")
+  )
   [
     dl.regex_split_and_replace__outside(opening_or_closing_grs, forbidden),
     dl.pair(#("OpeningOrClosingSymmetricDelim", "OpeningOrClosingSymmetricDelim", tag, ["WriterlyBlankLine"])),
@@ -241,8 +301,8 @@ pub fn annotated_backtick_splitting(
   }
   let start_tag = "AnnotatedBackticksOpening"
   let end_tag = "AnnotatedBackticksClosing"
-  let start_splitter = grs.unescaped_suffix_replacement_splitter("`", start_tag)
-  let end_splitter = grs.for_groups([
+  let start_splitter = grs.rrs_unescaped_suffix_splitter("`", grs.Tag(start_tag))
+  let end_splitter = grs.rr_splitter_for_groups([
     #("`{", grs.Trash),
     #("[a-zA-Z0-9\\-\\.#_]*", grs.TagWithSplitAsVal(end_tag, annotation_key)),
     #("}", grs.Trash),
@@ -276,7 +336,7 @@ pub fn markdown_link_splitting(
   }
   let start_tag = "MDLinkOpening"
   let end_tag = "MDLinkClosing"
-  let start_splitter = grs.unescaped_suffix_replacement_splitter("\\[", start_tag)
+  let start_splitter = grs.rrs_unescaped_suffix_splitter("\\[", grs.Tag(start_tag))
   [
     dl.markdown_link_closing_handrolled_splitter(end_tag, forbidden),
     dl.regex_split_and_replace__outside(start_splitter, forbidden),

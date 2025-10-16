@@ -5,7 +5,7 @@ import infrastructure as infra
 import vxml.{type Line, type VXML, Attr, Line, T, V}
 import blame.{type Blame} as bl
 
-pub type GroupReplacementInstruction {
+pub type SplitReplacementInstruction {
   Keep
   Trash
   DropLast
@@ -19,7 +19,7 @@ pub type GroupReplacementInstruction {
 pub type RegexpGroupSourceAndInstruction {
   RegexpGroupSourceAndInstruction(
     source: String,
-    instruction: GroupReplacementInstruction,
+    instruction: SplitReplacementInstruction,
   )
 }
 
@@ -38,10 +38,10 @@ pub fn rrs_param_stringifier(
   |> infra.list_string_stringifier
 }
 
-fn apply_instruction(
+fn replacement_nodes(
   b: Blame,
   split: String,
-  instruction: GroupReplacementInstruction,
+  instruction: SplitReplacementInstruction,
 ) -> List(VXML) {
   case instruction {
     Trash -> [
@@ -97,7 +97,7 @@ pub fn split_content_with_replacement(
             #(group.instruction, grps)
           }
         }
-        let vxmls = apply_instruction(b, split, instruction)
+        let vxmls = replacement_nodes(b, split, instruction)
         let reversed = infra.pour(vxmls, reversed)
         let b = bl.advance(b, string.length(split))
         #(b, grps, reversed)
@@ -180,24 +180,29 @@ pub fn parenthesize(s: String) -> String {
   "(" <> s <> ")"
 }
 
-pub fn unescaped_suffix_replacement_splitter(
-  suffix: String,
-  tag: String,
+pub fn rrs_unescaped_suffix_splitter(
+  re_suffix suffix: String,
+  replacement instruction: SplitReplacementInstruction,
 ) -> RegexpReplacementerSplitter {
-  let string = 
-    suffix
-    |> unescaped_suffix
-
+  let string = suffix |> unescaped_suffix
   let assert Ok(re) = string |> parenthesize |> regexp.from_string
-
   RegexpReplacementerSplitter(
     re: re,
-    groups: [RegexpGroupSourceAndInstruction(string, Tag(tag))],
+    groups: [RegexpGroupSourceAndInstruction(string, instruction)],
   )
 }
 
-pub fn for_groups(
-  pairs: List(#(String, GroupReplacementInstruction)),
+pub fn rr_splitter(
+  re_string source: String,
+  replacement instruction: SplitReplacementInstruction,
+) -> RegexpReplacementerSplitter {
+  let assert Ok(re) = regexp.from_string(source |> parenthesize)
+  let group = RegexpGroupSourceAndInstruction(source, instruction)
+  RegexpReplacementerSplitter(re: re, groups: [group])
+}
+
+pub fn rr_splitter_for_groups(
+  pairs: List(#(String, SplitReplacementInstruction)),
 ) -> RegexpReplacementerSplitter {
   let re_string = list.map(pairs, fn(p) { parenthesize(p.0) }) |> string.join("")
   let assert Ok(re) = regexp.from_string(re_string)
