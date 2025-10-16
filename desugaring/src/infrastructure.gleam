@@ -418,13 +418,6 @@ pub fn read_singleton(z: List(a)) -> Result(a, SingletonError) {
   }
 }
 
-pub fn guarded_prepend(ze_list: List(a), ze_thing: a) -> List(a) {
-  case list.contains(ze_list, ze_thing) {
-    True -> ze_list
-    False -> [ze_thing, ..ze_list]
-  }
-}
-
 pub fn delete(ze_list: List(a), ze_thing: a) -> #(Bool, List(a)) {
   case ze_list {
     [] -> #(False, [])
