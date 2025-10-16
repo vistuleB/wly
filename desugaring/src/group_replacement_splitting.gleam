@@ -1,11 +1,9 @@
 import gleam/list
-import gleam/option.{None, Some}
 import gleam/regexp.{type Regexp}
 import gleam/string.{inspect as ins}
 import infrastructure as infra
 import vxml.{type Line, type VXML, Attr, Line, T, V}
 import blame.{type Blame} as bl
-import on
 
 pub type GroupReplacementInstruction {
   Keep
@@ -79,29 +77,33 @@ pub fn split_content_with_replacement(
   content: String,
   w: RegexpReplacementerSplitter,
 ) -> List(VXML) {
+  assert content != ""
   let splits = regexp.split(w.re, content)
   let num_groups = list.length(w.groups)
-  let num_matches = { list.length(splits) - 1 } / { num_groups + 1 }
-  let assert True = { num_matches * { num_groups + 1 } } + 1 == list.length(splits)
-  let #(_, _, reversed) = list.index_fold(
-    splits,
-    #(blame, [], []),
-    fn(acc: #(Blame, List(RegexpGroupSourceAndInstruction), List(VXML)), split, index) {
-      let #(b, grps, reversed) = acc
-      let mod_index = index % { num_groups + 1 } - 1
-      let #(instruction, grps) = case mod_index == -1 {
-        True -> #(Keep, w.groups)
-        False -> {
-          let assert [group, ..grps] = grps
-          #(group.instruction, grps)
+  let num_splits = list.length(splits)
+  assert num_splits % { num_groups + 1} == 1
+
+  let reversed =
+    list.index_fold(
+      splits,
+      #(blame, [], []),
+      fn(acc: #(Blame, List(RegexpGroupSourceAndInstruction), List(VXML)), split, index) {
+        let #(b, grps, reversed) = acc
+        let mod_index = index % { num_groups + 1 } - 1
+        let #(instruction, grps) = case mod_index == -1 {
+          True -> #(Keep, w.groups)
+          False -> {
+            let assert [group, ..grps] = grps
+            #(group.instruction, grps)
+          }
         }
+        let vxmls = apply_instruction(b, split, instruction)
+        let reversed = infra.pour(vxmls, reversed)
+        let b = bl.advance(b, string.length(split))
+        #(b, grps, reversed)
       }
-      let vxmls = apply_instruction(b, split, instruction)
-      let reversed = infra.pour(vxmls, reversed)
-      let b = bl.advance(b, string.length(split))
-      #(b, grps, reversed)
-    }
-  )
+    )
+    |> infra.triple_3rd
 
   reversed
   |> list.reverse

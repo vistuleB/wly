@@ -497,6 +497,10 @@ pub fn triple_to_pair(t: #(a, b, c)) -> #(a, #(b, c)) {
   #(t.0, #(t.1, t.2))
 }
 
+pub fn pair_2nd(t: #(a, b)) -> b {
+  t.1
+}
+
 pub fn quad_to_pair(t: #(a, b, c, d)) -> #(a, #(b, c, d)) {
   #(t.0, #(t.1, t.2, t.3))
 }
