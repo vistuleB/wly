@@ -418,10 +418,10 @@ pub fn read_singleton(z: List(a)) -> Result(a, SingletonError) {
   }
 }
 
-pub fn append_if_not_present(ze_list: List(a), ze_thing: a) -> List(a) {
+pub fn guarded_prepend(ze_list: List(a), ze_thing: a) -> List(a) {
   case list.contains(ze_list, ze_thing) {
     True -> ze_list
-    False -> list.append(ze_list, [ze_thing])
+    False -> [ze_thing, ..ze_list]
   }
 }
 
@@ -2584,10 +2584,19 @@ pub fn remove_class(
 }
 
 pub fn concatenate_classes(a: String, b: String) -> String {
-  let all_a = a |> string.split(" ") |> list.filter(fn(s){!string.is_empty(s)}) |> list.map(string.trim)
-  let all_b = b |> string.split(" ") |> list.filter(fn(s){!string.is_empty(s)}) |> list.map(string.trim)
-  let all = list.flatten([all_a, all_b])
-  list.fold(all, [], append_if_not_present)
+  let all_a = a |> string.split(" ")
+  let all_b = b |> string.split(" ")
+  list.fold(
+    all_b,
+    all_a |> list.reverse,
+    fn(acc, b) {
+      case list.contains(acc, b) {
+        True -> acc
+        False -> [b, ..acc]
+      }
+    }
+  )
+  |> list.reverse
   |> string.join(" ")
 }
 
@@ -2604,7 +2613,7 @@ pub fn attrs_append_classes(attrs: List(Attr), blame: Blame, classes: String) ->
   )
   case index >= 0 {
     True -> list_set(attrs, index, new_attr)
-    False -> list.append(attrs, [Attr(blame, "class", concatenate_classes("", classes))])
+    False -> list.append(attrs, [Attr(blame, "class", classes)])
   }
 }
 
@@ -2621,7 +2630,7 @@ pub fn attrs_prepend_classes(attrs: List(Attr), blame: Blame, classes: String) -
   )
   case index >= 0 {
     True -> list_set(attrs, index, new_attr)
-    False -> list.append(attrs, [Attr(blame, "class", concatenate_classes("", classes))])
+    False -> list.append(attrs, [Attr(blame, "class", classes)])
   }
 }
 

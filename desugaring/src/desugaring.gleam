@@ -1712,7 +1712,7 @@ pub fn run_renderer(
     False -> Nil
     True -> {
       let all_times = [t1, ..all_times]
-      let all_seconds = durations(all_times) |> list.map(duration.to_seconds)
+      let all_seconds = durations(all_times) |> list.map(duration.to_seconds) |> list.reverse
       let assert Ok(max_secs) = list.max(all_seconds, float.compare)
       let one_hundreth_seconds_num_bars = 14
       let num_hundreth_seconds = float.round(float.ceiling(max_secs *. 100.0))

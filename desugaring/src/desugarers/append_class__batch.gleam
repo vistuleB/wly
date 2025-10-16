@@ -1,5 +1,4 @@
 import gleam/option
-import gleam/string.{inspect as ins}
 import infrastructure.{
   type Desugarer,
   type DesugarerTransform,
@@ -58,7 +57,7 @@ pub const name = "append_class__batch"
 pub fn constructor(param: Param) -> Desugarer {
   Desugarer(
     name: name,
-    stringified_param: option.Some(ins(param)),
+    stringified_param: option.Some(param |> infra.list_param_stringifier),
     stringified_outside: option.None,
     transform: case param_to_inner_param(param) {
       Error(error) -> fn(_) { Error(error) }
