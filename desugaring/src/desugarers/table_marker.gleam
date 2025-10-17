@@ -1,21 +1,10 @@
 import gleam/option
 import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as infra
-import nodemaps_2_desugarer_transforms as n2t
-import vxml.{type VXML}
 
-fn nodemap(
-  vxml: VXML,
-) -> VXML {
-  vxml
-}
-
-fn nodemap_factory(_: InnerParam) -> n2t.OneToOneNoErrorNodeMap {
-  nodemap
-}
-
-fn transform_factory(inner: InnerParam) -> DesugarerTransform {
-  nodemap_factory(inner)
-  |> n2t.one_to_one_no_error_nodemap_2_desugarer_transform()
+fn transform_factory(_inner: InnerParam) -> DesugarerTransform {
+  fn(vxml) {
+    Ok(#(vxml, []))
+  }
 }
 
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {

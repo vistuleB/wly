@@ -73,9 +73,11 @@ pub fn default_writerly_parser(
       fn(e) { Error(#(e.blame, ins(e))) },
     )
 
-    use vxml <- on.error_ok(
-      writerlys |> wp.writerlys_to_vxmls |> infra.get_root,
-      fn(e) { Error(#(bl.no_blame, ins(e))) },
+    use vxml <- on.ok(
+      case writerlys |> wp.writerlys_to_vxmls {
+        [vxml] -> Ok(vxml)
+        _ as vxmls -> Error(#(bl.no_blame, "found " <> ins(list.length(vxmls)) <> " ≠ 1 top-level nodes in writerly source"))
+      }
     )
 
     use #(filtered_vxml, _) <- on.error_ok(
@@ -309,10 +311,10 @@ pub type PrettifierDebugOptions(d) {
 
 pub fn run_prettier(in: String, path: String, check: Bool) -> Result(String, #(Int, String)) {
   shellout.command(
-    run: "npx",
+    run: "prettier",
     in: in,
     with: [
-      "prettier",
+      "",
       case check {
         True -> "--check"
         False -> "--write"
@@ -539,7 +541,7 @@ pub fn empty_command_line_amendments() -> CommandLineAmendments {
 pub fn basic_cli_usage() {
   let margin = "   "
   io.println("")
-  io.println("Renderer options:")
+  io.println("cli options:")
   io.println("")
   io.println(margin <> "--help")
   io.println(margin <> "  -> print this message")
@@ -583,10 +585,10 @@ pub fn basic_cli_usage() {
   io.println(margin <> "     • 'with-elder-siblings': trigger selection of ancestor tags")
   io.println(margin <> "        and elder sibling tags of selected lines")
   io.println(margin <> "     • 'with-ancestor-attrs' | 'with-attrs': trigger selection of")
-  io.println(margin <> "        ancestor tags of selected lines, and the attributes of")
+  io.println(margin <> "        ancestor tags of selected lines and the attributes of")
   io.println(margin <> "        those tags")
   io.println(margin <> "     • 'with-elder-sibling-attrs': trigger selection of ancestor")
-  io.println(margin <> "        tags and elder siblings tags of selected lines, and the")
+  io.println(margin <> "        tags and elder siblings tags of selected lines and the")
   io.println(margin <> "        attributes of those tags")
   io.println("")
   io.println(margin <> "--prettier [<dir>]")
@@ -594,15 +596,14 @@ pub fn basic_cli_usage() {
   io.println(margin <> "     <dir>; if absent, <dir> defaults to")
   io.println(margin <> "     renderer_parameters.output_dir")
   io.println("")
-  io.println(margin <> "--verbose / --succinct")
-  io.println(margin <> "  -> force /suppress verbose output")
+  io.println(margin <> "--verbose/--succinct")
+  io.println(margin <> "  -> force/suppress verbose output")
   io.println("")
-  io.println(margin <> "--table / --no-table")
-  io.println(margin <> "  -> force / suppress a printout of the pipeline table in the")
-  io.println(margin <> "     rendering output (overriding RendererParamater default)")
+  io.println(margin <> "--table/--no-table")
+  io.println(margin <> "  -> force/suppress a printout of the pipeline table")
   io.println("")
   io.println(margin <> "--times")
-  io.println(margin <> "  -> show performance table with individual desugaring times")
+  io.println(margin <> "  -> desugarer timing table")
   io.println("")
 }
 
@@ -643,7 +644,7 @@ pub fn extended_cli_usage() {
 
 pub type CommandLineError {
   ExpectedDoubleDashString(String)
-  UnwantedOptionArgument(String)
+  UknownOptionArgument(String)
   UnexpectedArgumentsToOption(String)
   MissingArgumentToOption(String)
   TooManyArgumentsToOption(String)
@@ -807,7 +808,7 @@ pub fn process_command_line_arguments(
         _ -> {
           case list.contains(user_keys, option) {
             True -> Ok(CommandLineAmendments(..amendments, user_args: dict.insert(amendments.user_args, option, values)))
-            False -> Error(UnwantedOptionArgument(option))
+            False -> Error(UknownOptionArgument(option))
           }
         }
       }

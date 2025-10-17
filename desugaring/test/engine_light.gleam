@@ -14,7 +14,7 @@ fn pipeline() -> infra.Pipeline {
   |> infra.desugarers_2_pipeline
 }
 
-pub fn main() {
+pub fn run_renderer_test() {
   use amendments <- on.error_ok(
     ds.process_command_line_arguments(argv.load().arguments, []),
     fn(e) {
@@ -59,4 +59,8 @@ pub fn main() {
   let _ = ds.run_renderer(renderer, parameters, debug_options)
 
   Nil
+}
+
+pub fn main() {
+  run_renderer_test()
 }

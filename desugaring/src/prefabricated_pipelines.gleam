@@ -29,73 +29,158 @@ fn closing_equals_opening(
   z.0 == z.1
 }
 
-type SplitPairFoldData {
-  SplitPairFoldData(
+type NaiveUnescapedSplitPairFoldData {
+  NaiveUnescapedSplitPairFoldData(
+    splitter: String,
+    escaped_splitter_replacement: String,
+    replacement: grs.SplitReplacementInstruction,
+    tag: String,
+  )
+}
+
+fn naive_unescaped_split_pair_fold_data(
+  which: LatexDelimiterSingleton
+) -> NaiveUnescapedSplitPairFoldData {
+  case which {
+    DoubleDollarSingleton -> NaiveUnescapedSplitPairFoldData(
+      splitter: "$$",
+      escaped_splitter_replacement: "\\$$",
+      replacement: grs.Tag("DoubleDollar"),
+      tag: "DoubleDollar",
+    )
+
+    SingleDollarSingleton -> NaiveUnescapedSplitPairFoldData(
+      splitter: "$",
+      escaped_splitter_replacement: "\\$",
+      replacement: grs.Tag("SingleDollar"),
+      tag: "SingleDollar",
+    )
+
+    BackslashOpeningParenthesis -> NaiveUnescapedSplitPairFoldData(
+      splitter: "\\(",
+      escaped_splitter_replacement: "\\\\(",
+      replacement: grs.Tag("LatexOpeningPar"),
+      tag: "LatexOpeningPar",
+    )
+
+    BackslashClosingParenthesis -> NaiveUnescapedSplitPairFoldData(
+      splitter: "\\)",
+      escaped_splitter_replacement: "\\\\)",
+      replacement: grs.Tag("LatexClosingPar"),
+      tag: "LatexClosingPar",
+    )
+
+    BackslashOpeningSquareBracket -> NaiveUnescapedSplitPairFoldData(
+      splitter: "\\[",
+      escaped_splitter_replacement: "\\\\[",
+      replacement: grs.Tag("LatexOpeningBra"),
+      tag: "LatexOpeningBra",
+    )
+
+    BackslashClosingSquareBracket -> NaiveUnescapedSplitPairFoldData(
+      splitter: "\\]",
+      escaped_splitter_replacement: "\\\\]",
+      replacement: grs.Tag("LatexClosingBra"),
+      tag: "LatexClosingBra",
+    )
+
+    BeginAlign -> NaiveUnescapedSplitPairFoldData(
+      splitter: "\\begin{align}",
+      escaped_splitter_replacement: "\\\\begin{align}",
+      replacement: grs.TagAndText("BeginAlign", "\\begin{align}"),
+      tag: "BeginAlign",
+    )
+
+    EndAlign -> NaiveUnescapedSplitPairFoldData(
+      splitter: "\\end{align}",
+      escaped_splitter_replacement: "\\\\end{align}",
+      replacement: grs.TagAndText("EndAlign", "\\end{align}"),
+      tag: "EndAlign",
+    )
+
+    BeginAlignStar -> NaiveUnescapedSplitPairFoldData(
+      splitter: "\\begin{align*}",
+      escaped_splitter_replacement: "\\\\begin{align*}",
+      replacement: grs.TagAndText("BeginAlignStar", "\\begin{align*}"),
+      tag: "BeginAlignStar",
+    )
+
+    EndAlignStar -> NaiveUnescapedSplitPairFoldData(
+      splitter: "\\end{align*}",
+      escaped_splitter_replacement: "\\\\end{align*}",
+      replacement: grs.TagAndText("EndAlignStar", "\\end{align*}"),
+      tag: "EndAlignStar",
+    )
+  }
+}
+
+type RRSSplitPairFoldData {
+  RRSSplitPairFoldData(
     splitter: grs.RegexpReplacementerSplitter,
     tag: String,
     original: String,
   )
 }
 
-fn split_pair_fold_data(
+fn rrs_split_pair_fold_data(
   which: LatexDelimiterSingleton
-) -> SplitPairFoldData {
+) -> RRSSplitPairFoldData {
   case which {
-    DoubleDollarSingleton -> SplitPairFoldData(
+    DoubleDollarSingleton -> RRSSplitPairFoldData(
       grs.unescaped_suffix_rr_splitter(re_suffix: "\\$\\$", replacement: grs.Tag("DoubleDollar")),
       "DoubleDollar",
       "$$",
     )
 
-    SingleDollarSingleton -> SplitPairFoldData(
+    SingleDollarSingleton -> RRSSplitPairFoldData(
       grs.unescaped_suffix_rr_splitter(re_suffix: "\\$", replacement: grs.Tag("SingleDollar")),
       "SingleDollar",
       "$",
     )
 
-    BackslashOpeningParenthesis -> SplitPairFoldData(
+    BackslashOpeningParenthesis -> RRSSplitPairFoldData(
       grs.unescaped_suffix_rr_splitter(re_suffix: "\\\\\\(", replacement: grs.Tag("LatexOpeningPar")),
         "LatexOpeningPar",
         "\\(",
       )
 
-    BackslashClosingParenthesis -> SplitPairFoldData(
+    BackslashClosingParenthesis -> RRSSplitPairFoldData(
       grs.unescaped_suffix_rr_splitter(re_suffix: "\\\\\\)", replacement: grs.Tag("LatexClosingPar")),
       "LatexClosingPar",
       "\\)",
     )
 
-    BackslashOpeningSquareBracket -> SplitPairFoldData(
+    BackslashOpeningSquareBracket -> RRSSplitPairFoldData(
       grs.unescaped_suffix_rr_splitter(re_suffix: "\\\\\\[", replacement: grs.Tag("LatexOpeningBra")),
       "LatexOpeningBra",
       "\\[",
     )
 
-    BackslashClosingSquareBracket -> SplitPairFoldData(
+    BackslashClosingSquareBracket -> RRSSplitPairFoldData(
       grs.unescaped_suffix_rr_splitter(re_suffix: "\\\\\\]", replacement: grs.Tag("LatexClosingBra")),
       "LatexClosingBra",
       "\\]",
     )
 
-    BeginAlign -> SplitPairFoldData(
+    BeginAlign -> RRSSplitPairFoldData(
       grs.rr_splitter(re_string: "\\\\begin{align}", replacement: grs.TagAndText("BeginAlign", "\\begin{align}")),
       "BeginAlign",
       "\\begin{align}",
     )
 
-    EndAlign -> SplitPairFoldData(
+    EndAlign -> RRSSplitPairFoldData(
       grs.rr_splitter(re_string: "\\\\end{align}", replacement: grs.TextAndTag("EndAlign", "\\end{align}")),
       "EndAlign",
       "\\end{align}",
     )
 
-    BeginAlignStar -> SplitPairFoldData(
+    BeginAlignStar -> RRSSplitPairFoldData(
       grs.rr_splitter(re_string: "\\\\begin{align\\*}", replacement: grs.TagAndText("BeginAlignStar", "\\begin{align*}")),
       "BeginAlignStar",
       "\\begin{align*}",
     )
 
-    EndAlignStar -> SplitPairFoldData(
+    EndAlignStar -> RRSSplitPairFoldData(
       grs.rr_splitter(re_string: "\\\\end{align\\*}", replacement: grs.TextAndTag("EndAlignStar", "\\end{align*}")),
       "EndAlignStar",
       "\\end{align*}",
@@ -112,16 +197,22 @@ fn split_pair_fold_for_delimiter_pair(
   let #(d1, d2) = infra.opening_and_closing_singletons_for_pair(pair)
   case closing_equals_opening(pair) {
     True -> {
-      let SplitPairFoldData(rrs, tag, original) = split_pair_fold_data(d1)
+      // let RRSSplitPairFoldData(rrs, tag, original) = rrs_split_pair_fold_data(d1)
+      // [
+      //   dl.regex_split_and_replace__outside(rrs, forbidden),
+      //   dl.pair(#(tag, tag, wrapper, unbridgeable)),
+      //   dl.fold_into_text(#(tag, original))
+      // ]
+      let NaiveUnescapedSplitPairFoldData(s, e, r, tag) = naive_unescaped_split_pair_fold_data(d1)
       [
-        dl.regex_split_and_replace__outside(rrs, forbidden),
+        dl.naive_unsecaped_split_and_replace__outside(#(s, e, r), forbidden),
         dl.pair(#(tag, tag, wrapper, unbridgeable)),
-        dl.fold_into_text(#(tag, original))
+        dl.fold_into_text(#(tag, s))
       ]
     }
     False -> {
-      let SplitPairFoldData(rrs1, tag1, replacement1) = split_pair_fold_data(d1)
-      let SplitPairFoldData(rrs2, tag2, replacement2) = split_pair_fold_data(d2)
+      let RRSSplitPairFoldData(rrs1, tag1, replacement1) = rrs_split_pair_fold_data(d1)
+      let RRSSplitPairFoldData(rrs2, tag2, replacement2) = rrs_split_pair_fold_data(d2)
       [
         dl.regex_split_and_replace__outside(rrs1, forbidden),
         dl.regex_split_and_replace__outside(rrs2, forbidden),
@@ -354,6 +445,8 @@ pub fn markdown_link_splitting(
 pub fn splitting_empty_lines_cleanup() -> List(Desugarer) {
   [
     dl.concatenate_text_nodes(),
+    dl.timer(),
     dl.delete_text_nodes_with_singleton_empty_line(),
+    dl.timer(),
   ]
 }

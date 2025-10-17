@@ -111,6 +111,7 @@ import desugarers/line_rewrap_no1__outside
 import desugarers/line_rewrap_no2__outside
 import desugarers/markdown_link_closing_handrolled_splitter
 import desugarers/merge_parent_attributes_into_child
+import desugarers/naive_unsecaped_split_and_replace__outside
 import desugarers/normalize_begin_end_align
 import desugarers/normalize_br_in_pre
 import desugarers/normalize_math_delimiters_inside
@@ -323,6 +324,7 @@ pub const line_rewrap_no1__outside = line_rewrap_no1__outside.constructor
 pub const line_rewrap_no2__outside = line_rewrap_no2__outside.constructor
 pub const markdown_link_closing_handrolled_splitter = markdown_link_closing_handrolled_splitter.constructor
 pub const merge_parent_attributes_into_child = merge_parent_attributes_into_child.constructor
+pub const naive_unsecaped_split_and_replace__outside = naive_unsecaped_split_and_replace__outside.constructor
 pub const normalize_begin_end_align = normalize_begin_end_align.constructor
 pub const normalize_br_in_pre = normalize_br_in_pre.constructor
 pub const normalize_math_delimiters_inside = normalize_math_delimiters_inside.constructor
@@ -536,6 +538,7 @@ pub const assertive_tests : List(fn() -> infra.AssertiveTestCollection) = [
   line_rewrap_no2__outside.assertive_tests,
   markdown_link_closing_handrolled_splitter.assertive_tests,
   merge_parent_attributes_into_child.assertive_tests,
+  naive_unsecaped_split_and_replace__outside.assertive_tests,
   normalize_begin_end_align.assertive_tests,
   normalize_br_in_pre.assertive_tests,
   normalize_math_delimiters_inside.assertive_tests,

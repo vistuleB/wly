@@ -309,7 +309,7 @@ fn handle_assignment_attrs_from_handle_assignments(
   handles
   |> list.map(fn(handle) {
     let #(name, value) = handle
-    Attr(desugarer_blame(301), "handle", name <> " " <> value)
+    Attr(desugarer_blame(312), "handle", name <> " " <> value)
   })
 }
 

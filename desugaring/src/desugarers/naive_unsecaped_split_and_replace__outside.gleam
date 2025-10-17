@@ -5,7 +5,7 @@ import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type 
 import nodemaps_2_desugarer_transforms as n2t
 
 fn nodemap_factory(inner: InnerParam) -> n2t.OneToManyNoErrorNodeMap {
-  grs.rrs_split_node__batch(_, inner)
+  grs.naive_unescaped_split_node(_, inner.0, inner.1, inner.2)
 }
 
 fn transform_factory(inner: InnerParam, outside: List(String)) -> DesugarerTransform {
@@ -17,19 +17,20 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
   Ok(param)
 }
 
-type Param = List(grs.RegexpReplacementerSplitter)
-//           ↖
-//           replacement_instructions
+type Param = #(String,    String,                        grs.SplitReplacementInstruction)
+//             ↖          ↖                              ↖
+//             splitter   escaped splitter               splitter replacement instruction
+//                        replacement (will replace
+//                        the splitter together
+//                        with the preceding backslash)
 type InnerParam = Param
 
-pub const name = "regex_split_and_replace__batch__outside"
+pub const name = "naive_unescaped_split_and_replace__outside"
 
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 // 🏖️🏖️ Desugarer 🏖️🏖️
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 //------------------------------------------------53
-/// splits text nodes by regexp with group-by-group
-/// replacement instructions
 pub fn constructor(param: Param, outside: List(String)) -> Desugarer {
   Desugarer(
     name: name,

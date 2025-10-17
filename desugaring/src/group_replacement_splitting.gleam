@@ -72,7 +72,7 @@ fn replacement_nodes(
   }
 }
 
-pub fn split_content_with_replacement(
+fn rrs_split_content(
   blame: Blame,
   content: String,
   w: RegexpReplacementerSplitter,
@@ -110,17 +110,21 @@ pub fn split_content_with_replacement(
   |> infra.last_to_first_concatenation
 }
 
-fn split_blamed_line_with_replacement(
+fn rrs_split_line(
   line: Line,
   w: RegexpReplacementerSplitter,
 ) -> List(VXML) {
   case regexp.check(w.re, line.content) {
     False -> [T(line.blame, [line])]
-    True -> split_content_with_replacement(line.blame, line.content, w)
+    True -> rrs_split_content(line.blame, line.content, w)
   }
 }
 
-fn split_if_t_with_replacement_in_node(
+// *****************
+// nodemap API
+// *****************
+
+pub fn rrs_split_node(
   vxml: VXML,
   re: RegexpReplacementerSplitter,
 ) -> List(VXML) {
@@ -128,42 +132,31 @@ fn split_if_t_with_replacement_in_node(
     V(_, _, _, _) -> [vxml]
     T(_, lines) -> {
       lines
-      |> list.map(split_blamed_line_with_replacement(_, re))
+      |> list.map(rrs_split_line(_, re))
       |> list.flatten
       |> infra.plain_concatenation_in_list
     }
   }
 }
 
-fn split_if_t_with_replacement_in_nodes(
+fn rrs_split_nodes(
   nodes: List(VXML),
   re: RegexpReplacementerSplitter,
 ) -> List(VXML) {
   nodes
-  |> list.map(split_if_t_with_replacement_in_node(_, re))
+  |> list.map(rrs_split_node(_, re))
   |> list.flatten
 }
 
-// *****************
-// nodemap API
-// *****************
-
-pub fn split_if_t_with_replacement_nodemap__batch(
+pub fn rrs_split_node__batch(
   vxml: VXML,
   rules: List(RegexpReplacementerSplitter),
 ) -> List(VXML) {
   list.fold(
     rules,
     [vxml],
-    split_if_t_with_replacement_in_nodes,
+    rrs_split_nodes,
   )
-}
-
-pub fn split_if_t_with_replacement_nodemap(
-  vxml: VXML,
-  rule: RegexpReplacementerSplitter,
-) -> List(VXML) {
-  split_if_t_with_replacement_in_nodes([vxml], rule)
 }
 
 // *****************
@@ -208,4 +201,93 @@ pub fn rr_splitter_for_groups(
   let assert Ok(re) = regexp.from_string(re_string)
   let groups = list.map(pairs, fn(p) { RegexpGroupSourceAndInstruction(p.0, p.1) })
   RegexpReplacementerSplitter(re: re, groups: groups)
+}
+
+pub fn remaining_unescaped_splits(
+  splits: List(String),
+  escaped_splitter_replacement e: String,
+) -> List(String) {
+  case splits {
+    [] -> panic
+    [_] -> splits
+    [first, ..rest] -> {
+      case string.ends_with(first, "\\") {
+        False -> [first, ..remaining_unescaped_splits(rest, e)]
+        True -> {
+          let assert [second, ..rest] = remaining_unescaped_splits(rest, e)
+          [
+            { first |> string.drop_end(1) } <> e <> second,
+            ..rest
+          ]
+        }
+      }
+    }
+  }
+}
+
+fn naive_unescaped_split_content(
+  blame: Blame,
+  content: String,
+  splitter: String,
+  escaped_splitter_replacement: String,
+  instruction: SplitReplacementInstruction,
+) -> List(VXML) {
+  let splits =
+    string.split(content, splitter)
+    |> remaining_unescaped_splits(escaped_splitter_replacement)
+    |> list.intersperse(splitter)
+
+  let reversed =
+    list.index_fold(
+      splits,
+      #(blame, []),
+      fn(acc, split, index) {
+        let #(b, reversed) = acc
+        let this_instruction = case index % 2 == 0 {
+          True -> Keep
+          False -> instruction
+        }
+        let vxmls = replacement_nodes(b, split, this_instruction)
+        let reversed = infra.pour(vxmls, reversed)
+        let b = bl.advance(b, string.length(split))
+        #(b, reversed)
+      }
+    )
+    |> infra.pair_2nd
+
+  reversed
+  |> list.reverse
+  |> infra.last_to_first_concatenation
+}
+
+fn naive_unescaped_split_line(
+  line: Line,
+  splitter: String,
+  escaped_splitter_replacement e: String,
+  replacement r: SplitReplacementInstruction,
+) -> List(VXML) {
+  case string.contains(line.content, splitter) {
+    False -> [T(line.blame, [line])]
+    True -> naive_unescaped_split_content(line.blame, line.content, splitter, e, r)
+  }
+}
+// *****************
+// naive_unescaped nodemap API
+// *****************
+
+pub fn naive_unescaped_split_node(
+  vxml: VXML,
+  splitter: String,
+  escaped_splitter_replacement e: String,
+  replacement r: SplitReplacementInstruction,
+) -> List(VXML) {
+  case vxml {
+    V(_, _, _, _) -> [vxml]
+    T(_, lines) -> {
+      lines
+      |> list.map(naive_unescaped_split_line(_, splitter, e, r))
+      |> list.flatten
+      |> infra.plain_concatenation_in_list
+    }
+  }
 }

@@ -193,18 +193,6 @@ pub fn on_t_on_v(
 }
 
 // ************************************************************
-// get_root
-// ************************************************************
-
-pub fn get_root(vxmls: List(VXML)) -> Result(VXML, DesugaringError) {
-  case vxmls {
-    [root] -> Ok(root)
-    [] -> Error(DesugaringError(bl.no_blame, "vxml is empty!"))
-    [_, second, ..] -> Error(DesugaringError(second.blame, "found " <> ins(list.length(vxmls)) <> " > 1 top-level nodes"))
-  }
-}
-
-// ************************************************************
 // descendant_ text_contains/!text_contains
 // ************************************************************
 
@@ -293,6 +281,17 @@ pub fn pour(from: List(a), into: List(a)) -> List(a) {
     [first, ..rest] -> pour(rest, [first, ..into])
     [] -> into
   }
+}
+
+pub fn our_flat_map(over: List(a), with: fn(a) -> List(b)) -> List(b) {
+  list.fold(
+    over,
+    [],
+    fn(acc, child) {
+      pour(with(child), acc)
+    }
+  )
+  |> list.reverse
 }
 
 pub fn pour_but_last(from: List(a), into: List(a)) -> #(List(a), a) {

@@ -5,7 +5,7 @@ import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type 
 import nodemaps_2_desugarer_transforms as n2t
 
 fn nodemap_factory(inner: InnerParam) -> n2t.OneToManyNoErrorNodeMap {
-  grs.split_if_t_with_replacement_nodemap(_, inner)
+  grs.rrs_split_node(_, inner)
 }
 
 fn transform_factory(inner: InnerParam, outside: List(String)) -> DesugarerTransform {
