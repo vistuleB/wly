@@ -126,6 +126,7 @@ import desugarers/prepend_attribute__outside
 import desugarers/prepend_attribute_as_text
 import desugarers/prepend_counter_incrementing_attribute
 import desugarers/prepend_counter_incrementing_attribute__outside
+import desugarers/prepend_custom
 import desugarers/prepend_text_node
 import desugarers/prepend_text_node__batch
 import desugarers/prepend_text_node__outside
@@ -340,6 +341,7 @@ pub const prepend_attribute__outside = prepend_attribute__outside.constructor
 pub const prepend_attribute_as_text = prepend_attribute_as_text.constructor
 pub const prepend_counter_incrementing_attribute = prepend_counter_incrementing_attribute.constructor
 pub const prepend_counter_incrementing_attribute__outside = prepend_counter_incrementing_attribute__outside.constructor
+pub const prepend_custom = prepend_custom.constructor
 pub const prepend_text_node = prepend_text_node.constructor
 pub const prepend_text_node__batch = prepend_text_node__batch.constructor
 pub const prepend_text_node__outside = prepend_text_node__outside.constructor
@@ -555,6 +557,7 @@ pub const assertive_tests : List(fn() -> infra.AssertiveTestCollection) = [
   prepend_attribute_as_text.assertive_tests,
   prepend_counter_incrementing_attribute.assertive_tests,
   prepend_counter_incrementing_attribute__outside.assertive_tests,
+  prepend_custom.assertive_tests,
   prepend_text_node.assertive_tests,
   prepend_text_node__batch.assertive_tests,
   prepend_text_node__outside.assertive_tests,
