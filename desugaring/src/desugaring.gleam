@@ -409,6 +409,7 @@ pub type RendererParameters {
     output_dir: String,
     prettifier_behavior: PrettifierMode,
     verbose: Bool,
+    warnings: Bool,
   )
 }
 
@@ -497,6 +498,7 @@ pub type CommandLineAmendments {
     table: Option(Bool),
     times: Bool,
     verbose: Option(Bool),
+    warnings: Option(Bool),
     timing: Option(Bool),
     echo_assembled: Bool,
     vxml_fragments_local_paths_to_echo: Option(List(String)),
@@ -524,6 +526,7 @@ pub fn empty_command_line_amendments() -> CommandLineAmendments {
     table: None,
     times: False,
     verbose: None,
+    warnings: None,
     timing: None,
     echo_assembled: False,
     vxml_fragments_local_paths_to_echo: None,
@@ -538,10 +541,10 @@ pub fn empty_command_line_amendments() -> CommandLineAmendments {
 // cli_usage
 // ************************************************************
 
-pub fn basic_cli_usage() {
+pub fn default_cli_usage() {
   let margin = "   "
   io.println("")
-  io.println("cli options:")
+  io.println("default cli options:")
   io.println("")
   io.println(margin <> "--help")
   io.println(margin <> "  -> print this message")
@@ -602,8 +605,11 @@ pub fn basic_cli_usage() {
   io.println(margin <> "--table/--no-table")
   io.println(margin <> "  -> force/suppress a printout of the pipeline table")
   io.println("")
+  io.println(margin <> "--warnings/--no-warnings")
+  io.println(margin <> "  -> allow/suppress long-form printout of warnings")
+  io.println("")
   io.println(margin <> "--times")
-  io.println(margin <> "  -> desugarer timing table")
+  io.println(margin <> "  -> include desugarer timing table")
   io.println("")
 }
 
@@ -672,7 +678,7 @@ pub fn process_command_line_arguments(
       let #(option, values) = pair
       case option {
         "--help" -> {
-          basic_cli_usage()
+          default_cli_usage()
           io.println("")
           case list.is_empty(values) {
             True -> Ok(CommandLineAmendments(..amendments, help: True))
@@ -708,7 +714,10 @@ pub fn process_command_line_arguments(
             values
             |> list.map(parse_attr_value_args_in_filename)
             |> list.flatten()
-          Ok(amendments |> amend_only_args(args))
+
+          CommandLineAmendments(..amendments, warnings: Some(option.unwrap(amendments.warnings, False)))
+          |> amend_only_args(args)
+          |> Ok
         }
 
         "--table" ->
@@ -802,6 +811,18 @@ pub fn process_command_line_arguments(
         "--verbose" ->
           case list.is_empty(values) {
             True -> Ok(CommandLineAmendments(..amendments, verbose: Some(True)))
+            False -> Error(UnexpectedArgumentsToOption(option))
+          }
+        
+        "--warnings" ->
+          case list.is_empty(values) {
+            True -> Ok(CommandLineAmendments(..amendments, warnings: Some(True)))
+            False -> Error(UnexpectedArgumentsToOption(option))
+          }
+        
+        "--no-warnings" ->
+          case list.is_empty(values) {
+            True -> Ok(CommandLineAmendments(..amendments, warnings: Some(False)))
             False -> Error(UnexpectedArgumentsToOption(option))
           }
         
@@ -1153,6 +1174,7 @@ pub fn amend_renderer_paramaters_by_command_line_amendments(
     output_dir: option.unwrap(amendments.output_dir, parameters.output_dir),
     prettifier_behavior: option.unwrap(amendments.prettier, parameters.prettifier_behavior),
     verbose: option.unwrap(amendments.verbose, parameters.verbose),
+    warnings: option.unwrap(amendments.warnings, parameters.warnings),
   )
 }
 
@@ -1586,6 +1608,7 @@ pub fn run_renderer(
     output_dir,
     prettifier_mode,
     verbose,
+    show_warnings,
   ) = parameters
 
   case table {
@@ -2004,24 +2027,34 @@ pub fn run_renderer(
   case list.length(warnings) {
     0 -> Nil
     _ -> {
-      io.println("\n👉 " <> pr.how_many("warning", "warnings", list.length(warnings)) <> ":")
+      case show_warnings {
+        True ->
+          io.println("\n👉 " <> pr.how_many("warning", "warnings", list.length(warnings)) <> ":")
+        False ->
+          io.println("\n[" <> pr.how_many("suppressed warning", "suppressed warnings", list.length(warnings)) <> " (use '--warnings' option to see)]")
+      }
     }
   }
 
-  list.each(
-    warnings,
-    fn (w) {
-      [
-        "",
-        "  from:           " <> w.desugarer.name <> " (desugarer)",
-        "  pipeline step:  " <> ins(w.step_no),
-        "  blame:          " <> bl.blame_digest(w.blame),
-        "  message:        " <> w.message,
-        "",
-      ]
-      |> pr.boxed_error_announcer("🚨", 2, #(1, 0))
-    }
-  )
+  case show_warnings {
+    True -> 
+      list.each(
+        warnings,
+        fn (w) {
+          [
+            "",
+            "  from:           " <> w.desugarer.name <> " (desugarer)",
+            "  pipeline step:  " <> ins(w.step_no),
+            "  blame:          " <> bl.blame_digest(w.blame),
+            "  message:        " <> w.message,
+            "",
+          ]
+          |> pr.boxed_error_announcer("🚨", 2, #(1, 0))
+        }
+      )
+    False ->
+      Nil
+  }
 
   let #(_, errors) = result.partition(fragments)
 
