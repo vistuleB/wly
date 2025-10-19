@@ -29,17 +29,17 @@ fn transform_factory(inner: InnerParam) -> DesugarerTransform {
 }
 
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
-  Ok(#(param.0, V(desugarer_blame(32), param.1, [], [])))
+  Ok(param)
 }
 
-type Param = #(String,  String)
+type Param = #(String,  VXML)
 //             ↖        ↖
 //             target   wrapper
 //             tag      tag
-type InnerParam = #(String, VXML)
-fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
+type InnerParam = Param
 
-pub const name = "wrap"
+pub const name = "wrap_custom"
+fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
 
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 // 🏖️🏖️ Desugarer 🏖️🏖️
@@ -68,9 +68,12 @@ pub fn constructor(param: Param) -> Desugarer {
 // 🌊🌊🌊 tests 🌊🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
 fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
+  let wrapper = V(desugarer_blame(71), "wrapper", [], [])
+  let container = V(desugarer_blame(72), "container", [], [])
+  let main = V(desugarer_blame(73), "main", [], [])
   [
     infra.AssertiveTestData(
-      param: #("p", "wrapper"),
+      param: #("p", wrapper),
       source:   "
                 <> root
                   <> div
@@ -94,7 +97,7 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
                 ",
     ),
     infra.AssertiveTestData(
-      param: #("section", "container"),
+      param: #("section", container),
       source:   "
                 <> root
                   <> section
@@ -112,7 +115,7 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
                 ",
     ),
     infra.AssertiveTestData(
-      param: #("article", "main"),
+      param: #("article", main),
       source:   "
                 <> root
                   <> article
@@ -136,7 +139,7 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
                 ",
     ),
     infra.AssertiveTestData(
-      param: #("p", "wrapper"),
+      param: #("p", wrapper),
       source:   "
                 <> root
                   <> div
