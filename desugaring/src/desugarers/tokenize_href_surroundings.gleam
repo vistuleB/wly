@@ -264,12 +264,10 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
       ",
       expected: "
             <> testing
-              had_href_child=true
               <> zz
-                href=cx
-                <> __StartTokenizedT
-                <> __OneNewLine
-                <> __EndTokenizedT
+                <>
+                  \"\"
+                  \"\"
       ",
     ),
   ]
