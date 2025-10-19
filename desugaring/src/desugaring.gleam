@@ -541,13 +541,17 @@ pub fn empty_command_line_amendments() -> CommandLineAmendments {
 // cli_usage
 // ************************************************************
 
-pub fn default_cli_usage() {
+pub fn basic_cli_usage(header: String) {
   let margin = "   "
-  io.println("")
-  io.println("default cli options:")
-  io.println("")
+  case header {
+    "" -> Nil
+    _ -> io.println(header <> "\n")
+  }
   io.println(margin <> "--help")
-  io.println(margin <> "  -> print this message")
+  io.println(margin <> "  -> print the basic command line options (this message)")
+  io.println("")
+  io.println(margin <> "--esoteric")
+  io.println(margin <> "  -> print \"advanced\" command line options")
   io.println("")
   io.println(margin <> "--only <string1> <string2> ...")
   io.println(margin <> "  -> restrict source to files whose paths contain at least one of")
@@ -605,42 +609,35 @@ pub fn default_cli_usage() {
   io.println(margin <> "--table/--no-table")
   io.println(margin <> "  -> force/suppress a printout of the pipeline table")
   io.println("")
-  io.println(margin <> "--warnings/--no-warnings")
-  io.println(margin <> "  -> allow/suppress long-form printout of warnings")
-  io.println("")
   io.println(margin <> "--times")
   io.println(margin <> "  -> include desugarer timing table")
   io.println("")
 }
 
-pub fn extended_cli_usage() {
+pub fn advanced_cli_usage(header: String) {
   let margin = "   "
-  io.println("")
-  io.println("Esoteric renderer options:")
-  io.println("")
-  io.println(margin <> "--track-steps")
-  io.println(margin <> "  -> takes arguments in the same form as <step numbers> option of")
-  io.println(margin <> "     --track, with the same semantics (to edit the tracking steps", )
-  io.println(margin <> "     of a tracker set up code-side)", )
+  case header {
+    "" -> Nil
+    _ -> io.println(header <> "\n")
+  }
+  io.println(margin <> "--warnings/--no-warnings")
+  io.println(margin <> "  -> force/suppress long-form printout of desugaring warnings")
   io.println("")
   io.println(margin <> "--echo-assembled")
   io.println(margin <> "  -> print the assembled input lines of source")
   io.println("")
-  io.println(margin <> "--echo-fragments <subpath1> <subpath2> ...")
+  io.println(margin <> "--echo-vxml-fragments <subpath1> <subpath2> ...")
   io.println(margin <> "  -> echo fragments whose paths contain one of the given subpaths")
   io.println(margin <> "     before conversion to output lines, list none to match all", )
   io.println("")
-  io.println(margin <> "--echo-fragments-ol <subpath1> <subpath2> ...")
+  io.println(margin <> "--echo-ol-fragments <subpath1> <subpath2> ...")
   io.println(margin <> "  -> echo fragments whose paths contain one of the given subpaths")
   io.println(margin <> "     after conversion to output lines, list none to match all", )
   io.println("")
-  io.println(margin <> "--echo-fragments-printed <subpath1> <subpath2> ...")
-  io.println(margin <> "  -> echo fragments whose paths contain one of the given subpaths")
-  io.println(margin <> "     in string form before prettifying, list none to match all", )
-  io.println("")
-  io.println(margin <> "--echo-fragments-prettified <local_path1> <local_path2> ...", )
-  io.println(margin <> "  -> echo fragments whose paths contain one of the given subpaths")
-  io.println(margin <> "     in string form after prettifying, list none to match all", )
+  io.println(margin <> "--track-steps")
+  io.println(margin <> "  -> (re)set the tracking step numbers of the current tracker, if")
+  io.println(margin <> "     any; takes arguments in the same form as the <step numbers>")
+  io.println(margin <> "     sub-option of '--track' (e.g., '50-60 !123-125 !-1')", )
   io.println("")
 }
 
@@ -678,8 +675,15 @@ pub fn process_command_line_arguments(
       let #(option, values) = pair
       case option {
         "--help" -> {
-          default_cli_usage()
-          io.println("")
+          basic_cli_usage("\nwly renderer common command line options:")
+          case list.is_empty(values) {
+            True -> Ok(CommandLineAmendments(..amendments, help: True))
+            False -> Error(UnexpectedArgumentsToOption("option"))
+          }
+        }
+
+        "--esoteric" -> {
+          advanced_cli_usage("\nwly renderer advanced command line options:")
           case list.is_empty(values) {
             True -> Ok(CommandLineAmendments(..amendments, help: True))
             False -> Error(UnexpectedArgumentsToOption("option"))
@@ -778,27 +782,15 @@ pub fn process_command_line_arguments(
             False -> Error(UnexpectedArgumentsToOption(option))
           }
 
-        "--echo-fragments" ->
+        "--echo-vxml-fragments" ->
           case list.is_empty(values) {
             True -> Ok(CommandLineAmendments(..amendments, vxml_fragments_local_paths_to_echo: Some(values)))
             False -> Error(UnexpectedArgumentsToOption(option))
           }
 
-        "--echo-fragments-ol" ->
+        "--echo-ol-fragments" ->
           case list.is_empty(values) {
             True -> Ok(CommandLineAmendments(..amendments, output_lines_fragments_local_paths_to_echo: Some(values)))
-            False -> Error(UnexpectedArgumentsToOption(option))
-          }
-
-        "--echo-fragments-printed" ->
-          case list.is_empty(values) {
-            True -> Ok(CommandLineAmendments(..amendments, printed_string_fragments_local_paths_to_echo: Some(values)))
-            False -> Error(UnexpectedArgumentsToOption(option))
-          }
-
-        "--echo-fragments-prettified" ->
-          case list.is_empty(values) {
-            True -> Ok(CommandLineAmendments(..amendments, prettified_string_fragments_local_paths_to_echo: Some(values)))
             False -> Error(UnexpectedArgumentsToOption(option))
           }
 
