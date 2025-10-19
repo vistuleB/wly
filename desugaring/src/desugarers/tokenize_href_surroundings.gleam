@@ -1,10 +1,12 @@
+import blame.{type Blame} as bl
 import gleam/list
 import gleam/option
 import gleam/string
-import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as infra
+import infrastructure.{
+  type Desugarer, type DesugarerTransform, type DesugaringError, Desugarer,
+} as infra
 import nodemaps_2_desugarer_transforms as n2t
-import vxml.{type VXML, Attr, V, T}
-import blame.{type Blame} as bl
+import vxml.{type VXML, Attr, T, V}
 
 const had_href_child = Attr(bl.Des([], name, 9), "had_href_child", "true")
 
@@ -34,20 +36,28 @@ fn tokenize_string_acc(
   leftover: String,
 ) -> List(VXML) {
   case string.split_once(leftover, " ") {
-    Ok(#("", after)) -> tokenize_string_acc(
-      [space_node(current_blame), ..past_tokens],
-      bl.advance(current_blame, 1),
-      after,
-    )
-    Ok(#(before, after)) -> tokenize_string_acc(
-      [space_node(current_blame), word_node(current_blame, before), ..past_tokens],
-      bl.advance(current_blame, string.length(before) + 1),
-      after,
-    )
-    Error(Nil) -> case leftover == "" {
-      True -> past_tokens |> list.reverse
-      False -> [word_node(current_blame, leftover), ..past_tokens] |> list.reverse
-    }
+    Ok(#("", after)) ->
+      tokenize_string_acc(
+        [space_node(current_blame), ..past_tokens],
+        bl.advance(current_blame, 1),
+        after,
+      )
+    Ok(#(before, after)) ->
+      tokenize_string_acc(
+        [
+          space_node(current_blame),
+          word_node(current_blame, before),
+          ..past_tokens
+        ],
+        bl.advance(current_blame, string.length(before) + 1),
+        after,
+      )
+    Error(Nil) ->
+      case leftover == "" {
+        True -> past_tokens |> list.reverse
+        False ->
+          [word_node(current_blame, leftover), ..past_tokens] |> list.reverse
+      }
   }
 }
 
@@ -55,11 +65,7 @@ fn tokenize_t(vxml: VXML) -> List(VXML) {
   let assert T(blame, lines) = vxml
   lines
   |> list.index_map(fn(line, i) {
-    tokenize_string_acc(
-      [],
-      line.blame,
-      line.content,
-    )
+    tokenize_string_acc([], line.blame, line.content)
     |> list.prepend(case i == 0 {
       True -> start_node(line.blame)
       False -> newline_node(line.blame)
@@ -72,16 +78,23 @@ fn tokenize_t(vxml: VXML) -> List(VXML) {
 fn tokenize_if_t_or_has_href_attr_and_recurse(vxml: VXML) -> List(VXML) {
   case vxml {
     T(_, _) -> tokenize_t(vxml)
-    V(_, _, attrs, children) -> case infra.attrs_have_key(attrs, "href") {
-      True -> [V(..vxml, children: list.flat_map(children, tokenize_if_t_or_has_href_attr_and_recurse))]
-      False -> [vxml]
-    }
+    V(_, _, attrs, children) ->
+      case infra.attrs_have_key(attrs, "href") {
+        True -> [
+          V(
+            ..vxml,
+            children: list.flat_map(
+              children,
+              tokenize_if_t_or_has_href_attr_and_recurse,
+            ),
+          ),
+        ]
+        False -> [vxml]
+      }
   }
 }
 
-fn nodemap(
-  vxml: VXML,
-) -> VXML {
+fn nodemap(vxml: VXML) -> VXML {
   case vxml {
     T(_, _) -> vxml
     V(_, _, attrs, children) -> {
@@ -89,7 +102,8 @@ fn nodemap(
         False -> vxml
         True -> {
           let attrs = [had_href_child, ..attrs]
-          let children = list.flat_map(children, tokenize_if_t_or_has_href_attr_and_recurse)
+          let children =
+            list.flat_map(children, tokenize_if_t_or_has_href_attr_and_recurse)
           V(..vxml, attrs: attrs, children: children)
         }
       }
@@ -110,8 +124,11 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
   Ok(param)
 }
 
-type Param = Nil
-type InnerParam = Param
+type Param =
+  Nil
+
+type InnerParam =
+  Param
 
 pub const name = "tokenize_href_surroundings"
 
@@ -236,10 +253,32 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
                 <> __OneNewLine
                 <> __EndTokenizedT
       ",
-    )
+    ),
+    infra.AssertiveTestDataNoParam(
+      source: "
+            <> testing
+              <> zz
+                <>
+                  \"\"
+                  \"\"
+      ",
+      expected: "
+            <> testing
+              had_href_child=true
+              <> zz
+                href=cx
+                <> __StartTokenizedT
+                <> __OneNewLine
+                <> __EndTokenizedT
+      ",
+    ),
   ]
 }
 
 pub fn assertive_tests() {
-  infra.assertive_test_collection_from_data_no_param(name, assertive_tests_data(), constructor)
+  infra.assertive_test_collection_from_data_no_param(
+    name,
+    assertive_tests_data(),
+    constructor,
+  )
 }

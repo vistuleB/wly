@@ -20,7 +20,7 @@ pub fn run_renderer_test() {
     fn(e) {
       io.println("")
       io.println("cli error: " <> ins(e))
-      ds.basic_cli_usage()
+      ds.basic_cli_usage("")
     },
   )
 
@@ -48,6 +48,7 @@ pub fn run_renderer_test() {
       prettifier_behavior: ds.PrettifierOff,
       table: False,
       verbose: False,
+      warnings: False,
     )
     |> ds.amend_renderer_paramaters_by_command_line_amendments(amendments)
 
