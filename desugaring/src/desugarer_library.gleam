@@ -1,4 +1,6 @@
 import infrastructure as infra
+import desugarers/absorb_backward_one
+import desugarers/absorb_forward_one
 import desugarers/absorb_into_previous_sibling
 import desugarers/add_after_but_not_after_last_child__batch
 import desugarers/add_before
@@ -10,6 +12,7 @@ import desugarers/add_between
 import desugarers/add_between_tag_and_text_node
 import desugarers/add_between_tag_and_text_node__batch
 import desugarers/add_between_tags__batch
+import desugarers/add_if_missing_before_but_not_before_first_child
 import desugarers/append_attribute
 import desugarers/append_attribute__batch
 import desugarers/append_attribute__outside
@@ -64,6 +67,7 @@ import desugarers/delete_text_nodes_with_singleton_empty_line
 import desugarers/detokenize_all
 import desugarers/detokenize_href_surroundings
 import desugarers/echo_v_if_see_text
+import desugarers/expel_initial_last_backward_forward
 import desugarers/extract_starting_and_ending_spaces
 import desugarers/filter_nodes_by_attributes
 import desugarers/find_replace__batch__outside
@@ -192,6 +196,7 @@ import desugarers/trim_ending_spaces_except_last_line
 import desugarers/trim_spaces_around_newlines__outside
 import desugarers/unwrap
 import desugarers/unwrap__batch
+import desugarers/unwrap__outside
 import desugarers/unwrap_if_child_of__batch
 import desugarers/unwrap_if_descendant_of
 import desugarers/unwrap_if_descendant_of__batch
@@ -215,6 +220,8 @@ import desugarers/wrap_with_custom_if_child_of
 import desugarers/wrap_with_custom_if_not_child_of
 import desugarers/wrap_with_if_child_of
 
+pub const absorb_backward_one = absorb_backward_one.constructor
+pub const absorb_forward_one = absorb_forward_one.constructor
 pub const absorb_into_previous_sibling = absorb_into_previous_sibling.constructor
 pub const add_after_but_not_after_last_child__batch = add_after_but_not_after_last_child__batch.constructor
 pub const add_before = add_before.constructor
@@ -226,6 +233,7 @@ pub const add_between = add_between.constructor
 pub const add_between_tag_and_text_node = add_between_tag_and_text_node.constructor
 pub const add_between_tag_and_text_node__batch = add_between_tag_and_text_node__batch.constructor
 pub const add_between_tags__batch = add_between_tags__batch.constructor
+pub const add_if_missing_before_but_not_before_first_child = add_if_missing_before_but_not_before_first_child.constructor
 pub const append_attribute = append_attribute.constructor
 pub const append_attribute__batch = append_attribute__batch.constructor
 pub const append_attribute__outside = append_attribute__outside.constructor
@@ -280,6 +288,7 @@ pub const delete_text_nodes_with_singleton_empty_line = delete_text_nodes_with_s
 pub const detokenize_all = detokenize_all.constructor
 pub const detokenize_href_surroundings = detokenize_href_surroundings.constructor
 pub const echo_v_if_see_text = echo_v_if_see_text.constructor
+pub const expel_initial_last_backward_forward = expel_initial_last_backward_forward.constructor
 pub const extract_starting_and_ending_spaces = extract_starting_and_ending_spaces.constructor
 pub const filter_nodes_by_attributes = filter_nodes_by_attributes.constructor
 pub const find_replace__batch__outside = find_replace__batch__outside.constructor
@@ -408,6 +417,7 @@ pub const trim_ending_spaces_except_last_line = trim_ending_spaces_except_last_l
 pub const trim_spaces_around_newlines__outside = trim_spaces_around_newlines__outside.constructor
 pub const unwrap = unwrap.constructor
 pub const unwrap__batch = unwrap__batch.constructor
+pub const unwrap__outside = unwrap__outside.constructor
 pub const unwrap_if_child_of__batch = unwrap_if_child_of__batch.constructor
 pub const unwrap_if_descendant_of = unwrap_if_descendant_of.constructor
 pub const unwrap_if_descendant_of__batch = unwrap_if_descendant_of__batch.constructor
@@ -432,6 +442,8 @@ pub const wrap_with_custom_if_not_child_of = wrap_with_custom_if_not_child_of.co
 pub const wrap_with_if_child_of = wrap_with_if_child_of.constructor
 
 pub const assertive_tests : List(fn() -> infra.AssertiveTestCollection) = [
+  absorb_backward_one.assertive_tests,
+  absorb_forward_one.assertive_tests,
   absorb_into_previous_sibling.assertive_tests,
   add_after_but_not_after_last_child__batch.assertive_tests,
   add_before.assertive_tests,
@@ -443,6 +455,7 @@ pub const assertive_tests : List(fn() -> infra.AssertiveTestCollection) = [
   add_between_tag_and_text_node.assertive_tests,
   add_between_tag_and_text_node__batch.assertive_tests,
   add_between_tags__batch.assertive_tests,
+  add_if_missing_before_but_not_before_first_child.assertive_tests,
   append_attribute.assertive_tests,
   append_attribute__batch.assertive_tests,
   append_attribute__outside.assertive_tests,
@@ -497,6 +510,7 @@ pub const assertive_tests : List(fn() -> infra.AssertiveTestCollection) = [
   detokenize_all.assertive_tests,
   detokenize_href_surroundings.assertive_tests,
   echo_v_if_see_text.assertive_tests,
+  expel_initial_last_backward_forward.assertive_tests,
   extract_starting_and_ending_spaces.assertive_tests,
   filter_nodes_by_attributes.assertive_tests,
   find_replace__batch__outside.assertive_tests,
@@ -625,6 +639,7 @@ pub const assertive_tests : List(fn() -> infra.AssertiveTestCollection) = [
   trim_spaces_around_newlines__outside.assertive_tests,
   unwrap.assertive_tests,
   unwrap__batch.assertive_tests,
+  unwrap__outside.assertive_tests,
   unwrap_if_child_of__batch.assertive_tests,
   unwrap_if_descendant_of.assertive_tests,
   unwrap_if_descendant_of__batch.assertive_tests,

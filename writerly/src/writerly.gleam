@@ -44,6 +44,10 @@ pub type Writerly {
     blame: Blame,
     lines: List(Line),
   )
+  Comment(
+    blame: Blame,
+    lines: List(Line),
+  )
   CodeBlock(
     blame: Blame,
     attrs: List(Attr),
@@ -118,12 +122,14 @@ type ClosingBackTicksError {
 type NonemptySuffixDiagnostic {
   Pipe(annotation: String)
   TripleBacktick(annotation: String)
+  BangBang(suffix: String)
   Other(content: String)
 }
 
 type TentativeWriterly {
   TentativeBlankLine(blame: Blame)
   TentativeBlurb(blame: Blame, contents: List(Line))
+  TentativeComment(blame: Blame, contents: List(Line))
   TentativeCodeBlock(
     blame: Blame,
     attrs: List(TentativeAttr),
@@ -228,6 +234,8 @@ fn parse_from_tentative(
 
     TentativeBlurb(blame, contents) -> Ok(Blurb(blame, contents))
 
+    TentativeComment(blame, contents) -> Ok(Comment(blame, contents))
+
     TentativeCodeBlock(blame, attrs, contents) ->
       case tentative_attrs_to_attrs(attrs) {
         Ok(attrs) -> Ok(CodeBlock(blame, attrs, contents))
@@ -274,6 +282,7 @@ fn nonempty_suffix_diagnostic(suffix: String) -> NonemptySuffixDiagnostic {
   case suffix {
     "```" <> _ -> TripleBacktick(string.drop_start(suffix, 3))
     "|>" <> _ -> Pipe(string.drop_start(suffix, 2))
+    "!!" <> _ -> BangBang(string.drop_start(suffix, 2))
     _ -> Other(suffix)
   }
 }
@@ -368,39 +377,59 @@ fn fast_forward_past_attr_lines_at_indent(
   }
 }
 
+fn fast_forward_past_comment_lines_at_indent(
+  indent: Int,
+  head: FileHead,
+) -> #(List(Line), FileHead) {
+  case current_line(head) {
+    None -> #([], head)
+    Some(InputLine(blame, suffix_indent, suffix)) -> {
+      case {
+        suffix_indent != indent ||
+        !string.starts_with(suffix, "!!")
+      } {
+        True -> #([], head)
+        False -> {
+          let #(more_lines, head_after_others) =
+            fast_forward_past_comment_lines_at_indent(
+              indent,
+              move_forward(head),
+            )
+          #(
+            [Line(blame, suffix |> string.drop_start(2)), ..more_lines],
+            head_after_others,
+          )
+        }
+      }
+    }
+  }
+}
+
 fn fast_forward_past_other_lines_at_indent(
   indent: Int,
   head: FileHead,
 ) -> #(List(Line), FileHead) {
   case current_line(head) {
     None -> #([], head)
-
     Some(InputLine(blame, suffix_indent, suffix)) -> {
-      case suffix == "" {
+      case {
+        suffix_indent != indent ||
+        suffix == "" ||
+        string.starts_with(suffix, "|>") ||
+        string.starts_with(suffix, "```") ||
+        string.starts_with(suffix, "!!")
+      } {
         True -> #([], head)
-
         False -> {
-          case suffix_indent != indent
-            || string.starts_with(suffix, "|>")
-            || string.starts_with(suffix, "```")
-          {
-            True -> #([], head)
-
-            False -> {
-              let line = Line(blame, suffix)
-
-              let #(more_lines, head_after_others) =
-                fast_forward_past_other_lines_at_indent(
-                  indent,
-                  move_forward(head),
-                )
-
-              #(
-                list.prepend(more_lines, line),
-                head_after_others,
-              )
-            }
-          }
+          let #(more_lines, head_after_others) =
+            fast_forward_past_other_lines_at_indent(
+              indent,
+              move_forward(head),
+            )
+          #(
+            [Line(blame, suffix), ..more_lines],
+            head_after_others,
+          )
         }
       }
     }
@@ -881,6 +910,34 @@ fn tentative_parse_at_indent(
                         }
                       }
 
+                    BangBang(content) -> {
+                      let line = Line(blame, content)
+
+                      let #(more_lines, head_after_others) =
+                        fast_forward_past_comment_lines_at_indent(
+                          indent,
+                          move_forward(head),
+                        )
+
+                      let tentative_comment =
+                        TentativeComment(
+                          blame: blame,
+                          contents: [line, ..more_lines]
+                        )
+
+                      let #(
+                        siblings,
+                        siblings_trailing_blank_lines,
+                        head_after_indent,
+                      ) = tentative_parse_at_indent(indent, head_after_others, tag_re, key_re)
+
+                      #(
+                        [tentative_comment, ..siblings],
+                        siblings_trailing_blank_lines,
+                        head_after_indent,
+                      )
+                    }
+
                     Other(_) -> {
                       let line = Line(blame, suffix)
 
@@ -931,7 +988,7 @@ fn tentative_parse_input_lines(
 ) -> List(TentativeWriterly) {
   let assert Ok(tag_re) = regexp.from_string("^[a-zA-Z_\\:][-a-zA-Z0-9\\._\\:]*$")
   let assert Ok(key_re) = regexp.from_string("^[a-zA-Z_][-a-zA-Z0-9\\._\\:]*$")
-  let head = list.filter(head, fn(line) { !string.starts_with(line.suffix, "!!") })
+  // let head = list.filter(head, fn(line) { !string.starts_with(line.suffix, "!!") })
   let #(parsed, _, final_head) = tentative_parse_at_indent(0, head, tag_re, key_re)
   assert final_head == []
 
@@ -990,28 +1047,13 @@ fn tentative_error_blame_and_type_and_message(
   case t {
     TentativeBlankLine(_) -> panic as "not an error node"
     TentativeBlurb(_, _) -> panic as "not an error node"
+    TentativeComment(_, _) -> panic as "not an error node"
     TentativeCodeBlock(_, _, _) -> panic as "not an error node"
     TentativeTag(_, _, _, _) -> panic as "not an error node"
-    TentativeErrorIndentationTooLarge(blame, message) -> #(
-      blame,
-      "IndentationTooLarge",
-      message,
-    )
-    TentativeErrorIndentationNotMultipleOfFour(blame, message) -> #(
-      blame,
-      "IndentationNotMultipleOfFour",
-      message,
-    )
-    TentativeErrorCodeBlockNotClosed(blame) -> #(
-      blame,
-      "CodeBlockNotClosed",
-      "",
-    )
-    TentativeErrorCodeBlockUnwantedAnnotationAtClose(blame, _opening_blame, message) -> #(
-      blame,
-      "CodeBlockUnwantedAnnotationAtClose",
-      message,
-    )
+    TentativeErrorIndentationTooLarge(b, msg) -> #(b, "IndentationTooLarge", msg)
+    TentativeErrorIndentationNotMultipleOfFour(b, msg) -> #(b, "IndentationNotMultipleOfFour", msg)
+    TentativeErrorCodeBlockNotClosed(b) -> #(b, "CodeBlockNotClosed", "")
+    TentativeErrorCodeBlockUnwantedAnnotationAtClose(b, _opening_blame, msg) -> #(b, "CodeBlockUnwantedAnnotationAtClose", msg)
   }
 }
 
@@ -1197,6 +1239,17 @@ pub fn writerly_annotate_blames(writerly: Writerly) -> Writerly {
           )
         }),
       )
+    Comment(blame, lines) ->
+      Comment(
+        blame |> pc("Comment"),
+        list.index_map(lines, fn(line, i) {
+          Line(
+            line.blame
+              |> pc("Comment > Line(" <> ins(i + 1) <> ")"),
+            line.content,
+          )
+        }),
+      )
     CodeBlock(blame, attrs, lines) -> {
       let annotation = attrs_to_code_block_annotation(attrs)
       CodeBlock(
@@ -1270,7 +1323,13 @@ fn writerly_to_output_lines_internal(
   case t {
     BlankLine(blame) -> [OutputLine(blame, 0, "")]
     Blurb(_, lines) ->
-      lines_to_output_lines(lines, indentation)
+      lines
+      |> escape_left_spaces
+      |> lines_to_output_lines(indentation)
+    Comment(_, lines) ->
+      lines
+      |> list.map(fn(l) {Line(..l, content: "!!" <> l.content)})
+      |> lines_to_output_lines(indentation)
     CodeBlock(blame, attrs, lines) -> {
       list.flatten([
         [OutputLine(blame, indentation, "```" <> attrs_to_code_block_annotation(attrs))],
@@ -1365,6 +1424,7 @@ pub fn writerly_table(writerly: Writerly, banner: String, indent: Int) -> String
 
 const writerly_blank_line_vxml_tag = "WriterlyBlankLine"
 const writerly_code_block_vxml_tag = "WriterlyCodeBlock"
+const writerly_comment_vxml_tag = "WriterlyComment"
 
 pub fn writerly_to_vxml(t: Writerly) -> VXML {
   case t {
@@ -1377,6 +1437,14 @@ pub fn writerly_to_vxml(t: Writerly) -> VXML {
       )
 
     Blurb(blame, lines) -> T(blame: blame, lines: lines)
+    
+    Comment(blame, lines) -> 
+      V(
+        blame: blame,
+        tag: writerly_comment_vxml_tag,
+        attrs: [],
+        children: [T(blame: blame, lines: lines)],
+      )
 
     CodeBlock(blame, attrs, lines) ->
       V(
@@ -1723,7 +1791,6 @@ fn process_vxml_t_node(vxml: VXML) -> List(Writerly) {
     || index == list.length(lines) - 1
   })
   |> list.map(pair.second)
-  |> escape_left_spaces
   |> fn(lines) {
     case lines {
       [] -> []
@@ -1739,16 +1806,16 @@ fn is_t(vxml: VXML) -> Bool {
   }
 }
 
-pub fn vxml_to_writerlys(vxml: VXML) -> List(Writerly) { // it would 'Writerly' not 'List(Writerly)' if for the fact that someone could give an empty text node
+pub fn vxml_to_writerlys(vxml: VXML) -> List(Writerly) { // it would be 'Writerly' not 'List(Writerly)' if for the fact that someone could give an empty text node
   case vxml {
     V(blame, tag, attrs, children) -> {
       case tag {
-        "WriterlyBlankLine" -> {
+        _ if tag == writerly_blank_line_vxml_tag -> {
           assert attrs == []
           assert children == []
           [BlankLine(blame)]
         }
-        "WriterlyCodeBlock" -> {
+        _ if tag == writerly_code_block_vxml_tag -> {
           assert list.all(children, is_t)
           let lines =
             children
@@ -1759,6 +1826,11 @@ pub fn vxml_to_writerlys(vxml: VXML) -> List(Writerly) { // it would 'Writerly' 
               }
             )
           [CodeBlock(blame, attrs, lines)]
+        }
+        _ if tag == writerly_comment_vxml_tag -> {
+          let assert [T(_, lines)] = children
+          assert list.length(lines) > 0
+          [Comment(blame, lines)]
         }
         _ -> {
           let children = children |> vxmls_to_writerlys

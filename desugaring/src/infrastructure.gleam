@@ -250,6 +250,30 @@ pub fn descendants_with_class(vxml: VXML, class: String) -> List(VXML) {
 // list utilities
 // ************************************************************
 
+pub fn prefix_partition(
+  list: List(a),
+  condition: fn(a) -> Bool,
+) -> #(List(a), List(a)) {
+  case list {
+    [] -> #([], [])
+    [first, ..rest] -> case condition(first) {
+      False -> #([], list)
+      True -> {
+        let #(prefix, list) = prefix_partition(rest, condition)
+        #([first, ..prefix], list)
+      }
+    }
+  }
+}
+
+pub fn suffix_partition(
+  l: List(a),
+  condition: fn(a) -> Bool,
+) -> #(List(a), List(a)) {
+  let #(prefix, others) = prefix_partition(l |> list.reverse, condition)
+  #(others |> list.reverse, prefix |> list.reverse)
+}
+
 pub fn get_duplicate(list: List(a)) -> Option(a) {
   case list {
     [] -> None

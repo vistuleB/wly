@@ -239,7 +239,15 @@ pub fn name_and_param_string(
             assert string.starts_with(first, "[ ")
             let first = string.drop_start(first, 2)
             let assert [last, ..rest] = [first, ..rest] |> list.reverse
-            assert string.ends_with(last, " ]")
+            case string.ends_with(last, "]") {
+              True -> Nil
+              False -> {
+                io.println("bad stringified param at step_no: " <> ins(step_no))
+                io.println(desugarer.stringified_param |> option.unwrap("None") <> "[end]")
+                io.println(desugarer.stringified_outside |> option.unwrap("None") <> "[end]")
+                panic
+              }
+            }
             let last = string.drop_end(last, 2)
             let more = [last, ..rest] |> list.reverse
             #(" [", more)
