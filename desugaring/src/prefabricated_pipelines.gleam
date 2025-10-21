@@ -445,8 +445,6 @@ pub fn markdown_link_splitting(
 pub fn splitting_empty_lines_cleanup() -> List(Desugarer) {
   [
     dl.concatenate_text_nodes(),
-    dl.timer(),
     dl.delete_text_nodes_with_singleton_empty_line(),
-    dl.timer(),
   ]
 }

@@ -1,5 +1,5 @@
 |> Book
-    ```python.class1.class2#id1&key1=val1&key2=val2
+    ```p#id2.class1.class2&key1=val1&key2=val2
     def f():
         print("hello world")
     ```
