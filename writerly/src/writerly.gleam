@@ -13,22 +13,7 @@ import simplifile
 import vxml.{type Attr, type Line, type VXML, Attr, Line, T, V}
 import dirtree as dt
 import splitter
-import on
-
-type Return(a, b) {
-  Return(a)
-  NotReturn(b)
-}
-
-fn on_not_return(
-  r: Return(a, b),
-  on_not_return f1: fn(b) -> a,
-) -> a {
-  case r {
-    Return(a) -> a
-    NotReturn(b) -> f1(b)
-  }
-}
+import on.{Return, Continue as Stay}
 
 const debug = False
 
@@ -352,9 +337,10 @@ fn fast_forward_past_attr_lines_at_indent(
                 False -> {
                   let val = string.trim(val)
 
-                  let attr_pair =
-                    #(key, val)
-                    |> tentative_attr(blame, _, key_re)
+                  let attr_pair = case string.starts_with(suffix, "!!") {
+                    False -> tentative_attr(blame, #(key, val), key_re)
+                    True -> TentativeAttr(blame, Ok(key), val)
+                  }
 
                   let #(more_attr_pairs, head_after_attrs) =
                     fast_forward_past_attr_lines_at_indent(
@@ -553,14 +539,13 @@ fn expand_selector_split_while(
   blame: Blame,
 ) -> #(String, List(#(Blame, String, String))) {
   let #(before, sep, after) = splitter.split(s, suffix)
-  use _ <- on_not_return(case sep {
+  use _ <- on.continue(case sep {
     "" -> Return(#(before, []))
-    _ -> NotReturn(Nil)
+    _ -> Stay(Nil)
   })
   let b1 = bl.advance(blame, string.length(before))
   let b2 = bl.advance(b1, string.length(sep))
-  let #(u, others) = expand_selector_split_while(s, after, b2)
-  #(before, [#(b1, sep, u), ..others])
+  expand_selector_split_while(s, after, b2)
 }
 
 type CSSSelectorPiece {
@@ -595,9 +580,9 @@ fn code_block_annotation_to_attrs_v2(
   key_re: Regexp,
 ) -> List(TentativeAttr) {
   let annotation = string.trim_end(annotation)
-  use _ <- on_not_return(case annotation {
+  use _ <- on.continue(case annotation {
     "" -> Return([])
-    _ -> NotReturn(Nil)
+    _ -> Stay(Nil)
   })
   let s = splitter.new([".", "#", "&"])
   let #(language, pieces) = css_selector_pieces(s, annotation, blame)
@@ -1322,14 +1307,17 @@ fn writerly_to_output_lines_internal(
 ) -> List(OutputLine) {
   case t {
     BlankLine(blame) -> [OutputLine(blame, 0, "")]
+
     Blurb(_, lines) ->
       lines
       |> escape_left_spaces
       |> lines_to_output_lines(indentation)
+
     Comment(_, lines) ->
       lines
       |> list.map(fn(l) {Line(..l, content: "!!" <> l.content)})
       |> lines_to_output_lines(indentation)
+
     CodeBlock(blame, attrs, lines) -> {
       list.flatten([
         [OutputLine(blame, indentation, "```" <> attrs_to_code_block_annotation(attrs))],
@@ -1346,6 +1334,7 @@ fn writerly_to_output_lines_internal(
         ],
       ])
     }
+
     Tag(blame, tag, attrs, children) -> {
       let tag_line = OutputLine(blame, indentation, "|> " <> tag)
       let attr_lines =

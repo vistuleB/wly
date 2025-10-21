@@ -57,6 +57,7 @@ import desugarers/delete
 import desugarers/delete__batch
 import desugarers/delete_attribute
 import desugarers/delete_attribute__batch
+import desugarers/delete_attribute_if
 import desugarers/delete_attribute_of__batch
 import desugarers/delete_class
 import desugarers/delete_empty_lines
@@ -278,6 +279,7 @@ pub const delete = delete.constructor
 pub const delete__batch = delete__batch.constructor
 pub const delete_attribute = delete_attribute.constructor
 pub const delete_attribute__batch = delete_attribute__batch.constructor
+pub const delete_attribute_if = delete_attribute_if.constructor
 pub const delete_attribute_of__batch = delete_attribute_of__batch.constructor
 pub const delete_class = delete_class.constructor
 pub const delete_empty_lines = delete_empty_lines.constructor
@@ -500,6 +502,7 @@ pub const assertive_tests : List(fn() -> infra.AssertiveTestCollection) = [
   delete__batch.assertive_tests,
   delete_attribute.assertive_tests,
   delete_attribute__batch.assertive_tests,
+  delete_attribute_if.assertive_tests,
   delete_attribute_of__batch.assertive_tests,
   delete_class.assertive_tests,
   delete_empty_lines.assertive_tests,
