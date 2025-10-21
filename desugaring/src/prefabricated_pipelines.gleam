@@ -18,9 +18,9 @@ import infrastructure.{
 import vxml.{type VXML, V, Attr}
 import desugarer_library as dl
 
-//******************
+// ************************************************************
 // math delimiter stuff
-//******************
+// ************************************************************
 
 fn closing_equals_opening(
   pair: LatexDelimiterPair
@@ -282,9 +282,9 @@ pub fn create_math_elements(
   create_math_or_mathblock_elements(parsed, produced, backup, "Math", ["WriterlyBlankLine"])
 }
 
-//***************
+// ************************************************************
 // generic symmetric & asymmetric delim splitting
-//***************
+// ************************************************************
 
 pub fn symmetric_delim_splitting(
   delim_regex_form: String,
@@ -355,9 +355,9 @@ pub fn asymmetric_delim_splitting(
   ]
 }
 
-//***************
+// ************************************************************
 // barbaric symmetric & asymmetric delim splitting
-//***************
+// ************************************************************
 
 pub fn barbaric_symmetric_delim_splitting(
   delim_regex_form: String,
@@ -376,9 +376,9 @@ pub fn barbaric_symmetric_delim_splitting(
   ]
 }
 
-// **************
+// ************************************************************
 // annotated backticks
-// **************
+// ************************************************************
 
 pub fn annotated_backtick_splitting(
   tag: String,
@@ -414,9 +414,9 @@ pub fn annotated_backtick_splitting(
   |> list.flatten
 }
 
-// **************
+// ************************************************************
 // markdown-style links
-// **************
+// ************************************************************
 
 pub fn markdown_link_splitting(
   forbidden: List(String),
@@ -438,9 +438,9 @@ pub fn markdown_link_splitting(
   ]
 }
 
-//***************
+// ************************************************************
 // clean up after splitting
-//***************
+// ************************************************************
 
 pub fn splitting_empty_lines_cleanup() -> List(Desugarer) {
   [
