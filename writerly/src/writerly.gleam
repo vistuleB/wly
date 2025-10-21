@@ -545,7 +545,8 @@ fn expand_selector_split_while(
   })
   let b1 = bl.advance(blame, string.length(before))
   let b2 = bl.advance(b1, string.length(sep))
-  expand_selector_split_while(s, after, b2)
+  let #(u, others) = expand_selector_split_while(s, after, b2)
+  #(before, [#(b1, sep, u), ..others])
 }
 
 type CSSSelectorPiece {
@@ -1116,16 +1117,35 @@ fn tentative_attrs_to_code_block_annotation(
 fn attrs_to_code_block_annotation(
   attrs: List(Attr),
 ) -> String {
-  list.index_map(
+  let #(language, classes, id, others) = list.fold(
     attrs,
-    fn (attr, i) {
-      case i == 0 && attr.key == "language" {
-        True -> attr.val
-        False -> attr.key <> "=" <> attr.val
+    #("", "", "", ""),
+    fn (acc, attr) {
+      let #(l, classes, id, others) = acc
+      case attr.key {
+        "language" -> {
+          assert l == ""
+          #(attr.val, classes, id, others)
+        }
+        "class" -> {
+          let classes = classes <> "." <> {
+            attr.val
+            |> string.split(" ")
+            |> list.filter(fn(s) {s != ""})
+            |> string.join(".")
+          }
+          #(l, classes, id, others)
+        }
+        "id" -> {
+          #(l, classes, "#" <> attr.val, others)
+        }
+        _ -> {
+          #(l, classes, id, others <> "&" <> attr.val <> "=" <> attr.key)
+        }
       }
     }
   )
-  |> string.join("&")
+  language <> id <> classes <> others
 }
 
 fn tentative_to_output_lines_internal(
