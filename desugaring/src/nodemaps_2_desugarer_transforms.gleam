@@ -77,7 +77,7 @@ pub type OneToOneNoErrorNodeMap =
 
 // *** without forbidden ***
 
-fn one_to_one_no_error_nodemap_traverse_tree(
+pub fn one_to_one_no_error_nodemap_traverse_tree(
   node: VXML,
   nodemap: OneToOneNoErrorNodeMap,
 ) -> VXML {

@@ -69,7 +69,8 @@ fn nodemap_factory(inner: InnerParam) -> n2t.OneToOneBeforeAndAfterStatefulNodeM
 }
 
 fn transform_factory(inner: InnerParam) -> DesugarerTransform {
-  n2t.one_to_one_before_and_after_stateful_nodemap_2_desugarer_transform(nodemap_factory(inner), 0.)
+  nodemap_factory(inner)
+  |> n2t.one_to_one_before_and_after_stateful_nodemap_2_desugarer_transform(0.)
 }
 
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
