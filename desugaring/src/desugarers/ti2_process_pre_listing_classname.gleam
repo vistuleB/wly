@@ -49,7 +49,7 @@ fn nodemap(
       ))
       let attrs = case line_no {
         None -> attrs
-        Some(x) -> infra.attrs_append_styles(
+        Some(x) -> infra.attrs_merge_styles(
           attrs,
           desugarer_blame(54),
           "counter-set:listing " <> ins(x - 1),

@@ -2132,7 +2132,7 @@ pub fn expand_selector_shorthand(shorthand: String) -> Result(VXML, SelectorErro
 
   let attrs =
     list.map(addenda, addendum_2_attr)
-    |> aggregate_attrs
+    |> merge_attrs
 
 
   Ok(V(blame, tag, attrs, []))
@@ -2559,7 +2559,7 @@ pub fn assert_split_style(style: String) -> List(#(String, String)) {
   |> option.values
 }
 
-pub fn concatenate_styles(a: String, b: String) -> String {
+pub fn merge_styles(a: String, b: String) -> String {
   // *
   // styles of b overwrite styles of a
   // *
@@ -2572,7 +2572,7 @@ pub fn concatenate_styles(a: String, b: String) -> String {
   |> compose_style
 }
 
-pub fn attrs_append_styles(
+pub fn attrs_merge_styles(
   attrs: List(Attr),
   blame: Blame,
   styles: String,
@@ -2582,14 +2582,14 @@ pub fn attrs_append_styles(
     #(-1, Attr(blame, "", "")),
     fn (acc, attr, i) {
       case acc.0, attr.key {
-        -1, "style" -> #(i, Attr(..attr, val: concatenate_styles(attr.val, styles)))
+        -1, "style" -> #(i, Attr(..attr, val: merge_styles(attr.val, styles)))
         _, _ -> acc
       }
     }
   )
   case index >= 0 {
     True -> list_set(attrs, index, new_attr)
-    False -> list.append(attrs, [Attr(blame, "style", concatenate_styles("", styles))])
+    False -> list.append(attrs, [Attr(blame, "style", styles)])
   }
 }
 
@@ -2607,7 +2607,7 @@ pub fn remove_class(
   |> string.join(" ")
 }
 
-pub fn concatenate_classes(a: String, b: String) -> String {
+pub fn merge_classes(a: String, b: String) -> String {
   let all_a = a |> string.split(" ")
   let all_b = b |> string.split(" ")
   list.fold(
@@ -2630,7 +2630,7 @@ pub fn attrs_append_classes(attrs: List(Attr), blame: Blame, classes: String) ->
     #(-1, Attr(blame, "", "")),
     fn (acc, attr, i) {
       case acc.0, attr.key {
-        -1, "class" -> #(i, Attr(..attr, val: concatenate_classes(attr.val, classes)))
+        -1, "class" -> #(i, Attr(..attr, val: merge_classes(attr.val, classes)))
         _, _ -> acc
       }
     }
@@ -2647,7 +2647,7 @@ pub fn attrs_prepend_classes(attrs: List(Attr), blame: Blame, classes: String) -
     #(-1, Attr(blame, "", "")),
     fn (acc, attr, i) {
       case acc.0, attr.key {
-        -1, "class" -> #(i, Attr(..attr, val: concatenate_classes(classes, attr.val)))
+        -1, "class" -> #(i, Attr(..attr, val: merge_classes(classes, attr.val)))
         _, _ -> acc
       }
     }
@@ -2723,7 +2723,7 @@ pub fn supplement_in_class_attr(
   )
 }
 
-pub fn aggregate_attrs(
+pub fn merge_attrs(
   attrs: List(Attr),
 ) -> List(Attr) {
   let acc = list.fold(
@@ -2749,7 +2749,7 @@ pub fn aggregate_attrs(
           )
           Some(guy) -> #(
             acc.0,
-            Some(Attr(..guy, val: concatenate_classes(guy.val, attr.val))),
+            Some(Attr(..guy, val: merge_classes(guy.val, attr.val))),
             acc.2,
             acc.3,
           )
@@ -2764,7 +2764,7 @@ pub fn aggregate_attrs(
           Some(guy) -> #(
             acc.0,
             acc.1,
-            Some(Attr(..guy, val: concatenate_styles(guy.val, attr.val))),
+            Some(Attr(..guy, val: merge_styles(guy.val, attr.val))),
             acc.3,
           )
         }

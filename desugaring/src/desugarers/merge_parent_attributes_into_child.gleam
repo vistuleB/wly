@@ -22,7 +22,7 @@ fn merge_one_attr(
   to_merge: Attr,
 ) -> Result(List(Attr), DesugaringError) {
   case to_merge.key {
-    "style" -> Ok(infra.attrs_append_styles(attrs, to_merge.blame, to_merge.val))
+    "style" -> Ok(infra.attrs_merge_styles(attrs, to_merge.blame, to_merge.val))
     "class" -> Ok(infra.attrs_append_classes(attrs, to_merge.blame, to_merge.val))
     key -> case infra.attrs_val_of_first_with_key(attrs, key) {
       Some(child_val) -> Error(DesugaringError(
