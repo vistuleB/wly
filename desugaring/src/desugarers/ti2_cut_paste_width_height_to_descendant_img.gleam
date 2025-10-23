@@ -64,7 +64,7 @@ fn extract_height_width_from_style_and_attrs(
   ))
 }
 
-fn merge_state(state: State, blame: Blame, width_height_style: String) -> Result(State, DesugaringError) {
+fn merge_new_style_into_state(state: State, blame: Blame, width_height_style: String) -> Result(State, DesugaringError) {
   case state, width_height_style {
     _, "" -> Ok(state)
     None, _ -> Ok(Some(width_height_style))
@@ -72,11 +72,19 @@ fn merge_state(state: State, blame: Blame, width_height_style: String) -> Result
   }
 }
 
-fn merge_state_into_style(
+fn img_case(
   node: VXML,
   state: State,
 ) -> Result(#(VXML, State), DesugaringError) {
   let assert V(blame, _, attrs, _) = node
+
+  // could not use 'extract_height_width_from_style_and_attrs'
+  // here because it gets very expensive to gratuitously
+  // extract from and then reinsert into the 'style' attribute
+  // of all img elements; if we wanted to avoid overwriting
+  // existing local styles would need an alternate version of
+  // 'attrs_merge_prepend_styles' that throws an error when a
+  // style property is about to be overwritten
 
   use #(width_attr, attrs) <- on.ok(
     infra.attrs_extract_unique_key_or_none(attrs, "width")
@@ -95,7 +103,7 @@ fn merge_state_into_style(
     |> string.join(";")
 
   use state <- on.ok(
-    merge_state(state, blame, local_style)
+    merge_new_style_into_state(state, blame, local_style)
   )
 
   case state {
@@ -107,7 +115,7 @@ fn merge_state_into_style(
   }
 }
 
-fn load_width_height_style_into_state(
+fn ancestor_case(
   node: VXML,
   state: State,
 ) -> Result(#(VXML, State), DesugaringError) {
@@ -116,7 +124,7 @@ fn load_width_height_style_into_state(
     extract_height_width_from_style_and_attrs(attrs)
   )
   use state <- on.ok(
-    merge_state(state, blame, width_height_style)
+    merge_new_style_into_state(state, blame, width_height_style)
   )
   Ok(#(V(..node, attrs: attrs), state))
 }
@@ -128,9 +136,9 @@ fn v_before_transforming_children(
 ) -> Result(#(VXML, State), DesugaringError) {
   let assert V(_, tag, _, _) = node
   case tag {
-    "img" -> merge_state_into_style(node, state)
+    "img" -> img_case(node, state)
     _ -> case list.contains(inner, tag) {
-      True -> load_width_height_style_into_state(node, state)
+      True -> ancestor_case(node, state)
       False -> Ok(#(node, state))
     }
   }
