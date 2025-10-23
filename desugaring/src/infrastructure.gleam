@@ -586,7 +586,7 @@ pub fn use_list_pair_as_dict(
   }
 }
 
-pub fn append_to_list_pair_as_dict_accumulator(
+fn insert_in_list_pair_as_dict_accumulator(
   previous: List(#(a, b)),
   item: #(a, b),
   remaining: List(#(a, b)),
@@ -595,7 +595,7 @@ pub fn append_to_list_pair_as_dict_accumulator(
     [] -> [item, ..previous] |> list.reverse
     [first, ..rest] -> case first.0 == item.0 {
       True -> pour([item, ..previous], rest)
-      False -> append_to_list_pair_as_dict_accumulator([first, ..previous], item, rest)
+      False -> insert_in_list_pair_as_dict_accumulator([first, ..previous], item, rest)
     }
   }
 }
@@ -604,7 +604,7 @@ pub fn insert_in_list_pair_as_dict(
   list_pairs: List(#(a, b)),
   item: #(a, b)
 ) -> List(#(a, b)) {
-  append_to_list_pair_as_dict_accumulator([], item, list_pairs)
+  insert_in_list_pair_as_dict_accumulator([], item, list_pairs)
 }
 
 pub fn triples_to_dict(l: List(#(a, b, c))) -> Dict(a, #(b, c)) {
@@ -2590,6 +2590,27 @@ pub fn attrs_merge_styles(
   case index >= 0 {
     True -> list_set(attrs, index, new_attr)
     False -> list.append(attrs, [Attr(blame, "style", styles)])
+  }
+}
+
+pub fn attrs_merge_prepend_styles(
+  attrs: List(Attr),
+  blame: Blame,
+  styles: String,
+) -> List(Attr) {
+  let #(index, new_attr) = list.index_fold(
+    attrs,
+    #(-1, Attr(blame, "", "")),
+    fn (acc, attr, i) {
+      case acc.0, attr.key {
+        -1, "style" -> #(i, Attr(..attr, val: merge_styles(attr.val, styles)))
+        _, _ -> acc
+      }
+    }
+  )
+  case index >= 0 {
+    True -> list_set(attrs, index, new_attr)
+    False -> [Attr(blame, "style", styles), ..attrs]
   }
 }
 
