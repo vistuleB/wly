@@ -180,6 +180,7 @@ import desugarers/ti2_backfill
 import desugarers/ti2_create_index
 import desugarers/ti2_create_menu
 import desugarers/ti2_expand_carousels
+import desugarers/ti2_move_width_height_attributes_and_styles_to_descendant_img
 import desugarers/ti2_parse_arbitrary_prompt_response_pre
 import desugarers/ti2_parse_orange_comments_pre
 import desugarers/ti2_parse_python_prompt_pre
@@ -402,6 +403,7 @@ pub const ti2_backfill = ti2_backfill.constructor
 pub const ti2_create_index = ti2_create_index.constructor
 pub const ti2_create_menu = ti2_create_menu.constructor
 pub const ti2_expand_carousels = ti2_expand_carousels.constructor
+pub const ti2_move_width_height_attributes_and_styles_to_descendant_img = ti2_move_width_height_attributes_and_styles_to_descendant_img.constructor
 pub const ti2_parse_arbitrary_prompt_response_pre = ti2_parse_arbitrary_prompt_response_pre.constructor
 pub const ti2_parse_orange_comments_pre = ti2_parse_orange_comments_pre.constructor
 pub const ti2_parse_python_prompt_pre = ti2_parse_python_prompt_pre.constructor
@@ -625,6 +627,7 @@ pub const assertive_tests : List(fn() -> infra.AssertiveTestCollection) = [
   ti2_create_index.assertive_tests,
   ti2_create_menu.assertive_tests,
   ti2_expand_carousels.assertive_tests,
+  ti2_move_width_height_attributes_and_styles_to_descendant_img.assertive_tests,
   ti2_parse_arbitrary_prompt_response_pre.assertive_tests,
   ti2_parse_orange_comments_pre.assertive_tests,
   ti2_parse_python_prompt_pre.assertive_tests,
