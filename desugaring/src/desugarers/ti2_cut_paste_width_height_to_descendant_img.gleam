@@ -77,6 +77,27 @@ fn merge_state_into_style(
   state: State,
 ) -> Result(#(VXML, State), DesugaringError) {
   let assert V(blame, _, attrs, _) = node
+
+  use #(width_attr, attrs) <- on.ok(
+    infra.attrs_extract_unique_key_or_none(attrs, "width")
+  )
+
+  use #(height_attr, attrs) <- on.ok(
+    infra.attrs_extract_unique_key_or_none(attrs, "height")
+  )
+
+  let width_style = width_attr |> option.map(fn(x) {"width:" <> x.val})
+  let height_style = height_attr |> option.map(fn(x) {"height:" <> x.val})
+
+  let local_style = 
+    [width_style, height_style]
+    |> option.values
+    |> string.join(";")
+
+  use state <- on.ok(
+    merge_state(state, blame, local_style)
+  )
+
   case state {
     None -> Ok(#(node, state))
     Some(width_height_style) -> {
@@ -227,6 +248,36 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
           style=color:red
           <> img
             style=width:100px
+            src=test.jpg
+      ",
+    ),
+    infra.AssertiveTestData(
+      param: ["Group", "figure"],
+      source: "
+        <> figure
+          style=color:red
+          <> img
+            width=100px
+            src=test.jpg
+      ",
+      expected: "
+        <> figure
+          style=color:red
+          <> img
+            style=width:100px
+            src=test.jpg
+      ",
+    ),
+    infra.AssertiveTestData(
+      param: ["Group", "figure"],
+      source: "
+          <> img
+            height=100px
+            src=test.jpg
+      ",
+      expected: "
+          <> img
+            style=height:100px
             src=test.jpg
       ",
     ),
