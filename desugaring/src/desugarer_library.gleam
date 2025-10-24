@@ -181,6 +181,7 @@ import desugarers/ti2_create_index
 import desugarers/ti2_create_menu
 import desugarers/ti2_cut_paste_width_height_to_descendant_img
 import desugarers/ti2_expand_carousels
+import desugarers/ti2_expand_carousels_v2
 import desugarers/ti2_parse_arbitrary_prompt_response_pre
 import desugarers/ti2_parse_orange_comments_pre
 import desugarers/ti2_parse_python_prompt_pre
@@ -212,6 +213,8 @@ import desugarers/unwrap_tags_with_no_text_descendant
 import desugarers/unwrap_when_zero_or_one_children
 import desugarers/wrap
 import desugarers/wrap_adjacent_non_whitespace_text_with
+import desugarers/wrap_and_custom_steal
+import desugarers/wrap_and_steal
 import desugarers/wrap_children
 import desugarers/wrap_children_custom
 import desugarers/wrap_children_up_to
@@ -404,6 +407,7 @@ pub const ti2_create_index = ti2_create_index.constructor
 pub const ti2_create_menu = ti2_create_menu.constructor
 pub const ti2_cut_paste_width_height_to_descendant_img = ti2_cut_paste_width_height_to_descendant_img.constructor
 pub const ti2_expand_carousels = ti2_expand_carousels.constructor
+pub const ti2_expand_carousels_v2 = ti2_expand_carousels_v2.constructor
 pub const ti2_parse_arbitrary_prompt_response_pre = ti2_parse_arbitrary_prompt_response_pre.constructor
 pub const ti2_parse_orange_comments_pre = ti2_parse_orange_comments_pre.constructor
 pub const ti2_parse_python_prompt_pre = ti2_parse_python_prompt_pre.constructor
@@ -435,6 +439,8 @@ pub const unwrap_tags_with_no_text_descendant = unwrap_tags_with_no_text_descend
 pub const unwrap_when_zero_or_one_children = unwrap_when_zero_or_one_children.constructor
 pub const wrap = wrap.constructor
 pub const wrap_adjacent_non_whitespace_text_with = wrap_adjacent_non_whitespace_text_with.constructor
+pub const wrap_and_custom_steal = wrap_and_custom_steal.constructor
+pub const wrap_and_steal = wrap_and_steal.constructor
 pub const wrap_children = wrap_children.constructor
 pub const wrap_children_custom = wrap_children_custom.constructor
 pub const wrap_children_up_to = wrap_children_up_to.constructor
@@ -628,6 +634,7 @@ pub const assertive_tests : List(fn() -> infra.AssertiveTestCollection) = [
   ti2_create_menu.assertive_tests,
   ti2_cut_paste_width_height_to_descendant_img.assertive_tests,
   ti2_expand_carousels.assertive_tests,
+  ti2_expand_carousels_v2.assertive_tests,
   ti2_parse_arbitrary_prompt_response_pre.assertive_tests,
   ti2_parse_orange_comments_pre.assertive_tests,
   ti2_parse_python_prompt_pre.assertive_tests,
@@ -659,6 +666,8 @@ pub const assertive_tests : List(fn() -> infra.AssertiveTestCollection) = [
   unwrap_when_zero_or_one_children.assertive_tests,
   wrap.assertive_tests,
   wrap_adjacent_non_whitespace_text_with.assertive_tests,
+  wrap_and_custom_steal.assertive_tests,
+  wrap_and_steal.assertive_tests,
   wrap_children.assertive_tests,
   wrap_children_custom.assertive_tests,
   wrap_children_up_to.assertive_tests,
