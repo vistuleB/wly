@@ -158,86 +158,180 @@ fn page_link(
   )
 }
 
-fn left_right_links_2_menu(
-  left: List(VXML),
-  right: List(VXML),
+fn row1_row2_links_2_menu(
+  row1: #(Option(VXML), Option(VXML)),
+  row2: #(Option(VXML), Option(VXML)),
   which: Menu,
 ) -> VXML {
   let #(tag, p1) = case which {
     Top -> #("TopMenu", "top-")
     Bottom -> #("BottomMenu", "bottom-")
   }
+  let dummy = V(desugarer_blame(0), "a", [an_attr("class", "menu-row-placeholder")], [])
+  let row_constructor = fn(row: #(Option(VXML), Option(VXML))) {
+    let #(left, right) = row
+    let right = case right {
+      None -> None
+      Some(x) -> Some(
+        infra.v_append_classes(x, "menu-row-right")
+      )
+    }
+    case left, right {
+      None, None -> None
+      _, _ -> {
+        let left = option.unwrap(left, dummy)
+        let right = option.unwrap(right, dummy)
+        Some(V(
+          desugarer_blame(182),
+          "MenuRow",
+          an_attr("class", "menu-row") |> into_list,
+          [left, right],
+        ))
+      }
+    }
+  }
   V(
     desugarer_blame(171),
     tag,
     an_attr("id", p1 <> "menu") |> into_list,
-    [
-      V(
-        desugarer_blame(176),
-        "MenuLeft",
-        an_attr("id", p1 <> "menu-left") |> into_list,
-        left,
-      ),
-      V(
-        desugarer_blame(182),
-        "MenuRight",
-        an_attr("id", p1 <> "menu-right") |> into_list,
-        right,
-      ),
-    ],
+    [row1, row2] |> list.map(row_constructor) |> option.values
   )
 }
 
-fn data_2_menu(
+fn data_2_menu_row_version(
   data: LinkData,
   which: Menu,
 ) -> VXML {
   case data.index {
     // the Index
     None -> case which {
-      Top -> left_right_links_2_menu(
-        [
-          data.homepage_url |> homepage_link(),
-        ],
-        [
-          data.next |> option.map(page_link(_, Next, which)),
-        ] |> option.values |> infra.map_first(infra.v_prepend_attr(_, next_page_id_attr)),
+      Top -> row1_row2_links_2_menu(
+        #(
+          Some(data.homepage_url |> homepage_link()),
+          data.next |> option.map(page_link(_, Next, which)) |> option.map(infra.v_prepend_attr(_, next_page_id_attr))
+        ),
+        #(None, None),
         which,
       )
 
-      Bottom -> left_right_links_2_menu(
-        [],
-        [],
+      Bottom -> row1_row2_links_2_menu(
+        #(None, None),
+        #(None, None),
         which,
       )
     }
 
     // a chapter or subchapter
     _ -> case which {
-      Top -> left_right_links_2_menu(
-        [
-          data.prev |> option.map(page_link(_, Prev, which)),
-          Some(index_link()),
-        ] |> option.values |> infra.map_first(infra.v_prepend_attr(_, prev_page_id_attr)) |> list.reverse,
-        [
+      Top -> row1_row2_links_2_menu(
+        #(
+          case data.prev {
+            None -> index_link() |> infra.v_prepend_attr(prev_page_id_attr)
+            _ -> index_link()
+          } |> Some,
           Some(data.homepage_url |> homepage_link()),
+        ),
+        #(
+          data.prev |> option.map(page_link(_, Prev, which)) |> option.map(infra.v_prepend_attr(_, prev_page_id_attr)),
           data.next |> option.map(page_link(_, Next, which)) |> option.map(infra.v_prepend_attr(_, next_page_id_attr)),
-        ] |> option.values,
+        ),
         which,
       )
 
-      Bottom -> left_right_links_2_menu(
-        [
-          data.prev |> option.map(page_link(_, Prev, which))
-        ] |> option.values,
-        [
-          data.next |> option.map(page_link(_, Next, which))
-        ] |> option.values,
+      Bottom -> row1_row2_links_2_menu(
+        #(
+          data.prev |> option.map(page_link(_, Prev, which)),
+          data.next |> option.map(page_link(_, Next, which)),
+        ),
+        #(None, None),
         which,
       )
     }
   }
 }
+
+// old left-right menu version (might still revert to this):
+
+// fn left_right_links_2_menu(
+//   left: List(VXML),
+//   right: List(VXML),
+//   which: Menu,
+// ) -> VXML {
+//   let #(tag, p1) = case which {
+//     Top -> #("TopMenu", "top-")
+//     Bottom -> #("BottomMenu", "bottom-")
+//   }
+//   V(
+//     desugarer_blame(171),
+//     tag,
+//     an_attr("id", p1 <> "menu") |> into_list,
+//     [
+//       V(
+//         desugarer_blame(176),
+//         "MenuLeft",
+//         an_attr("id", p1 <> "menu-left") |> into_list,
+//         left,
+//       ),
+//       V(
+//         desugarer_blame(182),
+//         "MenuRight",
+//         an_attr("id", p1 <> "menu-right") |> into_list,
+//         right,
+//       ),
+//     ],
+//   )
+// }
+
+// fn data_2_menu(
+//   data: LinkData,
+//   which: Menu,
+// ) -> VXML {
+//   case data.index {
+//     // the Index
+//     None -> case which {
+//       Top -> left_right_links_2_menu(
+//         [
+//           data.homepage_url |> homepage_link(),
+//         ],
+//         [
+//           data.next |> option.map(page_link(_, Next, which)),
+//         ] |> option.values |> infra.map_first(infra.v_prepend_attr(_, next_page_id_attr)),
+//         which,
+//       )
+
+//       Bottom -> left_right_links_2_menu(
+//         [],
+//         [],
+//         which,
+//       )
+//     }
+
+//     // a chapter or subchapter
+//     _ -> case which {
+//       Top -> left_right_links_2_menu(
+//         [
+//           data.prev |> option.map(page_link(_, Prev, which)),
+//           Some(index_link()),
+//         ] |> option.values |> infra.map_first(infra.v_prepend_attr(_, prev_page_id_attr)) |> list.reverse,
+//         [
+//           Some(data.homepage_url |> homepage_link()),
+//           data.next |> option.map(page_link(_, Next, which)) |> option.map(infra.v_prepend_attr(_, next_page_id_attr)),
+//         ] |> option.values,
+//         which,
+//       )
+
+//       Bottom -> left_right_links_2_menu(
+//         [
+//           data.prev |> option.map(page_link(_, Prev, which))
+//         ] |> option.values,
+//         [
+//           data.next |> option.map(page_link(_, Next, which))
+//         ] |> option.values,
+//         which,
+//       )
+//     }
+//   }
+// }
 
 fn page_from_title(
   vxml: VXML,
@@ -294,7 +388,7 @@ fn add_menu(
   data: LinkData,
   which: Menu,
 ) -> VXML {
-  let menu = data_2_menu(data, which)
+  let menu = data_2_menu_row_version(data, which)
   case which {
     Top -> infra.v_prepend_child(node, menu)
     Bottom -> infra.v_pour_before_first(

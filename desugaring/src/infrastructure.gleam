@@ -2481,6 +2481,13 @@ pub fn is_v_and_has_class(vxml: VXML, class: String) -> Bool {
   }
 }
 
+pub fn vxml_digest(vxml: VXML) -> String {
+  case vxml {
+    T(..) -> "T(..)"
+    V(_, tag, _, _) -> tag
+  }
+}
+
 // ************************************************************
 // style
 // ************************************************************
