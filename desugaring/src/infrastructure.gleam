@@ -416,7 +416,7 @@ pub fn drop_last(z: List(a)) -> List(a) {
 }
 
 pub fn assert_drop_last(z: List(a)) -> List(a) {
-  let assert [_, ..rest] = z |> list.reverse 
+  let assert [_, ..rest] = z |> list.reverse
   rest |> list.reverse
 }
 
@@ -1411,11 +1411,11 @@ pub fn plain_concatenation_in_list(nodes: List(VXML)) -> List(VXML) {
 pub fn delete_singleton_empty_lines_in_list(nodes: List(VXML)) -> List(VXML) {
   list.filter(
     nodes,
-    fn (node) { 
+    fn (node) {
       case node {
         T(_, [Line(_, "")]) -> False
         _ -> True
-      }    
+      }
     }
   )
 }
@@ -1873,6 +1873,13 @@ pub fn v_append_child(node: VXML, child: VXML) {
   V(..node, children: list.append(children, [child]))
 }
 
+pub fn append_if_not_present(ze_list: List(a), ze_thing: a) -> List(a) {
+   case list.contains(ze_list, ze_thing) {
+     True -> ze_list
+     False -> list.append(ze_list, [ze_thing])
+   }
+ }
+
 pub fn v_preprend_attr(node: VXML, attr: Attr) {
   let assert V(_, _, attrs, _) = node
   V(..node, attrs: [attr, ..attrs])
@@ -2315,7 +2322,7 @@ pub fn attrs_set(
   key: String,
   val: String,
 ) -> List(Attr) {
-  let #(attrs, found) = 
+  let #(attrs, found) =
     list.fold(
     attrs,
     #([], False),
