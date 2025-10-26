@@ -2291,30 +2291,30 @@ pub fn attrs_extract_unique_key_or_none(
   Ok(#(extracted, attrs))
 }
 
-pub fn attr_substitute(
-  attr: Attr,
-  from: String,
-  to: String,
-) -> Attr {
-  Attr(..attr, val: string.replace(attr.val, from, to))
-}
+// pub fn attr_substitute(
+//   attr: Attr,
+//   from: String,
+//   to: String,
+// ) -> Attr {
+//   Attr(..attr, val: string.replace(attr.val, from, to))
+// }
 
-pub fn substitute_in_attrs(
-  attrs: List(Attr),
-  key: String,
-  from: String,
-  to: String,
-) -> List(Attr) {
-  attrs
-  |> list.map(
-    fn (attr) {
-      case attr.key == key {
-        False -> attr
-        True -> attr |> attr_substitute(from, to)
-      }
-    }
-  )
-}
+// pub fn substitute_in_attrs(
+//   attrs: List(Attr),
+//   key: String,
+//   from: String,
+//   to: String,
+// ) -> List(Attr) {
+//   attrs
+//   |> list.map(
+//     fn (attr) {
+//       case attr.key == key {
+//         False -> attr
+//         True -> attr |> attr_substitute(from, to)
+//       }
+//     }
+//   )
+// }
 
 pub fn attrs_set(
   attrs: List(Attr),

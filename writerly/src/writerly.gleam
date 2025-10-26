@@ -331,7 +331,7 @@ fn fast_forward_past_attr_lines_at_indent(
             Error(_) -> #([], head)
 
             Ok(#(key, val)) -> {
-              case string.contains(key, " ") || key == "" || string.starts_with(val, " ") {
+              case string.contains(key, " ") || key == "" {
                 True -> #([], head)
 
                 False -> {

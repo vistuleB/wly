@@ -1,16 +1,58 @@
 import gleam/list
 import gleam/option
 import gleam/string.{inspect as ins}
-import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as infra
+import infrastructure.{
+  type Desugarer,
+  type DesugarerTransform,
+  type DesugaringError,
+  Desugarer,
+} as infra
 import nodemaps_2_desugarer_transforms as n2t
-import vxml.{type Attr, Attr, type VXML, V}
+import vxml.{
+  type Attr,
+  type VXML,
+  V,
+  Attr,
+}
+
+fn prefix_suffix_list_acc(
+  acc: String,
+  chars: List(String),
+) -> PrefixesAndSuffixes {
+  case chars {
+    [] -> [#(acc, "")]
+    [first, ..rest] -> {
+      let others = prefix_suffix_list_acc(acc <> first, rest)
+      [#(acc, chars |> string.join("")), ..others]
+    }
+  }
+}
+
+fn prefix_suffix_list(
+  s: String
+) -> PrefixesAndSuffixes {
+  prefix_suffix_list_acc("", string.split(s, ""))
+}
+
+fn add_prefix_of_first_matching_suffix(
+  value: String,
+  prefixes_suffixes: PrefixesAndSuffixes
+) -> String {
+  case prefixes_suffixes {
+    [] -> panic
+    [#(a, b), ..rest] -> case string.starts_with(value, b) {
+      True -> a <> value
+      False -> add_prefix_of_first_matching_suffix(value, rest)
+    }
+  }
+}
 
 fn update_attr(
   attr: Attr,
   inner: InnerParam,
 ) -> Attr {
-  case list.find(inner, fn(x) {x.0 == attr.key}) {
-    Ok(#(_, replacement)) -> Attr(..attr, val: string.replace(replacement, "()", attr.val))
+  case inner.0 == attr.key {
+    True -> Attr(..attr, val: add_prefix_of_first_matching_suffix(attr.val, inner.1))
     _ -> attr
   }
 }
@@ -35,22 +77,17 @@ fn transform_factory(inner: InnerParam) -> DesugarerTransform {
 }
 
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
-  Ok(param)
+  Ok(#(param.0, echo prefix_suffix_list(param.1)))
 }
 
-type Param =
-  List(#(String,         String))
-//       ↖               ↖
-//       attr key   replacement of attr value string
-//                       "()" can be used to echo the current value
-//                       ex:
-//                         current value: image/img.png
-//                         replacement: /()
-//                         result: /image/img.png
+type PrefixesAndSuffixes = List(#(String, String))
 
-type InnerParam = Param
+type Param = #(String,         String)
+//             ↖               ↖
+//             attr key        thing should start with
+type InnerParam = #(String, PrefixesAndSuffixes)
 
-pub const name = "change_attribute_value__batch"
+pub const name = "ensure_attribute_value_starts_with_prefix"
 
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 // 🏖️🏖️ Desugarer 🏖️🏖️

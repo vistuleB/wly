@@ -1,18 +1,17 @@
 import gleam/list
 import gleam/option
 import gleam/string.{inspect as ins}
-import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as infra
+import infrastructure.{
+  type Desugarer,
+  type DesugarerTransform,
+  type DesugaringError,
+  Desugarer,
+} as infra
 import nodemaps_2_desugarer_transforms as n2t
-import vxml.{type Attr, Attr, type VXML, V}
-
-fn update_attr(
-  attr: Attr,
-  inner: InnerParam,
-) -> Attr {
-  case list.find(inner, fn(x) {x.0 == attr.key}) {
-    Ok(#(_, replacement)) -> Attr(..attr, val: string.replace(replacement, "()", attr.val))
-    _ -> attr
-  }
+import vxml.{
+  type VXML,
+  V,
+  Attr,
 }
 
 fn nodemap(
@@ -20,7 +19,15 @@ fn nodemap(
   inner: InnerParam,
 ) -> VXML {
   case vxml {
-    V(_, _, attrs, _) -> V(..vxml, attrs: list.map(attrs, update_attr(_, inner)))
+    V(_, _, attrs, _) -> V(..vxml, attrs: list.map(attrs, fn(attr) {
+      case attr.key == inner.0 {
+        False -> attr
+        True -> case string.starts_with(attr.val, inner.1) {
+          True -> attr
+          False -> Attr(..attr, val: inner.1 <> attr.val)
+        }
+      }
+    }))
     _ -> vxml
   }
 }
@@ -38,19 +45,14 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
   Ok(param)
 }
 
-type Param =
-  List(#(String,         String))
-//       ↖               ↖
-//       attr key   replacement of attr value string
-//                       "()" can be used to echo the current value
-//                       ex:
-//                         current value: image/img.png
-//                         replacement: /()
-//                         result: /image/img.png
+type PrefixesAndSuffixes = List(#(String, String))
 
+type Param = #(String,         String)
+//             ↖               ↖
+//             attr key        char that the value should start with (if >1 char use _prefix version of this desugarer)
 type InnerParam = Param
 
-pub const name = "change_attribute_value__batch"
+pub const name = "ensure_attribute_value_starts_with"
 
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 // 🏖️🏖️ Desugarer 🏖️🏖️

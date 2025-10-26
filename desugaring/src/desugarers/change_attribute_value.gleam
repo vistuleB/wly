@@ -1,16 +1,26 @@
 import gleam/list
 import gleam/option
 import gleam/string.{inspect as ins}
-import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as infra
+import infrastructure.{
+  type Desugarer,
+  type DesugarerTransform,
+  type DesugaringError,
+  Desugarer,
+} as infra
 import nodemaps_2_desugarer_transforms as n2t
-import vxml.{type Attr, type VXML, V}
+import vxml.{
+  type Attr,
+  type VXML,
+  V,
+  Attr,
+}
 
 fn update_attr(
   attr: Attr,
   inner: InnerParam,
 ) -> Attr {
   case inner.0 == attr.key {
-    True -> infra.attr_substitute(attr, "()", inner.1)
+    True -> Attr(..attr, val: string.replace(inner.1, "()", attr.val))
     _ -> attr
   }
 }
@@ -40,7 +50,7 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
 
 type Param = #(String,         String)
 //             ↖               ↖
-//             attr key   replacement of attr value string
+//             attr key        replacement of attr value string
 //                             "()" can be used to echo the current value
 //                             ex:
 //                               current value: image/img.png

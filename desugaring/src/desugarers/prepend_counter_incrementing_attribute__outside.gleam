@@ -40,7 +40,7 @@ fn transform_factory(inner: InnerParam, outside: List(String)) -> DesugarerTrans
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
   #(
     param.0, 
-    Attr(desugarer_blame(43), ".", param.1 <> " ::++" <> param.1),
+    Attr(desugarer_blame(43), "_", param.1 <> " ::++" <> param.1),
     param.2,
   )
   |> Ok

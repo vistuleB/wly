@@ -68,6 +68,7 @@ import desugarers/delete_text_nodes_with_singleton_empty_line
 import desugarers/detokenize_all
 import desugarers/detokenize_href_surroundings
 import desugarers/echo_v_if_see_text
+import desugarers/ensure_attribute_value_starts_with
 import desugarers/expel_initial_last_backward_forward
 import desugarers/extract_starting_and_ending_spaces
 import desugarers/filter_nodes_by_attributes
@@ -294,6 +295,7 @@ pub const delete_text_nodes_with_singleton_empty_line = delete_text_nodes_with_s
 pub const detokenize_all = detokenize_all.constructor
 pub const detokenize_href_surroundings = detokenize_href_surroundings.constructor
 pub const echo_v_if_see_text = echo_v_if_see_text.constructor
+pub const ensure_attribute_value_starts_with = ensure_attribute_value_starts_with.constructor
 pub const expel_initial_last_backward_forward = expel_initial_last_backward_forward.constructor
 pub const extract_starting_and_ending_spaces = extract_starting_and_ending_spaces.constructor
 pub const filter_nodes_by_attributes = filter_nodes_by_attributes.constructor
@@ -521,6 +523,7 @@ pub const assertive_tests : List(fn() -> infra.AssertiveTestCollection) = [
   detokenize_all.assertive_tests,
   detokenize_href_surroundings.assertive_tests,
   echo_v_if_see_text.assertive_tests,
+  ensure_attribute_value_starts_with.assertive_tests,
   expel_initial_last_backward_forward.assertive_tests,
   extract_starting_and_ending_spaces.assertive_tests,
   filter_nodes_by_attributes.assertive_tests,
