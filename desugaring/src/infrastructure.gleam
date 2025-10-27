@@ -251,8 +251,6 @@ pub fn descendants_with_class(vxml: VXML, class: String) -> List(VXML) {
 // ************************************************************
 
 pub fn drop_suffix(s: String, suffix: String) -> String {
-  io.println("s: " <> s)
-  io.println("suffix: " <> suffix)
   case string.ends_with(s, suffix) {
     True -> string.drop_end(s, suffix |> string.length)
     False -> s

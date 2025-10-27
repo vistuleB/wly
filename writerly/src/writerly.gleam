@@ -1554,7 +1554,8 @@ fn add_tree_depth(path: String, dirname: String) -> #(Int, String) {
   let base_depth = depth_in_directory_tree(path, dirname)
   let would_be_parent_path = parent_path_without_extension(path)
   let must_add_1 = {
-    {
+    string.starts_with(would_be_parent_path, dirname)
+    && {
       { simplifile.is_file(would_be_parent_path <> "emu") |> result.unwrap(False) } ||
       { simplifile.is_file(would_be_parent_path <> "wly") |> result.unwrap(False) }
     }
