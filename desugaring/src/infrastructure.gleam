@@ -247,7 +247,21 @@ pub fn descendants_with_class(vxml: VXML, class: String) -> List(VXML) {
 }
 
 // ************************************************************
-// string utilities
+// option
+// ************************************************************
+
+pub fn with_default(
+  o: Option(a),
+  default: a,
+) -> Option(a) {
+  case o {
+    None -> Some(default)
+    _ -> o
+  }
+}
+
+// ************************************************************
+// string
 // ************************************************************
 
 pub fn drop_suffix(s: String, suffix: String) -> String {

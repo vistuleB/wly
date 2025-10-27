@@ -116,9 +116,11 @@ pub const default_html_parser = default_xml_parser
 // PipelineDebugOptions
 // ************************************************************
 
+const default_one_hundreth_seconds_num_bars = 14
+
 pub type PipelineDebugOptions {
   PipelineDebugOptions(
-    times: Bool,
+    times: Option(Int),
   )
 }
 
@@ -442,7 +444,7 @@ pub fn empty_parser_debug_options() -> ParserDebugOptions {
 }
 
 pub fn empty_pipeline_debug_options() -> PipelineDebugOptions {
-  PipelineDebugOptions(times: False)
+  PipelineDebugOptions(times: None)
 }
 
 pub fn empty_splitter_debug_options() -> SplitterDebugOptions(d) {
@@ -496,7 +498,7 @@ pub type CommandLineAmendments {
     track: Option(PipelineTrackingModifier),
     peek: Option(List(Int)),
     table: Option(Bool),
-    times: Bool,
+    times: Option(Int),
     verbose: Option(Bool),
     warnings: Option(Bool),
     timing: Option(Bool),
@@ -524,7 +526,7 @@ pub fn empty_command_line_amendments() -> CommandLineAmendments {
     track: None,
     peek: None,
     table: None,
-    times: False,
+    times: None,
     verbose: None,
     warnings: None,
     timing: None,
@@ -609,8 +611,8 @@ pub fn basic_cli_usage(header: String) {
   io.println(margin <> "--table/--no-table")
   io.println(margin <> "  -> force/suppress a printout of the pipeline table")
   io.println("")
-  io.println(margin <> "--times")
-  io.println(margin <> "  -> include desugarer timing table")
+  io.println(margin <> "--times [<cols>]")
+  io.println(margin <> "  -> include desugarer timing table with <cols> block per 0.01s")
   io.println("")
 }
 
@@ -653,6 +655,7 @@ pub type CommandLineError {
   TooManyArgumentsToOption(String)
   SelectorValues(String)
   StepNoValues(String)
+  TimesValues(String)
 }
 
 pub fn process_command_line_arguments(
@@ -691,10 +694,10 @@ pub fn process_command_line_arguments(
         }
 
         "--times" -> {
-          case list.is_empty(values) {
-            True -> Ok(CommandLineAmendments(..amendments, times: True))
-            False -> Error(UnexpectedArgumentsToOption("option"))
-          }
+          use times <- on.ok(
+            parse_times_args(values)
+          )
+          Ok(CommandLineAmendments(..amendments, times: times |> infra.with_default(default_one_hundreth_seconds_num_bars)))
         }
 
         "--input-dir" -> {
@@ -1151,6 +1154,29 @@ fn parse_peek_args(
   |> unique_ints
   |> Ok
 }
+
+// 🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠
+// process_command_line_arguments HELPERS no 4:
+// parsing --times potential Int 👇👇👇👇👇👇
+// 🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠
+
+fn parse_times_args(
+  values: List(String)
+) -> Result(Option(Int), CommandLineError) {
+  case values {
+    [] -> Ok(None)
+    [x] -> {
+      use x <- on.error_ok(
+        int.parse(x),
+        fn(_) { Error(TimesValues("could not parse --times argument '" <> x <> "' as integer")) }
+      )
+      let x = int.max(x, 1)
+      Ok(Some(x))
+    }
+    _ -> Error(UnexpectedArgumentsToOption("--times"))
+  }
+}
+
 
 // ************************************************************
 // RendererParameters + CommandLineAmendments -> RendererParameters
@@ -1723,14 +1749,13 @@ pub fn run_renderer(
     timestamp.difference(t0, t1) |> duration.to_seconds |> float.to_precision(3)
 
   case debug_options.pipeline_debug_options.times {
-    False -> {
+    None -> {
       io.println("  ..ended pipeline (" <> ins(seconds) <> "s)")
     }
-    True -> {
+    Some(one_hundreth_seconds_num_bars) -> {
       let all_times = [t1, ..all_times]
       let all_seconds = durations(all_times) |> list.map(duration.to_seconds) |> list.reverse
       let assert Ok(max_secs) = list.max(all_seconds, float.compare)
-      let one_hundreth_seconds_num_bars = 14
       let num_hundreth_seconds = float.round(float.ceiling(max_secs *. 100.0))
       let scale =
         list.repeat(Nil, num_hundreth_seconds)
