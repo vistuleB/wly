@@ -29,14 +29,12 @@ import desugarers/append_class_to_child_if_is_one_of
 import desugarers/append_class_to_children_with_class
 import desugarers/append_class_to_children_with_tag
 import desugarers/append_custom
+import desugarers/attribute_drop_prefixes
 import desugarers/auto_generate_child_if_missing_from_attribute
 import desugarers/auto_generate_child_if_missing_from_attribute__outside
 import desugarers/auto_generate_child_if_missing_from_first_descendant_of_type
-import desugarers/break_lines_into_span_tooltips
 import desugarers/bridge_whitespace
 import desugarers/bridge_whitespace_single_space
-import desugarers/change_attribute_value
-import desugarers/change_attribute_value__batch
 import desugarers/check_proper_detokenization
 import desugarers/check_proper_href_detokenization
 import desugarers/check_proper_href_tokenization
@@ -69,6 +67,7 @@ import desugarers/detokenize_all
 import desugarers/detokenize_href_surroundings
 import desugarers/echo_v_if_see_text
 import desugarers/ensure_attribute_value_starts_with
+import desugarers/ensure_attribute_value_starts_with_prefix
 import desugarers/expel_initial_last_backward_forward
 import desugarers/extract_starting_and_ending_spaces
 import desugarers/filter_nodes_by_attributes
@@ -177,6 +176,7 @@ import desugarers/table_marker
 import desugarers/ti2_add_listing_bol_spans
 import desugarers/ti2_add_prev_next_chapter_title_elements
 import desugarers/ti2_add_should_be_numbers
+import desugarers/ti2_adorn_img_with_3003_spans
 import desugarers/ti2_backfill
 import desugarers/ti2_create_index
 import desugarers/ti2_create_menu
@@ -189,6 +189,7 @@ import desugarers/ti2_parse_python_prompt_pre
 import desugarers/ti2_parse_redyellow_pre
 import desugarers/ti2_parse_xml_pre
 import desugarers/ti2_process_pre_listing_classname
+import desugarers/ti2_turn_lines_into_3003_spans
 import desugarers/timer
 import desugarers/tokenize_href_surroundings
 import desugarers/tokenize_text_children_if
@@ -256,14 +257,12 @@ pub const append_class_to_child_if_is_one_of = append_class_to_child_if_is_one_o
 pub const append_class_to_children_with_class = append_class_to_children_with_class.constructor
 pub const append_class_to_children_with_tag = append_class_to_children_with_tag.constructor
 pub const append_custom = append_custom.constructor
+pub const attribute_drop_prefixes = attribute_drop_prefixes.constructor
 pub const auto_generate_child_if_missing_from_attribute = auto_generate_child_if_missing_from_attribute.constructor
 pub const auto_generate_child_if_missing_from_attribute__outside = auto_generate_child_if_missing_from_attribute__outside.constructor
 pub const auto_generate_child_if_missing_from_first_descendant_of_type = auto_generate_child_if_missing_from_first_descendant_of_type.constructor
-pub const break_lines_into_span_tooltips = break_lines_into_span_tooltips.constructor
 pub const bridge_whitespace = bridge_whitespace.constructor
 pub const bridge_whitespace_single_space = bridge_whitespace_single_space.constructor
-pub const change_attribute_value = change_attribute_value.constructor
-pub const change_attribute_value__batch = change_attribute_value__batch.constructor
 pub const check_proper_detokenization = check_proper_detokenization.constructor
 pub const check_proper_href_detokenization = check_proper_href_detokenization.constructor
 pub const check_proper_href_tokenization = check_proper_href_tokenization.constructor
@@ -296,6 +295,7 @@ pub const detokenize_all = detokenize_all.constructor
 pub const detokenize_href_surroundings = detokenize_href_surroundings.constructor
 pub const echo_v_if_see_text = echo_v_if_see_text.constructor
 pub const ensure_attribute_value_starts_with = ensure_attribute_value_starts_with.constructor
+pub const ensure_attribute_value_starts_with_prefix = ensure_attribute_value_starts_with_prefix.constructor
 pub const expel_initial_last_backward_forward = expel_initial_last_backward_forward.constructor
 pub const extract_starting_and_ending_spaces = extract_starting_and_ending_spaces.constructor
 pub const filter_nodes_by_attributes = filter_nodes_by_attributes.constructor
@@ -404,6 +404,7 @@ pub const table_marker = table_marker.constructor
 pub const ti2_add_listing_bol_spans = ti2_add_listing_bol_spans.constructor
 pub const ti2_add_prev_next_chapter_title_elements = ti2_add_prev_next_chapter_title_elements.constructor
 pub const ti2_add_should_be_numbers = ti2_add_should_be_numbers.constructor
+pub const ti2_adorn_img_with_3003_spans = ti2_adorn_img_with_3003_spans.constructor
 pub const ti2_backfill = ti2_backfill.constructor
 pub const ti2_create_index = ti2_create_index.constructor
 pub const ti2_create_menu = ti2_create_menu.constructor
@@ -416,6 +417,7 @@ pub const ti2_parse_python_prompt_pre = ti2_parse_python_prompt_pre.constructor
 pub const ti2_parse_redyellow_pre = ti2_parse_redyellow_pre.constructor
 pub const ti2_parse_xml_pre = ti2_parse_xml_pre.constructor
 pub const ti2_process_pre_listing_classname = ti2_process_pre_listing_classname.constructor
+pub const ti2_turn_lines_into_3003_spans = ti2_turn_lines_into_3003_spans.constructor
 pub const timer = timer.constructor
 pub const tokenize_href_surroundings = tokenize_href_surroundings.constructor
 pub const tokenize_text_children_if = tokenize_text_children_if.constructor
@@ -484,14 +486,12 @@ pub const assertive_tests : List(fn() -> infra.AssertiveTestCollection) = [
   append_class_to_children_with_class.assertive_tests,
   append_class_to_children_with_tag.assertive_tests,
   append_custom.assertive_tests,
+  attribute_drop_prefixes.assertive_tests,
   auto_generate_child_if_missing_from_attribute.assertive_tests,
   auto_generate_child_if_missing_from_attribute__outside.assertive_tests,
   auto_generate_child_if_missing_from_first_descendant_of_type.assertive_tests,
-  break_lines_into_span_tooltips.assertive_tests,
   bridge_whitespace.assertive_tests,
   bridge_whitespace_single_space.assertive_tests,
-  change_attribute_value.assertive_tests,
-  change_attribute_value__batch.assertive_tests,
   check_proper_detokenization.assertive_tests,
   check_proper_href_detokenization.assertive_tests,
   check_proper_href_tokenization.assertive_tests,
@@ -524,6 +524,7 @@ pub const assertive_tests : List(fn() -> infra.AssertiveTestCollection) = [
   detokenize_href_surroundings.assertive_tests,
   echo_v_if_see_text.assertive_tests,
   ensure_attribute_value_starts_with.assertive_tests,
+  ensure_attribute_value_starts_with_prefix.assertive_tests,
   expel_initial_last_backward_forward.assertive_tests,
   extract_starting_and_ending_spaces.assertive_tests,
   filter_nodes_by_attributes.assertive_tests,
@@ -632,6 +633,7 @@ pub const assertive_tests : List(fn() -> infra.AssertiveTestCollection) = [
   ti2_add_listing_bol_spans.assertive_tests,
   ti2_add_prev_next_chapter_title_elements.assertive_tests,
   ti2_add_should_be_numbers.assertive_tests,
+  ti2_adorn_img_with_3003_spans.assertive_tests,
   ti2_backfill.assertive_tests,
   ti2_create_index.assertive_tests,
   ti2_create_menu.assertive_tests,
@@ -644,6 +646,7 @@ pub const assertive_tests : List(fn() -> infra.AssertiveTestCollection) = [
   ti2_parse_redyellow_pre.assertive_tests,
   ti2_parse_xml_pre.assertive_tests,
   ti2_process_pre_listing_classname.assertive_tests,
+  ti2_turn_lines_into_3003_spans.assertive_tests,
   timer.assertive_tests,
   tokenize_href_surroundings.assertive_tests,
   tokenize_text_children_if.assertive_tests,

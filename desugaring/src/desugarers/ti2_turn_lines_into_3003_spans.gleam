@@ -6,6 +6,13 @@ import nodemaps_2_desugarer_transforms as n2t
 import vxml.{ type Line, type VXML, Attr, Line, T, V }
 import blame as bl
 
+// remember to replace these names in tests,
+// as well:
+const container_classname = "t-3003-c"
+const tooltip_classname = "t-3003"
+const b = bl.Des([], name, 14)
+const newline_t = T(b, [Line(b, ""), Line(b, "")])
+
 fn line_to_tooltip_span(
   line: Line,
   inner: InnerParam,
@@ -21,24 +28,14 @@ fn line_to_tooltip_span(
   V(
     line.blame,
     "span",
-    [Attr(line.blame, "class", "tooltip-3003-container")],
+    [Attr(line.blame, "class", container_classname)],
     [
+      T(line.blame, [Line(line.blame, line.content)]),
       V(
         line.blame,
         "span",
         [
-          Attr(line.blame, "class", "tooltip-3003-text")
-        ],
-        [
-          T(line.blame, [Line(line.blame, line.content)])
-        ],
-      ),
-      V(
-        line.blame,
-        "span",
-        [
-          Attr(line.blame, "class", "tooltip-3003"),
-          Attr(line.blame, "onClick", "sendCmdTo3003('code --goto " <> location <> "');"),
+          Attr(line.blame, "class", tooltip_classname),
         ],
         [
           T(line.blame, [Line(line.blame, location)])
@@ -53,20 +50,10 @@ fn nodemap(
   inner: InnerParam,
 ) -> List(VXML) {
   case vxml {
-    T(blame, lines) -> {
-      [
-        V(
-          blame,
-          "span",
-          [],
-          lines
-            |> list.map(line_to_tooltip_span(_, inner))
-            |> list.intersperse(
-              T(blame, [Line(blame, ""), Line(blame, "")]),
-            ),
-        ),
-      ]
-    }
+    T(_, lines) ->
+      lines
+        |> list.map(line_to_tooltip_span(_, inner))
+        |> list.intersperse(newline_t)
     _ -> [vxml]
   }
 }
@@ -75,9 +62,9 @@ fn nodemap_factory(inner: InnerParam) -> n2t.OneToManyNoErrorNodeMap {
   nodemap(_, inner)
 }
 
-fn transform_factory(inner: InnerParam) -> DesugarerTransform {
+fn transform_factory(inner: InnerParam, outside: List(String)) -> DesugarerTransform {
   nodemap_factory(inner)
-  |> n2t.one_to_many_no_error_nodemap_2_desugarer_transform_with_forbidden(["MathBlock", "Math"])
+  |> n2t.one_to_many_no_error_nodemap_2_desugarer_transform_with_forbidden(outside)
 }
 
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
@@ -88,10 +75,9 @@ type Param = String
 //           ↖
 //           local path
 //           of source
-
 type InnerParam = Param
 
-pub const name = "break_lines_into_span_tooltips"
+pub const name = "ti2_turn_lines_into_3003_spans"
 
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 // 🏖️🏖️ Desugarer 🏖️🏖️
@@ -100,14 +86,14 @@ pub const name = "break_lines_into_span_tooltips"
 
 /// breaks lines into span tooltips with location
 /// information
-pub fn constructor(param: Param) -> Desugarer {
+pub fn constructor(param: Param, outside: List(String)) -> Desugarer {
   Desugarer(
     name: name,
     stringified_param: option.Some(ins(param)),
     stringified_outside: option.None,
     transform: case param_to_inner_param(param) {
       Error(error) -> fn(_) { Error(error) }
-      Ok(inner) -> transform_factory(inner)
+      Ok(inner) -> transform_factory(inner, outside)
     },
   )
 }
@@ -115,7 +101,7 @@ pub fn constructor(param: Param) -> Desugarer {
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
 // 🌊🌊🌊 tests 🌊🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
-fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
+fn assertive_tests_data() -> List(infra.AssertiveTestDataWithOutside(Param)) {
   [
     // note 1: not sure if following test is correct
     // it was reverse-engineered from the desugarer's
@@ -126,8 +112,9 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
     // infrastructure.gleam test runner, which is why 
     // '../path/to/content/test' shows up in the expected 
     // output
-    infra.AssertiveTestData(
+    infra.AssertiveTestDataWithOutside(
       param: "../path/to/content/",
+      outside: ["Math", "MathBlock"],
       source:   "
                 <> root
                   <>
@@ -136,22 +123,18 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
       expected: "
                 <> root
                   <> span
+                    class=t-3003-c
+                    <>
+                      \"some text\"
                     <> span
-                      class=tooltip-3003-container
-                      <> span
-                        class=tooltip-3003-text
-                        <>
-                          \"some text\"
-                      <> span
-                        class=tooltip-3003
-                        onClick=sendCmdTo3003('code --goto ../path/to/content/tst.source:3:5');
-                        <>
-                          \"../path/to/content/tst.source:3:5\"
+                      class=t-3003
+                      <>
+                        \"../path/to/content/tst.source:3:5\"
                 "
     ),
   ]
 }
 
 pub fn assertive_tests() {
-  infra.assertive_test_collection_from_data(name, assertive_tests_data(), constructor)
+  infra.assertive_test_collection_from_data_with_outside(name, assertive_tests_data(), constructor)
 }

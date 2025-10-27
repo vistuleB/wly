@@ -185,7 +185,7 @@ pub fn run_assertive_desugarer_tests_on(
     True -> Nil
     False -> {
       io.println("")
-      io.println("the following desugarers have empty test data:")
+      io.println(ins(list.length(dont_have_tests)) <> " desugarers do not have tests:\n")
       list.each(
         dont_have_tests |> list.reverse,
         fn(c) { io.println(" - " <> c.desugarer_name) }
