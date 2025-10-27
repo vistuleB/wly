@@ -45,8 +45,6 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
   Ok(param)
 }
 
-type PrefixesAndSuffixes = List(#(String, String))
-
 type Param = #(String,         String)
 //             ↖               ↖
 //             attr key        char that the value should start with (if >1 char use _prefix version of this desugarer)

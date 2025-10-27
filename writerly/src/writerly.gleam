@@ -68,9 +68,9 @@ pub type AssemblyOrParseError {
   AssemblyError(AssemblyError)
 }
 
-// ***************
-// * local types *
-// ***************
+// ************************************************************
+// local types
+// ************************************************************
 
 type FileHead =
   List(InputLine)
@@ -132,9 +132,9 @@ type TentativeWriterly {
   TentativeErrorCodeBlockNotClosed(blame: Blame)
 }
 
-// ************
-// * FileHead *
-// ************
+// ************************************************************
+// FileHead
+// ************************************************************
 
 fn current_line(head: FileHead) -> Option(InputLine) {
   case head {
@@ -148,9 +148,9 @@ fn move_forward(head: FileHead) -> FileHead {
   rest
 }
 
-// ************************
-// * parse_from_tentative *
-// ************************
+// ************************************************************
+// parse_from_tentative
+// ************************************************************
 
 fn tentative_attr_to_attr(
   t: TentativeAttr,
@@ -1481,9 +1481,9 @@ pub fn writerlys_to_vxmls(
   |> list.map(writerly_to_vxml)
 }
 
-//***************************
-//* assemble_input_lines internals
-//***************************
+// ************************************************************
+// assemble_input_lines internals
+// ************************************************************
 
 fn file_is_not_commented(path: String) -> Bool {
   !{ string.contains(path, "/#") || string.starts_with(path, "#") }

@@ -1,8 +1,8 @@
 import gleam/float
 import gleam/int
 import gleam/dict.{type Dict}
-import gleam/io
 import gleam/list
+import gleam/io
 import gleam/pair
 import gleam/option.{type Option, None, Some}
 import gleam/result
@@ -244,6 +244,40 @@ pub fn descendants_with_key_val(
 
 pub fn descendants_with_class(vxml: VXML, class: String) -> List(VXML) {
   filter_descendants(vxml, is_v_and_has_class(_, class))
+}
+
+// ************************************************************
+// string utilities
+// ************************************************************
+
+pub fn drop_suffix(s: String, suffix: String) -> String {
+  io.println("s: " <> s)
+  io.println("suffix: " <> suffix)
+  case string.ends_with(s, suffix) {
+    True -> string.drop_end(s, suffix |> string.length)
+    False -> s
+  }
+}
+
+pub fn drop_prefix(s: String, prefix: String) -> String {
+  case string.starts_with(s, prefix) {
+    True -> string.drop_start(s, prefix |> string.length)
+    False -> s
+  }
+}
+
+pub fn assert_drop_prefix(s: String, prefix: String) -> String {
+  case string.starts_with(s, prefix) {
+    True -> string.drop_start(s, prefix |> string.length)
+    False -> panic
+  }
+}
+
+pub fn ensure_prefix(s: String, prefix: String) -> String {
+  case string.starts_with(s, prefix) {
+    True -> s
+    False -> prefix <> s
+  }
 }
 
 // ************************************************************
