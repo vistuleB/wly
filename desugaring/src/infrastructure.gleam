@@ -2191,6 +2191,13 @@ pub fn expand_selector_shorthand(shorthand: String) -> Result(VXML, SelectorErro
   Ok(V(blame, tag, attrs, []))
 }
 
+pub fn from_tag(blame: Blame, tag: String) -> Result(VXML, DesugaringError) {
+  case valid_tag(tag) {
+    False -> Error(DesugaringError(blame, "invalid VXML tag: '" <> tag <> "'"))
+    True -> Ok(V(blame, tag, [], []))
+  }
+}
+
 // ************************************************************
 // attrs
 // ************************************************************
