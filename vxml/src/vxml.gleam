@@ -1442,7 +1442,7 @@ fn xmlm_attr_to_vxml_attrs(
   line_no: Int,
   xmlm_attr: xmlm.Attribute,
 ) -> Attr {
-  let blame = Src([], filename, line_no, 0)
+  let blame = Src([], filename, line_no, 0, False)
   Attr(blame, xmlm_attr.name.local, xmlm_attr.value)
 }
 
@@ -1508,7 +1508,7 @@ pub fn xmlm_based_html_parser(
       input,
       fn(xmlm_tag, children) {
         V(
-          Src([], filename, 0, 0),
+          Src([], filename, 0, 0, True),
           xmlm_tag.name.local,
           xmlm_tag.attributes
             |> list.map(xmlm_attr_to_vxml_attrs(filename, 0, _)),
@@ -1520,9 +1520,9 @@ pub fn xmlm_based_html_parser(
           content
           |> string.split("\n")
           |> list.map(fn(content) {
-            Line(Src([], filename, 0, 0), content)
+            Line(Src([], filename, 0, 0, False), content)
           })
-        T(Src([], filename, 0, 0), lines)
+        T(Src([], filename, 0, 0, False), lines)
       },
     )
   {

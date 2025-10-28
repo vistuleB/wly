@@ -10,7 +10,7 @@ import nodemaps_2_desugarer_transforms as n2t
 fn matches_a_selector(vxml: VXML, inner: InnerParam) -> Bool {
   let assert V(blame, _, attrs, _) = vxml
   let v_path = case blame {
-    bl.Src(_, v_path, _, _) -> v_path
+    bl.Src(_, v_path, _, _, _) -> v_path
     _ -> ""
   }
   list.any(inner, fn(selector) {

@@ -19,8 +19,8 @@ fn line_to_tooltip_span(
 ) -> VXML {
   let location =
     inner <> case line.blame {
-      bl.Src(_, _, _, _) -> {
-        let assert bl.Src(_, path, line_no, char_no) = line.blame
+      bl.Src(..) -> {
+        let assert bl.Src(_, path, line_no, char_no, _) = line.blame
         path <> ":" <> ins(line_no) <> ":" <> ins(char_no)
       }
       _ -> ""

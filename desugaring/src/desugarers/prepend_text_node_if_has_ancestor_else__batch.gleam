@@ -26,7 +26,9 @@ fn nodemap(
               blame,
               list.map(
                 contents,
-                fn (content) { Line(blame, content) }
+                fn (content) {
+                  Line(blame, content)
+                }
               )
             )
           V(blame, tag, attrs, [new_text_node, ..children])

@@ -8,6 +8,7 @@ pub type Blame {
     path: String,
     line_no: Int,
     char_no: Int,
+    proxy: Bool,
   )
 
   Des(
@@ -40,59 +41,48 @@ fn spaces(i: Int) -> String {
 
 pub const no_blame = NoBlame([])
 
-pub fn source_blame(
-  path: String,
-  line_no: Int,
-  char_no: Int,
-) -> Blame {
-  Src([], path, line_no, char_no)
-}
-
-pub fn desugarer_blame(name: String, line_no: Int) -> Blame {
-  Des([], name, line_no)
-}
-
-pub fn emitter_blame(name: String) -> Blame {
-  Ext([], name)
-}
-
 pub fn clear_comments(blame: Blame) -> Blame {
   case blame {
-    Src(_, _, _, _) -> Src(..blame, comments: [])
-    Des(_, _, _) -> Des(..blame, comments: [])
-    Ext(_, _) -> Ext(..blame, comments: [])
+    Src(..) -> Src(..blame, comments: [])
+    Des(..) -> Des(..blame, comments: [])
+    Ext(..) -> Ext(..blame, comments: [])
     NoBlame(_) -> NoBlame([])
   }
 }
 
 pub fn prepend_comment(blame: Blame, comment: String) -> Blame {
   case blame {
-    Src(_, _, _, _) -> Src(..blame, comments: [comment, ..blame.comments])
-    Des(_, _, _) -> Des(..blame, comments: [comment, ..blame.comments])
-    Ext(_, _) -> Ext(..blame, comments: [comment, ..blame.comments])
+    Src(..) -> Src(..blame, comments: [comment, ..blame.comments])
+    Des(..) -> Des(..blame, comments: [comment, ..blame.comments])
+    Ext(..) -> Ext(..blame, comments: [comment, ..blame.comments])
     NoBlame(_) -> NoBlame(comments: [comment, ..blame.comments])
   }
 }
 
 pub fn append_comment(blame: Blame, comment: String) -> Blame {
   case blame {
-    Src(_, _, _, _) -> Src(..blame, comments: list.append(blame.comments, [comment]))
-    Des(_, _, _) -> Des(..blame, comments: list.append(blame.comments, [comment]))
-    Ext(_, _) -> Ext(..blame, comments: list.append(blame.comments, [comment]))
+    Src(..) -> Src(..blame, comments: list.append(blame.comments, [comment]))
+    Des(..) -> Des(..blame, comments: list.append(blame.comments, [comment]))
+    Ext(..) -> Ext(..blame, comments: list.append(blame.comments, [comment]))
     NoBlame(_) -> NoBlame(comments: list.append(blame.comments, [comment]))
   }  
 }
 
 pub fn advance(blame: Blame, by: Int) -> Blame {
   case blame {
-    Src(_, _, _, _) -> Src(..blame, char_no: blame.char_no + by)
+    Src(_, _, _, _, False) -> Src(..blame, char_no: blame.char_no + by)
     _ -> blame
   }
 }
 
 pub fn blame_digest(blame: Blame) -> String {
   case blame {
-    Src(_, path, line_no, char_no) -> path <> ":" <> ins(line_no) <> ":" <> ins(char_no)
+    Src(_, path, line_no, char_no, proxy) -> {
+      case proxy {
+        False -> path <> ":" <> ins(line_no) <> ":" <> ins(char_no)
+        True -> path <> ":" <> ins(line_no) <> ":" <> ins(char_no) <> " ->"
+      }
+    }
     Des(_, name, line_no) -> name <> "♦" <> ins(line_no)
     Ext(_, name) -> "e:" <> name
     NoBlame(_) -> ""

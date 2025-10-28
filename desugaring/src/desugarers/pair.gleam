@@ -16,7 +16,7 @@ fn pairing_msg(
   remote: Blame,
 ) -> String {
   case local, remote {
-    Src(_, l, _, _), Src(_, r, _, _) if l == r ->
+    Src(_, l, _, _, _), Src(_, r, _, _, _) if l == r ->
       "paired with --:" <> ins(remote.line_no) <> ":" <> ins(remote.char_no)
     _, _ ->
       "p.w. " <> bl.blame_digest(remote)

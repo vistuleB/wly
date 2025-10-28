@@ -788,6 +788,11 @@ fn tentative_parse_at_indent(
                         _ -> children
                       }
 
+                      let blame = case blame {
+                        bl.Src(..) -> bl.Src(..blame, proxy: True)
+                        _ -> blame
+                      }
+
                       let tentative_tag =
                         TentativeTag(
                           blame: blame,

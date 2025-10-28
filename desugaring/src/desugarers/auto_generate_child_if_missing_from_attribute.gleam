@@ -33,7 +33,7 @@ fn nodemap(
               desugarer_blame(33),
               child_tag,
               [],
-              [T(attr.blame, [Line(attr.blame, attr.val)])],
+              [T(attr.blame, [Line(attr.blame |> bl.advance(string.length(attr_key) + 1), attr.val)])],
             ),
             ..node.children,
           ]

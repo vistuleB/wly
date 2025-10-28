@@ -1,5 +1,5 @@
 import gleam/list
-import gleam/option
+import gleam/option.{type Option}
 import gleam/string.{inspect as ins}
 import infrastructure.{
   type Desugarer,
@@ -17,20 +17,24 @@ import vxml.{
   T,
 }
 import nodemaps_2_desugarer_transforms as n2t
-import blame as bl
+import blame.{type Blame} as bl
 import on
 
 // 🌸🌸🌸🌸🌸🌸🌸
 // 🌸 header 🌸
 // 🌸🌸🌸🌸🌸🌸🌸
 
-fn header(document: VXML) -> VXML {
+fn get(root: VXML, key: String) -> Option(#(Blame, String)) {
+  infra.v_first_attr_with_key(root, key)
+  |> option.map(fn(attr) { #(attr.blame |> bl.advance(string.length(key) + 1), attr.val) })
+}
+
+fn header(root: VXML) -> VXML {
   let b = desugarer_blame(28)
-  let get = infra.v_val_of_first_attr_with_key(document, _)
-  let title = get("title") |> option.unwrap("no title")
-  let program = get("program") |> option.unwrap("no program")
-  let institution = get("institution") |> option.unwrap("no institution")
-  let lecturer = get("lecturer") |> option.unwrap("no lecturer")
+  let title = get(root, "title") |> option.unwrap(#(b, "no title"))
+  let program = get(root, "program") |> option.unwrap(#(b, "no program"))
+  let institution = get(root, "institution") |> option.unwrap(#(b, "no institution"))
+  let lecturer = get(root, "lecturer") |> option.unwrap(#(b, "no lecturer"))
   V(
     b,
     "header",
@@ -45,7 +49,7 @@ fn header(document: VXML) -> VXML {
           Attr(b, "class", "index__header__title"),
         ],
         [
-          T(b, [Line(b, title)]),
+          T(b, [Line(title.0, title.1)]),
         ],
       ),
       V(
@@ -55,9 +59,9 @@ fn header(document: VXML) -> VXML {
           Attr(b, "class", "index__header__subtitle"),
         ],
         [
-          T(b, [Line(b, program)]),
+          T(b, [Line(program.0, program.1)]),
           V(b, "br", [], []),
-          T(b, [Line(b, lecturer <> ", " <> institution)]),
+          T(b, [Line(lecturer.0, lecturer.1 <> ","), Line(institution.0, institution.1 <> ",")]),
         ],
       ),
     ]

@@ -24,7 +24,7 @@ fn process_sub(
 ) -> Result(VXML, DesugaringError) {
   case node {
     V(blame, "Sub", _, _) -> {
-      let assert bl.Src(_, path, _, _) = blame
+      let assert bl.Src(_, path, _, _, _) = blame
       use first, _ <- on.lazy_empty_nonempty(
         regexp.scan(inner.1, path),
         fn() { Error(DesugaringError(blame, "cannot not read subchapter number in blame path: " <> path)) },
@@ -43,7 +43,7 @@ fn nodemap(
 ) -> Result(#(VXML, TrafficLight), DesugaringError) {
   case node {
     V(blame, "Chapter", attrs, children) -> {
-      let assert bl.Src(_, path, _, _) = blame
+      let assert bl.Src(_, path, _, _, _) = blame
       use first, _ <- on.lazy_empty_nonempty(
         regexp.scan(inner.0, path),
         fn() { Error(DesugaringError(blame, "cannot read directory number")) },

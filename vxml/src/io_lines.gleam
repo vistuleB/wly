@@ -50,6 +50,7 @@ pub fn string_to_input_lines(
           path: path,
           line_no: i + 1,
           char_no: indent + 1, // ...to match VSCode numbering
+          proxy: False,
         ),
         indent: indent + added_indentation,
         suffix: suffix,
