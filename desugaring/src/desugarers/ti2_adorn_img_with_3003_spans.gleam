@@ -21,12 +21,8 @@ fn add_in_list(
       let span = V(
         b,
         "span",
-        [
-          Attr(b, "class", tooltip_classname),
-        ],
-        [
-          T(b, [Line(b, inner <> src)])
-        ]
+        [ Attr(b, "class", tooltip_classname) ],
+        [ T(b, [Line(b, inner <> src)]) ],
       )
       [first, span, ..add_in_list(rest, inner)]
     }
@@ -88,15 +84,6 @@ pub fn constructor(param: Param, outside: List(String)) -> Desugarer {
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
 fn assertive_tests_data() -> List(infra.AssertiveTestDataWithOutside(Param)) {
   [
-    // note 1: not sure if following test is correct
-    // it was reverse-engineered from the desugarer's
-    // output long after this desugarer had already
-    // stopped being used (but it might be correct)
-    //
-    // note 2: 'test' is the filename assigned by the
-    // infrastructure.gleam test runner, which is why 
-    // '../path/to/content/test' shows up in the expected 
-    // output
     infra.AssertiveTestDataWithOutside(
       param: "./public/",
       outside: [],
