@@ -436,7 +436,7 @@ fn fast_forward_to_closing_backticks(
             Ok(#(lines, head_after_closing_backticks)) -> {
               let line =
                 Line(
-                  blame,
+                  blame |> bl.advance(indent - suffix_indent),
                   string.repeat(" ", int.max(0, suffix_indent - indent)),
                 )
 
@@ -459,7 +459,10 @@ fn fast_forward_to_closing_backticks(
               let assert True = padded_suffix_length >= string.length(suffix)
               let padded_suffix =
                 string.pad_start(suffix, to: padded_suffix_length, with: " ")
-              let line = Line(blame, padded_suffix)
+              let line = Line(
+                blame |> bl.advance(indent - suffix_indent),
+                padded_suffix,
+              )
 
               case
                 suffix_indent > indent || !string.starts_with(suffix, "```")
@@ -838,7 +841,7 @@ fn tentative_parse_at_indent(
                           let tentative_code_block =
                             TentativeCodeBlock(
                               blame: blame,
-                              attrs: code_block_annotation_to_attrs_v2(blame, annotation, key_re),
+                              attrs: code_block_annotation_to_attrs_v2(blame |> bl.advance(3), annotation, key_re),
                               contents: contents,
                             )
 
