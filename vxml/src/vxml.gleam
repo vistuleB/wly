@@ -221,7 +221,7 @@ pub fn parse_nodes_at_indent(
       case lines {
         [] -> Error(VXMLParseErrorTextMissing(blame))
         _ -> {
-          let node = T(blame, lines |> list.reverse)
+          let node = T(blame, lines)
           use #(nodes, after) <- on.ok(parse_nodes_at_indent(indent, after))
           Ok(#([node, ..nodes], after))
         }
@@ -239,7 +239,7 @@ pub fn parse_nodes_at_indent(
       )
       use #(attrs, after) <- on.ok(parse_attributes_at_indent(indent + vxml_indent, rest))
       use #(children, after) <- on.ok(parse_nodes_at_indent(indent + vxml_indent, after))
-      let node = V(blame, tag, attrs |> list.reverse, children |> list.reverse)
+      let node = V(blame, tag, attrs, children)
       use #(nodes, after) <- on.ok(parse_nodes_at_indent(indent, after))
       Ok(#([node, ..nodes], after))
     }

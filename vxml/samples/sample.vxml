@@ -1,12 +1,15 @@
 <> vxmlSample
   attr1=mom
-  attr2=
+  attr2=qq
+  <> a
+  <> b
+  <> c
   <> WriterlyBlurb
     <>
       "this is a text child"
       "with two lines"
       "with two lines"
-      "with two lines"
+      "with fourth line"
   <>
     "more text here"
   <> html
