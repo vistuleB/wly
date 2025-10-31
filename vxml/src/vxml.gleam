@@ -36,9 +36,11 @@ pub type VXML {
 // ************************************************************
 
 pub type VXMLParseError {
+  VXMLParseErrorAttributeAssignmentMissing(Blame, String)
   VXMLParseErrorEmptyTag(Blame)
+  VXMLParseErrorEmptyKey(Blame, String)
   VXMLParseErrorIllegalTagCharacter(Blame, String, String)
-  VXMLParseErrorIllegalAttrKeyCharacter(Blame, String, String)
+  VXMLParseErrorIllegalKeyCharacter(Blame, String, String)
   VXMLParseErrorIndentationTooLarge(Blame, String)
   VXMLParseErrorIndentationNotMultipleOfFour(Blame, String)
   VXMLParseErrorTextMissing(Blame)
@@ -54,9 +56,194 @@ pub type VXMLParseFileError {
   DocumentError(VXMLParseError)
 }
 
+pub type BadAttrKey {
+  EmptyKey
+  IllegalKeyCharacter(String, String)
+}
+
 pub type BadTagName {
   EmptyTag
   IllegalTagCharacter(String, String)
+}
+
+// ************************************************************
+// the new parser
+// ************************************************************
+
+fn parse_text_lines_at_indent(
+  indent: Int,
+  head: FileHead,
+) -> Result(#(List(Line), FileHead), VXMLParseError) {
+  // no lines left
+  use InputLine(blame, suffix_indent, suffix), rest <- on.lazy_empty_nonempty(
+    head,
+    fn() { Ok(#([], head)) },
+  )
+
+  // empty suffix
+  use <- on.lazy_true_false(
+    suffix == "",
+    fn() { parse_text_lines_at_indent(indent, rest) },
+  )
+
+  // indent too large
+  use <- on.lazy_true_false(
+    suffix_indent > indent,
+    fn() { Error(VXMLParseErrorIndentationTooLarge(blame, suffix)) },
+  )
+
+  // indent too small
+  use <- on.lazy_true_false(
+    suffix_indent < indent,
+    fn() { Ok(#([], head)) },
+  )
+
+  let suffix = string.trim_end(suffix)
+
+  // missing opening quote
+  use <- on.lazy_false_true(
+    suffix |> string.starts_with("\""),
+    fn() { Error(VXMLParseErrorTextNoOpeningQuote(blame, suffix)) }
+  )
+
+  let content = suffix |> string.drop_start(1)
+
+  // missing closing quote
+  use <- on.lazy_false_true(
+    content |> string.ends_with("\""),
+    fn() { Error(VXMLParseErrorTextNoClosingQuote(blame, suffix)) }
+  )
+
+  let content = content |> string.drop_end(1)
+  let line = Line(blame, content)
+  use #(lines, after) <- on.ok(parse_text_lines_at_indent(indent, rest))
+  Ok(#([line, ..lines], after))
+}
+
+fn parse_attributes_at_indent(
+  indent: Int,
+  head: FileHead,
+) -> Result(#(List(Attr), FileHead), VXMLParseError) {
+  // no lines left
+  use InputLine(blame, suffix_indent, suffix), rest <- on.lazy_empty_nonempty(
+    head,
+    fn() { Ok(#([], head)) },
+  )
+
+  // empty suffix
+  use <- on.lazy_true_false(
+    suffix == "",
+    fn() { parse_attributes_at_indent(indent, rest) },
+  )
+
+  // indent too large
+  use <- on.lazy_true_false(
+    suffix_indent > indent,
+    fn() { Error(VXMLParseErrorIndentationTooLarge(blame, suffix)) },
+  )
+
+  // indent too small
+  use <- on.lazy_true_false(
+    suffix_indent < indent,
+    fn() { Ok(#([], head)) },
+  )
+
+  // tag
+  use <- on.lazy_true_false(
+    suffix |> string.starts_with("<>"),
+    fn() { Ok(#([], head)) },
+  )
+
+  // missing '='
+  use #(key, val) <- on.error_ok(
+    suffix |> string.split_once("="),
+    fn(_) { Error(VXMLParseErrorAttributeAssignmentMissing(blame, suffix)) },
+  )
+  
+  // bad key
+  use _ <- on.error_ok(
+    validate_key(key),
+    fn(e) {
+      case e {
+        EmptyKey -> Error(VXMLParseErrorEmptyKey(blame, suffix))
+        IllegalKeyCharacter(bad_char, _) ->  Error(VXMLParseErrorIllegalKeyCharacter(blame, bad_char, suffix))
+      }
+    }
+  )
+
+  let val = val |> string.trim
+  let attr = Attr(blame, key, val)
+  use #(attrs, after) <- on.ok(parse_attributes_at_indent(indent, rest))
+  let attrs = [attr, ..attrs]
+  Ok(#(attrs, after))
+}
+
+pub fn parse_nodes_at_indent(
+  indent: Int,
+  head: FileHead,
+) -> Result(#(List(VXML), FileHead), VXMLParseError) {
+  // no lines left
+  use InputLine(blame, suffix_indent, suffix), rest <- on.lazy_empty_nonempty(
+    head,
+    fn() { Ok(#([], head)) },
+  )
+
+  // empty suffix
+  use <- on.lazy_true_false(
+    suffix == "",
+    fn() { parse_nodes_at_indent(indent, rest) },
+  )
+
+  // indent too large
+  use <- on.lazy_true_false(
+    suffix_indent > indent,
+    fn() { Error(VXMLParseErrorIndentationTooLarge(blame, suffix)) },
+  )
+
+  // indent too small
+  use <- on.lazy_true_false(
+    suffix_indent < indent,
+    fn() { Ok(#([], head)) },
+  )
+
+  // not a tag
+  use <- on.lazy_false_true(
+    suffix |> string.starts_with("<>"),
+    fn() { Error(VXMLParseErrorCaretExpected(blame, suffix)) },
+  )
+
+  let tag = suffix |> string.drop_start(2) |> string.trim
+
+  // text node
+  case tag {
+    "" -> {
+      use #(lines, after) <- on.ok(parse_text_lines_at_indent(indent + vxml_indent, rest))
+      case lines {
+        [] -> Error(VXMLParseErrorTextMissing(blame))
+        _ -> {
+          let node = T(blame, lines |> list.reverse)
+          use #(nodes, after) <- on.ok(parse_nodes_at_indent(indent, after))
+          Ok(#([node, ..nodes], after))
+        }
+      }
+    }
+    _ -> {
+      use _ <- on.error_ok(
+        validate_tag(tag),
+        fn(e) {
+          case e {
+            EmptyTag -> Error(VXMLParseErrorEmptyTag(blame))
+            IllegalTagCharacter(bad_char, _) ->  Error(VXMLParseErrorIllegalTagCharacter(blame, bad_char, suffix))
+          }
+        }
+      )
+      use #(attrs, after) <- on.ok(parse_attributes_at_indent(indent + vxml_indent, rest))
+      use #(children, after) <- on.ok(parse_nodes_at_indent(indent + vxml_indent, after))
+      let node = V(blame, tag, attrs |> list.reverse, children |> list.reverse)
+      use #(nodes, after) <- on.ok(parse_nodes_at_indent(indent, after))
+      Ok(#([node, ..nodes], after))
+    }
+  }
 }
 
 // ************************************************************
@@ -65,18 +252,14 @@ pub type BadTagName {
 
 const vxml_indent = 2
 const debug_messages = False
-const tag_illegal_characters = ["-", ".", " ", "\""]
-const attr_key_illegal_characters = [".", ";", "\"", " "]
+const illegal_tag_characters = [".", " ", "\"", "-"]
+const illegal_key_characters = [".", " ", "\"", ";"]
 
 type FileHead =
   List(InputLine)
 
 type TentativeTagName =
   Result(String, BadTagName)
-
-type BadAttrKey {
-  IllegalAttrKeyCharacter(String, String)
-}
 
 type TentativeAttrKey =
   Result(String, BadAttrKey)
@@ -192,7 +375,7 @@ fn tentative_attr(
 ) -> TentativeAttr {
   let #(key, val) = pair
   assert !string.is_empty(key)
-  let bad_character = contains_one_of(key, attr_key_illegal_characters)
+  let bad_character = contains_one_of(key, illegal_key_characters)
 
   case bad_character == "" {
     True -> TentativeAttr(blame: blame, key: Ok(key), val: val)
@@ -200,7 +383,7 @@ fn tentative_attr(
     False ->
       TentativeAttr(
         blame: blame,
-        key: Error(IllegalAttrKeyCharacter(key, bad_character)),
+        key: Error(IllegalKeyCharacter(key, bad_character)),
         val: val,
       )
   }
@@ -317,11 +500,24 @@ fn contains_one_of(thing: String, substrings: List(String)) -> String {
   }
 }
 
+pub fn validate_key(key: String) -> Result(String, BadAttrKey) {
+  case key {
+    "" -> Error(EmptyKey)
+    _ -> {
+      let bad_char = contains_one_of(key, illegal_key_characters)
+      case bad_char == "" {
+        True -> Ok(key)
+        False -> Error(IllegalKeyCharacter(key, bad_char))
+      }
+    }
+  }
+}
+
 pub fn validate_tag(tag: String) -> Result(String, BadTagName) {
   case tag == "" {
     True -> Error(EmptyTag)
     False -> {
-      let bad_char = contains_one_of(tag, tag_illegal_characters)
+      let bad_char = contains_one_of(tag, illegal_tag_characters)
       case bad_char == "" {
         True -> Ok(tag)
         False -> Error(IllegalTagCharacter(tag, bad_char))
@@ -535,8 +731,11 @@ fn tentative_attr_to_attr(
   case t.key {
     Ok(key) -> Ok(Attr(blame: t.blame, key: key, val: t.val))
 
-    Error(IllegalAttrKeyCharacter(original_would_be_key, bad_char)) ->
-      Error(VXMLParseErrorIllegalAttrKeyCharacter(
+    Error(EmptyKey()) ->
+      Error(VXMLParseErrorEmptyKey(t.blame, t.val))
+
+    Error(IllegalKeyCharacter(original_would_be_key, bad_char)) ->
+      Error(VXMLParseErrorIllegalKeyCharacter(
         t.blame,
         original_would_be_key,
         bad_char,
@@ -1399,9 +1598,12 @@ pub fn vxmls_to_html_output_lines(
 pub fn parse_input_lines(
   lines: List(io_l.InputLine),
 ) -> Result(List(VXML), VXMLParseError) {
-  lines
-  |> tentative_parse_input_lines
-  |> parse_from_tentatives
+  use #(vxmls, after) <- on.ok(parse_nodes_at_indent(0, lines))
+  assert after == []
+  Ok(vxmls)
+  // lines
+  // |> tentative_parse_input_lines
+  // |> parse_from_tentatives
 }
 
 // ************************************************************
