@@ -20,6 +20,7 @@ import table_and_co_printer as pr
 import vxml.{type VXML, V} as vp
 import writerly as wp
 import on
+import input
 
 // ************************************************************
 // Assembler(a)                                                // 'a' is assembler error type; "assembler" = "source assembler"
@@ -121,6 +122,7 @@ const default_one_hundreth_seconds_num_bars = 14
 pub type PipelineDebugOptions {
   PipelineDebugOptions(
     times: Option(Int),
+    wait_for_enter_after_tracking_output: Bool,
   )
 }
 
@@ -444,7 +446,7 @@ pub fn empty_parser_debug_options() -> ParserDebugOptions {
 }
 
 pub fn empty_pipeline_debug_options() -> PipelineDebugOptions {
-  PipelineDebugOptions(times: None)
+  PipelineDebugOptions(times: None, wait_for_enter_after_tracking_output: False)
 }
 
 pub fn empty_splitter_debug_options() -> SplitterDebugOptions(d) {
@@ -484,6 +486,7 @@ pub type PipelineTrackingModifier {
     selector: Option(infra.Selector),
     steps_with_tracking_on_change: List(Int),
     steps_with_tracking_forced: List(Int),
+    wait_for_enter_after_tracking_output: Bool,
   )
 }
 
@@ -553,11 +556,11 @@ pub fn basic_cli_usage(header: String) {
   io.println(margin <> "  -> print the basic command line options (this message)")
   io.println("")
   io.println(margin <> "--esoteric")
-  io.println(margin <> "  -> print \"advanced\" command line options")
+  io.println(margin <> "  -> print advanced command line options")
   io.println("")
   io.println(margin <> "--only <string1> <string2> ...")
   io.println(margin <> "  -> restrict source to files whose paths contain at least one of")
-  io.println(margin <> "     the given strings (as a substring)")
+  io.println(margin <> "     the given strings as a substring")
   io.println("")
   io.println(margin <> "--only <key1=val1> <key2=val2> ...")
   io.println(margin <> "  -> restrict source to elements that have at least one of the")
@@ -566,7 +569,7 @@ pub fn basic_cli_usage(header: String) {
   io.println(margin <> "--peek <step numbers>")
   io.println(margin <> "  -> show entire document at given pipeline step numbers; leave")
   io.println(margin <> "     step numbers empty to output document at all steps; use")
-  io.println(margin <> "     negative indices to indicate steps from end of document")
+  io.println(margin <> "     negative indices to indicate steps from end of pipeline")
   io.println("")
   io.println(margin <> "--track <string> +<p>-<m> [<step numbers>]")
   io.println(margin <> "  -> track changes near the document fragment given by <string>,")
@@ -587,18 +590,19 @@ pub fn basic_cli_usage(header: String) {
   io.println("")
   io.println(margin <> "     leave <step numbers> empty to track all steps")
   io.println("")
-  io.println(margin <> "  -> additional options:")
+  io.println(margin <> "  -> additional options for --track:")
   io.println("")
   io.println(margin <> "     • 'with-ancestors': trigger selection of ancestor tags of")
   io.println(margin <> "        selected lines")
   io.println(margin <> "     • 'with-elder-siblings': trigger selection of ancestor tags")
   io.println(margin <> "        and elder sibling tags of selected lines")
   io.println(margin <> "     • 'with-ancestor-attrs' | 'with-attrs': trigger selection of")
-  io.println(margin <> "        ancestor tags of selected lines and the attributes of")
-  io.println(margin <> "        those tags")
+  io.println(margin <> "        ancestor tags of selected lines and their attributes")
   io.println(margin <> "     • 'with-elder-sibling-attrs': trigger selection of ancestor")
-  io.println(margin <> "        tags and elder siblings tags of selected lines and the")
-  io.println(margin <> "        attributes of those tags")
+  io.println(margin <> "        tags and elder siblings tags of selected lines and their")
+  io.println(margin <> "        attributes")
+  io.println(margin <> "     • '-i': \"stepthrough\" mode: pauses for user input after each")
+  io.println(margin <> "        output (type 'e' to escape)")
   io.println("")
   io.println(margin <> "--prettier [<dir>]")
   io.println(margin <> "  -> turn the prettifier on and have the prettifier output to")
@@ -606,10 +610,10 @@ pub fn basic_cli_usage(header: String) {
   io.println(margin <> "     renderer_parameters.output_dir")
   io.println("")
   io.println(margin <> "--verbose/--succinct")
-  io.println(margin <> "  -> force/suppress verbose output")
+  io.println(margin <> "  -> force/suppress verbose renderer output")
   io.println("")
   io.println(margin <> "--table/--no-table")
-  io.println(margin <> "  -> force/suppress a printout of the pipeline table")
+  io.println(margin <> "  -> include/exclude a printout of the pipeline steps")
   io.println("")
   io.println(margin <> "--times [<cols>]")
   io.println(margin <> "  -> include desugarer timing table with <cols> block per 0.01s")
@@ -1052,14 +1056,21 @@ fn parse_track_args(
   let assert True = first_payload != ""
   let selector = sl.verbatim(first_payload)
 
+  let values = list.map(values, fn(v) { string.replace(v, "-with", "with") })
+
+  let #(with_enter, values) = infra.delete(values, "-i")
   let #(with_ancestors, values) = infra.delete(values, "with-ancestors")
   let #(with_elder_siblings, values) = infra.delete(values, "with-elder-siblings")
   let #(with_attrs, values) = infra.delete(values, "with-attrs")
+  let #(with_attrs_v2, values) = infra.delete(values, "with-attributes")
   let #(with_ancestor_attrs, values) = infra.delete(values, "with-ancestor-attrs")
+  let #(with_ancestor_attrs_v2, values) = infra.delete(values, "with-ancestor-attributes")
   let #(with_elder_sibling_attrs, values) = infra.delete(values, "with-elder-sibling-attrs")
+  let #(with_elder_sibling_attrs_v2, values) = infra.delete(values, "with-elder-sibling-attributes")
 
-  let with_elder_sibling_attrs = with_elder_sibling_attrs || with_attrs
-  let with_ancestor_attrs = with_ancestor_attrs || with_elder_sibling_attrs
+  let with_attrs = with_attrs || with_attrs_v2
+  let with_elder_sibling_attrs = with_elder_sibling_attrs || with_elder_sibling_attrs_v2 || with_attrs
+  let with_ancestor_attrs = with_ancestor_attrs || with_ancestor_attrs_v2 || with_elder_sibling_attrs
   let with_elder_siblings = with_elder_siblings || with_elder_sibling_attrs
   let with_ancestors = with_ancestors || with_elder_siblings || with_ancestor_attrs
 
@@ -1080,6 +1091,7 @@ fn parse_track_args(
         selector: Some(selector),
         steps_with_tracking_on_change: [],
         steps_with_tracking_forced: [],
+        wait_for_enter_after_tracking_output: with_enter,
       ),
     ),
   )
@@ -1106,6 +1118,7 @@ fn parse_track_args(
     selector: Some(selector),
     steps_with_tracking_on_change: restrict,
     steps_with_tracking_forced: force,
+    wait_for_enter_after_tracking_output: with_enter,
   ))
 }
 
@@ -1120,6 +1133,7 @@ fn parse_track_steps_args(
     selector: None,
     steps_with_tracking_on_change: restrict,
     steps_with_tracking_forced: force,
+    wait_for_enter_after_tracking_output: False,
   ))
 }
 
@@ -1143,6 +1157,10 @@ fn join_pipeline_modifiers(
     },
     steps_with_tracking_on_change: restrict,
     steps_with_tracking_forced: force,
+    wait_for_enter_after_tracking_output: {
+      pm1.wait_for_enter_after_tracking_output ||
+      pm2.wait_for_enter_after_tracking_output
+    }
   )
 }
 
@@ -1221,11 +1239,15 @@ pub fn db_amend_assembler_debug_options(
 }
 
 pub fn db_amend_pipeline_debug_options(
-  _options: PipelineDebugOptions,
+  options: PipelineDebugOptions,
   amendments: CommandLineAmendments,
 ) -> PipelineDebugOptions {
   PipelineDebugOptions(
-    times: amendments.times
+    times: amendments.times,
+    wait_for_enter_after_tracking_output: case amendments.track {
+      None -> options.wait_for_enter_after_tracking_output
+      Some(track) -> track.wait_for_enter_after_tracking_output
+    },
   )
 }
 
@@ -1437,6 +1459,7 @@ pub type InSituDesugaringWarning {
 fn run_pipeline(
   vxml: VXML,
   pipeline: Pipeline,
+  wait_for_enter_after_tracking_output: Bool,
 ) -> Result(#(
     VXML,
     List(InSituDesugaringWarning),
@@ -1450,7 +1473,7 @@ fn run_pipeline(
 
   pipeline
   |> list.try_fold(
-    #(vxml, [], [], [], 1, "", False),
+    #(vxml, [], [], [], 1, "", False, wait_for_enter_after_tracking_output),
     fn(acc, pipe) {
       let #(
         vxml,
@@ -1460,6 +1483,7 @@ fn run_pipeline(
         step_no,
         last_tracking_output,
         got_arrow,
+        wait,
       ) = acc
       let Pipe(desugarer, selector, mode, peek) = pipe
       let now = timestamp.system_time()
@@ -1514,8 +1538,11 @@ fn run_pipeline(
           #(selected_2_print, next_tracking_output)
         }
       }
-      let must_print = peek || mode == TrackingForced || { mode == TrackingOnChange && next_tracking_output != last_tracking_output }
-      let got_arrow = case must_print {
+      let must_print = 
+        peek ||
+        mode == TrackingForced ||
+        { mode == TrackingOnChange && next_tracking_output != last_tracking_output }
+      let #(got_arrow, wait) = case must_print {
         True -> {
           list.each(
             pr.name_and_param_string(desugarer, step_no),
@@ -1524,15 +1551,28 @@ fn run_pipeline(
           io.println("    💠")
           selected_2_print
           |> infra.s_lines_table("", False, 2)
-          |> io.println
-          False
+          |> io.print
+          let wait = case wait {
+            True -> {
+              case input.input("") {
+                Ok("e") -> False
+                Error(_) -> False
+                _ -> wait
+              }
+            }
+            False -> {
+              io.println("")
+              wait
+            }
+          }
+          #(False, wait)
         }
         False -> case printed_arrow && step_no < last_step {
           True -> {
             io.println("    ⋮")
-            True
+            #(True, wait)
           }
-          False -> True
+          False -> #(True, wait)
         }
       }
       #(
@@ -1543,6 +1583,7 @@ fn run_pipeline(
         step_no + 1,
         next_tracking_output,
         got_arrow,
+        wait,
       )
       |> Ok
     }
@@ -1719,7 +1760,7 @@ pub fn run_renderer(
   let t0 = timestamp.system_time()
 
   use #(desugared, warnings, all_times, requested_times) <- on.error_ok(
-    run_pipeline(parsed, renderer.pipeline),
+    run_pipeline(parsed, renderer.pipeline, debug_options.pipeline_debug_options.wait_for_enter_after_tracking_output),
     on_error: fn(e: InSituDesugaringError) {
       let assert [first, ..rest] =
         pr.padded_error_paragraph(e.message, 80, "                  ")
