@@ -1,6 +1,5 @@
 import blame.{type Blame, prepend_comment as pc} as bl
 import io_lines.{type InputLine, InputLine, type OutputLine, OutputLine} as io_l
-import gleam/int
 import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/order
@@ -133,12 +132,12 @@ fn filehead_encounter(
   #(encounter, rest)
 }
 
-fn unescape_line(
+fn drop_text_line_escape(
   blame: Blame,
   suffix: String,
   rgxs: OurRegexes,
 ) -> Line {
-  case regexp.check(rgxs.escapes, suffix) {
+  case regexp.check(rgxs.includes_bol_te_escape, suffix) {
     True -> Line(blame |> bl.advance(1), suffix |> string.drop_start(1))
     False -> Line(blame, suffix)
   }
@@ -153,7 +152,7 @@ fn parse_text_lines_at_indent(
 
   case encounter {
     EncounteredTextLine(blame, suffix) -> {
-      let line = unescape_line(blame, suffix, rgxs)
+      let line = drop_text_line_escape(blame, suffix, rgxs)
       use #(lines, encounter, rest) <- on.ok(parse_text_lines_at_indent(indent, rest, rgxs))
       Ok(#([line, ..lines], encounter, rest))
     }
@@ -209,7 +208,7 @@ fn parse_attrs_at_indent(
   )
 
   use <- on.lazy_true_false(
-    key == "" || string.contains(key, " ") || !regexp.check(rgxs.key_re, key),
+    key == "" || string.contains(key, " ") || !regexp.check(rgxs.is_valid_key, key),
     fn() { Ok(#([], encounter, rest)) },
   )
 
@@ -274,7 +273,7 @@ fn parse_writerlys_at_indent_from_encounter(
     }
 
     EncounteredTextLine(blame, suffix) -> {
-      let line = unescape_line(blame, suffix, rgxs)
+      let line = drop_text_line_escape(blame, suffix, rgxs)
       use #(lines, encounter, rest) <- on.ok(parse_text_lines_at_indent(indent, rest, rgxs))
       let writerly = Blurb(blame, [line, ..lines])
       use #(s1, s2, encounter, rest) <- on.ok(parse_writerlys_at_indent_from_encounter(indent, rest, rgxs, encounter))
@@ -284,7 +283,7 @@ fn parse_writerlys_at_indent_from_encounter(
     EncounteredTagLine(blame, suffix) -> {
       let tag = suffix |> string.drop_start(2) |> string.trim
       use <- on.lazy_false_true(
-        regexp.check(rgxs.tag_re, tag),
+        regexp.check(rgxs.is_valid_tag, tag),
         fn() { Error(BadTag(blame, tag)) }
       )
       use #(attrs, encounter, rest) <- on.ok(parse_attrs_at_indent(indent + 4, rest, rgxs))
@@ -319,53 +318,57 @@ fn parse_code_block_at_indent(
   initial_blame: Blame,
   rgxs: OurRegexes,
 ) -> Result(#(List(Line), FileHead), ParseError) {
-  let #(encounter, rest) = filehead_encounter(indent, head)
-  case encounter {
-    EncounteredFileEnd -> Error(CodeBlockNotClosed(initial_blame))
-    EncounteredBlankLine(blame, i) -> {
-      let protrusion = int.max(0, i - indent)
-      let spaces = string.repeat(" ", protrusion)
-      let line = Line(blame |> bl.advance(-protrusion), spaces)
+  use first, rest <- on.lazy_empty_nonempty(
+    head,
+    fn() { Error(CodeBlockNotClosed(initial_blame)) }
+  )
+
+  let InputLine(blame, first_indent, suffix) = first
+
+  use <- on.lazy_true_false(
+    first_indent > indent,
+    fn() {
+      let spaces = string.repeat(" ", first_indent - indent)
+      let content = spaces <> suffix
+      let line = Line(blame |> bl.advance(indent - first_indent), content)
       use #(lines, rest) <- on.ok(parse_code_block_at_indent(indent, rest, initial_blame, rgxs))
       Ok(#([line, ..lines], rest))
     }
-    EncounteredNonMod4Indent(blame, i, suffix) |
-    EncounteredHigherIndent(blame, i, suffix) |
-    EncounteredLowerIndent(blame, i, suffix) -> {
-      case i < indent {
-        True -> Error(CodeBlockNotClosed(initial_blame))
-        False -> {
-          let spaces = string.repeat(" ", i - indent)
-          let content = spaces <> suffix
-          let line = Line(blame |> bl.advance(indent - i), content)
-          use #(lines, rest) <- on.ok(parse_code_block_at_indent(indent, rest, initial_blame, rgxs))
-          Ok(#([line, ..lines], rest))
-        }
-      }
-    }
-    EncounteredTextLine(blame, suffix) -> {
-      let #(blame, suffix) = case regexp.check(rgxs.escapes_triple, suffix) {
-        True -> #(blame |> bl.advance(1), suffix |> string.drop_start(1))
-        False -> #(blame, suffix)
-      }
-      let line = Line(blame, suffix)
+  )
+
+  use <- on.lazy_true_false(
+    suffix == "",
+    fn() {
+      let line = Line(blame, "")
       use #(lines, rest) <- on.ok(parse_code_block_at_indent(indent, rest, initial_blame, rgxs))
       Ok(#([line, ..lines], rest))
-    }
-    EncounteredCommentLine(blame, suffix) |
-    EncounteredTagLine(blame, suffix) -> {
-      let line = Line(blame, suffix)
-      use #(lines, rest) <- on.ok(parse_code_block_at_indent(indent, rest, initial_blame, rgxs))
-      Ok(#([line, ..lines], rest))
-    }
-    EncounteredCodeFence(blame, suffix) -> {
+    },
+  )
+
+  use <- on.lazy_true_false(
+    first_indent < indent,
+    fn() { Error(CodeBlockNotClosed(initial_blame)) }
+  )
+
+  use <- on.lazy_true_false(
+    suffix |> string.starts_with("```"),
+    fn() {
       let suffix = suffix |> string.drop_start(3) |> string.trim_end()
       case suffix {
         "" -> Ok(#([], rest))
         _ -> Error(CodeBlockUnwantedAnnotationAtClose(blame, initial_blame, suffix))
       }
     }
+  )
+
+  let #(blame, suffix) = case regexp.check(rgxs.includes_bol_cb_escape, suffix) {
+    True -> #(blame |> bl.advance(1), suffix |> string.drop_start(1))
+    False -> #(blame, suffix)
   }
+
+  let line = Line(blame, suffix)
+  use #(lines, rest) <- on.ok(parse_code_block_at_indent(indent, rest, initial_blame, rgxs))
+  Ok(#([line, ..lines], rest))
 }
 
 fn reassemble_code_block_info(
@@ -491,7 +494,7 @@ fn parse_code_block_info(
         |> result.unwrap(#(kv, ""))
       let key = string.trim(key)
       let val = string.trim(val)
-      case regexp.check(rgxs.key_re, key) {
+      case regexp.check(rgxs.is_valid_key, key) {
         False -> Error(BadKey(blame, key))
         True -> Ok(Attr(blame, key, val))
       }
@@ -622,23 +625,40 @@ pub fn expand_clode_block_info_html_shorthand(
 
 type OurRegexes {
   OurRegexes(
-    tag_re: Regexp,
-    key_re: Regexp,
-    escapes: Regexp,
-    escapes_triple: Regexp,
+    is_valid_tag: Regexp,
+    is_valid_key: Regexp,
+    includes_bol_te_escape: Regexp,     // te = 'text',       'includes_' = (as we parse source)
+    includes_bol_cb_escape: Regexp,     // cb = 'code block', 'includes_' = (as we parse source)
+    requires_bol_te_escape: Regexp,     // te = 'text',       'requires_' = (as we output source)
+    requires_bol_cb_escape: Regexp,     // cb = 'code block', 'requires_' = (as we output source)
     unescaped_ampersand: Regexp,
+  )
+}
+
+fn our_regexes() -> OurRegexes {
+  let assert Ok(is_valid_tag) = regexp.from_string("^[a-zA-Z_\\:][-a-zA-Z0-9\\._\\:]*$")
+  let assert Ok(is_valid_key) = regexp.from_string("^[a-zA-Z_][-a-zA-Z0-9\\._\\:]*$")
+  let assert Ok(includes_bol_te_escape) = regexp.from_string("^\\\\+(\\s|\\t|!!|```)")
+  let assert Ok(includes_bol_cb_escape) = regexp.from_string("^\\\\+(```)")
+  let assert Ok(requires_bol_te_escape) = regexp.from_string("^\\\\*(\\s|\\t|!!|```)")
+  let assert Ok(requires_bol_cb_escape) = regexp.from_string("^\\\\*(```)")
+  let assert Ok(unescaped_ampersand) = regexp.from_string("(?<!\\\\)(\\\\\\\\)*(&)")
+
+  OurRegexes(
+    is_valid_tag,
+    is_valid_key,
+    includes_bol_te_escape,
+    includes_bol_cb_escape,
+    requires_bol_te_escape,
+    requires_bol_cb_escape,
+    unescaped_ampersand,
   )
 }
 
 pub fn parse_input_lines(
   lines: FileHead
 ) -> Result(List(Writerly), ParseError) {
-  let assert Ok(tag_re) = regexp.from_string("^[a-zA-Z_\\:][-a-zA-Z0-9\\._\\:]*$")
-  let assert Ok(key_re) = regexp.from_string("^[a-zA-Z_][-a-zA-Z0-9\\._\\:]*$")
-  let escapes = from_input_lines_escape_re()
-  let assert Ok(escapes_triple) = regexp.from_string("^\\\\+(```)")
-  let assert Ok(unescaped_ampersand) = regexp.from_string("(?<!\\\\)(\\\\\\\\)*(&)")
-  let rgxs = OurRegexes(tag_re, key_re, escapes, escapes_triple, unescaped_ampersand)
+  let rgxs = our_regexes()
   use #(writerlys, _, _, _) <- on.ok(parse_writerlys_at_indent(0, lines, rgxs))
   let writerlys = list.filter(writerlys, fn(writerly) { case writerly {
     BlankLine(..) -> False
@@ -679,9 +699,9 @@ fn lines_to_output_lines(
   |> list.map(line_to_output_line(_, indentation))
 }
 
-//*************************************
-//* Writerly -> blamed lines internals
-//*************************************
+// ************************************************************
+// Writerly -> blamed lines internals
+// ************************************************************
 
 pub fn writerly_annotate_blames(writerly: Writerly) -> Writerly {
   case writerly {
@@ -777,14 +797,14 @@ fn writerly_to_output_lines_internal(
   t: Writerly,
   indentation: Int,
   annotate_blames: Bool,
-  escape_spaces_re: Regexp,
+  rgxs: OurRegexes,
 ) -> List(OutputLine) {
   case t {
     BlankLine(blame) -> [OutputLine(blame, 0, "")]
 
     Blurb(_, lines) ->
       lines
-      |> escape_left_spaces(escape_spaces_re)
+      |> add_escapes_in_lines(rgxs.requires_bol_te_escape)
       |> lines_to_output_lines(indentation)
 
     Comment(_, lines) ->
@@ -794,8 +814,12 @@ fn writerly_to_output_lines_internal(
 
     CodeBlock(blame, attrs, lines) -> {
       list.flatten([
-        [OutputLine(blame, indentation, "```" <> reassemble_code_block_info(attrs))],
-        lines_to_output_lines(lines, indentation),
+        [
+          OutputLine(blame, indentation, "```" <> reassemble_code_block_info(attrs)),
+        ],
+        lines
+        |> add_escapes_in_lines(rgxs.requires_bol_cb_escape)
+        |> lines_to_output_lines(indentation),
         [
           OutputLine(
             case annotate_blames {
@@ -815,7 +839,7 @@ fn writerly_to_output_lines_internal(
         attrs_to_output_lines(attrs, indentation + 4)
       let children_lines =
         children
-        |> list.map(writerly_to_output_lines_internal(_, indentation + 4, annotate_blames, escape_spaces_re))
+        |> list.map(writerly_to_output_lines_internal(_, indentation + 4, annotate_blames, rgxs))
         |> list.flatten
       let buffer_lines = case first_child_is_blurb_and_first_line_of_blurb_could_be_read_as_attr_value_pair(children) {
         True -> {
@@ -832,16 +856,16 @@ fn writerly_to_output_lines_internal(
   }
 }
 
-//*********************************
-//* Writerly -> output lines api
-//*********************************
+// ************************************************************
+// Writerly -> output lines api
+// ************************************************************
 
 pub fn writerly_to_output_lines(
   writerly: Writerly,
 ) -> List(OutputLine) {
-  let re = to_output_lines_escape_re()
+  let rgxs = our_regexes()
   writerly
-  |> writerly_to_output_lines_internal(0, False, re)
+  |> writerly_to_output_lines_internal(0, False, rgxs)
 }
 
 pub fn writerlys_to_output_lines(
@@ -852,9 +876,9 @@ pub fn writerlys_to_output_lines(
   |> list.flatten
 }
 
-//*********************************
-//* Writerly -> String api
-//*********************************
+// ************************************************************
+// Writerly -> String api
+// ************************************************************
 
 pub fn writerly_to_string(writerly: Writerly) -> String {
   writerly
@@ -870,31 +894,21 @@ pub fn writerlys_to_string(
   |> io_l.output_lines_to_string
 }
 
-//*********************************
-//* echo_writerly api
-//*********************************
-
-fn from_input_lines_escape_re() -> Regexp {
-  let assert Ok(re) = regexp.from_string("^\\\\+(\\s|\\t|!!|```)")
-  re
-}
-
-fn to_output_lines_escape_re() -> Regexp {
-  let assert Ok(re) = regexp.from_string("^\\\\*(\\s|\\t|!!|```)")
-  re
-}
+// ************************************************************
+// echo_writerly api
+// ************************************************************
 
 pub fn writerly_table(writerly: Writerly, banner: String, indent: Int) -> String {
-  let r = to_output_lines_escape_re()
+  let rgxs = our_regexes()
   writerly
   |> writerly_annotate_blames
-  |> writerly_to_output_lines_internal(0, True, r)
+  |> writerly_to_output_lines_internal(0, True, rgxs)
   |> io_l.output_lines_table(banner, indent)
 }
 
-//*******************************
-//* Writerly -> VXML
-//*******************************
+// ************************************************************
+// Writerly -> VXML
+// ************************************************************
 
 const writerly_blank_line_vxml_tag = "WriterlyBlankLine"
 const writerly_code_block_vxml_tag = "WriterlyCodeBlock"
@@ -1200,9 +1214,9 @@ pub fn assemble_input_lines_advanced_mode(
   }
 }
 
-//***************************
-//* assemble_input_lines
-//***************************
+// ************************************************************
+// assemble_input_lines
+// ************************************************************
 
 pub fn assemble_input_lines(
   dirname: String,
@@ -1238,21 +1252,21 @@ fn is_whitespace(s: String) -> Bool {
   string.trim(s) == ""
 }
 
-fn escape_left_spaces_in_string(s: String, re: Regexp) -> String {
+fn add_escape_in_string(s: String, re: Regexp) -> String {
   case regexp.check(re, s) {
     True -> "\\" <> s
     False -> s
   }
 }
 
-fn escape_left_spaces(
+fn add_escapes_in_lines(
   contents: List(Line),
   re: Regexp,
 ) -> List(Line) {
   list.map(contents, fn(line) {
     Line(
       line.blame,
-      line.content |> escape_left_spaces_in_string(re),
+      line.content |> add_escape_in_string(re),
     )
   })
 }

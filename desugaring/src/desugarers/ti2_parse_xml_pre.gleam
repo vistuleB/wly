@@ -50,13 +50,13 @@ fn nodemap(
                         xs.Newline(_) ->
                           [newline_t]
                         xs.TagStartOrdinary(b, tag) ->
-                          [span(b, "xml-0", "<"), span(b, "xml-1", tag)]
+                          [span(b, "xml-0", "<"), span(b |> bl.advance(1), "xml-1", tag)]
                         xs.TagStartXMLVersion(b, tag) ->
-                          [span(b, "xml-0", "<?"), span(b, "xml-1", tag)]
+                          [span(b, "xml-0", "<?"), span(b |> bl.advance(2), "xml-1", tag)]
                         xs.TagStartDoctype(b, tag) ->
-                          [span(b, "xml-0", "<!"), span(b, "xml-1", tag)]
+                          [span(b, "xml-0", "<!"), span(b |> bl.advance(2), "xml-1", tag)]
                         xs.TagStartClosing(b, tag) ->
-                          [span(b, "xml-0", "</"), span(b, "xml-1", tag)]
+                          [span(b, "xml-0", "</"), span(b |> bl.advance(2), "xml-1", tag)]
                         xs.InTagWhitespace(b, load) -> {
                           assert !string.contains(load, "\n")
                           assert !string.contains(load, "\r")
