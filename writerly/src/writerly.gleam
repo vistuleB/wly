@@ -1,7 +1,6 @@
 import blame.{type Blame, prepend_comment as pc} as bl
 import io_lines.{type InputLine, InputLine, type OutputLine, OutputLine} as io_l
 import gleam/int
-import gleam/io
 import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/order
@@ -15,7 +14,7 @@ import dirtree as dt
 import splitter
 import on.{Return, Continue as Stay}
 
-const debug = False
+// const debug = False
 
 // ************************************************************
 // public types
@@ -50,11 +49,12 @@ pub type ParseError {
   TagEmpty(blame: Blame)
   BadTag(blame: Blame, bad_name: String)
   BadKey(blame: Blame, bad_key: String)
-  DuplicateIdInCodeBlockLanguageAnnotation(blame: Blame)
   IndentationTooLarge(blame: Blame, line: String)
   IndentationNotMultipleOfFour(blame: Blame, line: String)
+  CodeBlockInfoStartsWithSpace(blame: Blame, bad_info: String)
   CodeBlockNotClosed(blame: Blame)
-  CodeBlockUnwantedAnnotationAtClose(blame: Blame, opening_blame: Blame)
+  CodeBlockUnwantedAnnotationAtClose(blame: Blame, opening_blame: Blame, annotation: String)
+  DuplicateIdInCodeBlockLanguageAnnotation(blame: Blame)
 }
 
 pub type AssemblyError {
@@ -68,475 +68,453 @@ pub type AssemblyOrParseError {
   AssemblyError(AssemblyError)
 }
 
-// ************************************************************
-// local types
-// ************************************************************
-
-type FileHead =
-  List(InputLine)
-
-type BadTentativeTag {
-  Empty
-  BadTentativeTag(String)
+type Encounter {
+  EncounteredFileEnd
+  EncounteredBlankLine(blame: Blame, indent: Int)
+  EncounteredNonMod4Indent(blame: Blame, indent: Int, suffix: String)
+  EncounteredHigherIndent(blame: Blame, indent: Int, suffix: String)
+  EncounteredLowerIndent(blame: Blame, indent: Int, suffix: String)
+  EncounteredTextLine(blame: Blame, suffix: String)
+  EncounteredTagLine(blame: Blame, suffix: String)
+  EncounteredCommentLine(blame: Blame, suffix: String)
+  EncounteredCodeFence(blame: Blame, suffix: String)
 }
 
-type TentativeTagName =
-  Result(String, BadTentativeTag)
-
-type BadTentativeKey {
-  BadTentativeKey(String)
-  DuplicateId
-}
-
-type TentativeAttrKey =
-  Result(String, BadTentativeKey)
-
-type TentativeAttr {
-  TentativeAttr(
-    blame: Blame,
-    key: TentativeAttrKey,
-    val: String,
-  )
-}
-
-type ClosingBackTicksError {
-  UndesiredAnnotation(Blame, FileHead)
-  NoBackticksFound(FileHead)
-}
-
-type NonemptySuffixDiagnostic {
-  Pipe(annotation: String)
-  TripleBacktick(annotation: String)
-  BangBang(suffix: String)
-  Other(content: String)
-}
-
-type TentativeWriterly {
-  TentativeBlankLine(blame: Blame)
-  TentativeBlurb(blame: Blame, contents: List(Line))
-  TentativeComment(blame: Blame, contents: List(Line))
-  TentativeCodeBlock(
-    blame: Blame,
-    attrs: List(TentativeAttr),
-    contents: List(Line),
-  )
-  TentativeTag(
-    blame: Blame,
-    tag: TentativeTagName,
-    attrs: List(TentativeAttr),
-    children: List(TentativeWriterly),
-  )
-  TentativeErrorIndentationTooLarge(blame: Blame, message: String)
-  TentativeErrorIndentationNotMultipleOfFour(blame: Blame, message: String)
-  TentativeErrorCodeBlockUnwantedAnnotationAtClose(blame: Blame, opening_blame: Blame, message: String)
-  TentativeErrorCodeBlockNotClosed(blame: Blame)
-}
-
-// ************************************************************
-// FileHead
-// ************************************************************
-
-fn current_line(head: FileHead) -> Option(InputLine) {
-  case head {
-    [] -> None
-    [first, ..] -> Some(first)
-  }
-}
-
-fn move_forward(head: FileHead) -> FileHead {
-  let assert [_, ..rest] = head
-  rest
-}
-
-// ************************************************************
-// parse_from_tentative
-// ************************************************************
-
-fn tentative_attr_to_attr(
-  t: TentativeAttr,
-) -> Result(Attr, ParseError) {
-  case t.key {
-    Ok(key) -> Ok(Attr(blame: t.blame, key: key, val: t.val))
-    Error(BadTentativeKey(key)) -> Error(BadKey(t.blame, key))
-    Error(DuplicateId) -> Error(DuplicateIdInCodeBlockLanguageAnnotation(t.blame))
-  }
-}
-
-fn tentative_attrs_to_attrs(
-  attrs: List(TentativeAttr),
-) -> Result(List(Attr), ParseError) {
-  case attrs {
-    [] -> Ok([])
-    [first, ..rest] ->
-      case tentative_attr_to_attr(first) {
-        Error(error) -> Error(error)
-        Ok(attr) ->
-          case tentative_attrs_to_attrs(rest) {
-            Ok(attrs) ->
-              Ok(list.prepend(attrs, attr))
-
-            Error(error) -> Error(error)
-          }
-      }
-  }
-}
-
-fn tentatives_to_writerlys(
-  tentatives: List(TentativeWriterly),
-) -> Result(List(Writerly), ParseError) {
-  case tentatives {
-    [] -> Ok([])
-    [first, ..rest] ->
-      case parse_from_tentative(first) {
-        Ok(parsed) ->
-          case tentatives_to_writerlys(rest) {
-            Ok(parseds) -> Ok(list.prepend(parseds, parsed))
-
-            Error(error) -> Error(error)
-          }
-
-        Error(error) -> Error(error)
-      }
-  }
-}
-
-fn parse_from_tentative(
-  tentative: TentativeWriterly,
-) -> Result(Writerly, ParseError) {
-  case tentative {
-    TentativeErrorCodeBlockUnwantedAnnotationAtClose(blame, opening_blame, _) ->
-      Error(CodeBlockUnwantedAnnotationAtClose(blame, opening_blame))
-
-    TentativeErrorIndentationTooLarge(blame, message) ->
-      Error(IndentationTooLarge(blame, message))
-
-    TentativeErrorIndentationNotMultipleOfFour(blame, message) ->
-      Error(IndentationNotMultipleOfFour(blame, message))
-
-    TentativeErrorCodeBlockNotClosed(blame) -> Error(CodeBlockNotClosed(blame))
-
-    TentativeBlankLine(blame) -> Ok(BlankLine(blame))
-
-    TentativeBlurb(blame, contents) -> Ok(Blurb(blame, contents))
-
-    TentativeComment(blame, contents) -> Ok(Comment(blame, contents))
-
-    TentativeCodeBlock(blame, attrs, contents) ->
-      case tentative_attrs_to_attrs(attrs) {
-        Ok(attrs) -> Ok(CodeBlock(blame, attrs, contents))
-        Error(e) -> Error(e)
-      }
-
-    TentativeTag(
-      blame,
-      tentative_name,
-      tentative_attrs,
-      tentative_children,
-    ) ->
-      case tentative_name {
-        Error(Empty) -> Error(TagEmpty(blame))
-
-        Error(BadTentativeTag(tag)) ->
-          Error(BadTag(tentative.blame, tag))
-
-        Ok(name) ->
-          case tentative_attrs_to_attrs(tentative_attrs)
-          {
-            Error(error) -> Error(error)
-
-            Ok(attrs) ->
-              case tentatives_to_writerlys(tentative_children) {
-                Error(error) -> Error(error)
-
-                Ok(children) ->
-                  Ok(Tag(
-                    blame: tentative.blame,
-                    name: name,
-                    attrs: attrs,
-                    children: children,
-                  ))
-              }
-          }
-      }
-  }
-}
-
-fn nonempty_suffix_diagnostic(suffix: String) -> NonemptySuffixDiagnostic {
-  let assert False = suffix == ""
-
-  case suffix {
-    "```" <> _ -> TripleBacktick(string.drop_start(suffix, 3))
-    "|>" <> _ -> Pipe(string.drop_start(suffix, 2))
-    "!!" <> _ -> BangBang(string.drop_start(suffix, 2))
-    _ -> Other(suffix)
-  }
-}
-
-fn fast_forward_past_lines_of_indent_at_least(
-  indent: Int,
-  head: FileHead,
-) -> FileHead {
-  case current_line(head) {
-    None -> head
-
-    Some(InputLine(_, suffix_indent, _)) ->
-      case suffix_indent < indent {
-        True -> head
-
-        False ->
-          fast_forward_past_lines_of_indent_at_least(indent, move_forward(head))
-      }
-  }
-}
-
-fn tentative_attr(
+fn nonempty_suffix_encounter(
   blame: Blame,
-  pair: #(String, String),
-  key_re: Regexp,
-) -> TentativeAttr {
-  let #(key, val) = pair
-  assert !string.contains(key, "=")
-  assert !string.is_empty(key)
+  suffix: String,
+) -> Encounter {
+  case suffix {
+    "|>" <> _ -> EncounteredTagLine(blame, suffix)
+    "!!" <> _ -> EncounteredCommentLine(blame, suffix)
+    "```" <> _ -> EncounteredCodeFence(blame, suffix)
+    _ -> EncounteredTextLine(blame, suffix)
+  }
+}
 
-  case regexp.check(key_re, key) {
-    True -> TentativeAttr(blame: blame, key: Ok(key), val: val)
+fn filehead_encounter(
+  indent: Int,
+  head: FileHead,
+) -> #(Encounter, FileHead) {
+  use first, rest <- on.lazy_empty_nonempty(
+    head,
+    fn() { #(EncounteredFileEnd, []) },
+  )
 
-    False ->
-      TentativeAttr(
-        blame: blame,
-        key: Error(BadTentativeKey(key)),
-        val: val,
+  let InputLine(blame, first_indent, suffix) = first
+
+  use <- on.lazy_true_false(
+    suffix == "",
+    fn() { #(EncounteredBlankLine(blame, first_indent), rest) },
+  )
+
+  use <- on.lazy_true_false(
+    first_indent % 4 != 0,
+    fn() { #(EncounteredNonMod4Indent(blame, first_indent, suffix), rest) },
+  )
+
+  use <- on.lazy_true_false(
+    first_indent < indent,
+    fn() { #(EncounteredLowerIndent(blame, first_indent, suffix), rest) },
+  )
+
+  use <- on.lazy_true_false(
+    first_indent > indent,
+    fn() { #(EncounteredHigherIndent(blame, first_indent, suffix), rest) },
+  )
+
+  let encounter = nonempty_suffix_encounter(blame, suffix)
+
+  #(encounter, rest)
+}
+
+fn unescape_line(
+  blame: Blame,
+  suffix: String,
+  rgxs: OurRegexes,
+) -> Line {
+  case regexp.check(rgxs.escapes, suffix) {
+    True -> Line(blame |> bl.advance(1), suffix |> string.drop_start(1))
+    False -> Line(blame, suffix)
+  }
+}
+
+fn parse_text_lines_at_indent(
+  indent: Int,
+  head: FileHead,
+  rgxs: OurRegexes,
+) -> Result(#(List(Line), Encounter, FileHead), ParseError) {
+  let #(encounter, rest) = filehead_encounter(indent, head)
+
+  case encounter {
+    EncounteredTextLine(blame, suffix) -> {
+      let line = unescape_line(blame, suffix, rgxs)
+      use #(lines, encounter, rest) <- on.ok(parse_text_lines_at_indent(indent, rest, rgxs))
+      Ok(#([line, ..lines], encounter, rest))
+    }
+    _ -> Ok(#([], encounter, rest))
+  }
+}
+
+fn parse_comment_lines_at_indent(
+  indent: Int,
+  head: FileHead,
+) -> Result(#(List(Line), Encounter, FileHead), ParseError) {
+  let #(encounter, rest) = filehead_encounter(indent, head)
+
+  case encounter {
+    EncounteredCommentLine(blame, suffix) -> {
+      let line = Line(blame |> bl.advance(2), suffix |> string.drop_start(2))
+      use #(lines, encounter, rest) <- on.ok(parse_comment_lines_at_indent(indent, rest))
+      Ok(#([line, ..lines], encounter, rest))
+    }
+    _ -> Ok(#([], encounter, rest))
+  }
+}
+
+fn parse_attrs_at_indent(
+  indent: Int,
+  head: FileHead,
+  rgxs: OurRegexes,
+) -> Result(#(List(Attr), Encounter, FileHead), ParseError) {
+  let #(encounter, rest) = filehead_encounter(indent, head)
+
+  use #(blame, suffix) <- on.continue(
+    case encounter {
+      EncounteredTextLine(blame, suffix) -> Stay(#(blame, suffix))
+      EncounteredCommentLine(blame, suffix) -> {
+        let attr = Attr(blame, suffix, "")
+        use #(attrs, encounter, rest) <- on.error_ok(
+          parse_attrs_at_indent(indent, rest, rgxs),
+          fn(e) { Return(Error(e)) },
+        )
+        Return(Ok(#([attr, ..attrs], encounter, rest)))
+      }
+      _ -> Return(Ok(#([], encounter, rest)))
+    }
+  )
+
+  assert suffix != ""
+  assert !string.starts_with(suffix, "!!")
+  assert !string.starts_with(suffix, "|>")
+
+  use #(key, val) <- on.error_ok(
+    suffix |> string.split_once("="),
+    fn(_) { Ok(#([], encounter, rest)) },
+  )
+
+  use <- on.lazy_true_false(
+    key == "" || string.contains(key, " ") || !regexp.check(rgxs.key_re, key),
+    fn() { Ok(#([], encounter, rest)) },
+  )
+
+  let val = string.trim(val)
+  let attr = Attr(blame, key, val)
+  use #(attrs, encounter, rest) <- on.ok(parse_attrs_at_indent(indent, rest, rgxs))
+  Ok(#([attr, ..attrs], encounter, rest))
+}
+
+fn parse_writerlys_at_indent_from_nonempty_suffix(
+  indent: Int,
+  rest: FileHead,
+  rgxs: OurRegexes,
+  blame: Blame,
+  suffix: String,
+) -> Result(#(List(Writerly), List(Writerly), Encounter, FileHead), ParseError) {
+  let encounter = nonempty_suffix_encounter(blame, suffix)
+  parse_writerlys_at_indent_from_encounter(indent, rest, rgxs, encounter)
+}
+
+fn parse_writerlys_at_indent_from_encounter(
+  indent: Int,
+  rest: FileHead,
+  rgxs: OurRegexes,
+  encounter: Encounter,
+) -> Result(#(List(Writerly), List(Writerly), Encounter, FileHead), ParseError) {
+  case encounter {
+    EncounteredFileEnd -> {
+      Ok(#([], [], EncounteredFileEnd, []))
+    }
+
+    EncounteredBlankLine(blame, _) -> {
+      let writerly = BlankLine(blame)
+      use #(s1, s2, encounter, rest) <- on.ok(parse_writerlys_at_indent(indent, rest, rgxs))
+      let #(s1, s2) = case s1 {[] -> #(s1, [writerly, ..s2]) _ -> #([writerly, ..s1], s2)}
+      Ok(#(s1, s2, encounter, rest))
+    }
+
+    EncounteredNonMod4Indent(blame, _, suffix) -> {
+      Error(IndentationNotMultipleOfFour(blame, suffix))
+    }
+
+    EncounteredHigherIndent(blame, _, suffix) -> {
+      Error(IndentationTooLarge(blame, suffix))
+    }
+
+    EncounteredLowerIndent(blame, suffix_indent, suffix) -> {
+      assert suffix_indent <= indent
+      assert suffix != ""
+      case suffix_indent < indent {
+        True -> Ok(#([], [], encounter, rest))
+        False -> parse_writerlys_at_indent_from_nonempty_suffix(indent, rest, rgxs, blame, suffix)
+      }
+    }
+
+    EncounteredCommentLine(blame, suffix) -> {
+      let line = Line(blame |> bl.advance(2), suffix |> string.drop_start(2))
+      use #(lines, encounter, rest) <- on.ok(parse_comment_lines_at_indent(indent, rest))
+      let writerly = Comment(blame, [line, ..lines])
+      use #(s1, s2, encounter, rest) <- on.ok(parse_writerlys_at_indent_from_encounter(indent, rest, rgxs, encounter))
+      Ok(#([writerly, ..s1], s2, encounter, rest))
+    }
+
+    EncounteredTextLine(blame, suffix) -> {
+      let line = unescape_line(blame, suffix, rgxs)
+      use #(lines, encounter, rest) <- on.ok(parse_text_lines_at_indent(indent, rest, rgxs))
+      let writerly = Blurb(blame, [line, ..lines])
+      use #(s1, s2, encounter, rest) <- on.ok(parse_writerlys_at_indent_from_encounter(indent, rest, rgxs, encounter))
+      Ok(#([writerly, ..s1], s2, encounter, rest))
+    }
+
+    EncounteredTagLine(blame, suffix) -> {
+      let tag = suffix |> string.drop_start(2) |> string.trim
+      use <- on.lazy_false_true(
+        regexp.check(rgxs.tag_re, tag),
+        fn() { Error(BadTag(blame, tag)) }
       )
+      use #(attrs, encounter, rest) <- on.ok(parse_attrs_at_indent(indent + 4, rest, rgxs))
+      use #(s1, s2, encounter, rest) <- on.ok(parse_writerlys_at_indent_from_encounter(indent + 4, rest, rgxs, encounter))
+      let writerly = Tag(blame, tag, attrs, s1)
+      use #(s3, s4, encounter, rest) <- on.ok(parse_writerlys_at_indent_from_encounter(indent, rest, rgxs, encounter))
+      let #(all_children, blanks) = case s3 {
+        [] -> {
+          assert s4 == []
+          #([writerly], s2)
+        }
+        _ -> {
+          #([writerly, ..list.append(s2, s3)], s4)
+        }
+      }
+      Ok(#(all_children, blanks, encounter, rest))
+    }
+
+    EncounteredCodeFence(blame, suffix) -> {
+      use attrs <- on.ok(parse_code_block_info(blame |> bl.advance(3), suffix |> string.drop_start(3), rgxs))
+      use #(lines, rest) <- on.ok(parse_code_block_at_indent(indent, rest, blame, rgxs))
+      let writerly = CodeBlock(blame, attrs, lines)
+      use #(s1, s2, encounter, rest) <- on.ok(parse_writerlys_at_indent(indent, rest, rgxs))
+      Ok(#([writerly, ..s1], s2, encounter, rest))
+    }
   }
 }
 
-fn fast_forward_past_attr_lines_at_indent(
+fn parse_code_block_at_indent(
   indent: Int,
   head: FileHead,
-  key_re: Regexp,
-) -> #(List(TentativeAttr), FileHead) {
-  case current_line(head) {
-    None -> #([], head)
-
-    Some(InputLine(blame, suffix_indent, suffix)) -> {
-      case suffix == "" 
-        || suffix_indent != indent
-        || string.starts_with(suffix, "|>")
-        || string.starts_with(suffix, "```")
-      {
-        True -> #([], head)
-
+  initial_blame: Blame,
+  rgxs: OurRegexes,
+) -> Result(#(List(Line), FileHead), ParseError) {
+  let #(encounter, rest) = filehead_encounter(indent, head)
+  case encounter {
+    EncounteredFileEnd -> Error(CodeBlockNotClosed(initial_blame))
+    EncounteredBlankLine(blame, i) -> {
+      let protrusion = int.max(0, i - indent)
+      let spaces = string.repeat(" ", protrusion)
+      let line = Line(blame |> bl.advance(-protrusion), spaces)
+      use #(lines, rest) <- on.ok(parse_code_block_at_indent(indent, rest, initial_blame, rgxs))
+      Ok(#([line, ..lines], rest))
+    }
+    EncounteredNonMod4Indent(blame, i, suffix) |
+    EncounteredHigherIndent(blame, i, suffix) |
+    EncounteredLowerIndent(blame, i, suffix) -> {
+      case i < indent {
+        True -> Error(CodeBlockNotClosed(initial_blame))
         False -> {
-          case string.split_once(suffix, "=") {
-            Error(_) -> #([], head)
-
-            Ok(#(key, val)) -> {
-              case string.contains(key, " ") || key == "" {
-                True -> #([], head)
-
-                False -> {
-                  let val = string.trim(val)
-
-                  let attr_pair = case string.starts_with(suffix, "!!") {
-                    False -> tentative_attr(blame, #(key, val), key_re)
-                    True -> TentativeAttr(blame, Ok(key), val)
-                  }
-
-                  let #(more_attr_pairs, head_after_attrs) =
-                    fast_forward_past_attr_lines_at_indent(
-                      indent,
-                      move_forward(head),
-                      key_re,
-                    )
-
-                  #(
-                    [attr_pair, ..more_attr_pairs],
-                    head_after_attrs,
-                  )
-                }
-              }
-            }
-          }
+          let spaces = string.repeat(" ", i - indent)
+          let content = spaces <> suffix
+          let line = Line(blame |> bl.advance(indent - i), content)
+          use #(lines, rest) <- on.ok(parse_code_block_at_indent(indent, rest, initial_blame, rgxs))
+          Ok(#([line, ..lines], rest))
         }
+      }
+    }
+    EncounteredTextLine(blame, suffix) -> {
+      let #(blame, suffix) = case regexp.check(rgxs.escapes_triple, suffix) {
+        True -> #(blame |> bl.advance(1), suffix |> string.drop_start(1))
+        False -> #(blame, suffix)
+      }
+      let line = Line(blame, suffix)
+      use #(lines, rest) <- on.ok(parse_code_block_at_indent(indent, rest, initial_blame, rgxs))
+      Ok(#([line, ..lines], rest))
+    }
+    EncounteredCommentLine(blame, suffix) |
+    EncounteredTagLine(blame, suffix) -> {
+      let line = Line(blame, suffix)
+      use #(lines, rest) <- on.ok(parse_code_block_at_indent(indent, rest, initial_blame, rgxs))
+      Ok(#([line, ..lines], rest))
+    }
+    EncounteredCodeFence(blame, suffix) -> {
+      let suffix = suffix |> string.drop_start(3) |> string.trim_end()
+      case suffix {
+        "" -> Ok(#([], rest))
+        _ -> Error(CodeBlockUnwantedAnnotationAtClose(blame, initial_blame, suffix))
       }
     }
   }
 }
 
-fn fast_forward_past_comment_lines_at_indent(
-  indent: Int,
-  head: FileHead,
-) -> #(List(Line), FileHead) {
-  case current_line(head) {
-    None -> #([], head)
-    Some(InputLine(blame, suffix_indent, suffix)) -> {
-      case {
-        suffix_indent != indent ||
-        !string.starts_with(suffix, "!!")
-      } {
-        True -> #([], head)
-        False -> {
-          let #(more_lines, head_after_others) =
-            fast_forward_past_comment_lines_at_indent(
-              indent,
-              move_forward(head),
-            )
-          #(
-            [Line(blame, suffix |> string.drop_start(2)), ..more_lines],
-            head_after_others,
-          )
+fn parse_code_block_info(
+  blame: Blame,
+  info: String,
+  rgxs: OurRegexes,
+) -> Result(List(Attr), ParseError) {
+  let info = info |> string.trim_end()
+
+  use <- on.lazy_true_false(
+    info == "",
+    fn() { Ok([]) },
+  )
+
+  use <- on.lazy_true_false(
+    info |> string.starts_with(" "),
+    fn() { Error(CodeBlockInfoStartsWithSpace(blame, info)) },
+  )
+
+  use <- on.lazy_false_true(
+    info |> string.contains("&"),
+    fn() { Ok([Attr(blame, "info", info)]) },
+  )
+
+  let pieces = regexp.split(rgxs.unescaped_ampersand, info)
+
+  let pieces = list.map_fold(
+    pieces,
+    #(blame, ""),
+    fn(acc, p) {
+      let #(blame, last_piece) = acc
+      let acc = #(blame |> bl.advance(last_piece |> string.length), p)
+      #(acc, acc)
+    }
+  )
+  |> pair.second
+
+  let pieces = list.index_map(
+    pieces,
+    fn (p, i) {
+      let #(blame, p) = p
+      let p = case i % 3 {
+        0 -> p |> string.replace("\\&", "&") |> string.replace("\\\\", "\\")
+        1 -> p |> string.replace("\\\\", "\\")
+        2 -> p
+        _ -> panic
+      }
+      #(blame, p)
+    }
+  )
+
+  let keyvals = list.fold(
+    pieces,
+    #(None, 0, []),
+    fn(acc, p) {
+      let #(maybe, i, so_far) = acc
+      case i % 3 {
+        0 -> {
+          assert maybe == None
+          #(Some(p), i + 1, so_far)
         }
+        1 -> {
+          let assert Some(#(prev_blame, prev_p)) = maybe
+          let #(_, p) = p
+          #(None, i + 1, [#(prev_blame, prev_p <> p), ..so_far])
+        }
+        2 -> {
+          assert maybe == None
+          #(None, i + 1, so_far)
+        }
+        _ -> panic
       }
     }
-  }
-}
+  )
 
-fn fast_forward_past_other_lines_at_indent(
-  indent: Int,
-  head: FileHead,
-) -> #(List(Line), FileHead) {
-  case current_line(head) {
-    None -> #([], head)
-    Some(InputLine(blame, suffix_indent, suffix)) -> {
-      case {
-        suffix_indent != indent ||
-        suffix == "" ||
-        string.starts_with(suffix, "|>") ||
-        string.starts_with(suffix, "```") ||
-        string.starts_with(suffix, "!!")
-      } {
-        True -> #([], head)
-        False -> {
-          let #(more_lines, head_after_others) =
-            fast_forward_past_other_lines_at_indent(
-              indent,
-              move_forward(head),
-            )
-          #(
-            [Line(blame, suffix), ..more_lines],
-            head_after_others,
-          )
-        }
+  let keyvals = case keyvals.0 {
+    None -> keyvals.2 |> list.reverse
+    Some(x) -> [x, ..keyvals.2] |> list.reverse
+  }
+
+  let assert [info, ..keyvals] = keyvals
+  let info = Attr(info.0, "writerly-code-block-info", info.1)
+
+  use keyvals <- on.ok(list.try_map(
+    keyvals,
+    fn(kv) {
+      let #(blame, kv) = kv
+      let #(key, val) = 
+        string.split_once(kv, "=")
+        |> result.unwrap(#(kv, ""))
+      let key = string.trim(key)
+      let val = string.trim(val)
+      case regexp.check(rgxs.key_re, key) {
+        False -> Error(BadKey(blame, key))
+        True -> Ok(Attr(blame, key, val))
       }
     }
+  ))
+
+  let attrs = case info.val {
+    "" -> keyvals
+    _ -> [info, ..keyvals]
   }
+
+  Ok(attrs)
 }
 
-fn fast_forward_to_closing_backticks(
+fn parse_writerlys_at_indent(
   indent: Int,
   head: FileHead,
-) -> Result(#(List(Line), FileHead), ClosingBackTicksError) {
-  case current_line(head) {
-    None -> Error(NoBackticksFound(head))
-
-    Some(InputLine(blame, suffix_indent, suffix)) -> {
-      case suffix == "" {
-        True ->
-          case fast_forward_to_closing_backticks(indent, move_forward(head)) {
-            Ok(#(lines, head_after_closing_backticks)) -> {
-              let line =
-                Line(
-                  blame |> bl.advance(indent - suffix_indent),
-                  string.repeat(" ", int.max(0, suffix_indent - indent)),
-                )
-
-              Ok(#(
-                list.prepend(lines, line),
-                head_after_closing_backticks,
-              ))
-            }
-
-            error -> error
-          }
-
-        False -> {
-          case suffix_indent < indent {
-            True -> Error(NoBackticksFound(head))
-
-            False -> {
-              let padded_suffix_length =
-                suffix_indent + string.length(suffix) - indent
-              let assert True = padded_suffix_length >= string.length(suffix)
-              let padded_suffix =
-                string.pad_start(suffix, to: padded_suffix_length, with: " ")
-              let line = Line(
-                blame |> bl.advance(indent - suffix_indent),
-                padded_suffix,
-              )
-
-              case
-                suffix_indent > indent || !string.starts_with(suffix, "```")
-              {
-                True ->
-                  case
-                    fast_forward_to_closing_backticks(
-                      indent,
-                      move_forward(head),
-                    )
-                  {
-                    Ok(#(lines, head_after_closing_backticks)) ->
-                      Ok(#(
-                        list.prepend(lines, line),
-                        head_after_closing_backticks,
-                      ))
-
-                    error -> error
-                  }
-
-                False -> {
-                  let assert True = string.starts_with(suffix, "```")
-                  let assert True = suffix_indent == indent
-                  let annotation = string.drop_start(suffix, 3) |> string.trim
-
-                  case string.is_empty(annotation) {
-                    True -> Ok(#([], move_forward(head)))
-
-                    False ->
-                      Error(UndesiredAnnotation(blame, move_forward(head)))
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-  }
+  rgxs: OurRegexes,
+) -> Result(#(List(Writerly), List(Writerly), Encounter, FileHead), ParseError) {
+  let #(encounter, rest) = filehead_encounter(indent, head)
+  parse_writerlys_at_indent_from_encounter(indent, rest, rgxs, encounter)
 }
 
-fn check_good_tag_name(proposed_name, tag_re) -> TentativeTagName {
-  case string.is_empty(proposed_name) {
-    True -> Error(Empty)
-    False -> case regexp.check(tag_re, proposed_name) {
-      True -> Ok(proposed_name)
-      False -> Error(BadTentativeTag(proposed_name))
-    }
-  }
+type OurRegexes {
+  OurRegexes(
+    tag_re: Regexp,
+    key_re: Regexp,
+    escapes: Regexp,
+    escapes_triple: Regexp,
+    unescaped_ampersand: Regexp,
+  )
 }
 
-fn tentative_first_non_blank_line_is_blurb(
-  nodes: List(TentativeWriterly),
-) -> Bool {
-  case nodes {
-    [TentativeBlankLine(_), ..rest] ->
-      tentative_first_non_blank_line_is_blurb(rest)
-    [TentativeBlurb(_, _), ..] -> True
-    _ -> False
-  }
+fn parse_input_lines_v2(
+  lines: FileHead
+) -> Result(List(Writerly), ParseError) {
+  let assert Ok(tag_re) = regexp.from_string("^[a-zA-Z_\\:][-a-zA-Z0-9\\._\\:]*$")
+  let assert Ok(key_re) = regexp.from_string("^[a-zA-Z_][-a-zA-Z0-9\\._\\:]*$")
+  let escapes = from_input_lines_escape_re()
+  let assert Ok(escapes_triple) = regexp.from_string("^\\\\+(```)")
+  let assert Ok(unescaped_ampersand) = regexp.from_string("(?<!\\\\)(\\\\\\\\)*(&)")
+  let rgxs = OurRegexes(tag_re, key_re, escapes, escapes_triple, unescaped_ampersand)
+  use #(writerlys, _, _, _) <- on.ok(parse_writerlys_at_indent(0, lines, rgxs))
+  let writerlys = list.filter(writerlys, fn(writerly) { case writerly {
+    BlankLine(..) -> False
+    _ -> True
+  }})
+  Ok(writerlys)
 }
 
-fn remove_starting_escapes(contents: List(Line)) -> List(Line) {
-  let assert Ok(re) = regexp.from_string("^\\\\+\\s")
-  list.map(contents, fn(line) {
-    let new_content = case regexp.check(re, line.content) {
-      False -> line.content
-      True -> line.content |> string.drop_start(1)
-    }
-    Line(line.blame, new_content)
-  })
+// ************************************************************
+// 'info' string HTML processing
+// ************************************************************
+
+type InfoHTMLPiece {
+  Id(blame: Blame, payload: String)
+  Class(blame: Blame, payload: String)
+  Style(blame: Blame, payload: String)
 }
 
-fn expand_selector_split_while(
+fn split_while(
   s: splitter.Splitter,
   suffix: String,
   blame: Blame,
@@ -548,479 +526,1039 @@ fn expand_selector_split_while(
   })
   let b1 = bl.advance(blame, string.length(before))
   let b2 = bl.advance(b1, string.length(sep))
-  let #(u, others) = expand_selector_split_while(s, after, b2)
+  let #(u, others) = split_while(s, after, b2)
   #(before, [#(b1, sep, u), ..others])
 }
 
-type CSSSelectorPiece {
-  Dot(blame: Blame, payload: String)
-  Pound(blame: Blame, payload: String)
-  Ampersand(blame: Blame, key: String, val: String)
-}
-
-fn css_selector_pieces(
+fn info_html_pieces(
   s: splitter.Splitter,
-  shorthand: String,
+  suffix: String,
   blame: Blame,
-) -> #(String, List(CSSSelectorPiece)) {
-  let #(tag, pieces) = expand_selector_split_while(s, shorthand, blame)
+) -> #(String, List(InfoHTMLPiece)) {
+  let #(tag, pieces) = split_while(s, suffix, blame)
   let pieces = list.map(pieces, fn(p) {
     case p {
-      #(b, ".", payload) -> Dot(b, payload)
-      #(b, "#", payload) -> Pound(b, payload)
-      #(b, "&", payload) -> case string.split_once(payload, "=") {
-        Ok(#(key, val)) -> Ampersand(b, key, val)
-        _ -> Ampersand(b, payload, "")
+      #(b, ".", payload) -> {
+        case string.contains(payload, ":") {
+          True -> Style(b, payload)
+          False -> Class(b, payload)
+        }
       }
-      _ -> panic as "huh-huh"
+      #(b, "#", payload) -> Id(b, payload)
+      _ -> panic
     }
   })
   #(tag, pieces)
 }
 
-fn code_block_annotation_to_attrs_v2(
+pub fn expand_clode_block_info_html_shorthand(
   blame: Blame,
-  annotation: String,
-  key_re: Regexp,
-) -> List(TentativeAttr) {
-  let annotation = string.trim_end(annotation)
-  use _ <- on.continue(case annotation {
-    "" -> Return([])
-    _ -> Stay(Nil)
-  })
-  let s = splitter.new([".", "#", "&"])
-  let #(language, pieces) = css_selector_pieces(s, annotation, blame)
-  let #(dots, pounds, ampersands) = list.fold(
+  info: String,
+) -> Result(#(
+  Option(Attr), // language
+  Option(Attr), // id
+  Option(Attr), // class
+  Option(Attr), // style
+), String) {
+  assert info == string.trim(info)
+  assert info != ""
+  let s = splitter.new([".", "#"])
+  let #(language, pieces) = info_html_pieces(s, info, blame)
+  let #(ids, classes, styles) = list.fold(
     pieces,
     #([], [], []),
     fn(acc, p) {
       case p {
-        Dot(..) -> #([p, ..acc.0], acc.1, acc.2)
-        Pound(..) -> #(acc.0, [p, ..acc.1], acc.2)
-        Ampersand(..) -> #(acc.0, acc.1, [p, ..acc.2])
+        Id(..) -> #([p, ..acc.0], acc.1, acc.2)
+        Class(..) -> #(acc.0, [p, ..acc.1], acc.2)
+        Style(..) -> #(acc.0, acc.1, [p, ..acc.2])
       }
     }
   )
-  let language_attr = case language {
+  let language = case language {
     "" -> None
-    _ -> Some(TentativeAttr(blame, Ok("language"), language))
+    _ -> Some(Attr(blame, "language", language))
   }
-  let class_attr = case dots {
+  use id <- on.ok(case ids {
+    [] -> Ok(None)
+    [one] -> Ok(Some(Attr(one.blame, "id", one.payload)))
+    _ -> Error("duplicate HTML id (two '#' in 'info' string)")
+  })
+  let class = case classes {
     [] -> None
     [first, ..] -> {
-      let val = list.map(dots, fn(d) {
-        let assert Dot(..) = d
-        d.payload
+      let val = list.map(classes, fn(d) {
+        d.payload |> string.trim
       }) |> list.reverse |> string.join(" ")
-      Some(TentativeAttr(first.blame, Ok("class"), val))
+      Some(Attr(first.blame, "class", val))
     }
   }
-  let id_attrs = case pounds {
-    [] -> []
-    [one] -> {
-      let assert Pound(..) = one
-      [TentativeAttr(one.blame, Ok("id"), one.payload)]
+  let style = case styles {
+    [] -> None
+    [first, ..] -> {
+      let val = list.map(styles, fn(d) {
+        d.payload |> string.trim
+      }) |> list.reverse |> string.join(";")
+      Some(Attr(first.blame, "style", val))
     }
-    _ -> list.map(pounds, fn(one) {
-      let assert Pound(..) = one
-      TentativeAttr(one.blame, Error(DuplicateId), one.payload)
-    })
   }
-  let other_attrs = list.map(ampersands, fn(a) {
-    let assert Ampersand(blame, key, val) = a
-    case regexp.check(key_re, key) {
-      True -> TentativeAttr(blame, Ok(key), val)
-      False -> TentativeAttr(blame, Error(BadTentativeKey(key)), val)
-    }
-  })
-  list.flatten([
-    [language_attr, class_attr] |> option.values,
-    id_attrs |> list.reverse,
-    other_attrs |> list.reverse,
-  ])  
+  Ok(#(language, id, class, style))
 }
 
-fn tentative_parse_at_indent(
-  indent: Int,
-  head: FileHead,
-  tag_re: Regexp,
-  key_re: Regexp,
-) -> #(List(TentativeWriterly), List(TentativeWriterly), FileHead) {
-  case current_line(head) {
-    None -> #([], [], head)
+// ************************************************************
+// local types
+// ************************************************************
 
-    Some(InputLine(blame, suffix_indent, suffix)) -> {
-      case suffix == "" {
-        True -> {
-          let tentative_blank_line = TentativeBlankLine(blame)
-          let #(siblings, siblings_trailing_blank_lines, remainder_after_indent) =
-            tentative_parse_at_indent(indent, move_forward(head), tag_re, key_re)
+type FileHead =
+  List(InputLine)
 
-          case siblings {
-            [] -> #(
-              siblings,
-              list.prepend(siblings_trailing_blank_lines, tentative_blank_line),
-              remainder_after_indent,
-            )
-            _ -> #(
-              list.prepend(siblings, tentative_blank_line),
-              siblings_trailing_blank_lines,
-              remainder_after_indent,
-            )
-          }
-        }
+// type BadTentativeTag {
+//   Empty
+//   BadTentativeTag(String)
+// }
 
-        False -> {
-          case suffix_indent < indent {
-            True -> {
-              case suffix_indent > indent - 4 {
-                True -> {
-                  let error_message =
-                    ins(suffix_indent) <> " spaces before " <> ins(suffix)
+// type TentativeTagName =
+//   Result(String, BadTentativeTag)
 
-                  let error =
-                    TentativeErrorIndentationNotMultipleOfFour(
-                      blame,
-                      error_message,
-                    )
+// type BadTentativeKey {
+//   BadTentativeKey(String)
+//   DuplicateId
+// }
 
-                  let #(
-                    siblings,
-                    siblings_trailing_blank_lines,
-                    head_after_indent,
-                  ) = tentative_parse_at_indent(indent, move_forward(head), tag_re, key_re)
+// type TentativeAttrKey =
+//   Result(String, BadTentativeKey)
 
-                  #(
-                    list.prepend(siblings, error),
-                    siblings_trailing_blank_lines,
-                    head_after_indent,
-                  )
-                }
+// type TentativeAttr {
+//   TentativeAttr(
+//     blame: Blame,
+//     key: TentativeAttrKey,
+//     val: String,
+//   )
+// }
 
-                False -> #([], [], head)
-              }
-            }
+// type ClosingBackTicksError {
+//   UndesiredAnnotation(Blame, FileHead)
+//   NoBackticksFound(FileHead)
+// }
 
-            False -> {
-              case suffix_indent > indent {
-                True -> {
-                  let head_after_oversize_indent =
-                    fast_forward_past_lines_of_indent_at_least(
-                      suffix_indent,
-                      head,
-                    )
+// type NonemptySuffixDiagnostic {
+//   Pipe(annotation: String)
+//   TripleBacktick(annotation: String)
+//   BangBang(suffix: String)
+//   Other(content: String)
+// }
 
-                  let #(
-                    siblings,
-                    siblings_trailing_blank_lines,
-                    head_after_indent,
-                  ) =
-                    tentative_parse_at_indent(
-                      indent,
-                      head_after_oversize_indent,
-                      tag_re,
-                      key_re,
-                    )
+// type TentativeWriterly {
+//   TentativeBlankLine(blame: Blame)
+//   TentativeBlurb(blame: Blame, contents: List(Line))
+//   TentativeComment(blame: Blame, contents: List(Line))
+//   TentativeCodeBlock(
+//     blame: Blame,
+//     attrs: List(TentativeAttr),
+//     contents: List(Line),
+//   )
+//   TentativeTag(
+//     blame: Blame,
+//     tag: TentativeTagName,
+//     attrs: List(TentativeAttr),
+//     children: List(TentativeWriterly),
+//   )
+//   TentativeErrorIndentationTooLarge(blame: Blame, message: String)
+//   TentativeErrorIndentationNotMultipleOfFour(blame: Blame, message: String)
+//   TentativeErrorCodeBlockUnwantedAnnotationAtClose(blame: Blame, opening_blame: Blame, message: String)
+//   TentativeErrorCodeBlockNotClosed(blame: Blame)
+// }
 
-                  case suffix_indent % 4 == 0 {
-                    True -> {
-                      let error_message =
-                        string.repeat(" ", suffix_indent) <> suffix
+// // ************************************************************
+// // FileHead
+// // ************************************************************
 
-                      let error =
-                        TentativeErrorIndentationTooLarge(blame, error_message)
+// fn current_line(head: FileHead) -> Option(InputLine) {
+//   case head {
+//     [] -> None
+//     [first, ..] -> Some(first)
+//   }
+// }
 
-                      #(
-                        list.prepend(siblings, error),
-                        siblings_trailing_blank_lines,
-                        head_after_indent,
-                      )
-                    }
+// fn move_forward(head: FileHead) -> FileHead {
+//   let assert [_, ..rest] = head
+//   rest
+// }
 
-                    False -> {
-                      let error_message =
-                        ins(suffix_indent) <> " spaces before " <> ins(suffix)
+// // ************************************************************
+// // parse_from_tentative
+// // ************************************************************
 
-                      let error =
-                        TentativeErrorIndentationNotMultipleOfFour(
-                          blame,
-                          error_message,
-                        )
+// fn tentative_attr_to_attr(
+//   t: TentativeAttr,
+// ) -> Result(Attr, ParseError) {
+//   case t.key {
+//     Ok(key) -> Ok(Attr(blame: t.blame, key: key, val: t.val))
+//     Error(BadTentativeKey(key)) -> Error(BadKey(t.blame, key))
+//     Error(DuplicateId) -> Error(DuplicateIdInCodeBlockLanguageAnnotation(t.blame))
+//   }
+// }
 
-                      #(
-                        list.prepend(siblings, error),
-                        siblings_trailing_blank_lines,
-                        head_after_indent,
-                      )
-                    }
-                  }
-                }
+// fn tentative_attrs_to_attrs(
+//   attrs: List(TentativeAttr),
+// ) -> Result(List(Attr), ParseError) {
+//   case attrs {
+//     [] -> Ok([])
+//     [first, ..rest] ->
+//       case tentative_attr_to_attr(first) {
+//         Error(error) -> Error(error)
+//         Ok(attr) ->
+//           case tentative_attrs_to_attrs(rest) {
+//             Ok(attrs) ->
+//               Ok(list.prepend(attrs, attr))
 
-                False -> {
-                  let assert True = suffix_indent == indent
+//             Error(error) -> Error(error)
+//           }
+//       }
+//   }
+// }
 
-                  case nonempty_suffix_diagnostic(suffix) {
-                    Pipe(tag) -> {
-                      let #(tentative_attrs, head_after_attrs) =
-                        fast_forward_past_attr_lines_at_indent(
-                          indent + 4,
-                          move_forward(head),
-                          key_re,
-                        )
+// fn tentatives_to_writerlys(
+//   tentatives: List(TentativeWriterly),
+// ) -> Result(List(Writerly), ParseError) {
+//   case tentatives {
+//     [] -> Ok([])
+//     [first, ..rest] ->
+//       case parse_from_tentative(first) {
+//         Ok(parsed) ->
+//           case tentatives_to_writerlys(rest) {
+//             Ok(parseds) -> Ok(list.prepend(parseds, parsed))
 
-                      let #(
-                        children,
-                        children_trailing_blank_lines,
-                        head_after_children,
-                      ) =
-                        tentative_parse_at_indent(
-                          indent + 4,
-                          head_after_attrs,
-                          tag_re,
-                          key_re,
-                        )
+//             Error(error) -> Error(error)
+//           }
 
-                      // filter out syntax-imposed blank line:
-                      let children = case children {
-                        [TentativeBlankLine(_), ..rest] -> {
-                          case tentative_first_non_blank_line_is_blurb(rest) {
-                            True -> rest
-                            False -> children
-                          }
-                        }
-                        _ -> children
-                      }
+//         Error(error) -> Error(error)
+//       }
+//   }
+// }
 
-                      let blame = case blame {
-                        bl.Src(..) -> bl.Src(..blame, proxy: True)
-                        _ -> blame
-                      }
+// fn parse_from_tentative(
+//   tentative: TentativeWriterly,
+// ) -> Result(Writerly, ParseError) {
+//   case tentative {
+//     TentativeErrorCodeBlockUnwantedAnnotationAtClose(blame, opening_blame, _) ->
+//       Error(CodeBlockUnwantedAnnotationAtClose(blame, opening_blame))
 
-                      let tentative_tag =
-                        TentativeTag(
-                          blame: blame,
-                          tag: check_good_tag_name(string.trim(tag), tag_re),
-                          attrs: tentative_attrs,
-                          children: children,
-                        )
+//     TentativeErrorIndentationTooLarge(blame, message) ->
+//       Error(IndentationTooLarge(blame, message))
 
-                      let #(
-                        siblings,
-                        siblings_trailing_blank_lines,
-                        head_after_indent,
-                      ) = tentative_parse_at_indent(indent, head_after_children, tag_re, key_re)
+//     TentativeErrorIndentationNotMultipleOfFour(blame, message) ->
+//       Error(IndentationNotMultipleOfFour(blame, message))
 
-                      case siblings {
-                        [] -> #(
-                          [tentative_tag],
-                          list.append(
-                            children_trailing_blank_lines,
-                            siblings_trailing_blank_lines,
-                          ),
-                          head_after_indent,
-                        )
-                        _ -> #(
-                          list.prepend(
-                            list.append(children_trailing_blank_lines, siblings),
-                            tentative_tag,
-                          ),
-                          siblings_trailing_blank_lines,
-                          head_after_indent,
-                        )
-                      }
-                    }
+//     TentativeErrorCodeBlockNotClosed(blame) -> Error(CodeBlockNotClosed(blame))
 
-                    TripleBacktick(annotation) ->
-                      case
-                        fast_forward_to_closing_backticks(
-                          indent,
-                          move_forward(head),
-                        )
-                      {
-                        Ok(#(contents, head_after_code_block)) -> {
-                          let tentative_code_block =
-                            TentativeCodeBlock(
-                              blame: blame,
-                              attrs: code_block_annotation_to_attrs_v2(blame |> bl.advance(3), annotation, key_re),
-                              contents: contents,
-                            )
+//     TentativeBlankLine(blame) -> Ok(BlankLine(blame))
 
-                          let #(
-                            siblings,
-                            siblings_trailing_blank_lines,
-                            head_after_indent,
-                          ) =
-                            tentative_parse_at_indent(
-                              indent,
-                              head_after_code_block,
-                              tag_re,
-                              key_re,
-                            )
+//     TentativeBlurb(blame, contents) -> Ok(Blurb(blame, contents))
 
-                          #(
-                            list.prepend(siblings, tentative_code_block),
-                            siblings_trailing_blank_lines,
-                            head_after_indent,
-                          )
-                        }
+//     TentativeComment(blame, contents) -> Ok(Comment(blame, contents))
 
-                        Error(UndesiredAnnotation(
-                          closing_blame,
-                          head_after_error,
-                        )) -> {
-                          let error_message =
-                            "closing backticks at"
-                            <> bl.blame_digest(closing_blame)
-                            <> " for backticks opened at "
-                            <> bl.blame_digest(blame)
-                            <> " carry unexpected annotation"
+//     TentativeCodeBlock(blame, attrs, contents) ->
+//       case tentative_attrs_to_attrs(attrs) {
+//         Ok(attrs) -> Ok(CodeBlock(blame, attrs, contents))
+//         Error(e) -> Error(e)
+//       }
 
-                          let tentative_error =
-                            TentativeErrorCodeBlockUnwantedAnnotationAtClose(
-                              closing_blame,
-                              blame,
-                              error_message,
-                            )
+//     TentativeTag(
+//       blame,
+//       tentative_name,
+//       tentative_attrs,
+//       tentative_children,
+//     ) ->
+//       case tentative_name {
+//         Error(Empty) -> Error(TagEmpty(blame))
 
-                          let #(
-                            siblings,
-                            siblings_trailing_blank_lines,
-                            head_after_indent,
-                          ) =
-                            tentative_parse_at_indent(indent, head_after_error, tag_re, key_re)
+//         Error(BadTentativeTag(tag)) ->
+//           Error(BadTag(tentative.blame, tag))
 
-                          #(
-                            list.prepend(siblings, tentative_error),
-                            siblings_trailing_blank_lines,
-                            head_after_indent,
-                          )
-                        }
+//         Ok(name) ->
+//           case tentative_attrs_to_attrs(tentative_attrs)
+//           {
+//             Error(error) -> Error(error)
 
-                        Error(NoBackticksFound(head_after_indent)) -> {
-                          let tentative_error =
-                            TentativeErrorCodeBlockNotClosed(blame)
+//             Ok(attrs) ->
+//               case tentatives_to_writerlys(tentative_children) {
+//                 Error(error) -> Error(error)
 
-                          #([tentative_error], [], head_after_indent)
-                        }
-                      }
+//                 Ok(children) ->
+//                   Ok(Tag(
+//                     blame: tentative.blame,
+//                     name: name,
+//                     attrs: attrs,
+//                     children: children,
+//                   ))
+//               }
+//           }
+//       }
+//   }
+// }
 
-                    BangBang(content) -> {
-                      let line = Line(blame, content)
+// fn nonempty_suffix_diagnostic(suffix: String) -> NonemptySuffixDiagnostic {
+//   let assert False = suffix == ""
 
-                      let #(more_lines, head_after_others) =
-                        fast_forward_past_comment_lines_at_indent(
-                          indent,
-                          move_forward(head),
-                        )
+//   case suffix {
+//     "```" <> _ -> TripleBacktick(string.drop_start(suffix, 3))
+//     "|>" <> _ -> Pipe(string.drop_start(suffix, 2))
+//     "!!" <> _ -> BangBang(string.drop_start(suffix, 2))
+//     _ -> Other(suffix)
+//   }
+// }
 
-                      let tentative_comment =
-                        TentativeComment(
-                          blame: blame,
-                          contents: [line, ..more_lines]
-                        )
+// fn fast_forward_past_lines_of_indent_at_least(
+//   indent: Int,
+//   head: FileHead,
+// ) -> FileHead {
+//   case current_line(head) {
+//     None -> head
 
-                      let #(
-                        siblings,
-                        siblings_trailing_blank_lines,
-                        head_after_indent,
-                      ) = tentative_parse_at_indent(indent, head_after_others, tag_re, key_re)
+//     Some(InputLine(_, suffix_indent, _)) ->
+//       case suffix_indent < indent {
+//         True -> head
 
-                      #(
-                        [tentative_comment, ..siblings],
-                        siblings_trailing_blank_lines,
-                        head_after_indent,
-                      )
-                    }
+//         False ->
+//           fast_forward_past_lines_of_indent_at_least(indent, move_forward(head))
+//       }
+//   }
+// }
 
-                    Other(_) -> {
-                      let line = Line(blame, suffix)
+// fn tentative_attr(
+//   blame: Blame,
+//   pair: #(String, String),
+//   key_re: Regexp,
+// ) -> TentativeAttr {
+//   let #(key, val) = pair
+//   assert !string.contains(key, "=")
+//   assert !string.is_empty(key)
 
-                      let #(more_lines, head_after_others) =
-                        fast_forward_past_other_lines_at_indent(
-                          indent,
-                          move_forward(head),
-                        )
+//   case regexp.check(key_re, key) {
+//     True -> TentativeAttr(blame: blame, key: Ok(key), val: val)
 
-                      let tentative_blurb =
-                        TentativeBlurb(
-                          blame: blame,
-                          contents: list.prepend(
-                            more_lines,
-                            line,
-                          ) |> remove_starting_escapes,
-                        )
+//     False ->
+//       TentativeAttr(
+//         blame: blame,
+//         key: Error(BadTentativeKey(key)),
+//         val: val,
+//       )
+//   }
+// }
 
-                      let #(
-                        siblings,
-                        siblings_trailing_blank_lines,
-                        head_after_indent,
-                      ) = tentative_parse_at_indent(indent, head_after_others, tag_re, key_re)
+// fn fast_forward_past_attr_lines_at_indent(
+//   indent: Int,
+//   head: FileHead,
+//   key_re: Regexp,
+// ) -> #(List(TentativeAttr), FileHead) {
+//   case current_line(head) {
+//     None -> #([], head)
 
-                      #(
-                        list.prepend(siblings, tentative_blurb),
-                        siblings_trailing_blank_lines,
-                        head_after_indent,
-                      )
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-  }
-}
+//     Some(InputLine(blame, suffix_indent, suffix)) -> {
+//       case suffix == "" 
+//         || suffix_indent != indent
+//         || string.starts_with(suffix, "|>")
+//         || string.starts_with(suffix, "```")
+//       {
+//         True -> #([], head)
 
-//****************************************
-//* tentative parsing api (input lines) *
-//****************************************
+//         False -> {
+//           case string.split_once(suffix, "=") {
+//             Error(_) -> #([], head)
 
-fn tentative_parse_input_lines(
-  head: FileHead,
-) -> List(TentativeWriterly) {
-  let assert Ok(tag_re) = regexp.from_string("^[a-zA-Z_\\:][-a-zA-Z0-9\\._\\:]*$")
-  let assert Ok(key_re) = regexp.from_string("^[a-zA-Z_][-a-zA-Z0-9\\._\\:]*$")
-  // let head = list.filter(head, fn(line) { !string.starts_with(line.suffix, "!!") })
-  let #(parsed, _, final_head) = tentative_parse_at_indent(0, head, tag_re, key_re)
-  assert final_head == []
+//             Ok(#(key, val)) -> {
+//               case string.contains(key, " ") || key == "" {
+//                 True -> #([], head)
 
-  let parsed =
-    list.drop_while(parsed, fn(writerly) {
-      case writerly {
-        TentativeBlankLine(..) -> True
-        _ -> False
-      }
-    })
+//                 False -> {
+//                   let val = string.trim(val)
 
-  case debug {
-    True -> {
-      io.println("\n\n(tentative parse:)")
-      tentatives_table(parsed, "tentative_parse_input_lines", 0)
-      io.println("(tentative end)\n\n")
-    }
-    False -> Nil
-  }
+//                   let attr_pair = case string.starts_with(suffix, "!!") {
+//                     False -> tentative_attr(blame, #(key, val), key_re)
+//                     True -> TentativeAttr(blame, Ok(key), val)
+//                   }
 
-  parsed
-}
+//                   let #(more_attr_pairs, head_after_attrs) =
+//                     fast_forward_past_attr_lines_at_indent(
+//                       indent,
+//                       move_forward(head),
+//                       key_re,
+//                     )
 
-//***************************************
-//* writerly parsing api (input lines) *
-//***************************************
+//                   #(
+//                     [attr_pair, ..more_attr_pairs],
+//                     head_after_attrs,
+//                   )
+//                 }
+//               }
+//             }
+//           }
+//         }
+//       }
+//     }
+//   }
+// }
+
+// fn fast_forward_past_comment_lines_at_indent(
+//   indent: Int,
+//   head: FileHead,
+// ) -> #(List(Line), FileHead) {
+//   case current_line(head) {
+//     None -> #([], head)
+//     Some(InputLine(blame, suffix_indent, suffix)) -> {
+//       case {
+//         suffix_indent != indent ||
+//         !string.starts_with(suffix, "!!")
+//       } {
+//         True -> #([], head)
+//         False -> {
+//           let #(more_lines, head_after_others) =
+//             fast_forward_past_comment_lines_at_indent(
+//               indent,
+//               move_forward(head),
+//             )
+//           #(
+//             [Line(blame, suffix |> string.drop_start(2)), ..more_lines],
+//             head_after_others,
+//           )
+//         }
+//       }
+//     }
+//   }
+// }
+
+// fn fast_forward_past_other_lines_at_indent(
+//   indent: Int,
+//   head: FileHead,
+// ) -> #(List(Line), FileHead) {
+//   case current_line(head) {
+//     None -> #([], head)
+//     Some(InputLine(blame, suffix_indent, suffix)) -> {
+//       case {
+//         suffix_indent != indent ||
+//         suffix == "" ||
+//         string.starts_with(suffix, "|>") ||
+//         string.starts_with(suffix, "```") ||
+//         string.starts_with(suffix, "!!")
+//       } {
+//         True -> #([], head)
+//         False -> {
+//           let #(more_lines, head_after_others) =
+//             fast_forward_past_other_lines_at_indent(
+//               indent,
+//               move_forward(head),
+//             )
+//           #(
+//             [Line(blame, suffix), ..more_lines],
+//             head_after_others,
+//           )
+//         }
+//       }
+//     }
+//   }
+// }
+
+// fn fast_forward_to_closing_backticks(
+//   indent: Int,
+//   head: FileHead,
+// ) -> Result(#(List(Line), FileHead), ClosingBackTicksError) {
+//   case current_line(head) {
+//     None -> Error(NoBackticksFound(head))
+
+//     Some(InputLine(blame, suffix_indent, suffix)) -> {
+//       case suffix == "" {
+//         True ->
+//           case fast_forward_to_closing_backticks(indent, move_forward(head)) {
+//             Ok(#(lines, head_after_closing_backticks)) -> {
+//               let line =
+//                 Line(
+//                   blame |> bl.advance(indent - suffix_indent),
+//                   string.repeat(" ", int.max(0, suffix_indent - indent)),
+//                 )
+
+//               Ok(#(
+//                 list.prepend(lines, line),
+//                 head_after_closing_backticks,
+//               ))
+//             }
+
+//             error -> error
+//           }
+
+//         False -> {
+//           case suffix_indent < indent {
+//             True -> Error(NoBackticksFound(head))
+
+//             False -> {
+//               let padded_suffix_length =
+//                 suffix_indent + string.length(suffix) - indent
+//               let assert True = padded_suffix_length >= string.length(suffix)
+//               let padded_suffix =
+//                 string.pad_start(suffix, to: padded_suffix_length, with: " ")
+//               let line = Line(
+//                 blame |> bl.advance(indent - suffix_indent),
+//                 padded_suffix,
+//               )
+
+//               case
+//                 suffix_indent > indent || !string.starts_with(suffix, "```")
+//               {
+//                 True ->
+//                   case
+//                     fast_forward_to_closing_backticks(
+//                       indent,
+//                       move_forward(head),
+//                     )
+//                   {
+//                     Ok(#(lines, head_after_closing_backticks)) ->
+//                       Ok(#(
+//                         list.prepend(lines, line),
+//                         head_after_closing_backticks,
+//                       ))
+
+//                     error -> error
+//                   }
+
+//                 False -> {
+//                   let assert True = string.starts_with(suffix, "```")
+//                   let assert True = suffix_indent == indent
+//                   let annotation = string.drop_start(suffix, 3) |> string.trim
+
+//                   case string.is_empty(annotation) {
+//                     True -> Ok(#([], move_forward(head)))
+
+//                     False ->
+//                       Error(UndesiredAnnotation(blame, move_forward(head)))
+//                   }
+//                 }
+//               }
+//             }
+//           }
+//         }
+//       }
+//     }
+//   }
+// }
+
+// fn check_good_tag_name(proposed_name, tag_re) -> TentativeTagName {
+//   case string.is_empty(proposed_name) {
+//     True -> Error(Empty)
+//     False -> case regexp.check(tag_re, proposed_name) {
+//       True -> Ok(proposed_name)
+//       False -> Error(BadTentativeTag(proposed_name))
+//     }
+//   }
+// }
+
+// fn tentative_first_non_blank_line_is_blurb(
+//   nodes: List(TentativeWriterly),
+// ) -> Bool {
+//   case nodes {
+//     [TentativeBlankLine(_), ..rest] ->
+//       tentative_first_non_blank_line_is_blurb(rest)
+//     [TentativeBlurb(_, _), ..] -> True
+//     _ -> False
+//   }
+// }
+
+// fn remove_starting_escapes(contents: List(Line)) -> List(Line) {
+//   let assert Ok(re) = regexp.from_string("^\\\\+\\s")
+//   list.map(contents, fn(line) {
+//     let new_content = case regexp.check(re, line.content) {
+//       False -> line.content
+//       True -> line.content |> string.drop_start(1)
+//     }
+//     Line(line.blame, new_content)
+//   })
+// }
+
+// fn expand_selector_split_while(
+//   s: splitter.Splitter,
+//   suffix: String,
+//   blame: Blame,
+// ) -> #(String, List(#(Blame, String, String))) {
+//   let #(before, sep, after) = splitter.split(s, suffix)
+//   use _ <- on.continue(case sep {
+//     "" -> Return(#(before, []))
+//     _ -> Stay(Nil)
+//   })
+//   let b1 = bl.advance(blame, string.length(before))
+//   let b2 = bl.advance(b1, string.length(sep))
+//   let #(u, others) = expand_selector_split_while(s, after, b2)
+//   #(before, [#(b1, sep, u), ..others])
+// }
+
+// type CSSSelectorPiece {
+//   Dot(blame: Blame, payload: String)
+//   Pound(blame: Blame, payload: String)
+//   Ampersand(blame: Blame, key: String, val: String)
+// }
+
+// fn css_selector_pieces(
+//   s: splitter.Splitter,
+//   shorthand: String,
+//   blame: Blame,
+// ) -> #(String, List(CSSSelectorPiece)) {
+//   let #(tag, pieces) = expand_selector_split_while(s, shorthand, blame)
+//   let pieces = list.map(pieces, fn(p) {
+//     case p {
+//       #(b, ".", payload) -> Dot(b, payload)
+//       #(b, "#", payload) -> Pound(b, payload)
+//       #(b, "&", payload) -> case string.split_once(payload, "=") {
+//         Ok(#(key, val)) -> Ampersand(b, key, val)
+//         _ -> Ampersand(b, payload, "")
+//       }
+//       _ -> panic as "huh-huh"
+//     }
+//   })
+//   #(tag, pieces)
+// }
+
+// fn code_block_annotation_to_attrs_v2(
+//   blame: Blame,
+//   annotation: String,
+//   key_re: Regexp,
+// ) -> List(TentativeAttr) {
+//   let annotation = string.trim_end(annotation)
+//   use _ <- on.continue(case annotation {
+//     "" -> Return([])
+//     _ -> Stay(Nil)
+//   })
+//   let s = splitter.new([".", "#", "&"])
+//   let #(language, pieces) = css_selector_pieces(s, annotation, blame)
+//   let #(dots, pounds, ampersands) = list.fold(
+//     pieces,
+//     #([], [], []),
+//     fn(acc, p) {
+//       case p {
+//         Dot(..) -> #([p, ..acc.0], acc.1, acc.2)
+//         Pound(..) -> #(acc.0, [p, ..acc.1], acc.2)
+//         Ampersand(..) -> #(acc.0, acc.1, [p, ..acc.2])
+//       }
+//     }
+//   )
+//   let language_attr = case language {
+//     "" -> None
+//     _ -> Some(TentativeAttr(blame, Ok("language"), language))
+//   }
+//   let class_attr = case dots {
+//     [] -> None
+//     [first, ..] -> {
+//       let val = list.map(dots, fn(d) {
+//         let assert Dot(..) = d
+//         d.payload
+//       }) |> list.reverse |> string.join(" ")
+//       Some(TentativeAttr(first.blame, Ok("class"), val))
+//     }
+//   }
+//   let id_attrs = case pounds {
+//     [] -> []
+//     [one] -> {
+//       let assert Pound(..) = one
+//       [TentativeAttr(one.blame, Ok("id"), one.payload)]
+//     }
+//     _ -> list.map(pounds, fn(one) {
+//       let assert Pound(..) = one
+//       TentativeAttr(one.blame, Error(DuplicateId), one.payload)
+//     })
+//   }
+//   let other_attrs = list.map(ampersands, fn(a) {
+//     let assert Ampersand(blame, key, val) = a
+//     case regexp.check(key_re, key) {
+//       True -> TentativeAttr(blame, Ok(key), val)
+//       False -> TentativeAttr(blame, Error(BadTentativeKey(key)), val)
+//     }
+//   })
+//   list.flatten([
+//     [language_attr, class_attr] |> option.values,
+//     id_attrs |> list.reverse,
+//     other_attrs |> list.reverse,
+//   ])  
+// }
+
+// fn tentative_parse_at_indent(
+//   indent: Int,
+//   head: FileHead,
+//   tag_re: Regexp,
+//   key_re: Regexp,
+// ) -> #(List(TentativeWriterly), List(TentativeWriterly), FileHead) {
+//   case current_line(head) {
+//     None -> #([], [], head)
+
+//     Some(InputLine(blame, suffix_indent, suffix)) -> {
+//       case suffix == "" {
+//         True -> {
+//           let tentative_blank_line = TentativeBlankLine(blame)
+//           let #(siblings, siblings_trailing_blank_lines, remainder_after_indent) =
+//             tentative_parse_at_indent(indent, move_forward(head), tag_re, key_re)
+
+//           case siblings {
+//             [] -> #(
+//               siblings,
+//               list.prepend(siblings_trailing_blank_lines, tentative_blank_line),
+//               remainder_after_indent,
+//             )
+//             _ -> #(
+//               list.prepend(siblings, tentative_blank_line),
+//               siblings_trailing_blank_lines,
+//               remainder_after_indent,
+//             )
+//           }
+//         }
+
+//         False -> {
+//           case suffix_indent < indent {
+//             True -> {
+//               case suffix_indent > indent - 4 {
+//                 True -> {
+//                   let error_message =
+//                     ins(suffix_indent) <> " spaces before " <> ins(suffix)
+
+//                   let error =
+//                     TentativeErrorIndentationNotMultipleOfFour(
+//                       blame,
+//                       error_message,
+//                     )
+
+//                   let #(
+//                     siblings,
+//                     siblings_trailing_blank_lines,
+//                     head_after_indent,
+//                   ) = tentative_parse_at_indent(indent, move_forward(head), tag_re, key_re)
+
+//                   #(
+//                     list.prepend(siblings, error),
+//                     siblings_trailing_blank_lines,
+//                     head_after_indent,
+//                   )
+//                 }
+
+//                 False -> #([], [], head)
+//               }
+//             }
+
+//             False -> {
+//               case suffix_indent > indent {
+//                 True -> {
+//                   let head_after_oversize_indent =
+//                     fast_forward_past_lines_of_indent_at_least(
+//                       suffix_indent,
+//                       head,
+//                     )
+
+//                   let #(
+//                     siblings,
+//                     siblings_trailing_blank_lines,
+//                     head_after_indent,
+//                   ) =
+//                     tentative_parse_at_indent(
+//                       indent,
+//                       head_after_oversize_indent,
+//                       tag_re,
+//                       key_re,
+//                     )
+
+//                   case suffix_indent % 4 == 0 {
+//                     True -> {
+//                       let error_message =
+//                         string.repeat(" ", suffix_indent) <> suffix
+
+//                       let error =
+//                         TentativeErrorIndentationTooLarge(blame, error_message)
+
+//                       #(
+//                         list.prepend(siblings, error),
+//                         siblings_trailing_blank_lines,
+//                         head_after_indent,
+//                       )
+//                     }
+
+//                     False -> {
+//                       let error_message =
+//                         ins(suffix_indent) <> " spaces before " <> ins(suffix)
+
+//                       let error =
+//                         TentativeErrorIndentationNotMultipleOfFour(
+//                           blame,
+//                           error_message,
+//                         )
+
+//                       #(
+//                         list.prepend(siblings, error),
+//                         siblings_trailing_blank_lines,
+//                         head_after_indent,
+//                       )
+//                     }
+//                   }
+//                 }
+
+//                 False -> {
+//                   let assert True = suffix_indent == indent
+
+//                   case nonempty_suffix_diagnostic(suffix) {
+//                     Pipe(tag) -> {
+//                       let #(tentative_attrs, head_after_attrs) =
+//                         fast_forward_past_attr_lines_at_indent(
+//                           indent + 4,
+//                           move_forward(head),
+//                           key_re,
+//                         )
+
+//                       let #(
+//                         children,
+//                         children_trailing_blank_lines,
+//                         head_after_children,
+//                       ) =
+//                         tentative_parse_at_indent(
+//                           indent + 4,
+//                           head_after_attrs,
+//                           tag_re,
+//                           key_re,
+//                         )
+
+//                       // filter out syntax-imposed blank line:
+//                       let children = case children {
+//                         [TentativeBlankLine(_), ..rest] -> {
+//                           case tentative_first_non_blank_line_is_blurb(rest) {
+//                             True -> rest
+//                             False -> children
+//                           }
+//                         }
+//                         _ -> children
+//                       }
+
+//                       let blame = case blame {
+//                         bl.Src(..) -> bl.Src(..blame, proxy: True)
+//                         _ -> blame
+//                       }
+
+//                       let tentative_tag =
+//                         TentativeTag(
+//                           blame: blame,
+//                           tag: check_good_tag_name(string.trim(tag), tag_re),
+//                           attrs: tentative_attrs,
+//                           children: children,
+//                         )
+
+//                       let #(
+//                         siblings,
+//                         siblings_trailing_blank_lines,
+//                         head_after_indent,
+//                       ) = tentative_parse_at_indent(indent, head_after_children, tag_re, key_re)
+
+//                       case siblings {
+//                         [] -> #(
+//                           [tentative_tag],
+//                           list.append(
+//                             children_trailing_blank_lines,
+//                             siblings_trailing_blank_lines,
+//                           ),
+//                           head_after_indent,
+//                         )
+//                         _ -> #(
+//                           list.prepend(
+//                             list.append(children_trailing_blank_lines, siblings),
+//                             tentative_tag,
+//                           ),
+//                           siblings_trailing_blank_lines,
+//                           head_after_indent,
+//                         )
+//                       }
+//                     }
+
+//                     TripleBacktick(annotation) ->
+//                       case
+//                         fast_forward_to_closing_backticks(
+//                           indent,
+//                           move_forward(head),
+//                         )
+//                       {
+//                         Ok(#(contents, head_after_code_block)) -> {
+//                           let tentative_code_block =
+//                             TentativeCodeBlock(
+//                               blame: blame,
+//                               attrs: code_block_annotation_to_attrs_v2(blame |> bl.advance(3), annotation, key_re),
+//                               contents: contents,
+//                             )
+
+//                           let #(
+//                             siblings,
+//                             siblings_trailing_blank_lines,
+//                             head_after_indent,
+//                           ) =
+//                             tentative_parse_at_indent(
+//                               indent,
+//                               head_after_code_block,
+//                               tag_re,
+//                               key_re,
+//                             )
+
+//                           #(
+//                             list.prepend(siblings, tentative_code_block),
+//                             siblings_trailing_blank_lines,
+//                             head_after_indent,
+//                           )
+//                         }
+
+//                         Error(UndesiredAnnotation(
+//                           closing_blame,
+//                           head_after_error,
+//                         )) -> {
+//                           let error_message =
+//                             "closing backticks at"
+//                             <> bl.blame_digest(closing_blame)
+//                             <> " for backticks opened at "
+//                             <> bl.blame_digest(blame)
+//                             <> " carry unexpected annotation"
+
+//                           let tentative_error =
+//                             TentativeErrorCodeBlockUnwantedAnnotationAtClose(
+//                               closing_blame,
+//                               blame,
+//                               error_message,
+//                             )
+
+//                           let #(
+//                             siblings,
+//                             siblings_trailing_blank_lines,
+//                             head_after_indent,
+//                           ) =
+//                             tentative_parse_at_indent(indent, head_after_error, tag_re, key_re)
+
+//                           #(
+//                             list.prepend(siblings, tentative_error),
+//                             siblings_trailing_blank_lines,
+//                             head_after_indent,
+//                           )
+//                         }
+
+//                         Error(NoBackticksFound(head_after_indent)) -> {
+//                           let tentative_error =
+//                             TentativeErrorCodeBlockNotClosed(blame)
+
+//                           #([tentative_error], [], head_after_indent)
+//                         }
+//                       }
+
+//                     BangBang(content) -> {
+//                       let line = Line(blame, content)
+
+//                       let #(more_lines, head_after_others) =
+//                         fast_forward_past_comment_lines_at_indent(
+//                           indent,
+//                           move_forward(head),
+//                         )
+
+//                       let tentative_comment =
+//                         TentativeComment(
+//                           blame: blame,
+//                           contents: [line, ..more_lines]
+//                         )
+
+//                       let #(
+//                         siblings,
+//                         siblings_trailing_blank_lines,
+//                         head_after_indent,
+//                       ) = tentative_parse_at_indent(indent, head_after_others, tag_re, key_re)
+
+//                       #(
+//                         [tentative_comment, ..siblings],
+//                         siblings_trailing_blank_lines,
+//                         head_after_indent,
+//                       )
+//                     }
+
+//                     Other(_) -> {
+//                       let line = Line(blame, suffix)
+
+//                       let #(more_lines, head_after_others) =
+//                         fast_forward_past_other_lines_at_indent(
+//                           indent,
+//                           move_forward(head),
+//                         )
+
+//                       let tentative_blurb =
+//                         TentativeBlurb(
+//                           blame: blame,
+//                           contents: list.prepend(
+//                             more_lines,
+//                             line,
+//                           ) |> remove_starting_escapes,
+//                         )
+
+//                       let #(
+//                         siblings,
+//                         siblings_trailing_blank_lines,
+//                         head_after_indent,
+//                       ) = tentative_parse_at_indent(indent, head_after_others, tag_re, key_re)
+
+//                       #(
+//                         list.prepend(siblings, tentative_blurb),
+//                         siblings_trailing_blank_lines,
+//                         head_after_indent,
+//                       )
+//                     }
+//                   }
+//                 }
+//               }
+//             }
+//           }
+//         }
+//       }
+//     }
+//   }
+// }
+
+// //****************************************
+// //* tentative parsing api (input lines) *
+// //****************************************
+
+// fn tentative_parse_input_lines(
+//   head: FileHead,
+// ) -> List(TentativeWriterly) {
+//   let assert Ok(tag_re) = regexp.from_string("^[a-zA-Z_\\:][-a-zA-Z0-9\\._\\:]*$")
+//   let assert Ok(key_re) = regexp.from_string("^[a-zA-Z_][-a-zA-Z0-9\\._\\:]*$")
+//   // let head = list.filter(head, fn(line) { !string.starts_with(line.suffix, "!!") })
+//   let #(parsed, _, final_head) = tentative_parse_at_indent(0, head, tag_re, key_re)
+//   assert final_head == []
+
+//   let parsed =
+//     list.drop_while(parsed, fn(writerly) {
+//       case writerly {
+//         TentativeBlankLine(..) -> True
+//         _ -> False
+//       }
+//     })
+
+//   case debug {
+//     True -> {
+//       io.println("\n\n(tentative parse:)")
+//       tentatives_table(parsed, "tentative_parse_input_lines", 0)
+//       io.println("(tentative end)\n\n")
+//     }
+//     False -> Nil
+//   }
+
+//   parsed
+// }
+
+// //***************************************
+// //* writerly parsing api (input lines) *
+// //***************************************
 
 pub fn parse_input_lines(
   lines: List(InputLine),
 ) -> Result(List(Writerly), ParseError) {
   lines
-  |> tentative_parse_input_lines
-  |> tentatives_to_writerlys
+  |> parse_input_lines_v2
+  // |> tentative_parse_input_lines
+  // |> tentatives_to_writerlys
 }
 
-//*********************************
-//* writerly parsing api (string) *
-//*********************************
+// //*********************************
+// //* writerly parsing api (string) *
+// //*********************************
 
 pub fn parse_string(
   source: String,
@@ -1031,25 +1569,25 @@ pub fn parse_string(
   |> parse_input_lines
 }
 
-//**********************
-//* printing Tentative *
-//**********************
+// //**********************
+// //* printing Tentative *
+// //**********************
 
-fn tentative_error_blame_and_type_and_message(
-  t: TentativeWriterly,
-) -> #(Blame, String, String) {
-  case t {
-    TentativeBlankLine(_) -> panic as "not an error node"
-    TentativeBlurb(_, _) -> panic as "not an error node"
-    TentativeComment(_, _) -> panic as "not an error node"
-    TentativeCodeBlock(_, _, _) -> panic as "not an error node"
-    TentativeTag(_, _, _, _) -> panic as "not an error node"
-    TentativeErrorIndentationTooLarge(b, msg) -> #(b, "IndentationTooLarge", msg)
-    TentativeErrorIndentationNotMultipleOfFour(b, msg) -> #(b, "IndentationNotMultipleOfFour", msg)
-    TentativeErrorCodeBlockNotClosed(b) -> #(b, "CodeBlockNotClosed", "")
-    TentativeErrorCodeBlockUnwantedAnnotationAtClose(b, _opening_blame, msg) -> #(b, "CodeBlockUnwantedAnnotationAtClose", msg)
-  }
-}
+// fn tentative_error_blame_and_type_and_message(
+//   t: TentativeWriterly,
+// ) -> #(Blame, String, String) {
+//   case t {
+//     TentativeBlankLine(_) -> panic as "not an error node"
+//     TentativeBlurb(_, _) -> panic as "not an error node"
+//     TentativeComment(_, _) -> panic as "not an error node"
+//     TentativeCodeBlock(_, _, _) -> panic as "not an error node"
+//     TentativeTag(_, _, _, _) -> panic as "not an error node"
+//     TentativeErrorIndentationTooLarge(b, msg) -> #(b, "IndentationTooLarge", msg)
+//     TentativeErrorIndentationNotMultipleOfFour(b, msg) -> #(b, "IndentationNotMultipleOfFour", msg)
+//     TentativeErrorCodeBlockNotClosed(b) -> #(b, "CodeBlockNotClosed", "")
+//     TentativeErrorCodeBlockUnwantedAnnotationAtClose(b, _opening_blame, msg) -> #(b, "CodeBlockUnwantedAnnotationAtClose", msg)
+//   }
+// }
 
 fn line_to_output_line(
   line: Line,
@@ -1066,61 +1604,61 @@ fn lines_to_output_lines(
   |> list.map(line_to_output_line(_, indentation))
 }
 
-fn tentative_attr_to_output_line(
-  attr: TentativeAttr,
-  indentation: Int,
-) -> OutputLine {
-  case attr.key {
-    Ok(_) ->
-      OutputLine(
-        attr.blame,
-        indentation,
-        ins(attr.key) <> "=" <> attr.val,
-      )
-    Error(BadTentativeKey(bad_key)) ->
-      OutputLine(
-        attr.blame
-          |> pc("ERROR bad xml key"),
-        indentation,
-        bad_key <> "=" <> attr.val,
-      )
-    Error(DuplicateId) ->
-      OutputLine(
-        attr.blame
-          |> pc("ERROR duplicate 'id'"),
-        indentation,
-        "id=" <> attr.val,
-      )
-  }
-}
+// fn tentative_attr_to_output_line(
+//   attr: TentativeAttr,
+//   indentation: Int,
+// ) -> OutputLine {
+//   case attr.key {
+//     Ok(_) ->
+//       OutputLine(
+//         attr.blame,
+//         indentation,
+//         ins(attr.key) <> "=" <> attr.val,
+//       )
+//     Error(BadTentativeKey(bad_key)) ->
+//       OutputLine(
+//         attr.blame
+//           |> pc("ERROR bad xml key"),
+//         indentation,
+//         bad_key <> "=" <> attr.val,
+//       )
+//     Error(DuplicateId) ->
+//       OutputLine(
+//         attr.blame
+//           |> pc("ERROR duplicate 'id'"),
+//         indentation,
+//         "id=" <> attr.val,
+//       )
+//   }
+// }
 
-fn tentative_attrs_to_output_lines(
-  attrs: List(TentativeAttr),
-  indentation: Int,
-) -> List(OutputLine) {
-  attrs
-  |> list.map(tentative_attr_to_output_line(_, indentation))
-}
+// fn tentative_attrs_to_output_lines(
+//   attrs: List(TentativeAttr),
+//   indentation: Int,
+// ) -> List(OutputLine) {
+//   attrs
+//   |> list.map(tentative_attr_to_output_line(_, indentation))
+// }
 
-fn tentative_attrs_to_code_block_annotation(
-  attrs: List(TentativeAttr),
-) -> String {
-  list.index_map(
-    attrs,
-    fn (attr, i) {
-      let key = case attr.key {
-        Error(BadTentativeKey(key)) -> "BadTentativeKey(" <> key <> ")"
-        Error(DuplicateId) -> "DuplicateId"
-        Ok(key) -> key
-      }
-      case i == 0 && key == "language" {
-        True -> attr.val
-        False -> key <> "=" <> attr.val
-      }
-    }
-  )
-  |> string.join("&")
-}
+// fn tentative_attrs_to_code_block_annotation(
+//   attrs: List(TentativeAttr),
+// ) -> String {
+//   list.index_map(
+//     attrs,
+//     fn (attr, i) {
+//       let key = case attr.key {
+//         Error(BadTentativeKey(key)) -> "BadTentativeKey(" <> key <> ")"
+//         Error(DuplicateId) -> "DuplicateId"
+//         Ok(key) -> key
+//       }
+//       case i == 0 && key == "language" {
+//         True -> attr.val
+//         False -> key <> "=" <> attr.val
+//       }
+//     }
+//   )
+//   |> string.join("&")
+// }
 
 fn attrs_to_code_block_annotation(
   attrs: List(Attr),
@@ -1156,83 +1694,83 @@ fn attrs_to_code_block_annotation(
   language <> id <> classes <> others
 }
 
-fn tentative_to_output_lines_internal(
-  t: TentativeWriterly,
-  indentation: Int,
-) -> List(OutputLine) {
-  case t {
-    TentativeBlankLine(blame) -> {
-      [OutputLine(blame, 0, "")]
-    }
-    TentativeBlurb(_, lines) ->
-      lines_to_output_lines(lines, indentation)
-    TentativeCodeBlock(blame, attrs, lines) -> {
-      let annotation = tentative_attrs_to_code_block_annotation(attrs)
-      list.flatten([
-        [OutputLine(blame, indentation, "```" <> annotation)],
-        lines_to_output_lines(lines, indentation),
-        [OutputLine(blame, indentation, "```")],
-      ])
-    }
-    TentativeTag(blame, maybe_tag, attrs, children) -> {
-      let tag_line = case maybe_tag {
-        Ok(tag) -> OutputLine(blame, indentation, "|> " <> tag)
-        Error(Empty) ->
-          OutputLine(
-            blame |> bl.prepend_comment("ERROR empty tag"),
-            indentation,
-            "<>",
-          )
-        Error(BadTentativeTag(bad_tag)) ->
-          OutputLine(
-            blame |> bl.prepend_comment("ERROR bad xml tag"),
-            indentation,
-            "|> " <> bad_tag,
-          )
-      }
-      let attr_lines =
-        tentative_attrs_to_output_lines(attrs, indentation + 4)
-      let children_lines =
-        tentatives_to_output_lines_internal(children, indentation + 4)
-      let blank_lines = case list.is_empty(children_lines) {
-        True -> []
-        False -> [OutputLine(blame, 0, "")]
-      }
-      list.flatten([[tag_line], attr_lines, blank_lines, children_lines])
-    }
-    _ -> {
-      let #(blame, error_type, message) =
-        tentative_error_blame_and_type_and_message(t)
-      [
-        OutputLine(
-          blame
-            |> bl.prepend_comment("ERROR " <> error_type),
-          indentation,
-          message,
-        ),
-      ]
-    }
-  }
-}
+// fn tentative_to_output_lines_internal(
+//   t: TentativeWriterly,
+//   indentation: Int,
+// ) -> List(OutputLine) {
+//   case t {
+//     TentativeBlankLine(blame) -> {
+//       [OutputLine(blame, 0, "")]
+//     }
+//     TentativeBlurb(_, lines) ->
+//       lines_to_output_lines(lines, indentation)
+//     TentativeCodeBlock(blame, attrs, lines) -> {
+//       let annotation = tentative_attrs_to_code_block_annotation(attrs)
+//       list.flatten([
+//         [OutputLine(blame, indentation, "```" <> annotation)],
+//         lines_to_output_lines(lines, indentation),
+//         [OutputLine(blame, indentation, "```")],
+//       ])
+//     }
+//     TentativeTag(blame, maybe_tag, attrs, children) -> {
+//       let tag_line = case maybe_tag {
+//         Ok(tag) -> OutputLine(blame, indentation, "|> " <> tag)
+//         Error(Empty) ->
+//           OutputLine(
+//             blame |> bl.prepend_comment("ERROR empty tag"),
+//             indentation,
+//             "<>",
+//           )
+//         Error(BadTentativeTag(bad_tag)) ->
+//           OutputLine(
+//             blame |> bl.prepend_comment("ERROR bad xml tag"),
+//             indentation,
+//             "|> " <> bad_tag,
+//           )
+//       }
+//       let attr_lines =
+//         tentative_attrs_to_output_lines(attrs, indentation + 4)
+//       let children_lines =
+//         tentatives_to_output_lines_internal(children, indentation + 4)
+//       let blank_lines = case list.is_empty(children_lines) {
+//         True -> []
+//         False -> [OutputLine(blame, 0, "")]
+//       }
+//       list.flatten([[tag_line], attr_lines, blank_lines, children_lines])
+//     }
+//     _ -> {
+//       let #(blame, error_type, message) =
+//         tentative_error_blame_and_type_and_message(t)
+//       [
+//         OutputLine(
+//           blame
+//             |> bl.prepend_comment("ERROR " <> error_type),
+//           indentation,
+//           message,
+//         ),
+//       ]
+//     }
+//   }
+// }
 
-fn tentatives_to_output_lines_internal(
-  tentatives: List(TentativeWriterly),
-  indentation: Int,
-) -> List(OutputLine) {
-  tentatives
-  |> list.map(tentative_to_output_lines_internal(_, indentation))
-  |> list.flatten
-}
+// fn tentatives_to_output_lines_internal(
+//   tentatives: List(TentativeWriterly),
+//   indentation: Int,
+// ) -> List(OutputLine) {
+//   tentatives
+//   |> list.map(tentative_to_output_lines_internal(_, indentation))
+//   |> list.flatten
+// }
 
-fn tentatives_table(
-  tentatives: List(TentativeWriterly),
-  banner: String,
-  indent: Int,
-) -> String {
-  tentatives
-  |> tentatives_to_output_lines_internal(0)
-  |> io_l.output_lines_table(banner, indent)
-}
+// fn tentatives_table(
+//   tentatives: List(TentativeWriterly),
+//   banner: String,
+//   indent: Int,
+// ) -> String {
+//   tentatives
+//   |> tentatives_to_output_lines_internal(0)
+//   |> io_l.output_lines_table(banner, indent)
+// }
 
 //*************************************
 //* Writerly -> blamed lines internals
@@ -1332,13 +1870,14 @@ fn writerly_to_output_lines_internal(
   t: Writerly,
   indentation: Int,
   annotate_blames: Bool,
+  escape_spaces_re: Regexp,
 ) -> List(OutputLine) {
   case t {
     BlankLine(blame) -> [OutputLine(blame, 0, "")]
 
     Blurb(_, lines) ->
       lines
-      |> escape_left_spaces
+      |> escape_left_spaces(escape_spaces_re)
       |> lines_to_output_lines(indentation)
 
     Comment(_, lines) ->
@@ -1369,7 +1908,7 @@ fn writerly_to_output_lines_internal(
         attrs_to_output_lines(attrs, indentation + 4)
       let children_lines =
         children
-        |> list.map(writerly_to_output_lines_internal(_, indentation + 4, annotate_blames))
+        |> list.map(writerly_to_output_lines_internal(_, indentation + 4, annotate_blames, escape_spaces_re))
         |> list.flatten
       let buffer_lines = case first_child_is_blurb_and_first_line_of_blurb_could_be_read_as_attr_value_pair(children) {
         True -> {
@@ -1393,8 +1932,9 @@ fn writerly_to_output_lines_internal(
 pub fn writerly_to_output_lines(
   writerly: Writerly,
 ) -> List(OutputLine) {
+  let re = to_output_lines_escape_re()
   writerly
-  |> writerly_to_output_lines_internal(0, False)
+  |> writerly_to_output_lines_internal(0, False, re)
 }
 
 pub fn writerlys_to_output_lines(
@@ -1423,15 +1963,25 @@ pub fn writerlys_to_string(
   |> io_l.output_lines_to_string
 }
 
-
 //*********************************
 //* echo_writerly api
 //*********************************
 
+fn from_input_lines_escape_re() -> Regexp {
+  let assert Ok(re) = regexp.from_string("^\\\\+(\\s|\\t|!!|```)")
+  re
+}
+
+fn to_output_lines_escape_re() -> Regexp {
+  let assert Ok(re) = regexp.from_string("^\\\\*(\\s|\\t|!!|```)")
+  re
+}
+
 pub fn writerly_table(writerly: Writerly, banner: String, indent: Int) -> String {
+  let r = to_output_lines_escape_re()
   writerly
   |> writerly_annotate_blames
-  |> writerly_to_output_lines_internal(0, True)
+  |> writerly_to_output_lines_internal(0, True, r)
   |> io_l.output_lines_table(banner, indent)
 }
 
@@ -1468,7 +2018,10 @@ pub fn writerly_to_vxml(t: Writerly) -> VXML {
         blame: blame,
         tag: writerly_code_block_vxml_tag,
         attrs: attrs,
-        children: [T(blame: blame, lines: lines)],
+        children: case lines {
+          [] -> []
+          _ -> [T(blame: blame, lines: lines)]
+        },
       )
 
     Tag(blame, tag, attrs, children) -> {
@@ -1778,22 +2331,21 @@ fn is_whitespace(s: String) -> Bool {
   string.trim(s) == ""
 }
 
-fn escape_left_spaces_in_string(s: String) -> String {
-  let m = string.trim_start(s)
-  let n = string.length(s) - string.length(m)
-  case n > 0 {
-    True -> "\\" <> string.repeat(" ", n) <> m
-    False -> m
+fn escape_left_spaces_in_string(s: String, re: Regexp) -> String {
+  case regexp.check(re, s) {
+    True -> "\\" <> s
+    False -> s
   }
 }
 
 fn escape_left_spaces(
   contents: List(Line),
+  re: Regexp,
 ) -> List(Line) {
   list.map(contents, fn(line) {
     Line(
       line.blame,
-      line.content |> escape_left_spaces_in_string,
+      line.content |> escape_left_spaces_in_string(re),
     )
   })
 }

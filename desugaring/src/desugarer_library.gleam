@@ -69,6 +69,7 @@ import desugarers/detokenize_href_surroundings
 import desugarers/echo_v_if_see_text
 import desugarers/ensure_attribute_value_starts_with
 import desugarers/ensure_attribute_value_starts_with_prefix
+import desugarers/expand_info_attribute
 import desugarers/expel_initial_last_backward_forward
 import desugarers/extract_starting_and_ending_spaces
 import desugarers/filter_nodes_by_attributes
@@ -300,6 +301,7 @@ pub const detokenize_href_surroundings = detokenize_href_surroundings.constructo
 pub const echo_v_if_see_text = echo_v_if_see_text.constructor
 pub const ensure_attribute_value_starts_with = ensure_attribute_value_starts_with.constructor
 pub const ensure_attribute_value_starts_with_prefix = ensure_attribute_value_starts_with_prefix.constructor
+pub const expand_info_attribute = expand_info_attribute.constructor
 pub const expel_initial_last_backward_forward = expel_initial_last_backward_forward.constructor
 pub const extract_starting_and_ending_spaces = extract_starting_and_ending_spaces.constructor
 pub const filter_nodes_by_attributes = filter_nodes_by_attributes.constructor
@@ -532,6 +534,7 @@ pub const assertive_tests : List(fn() -> infra.AssertiveTestCollection) = [
   echo_v_if_see_text.assertive_tests,
   ensure_attribute_value_starts_with.assertive_tests,
   ensure_attribute_value_starts_with_prefix.assertive_tests,
+  expand_info_attribute.assertive_tests,
   expel_initial_last_backward_forward.assertive_tests,
   extract_starting_and_ending_spaces.assertive_tests,
   filter_nodes_by_attributes.assertive_tests,
