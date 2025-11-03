@@ -235,7 +235,7 @@ pub fn stub_jsx_emitter(
         OutputLine(Ext([], "panel_emitter"), 2, "return ("),
         OutputLine(Ext([], "panel_emitter"), 4, "<>"),
       ],
-      vp.vxmls_to_jsx_output_lines(fragment.payload |> infra.v_get_children, 6),
+      vp.vxmls_to_jsx_output_lines(fragment.payload |> infra.v_get_children, 6, 2),
       [
         OutputLine(Ext([], "panel_emitter"), 4, "</>"),
         OutputLine(Ext([], "panel_emitter"), 2, ");"),

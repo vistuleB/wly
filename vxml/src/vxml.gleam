@@ -12,7 +12,9 @@ import xmlm
 import xml_streamer as xs
 import on
 
-pub const ampersand_replacer_pattern = "&(?!(?:[a-z]{2,6};|#\\d{2,4};))"
+/// a regexp that matches ampersands
+/// that appear outside of html entities:
+pub const non_html_ampersand_re = "&(?!(?:[a-z]{2,6};|#\\d{2,4};))"
 
 // ************************************************************
 // Attr, Line, VXML (pretend 'blame' does not exist -> makes it more readable)
@@ -424,9 +426,9 @@ pub fn vxml_table(vxml: VXML, banner: String, indent: Int) -> String {
 // VXML -> jsx
 // ************************************************************
 
-fn jsx_string_processor(content: String, ampersand_replacer: regexp.Regexp) -> String {
+fn jsx_string_processor(content: String, ampersand_re: regexp.Regexp) -> String {
   content
-  |> regexp.replace(ampersand_replacer, _, "&amp;")
+  |> regexp.replace(ampersand_re, _, "&amp;")
   |> string.replace("{", "&#123;")
   |> string.replace("}", "&#125;")
   |> string.replace("<", "&lt;")
@@ -435,9 +437,9 @@ fn jsx_string_processor(content: String, ampersand_replacer: regexp.Regexp) -> S
 
 fn jsx_key_val(
   attr: Attr,
-  ampersand_replacer: regexp.Regexp,
+  ampersand_re: regexp.Regexp,
 ) -> String {
-  let val = string.trim(attr.val) |> jsx_string_processor(ampersand_replacer)
+  let val = string.trim(attr.val) |> jsx_string_processor(ampersand_re)
   case val == "false" || val == "true" || result.is_ok(int.parse(val)) {
     True -> attr.key <> "={" <> val <> "}"
     False -> attr.key <> "=\"" <> val <> "\""
@@ -447,12 +449,12 @@ fn jsx_key_val(
 fn jsx_attr_output_line(
   attr: Attr,
   indent: Int,
-  ampersand_replacer: regexp.Regexp,
+  ampersand_re: regexp.Regexp,
 ) -> OutputLine {
   OutputLine(
     blame: attr.blame,
     indent: indent,
-    suffix: jsx_key_val(attr, ampersand_replacer)
+    suffix: jsx_key_val(attr, ampersand_re)
   )
 }
 
@@ -470,7 +472,8 @@ fn jsx_tag_open_output_lines(
   indent: Int,
   closing: String,
   attrs: List(Attr),
-  ampersand_replacer: regexp.Regexp,
+  ampersand_re: regexp.Regexp,
+  indentation: Int,
 ) -> List(OutputLine) {
   case attrs {
     [] -> [
@@ -480,13 +483,13 @@ fn jsx_tag_open_output_lines(
       OutputLine(
         blame: blame,
         indent: indent,
-        suffix: "<" <> tag <> " " <> jsx_key_val(first, ampersand_replacer) <> closing,
+        suffix: "<" <> tag <> " " <> jsx_key_val(first, ampersand_re) <> closing,
       ),
     ]
     _ -> {
       [
         [OutputLine(blame: blame, indent: indent, suffix: "<" <> tag)],
-        attrs |> list.map(jsx_attr_output_line(_, indent, ampersand_replacer)),
+        attrs |> list.map(jsx_attr_output_line(_, indent + indentation, ampersand_re)),
         [OutputLine(blame: blame, indent: indent, suffix: closing)],
       ]
       |> list.flatten
@@ -504,7 +507,8 @@ fn bool_2_jsx_space(b: Bool) -> String {
 fn vxml_to_jsx_output_lines_internal(
   vxml: VXML,
   indent: Int,
-  ampersand_replacer: regexp.Regexp,
+  ampersand_re: regexp.Regexp,
+  indentation: Int,
 ) -> List(OutputLine) {
   case vxml {
     T(_, lines) -> {
@@ -512,7 +516,7 @@ fn vxml_to_jsx_output_lines_internal(
       lines
       |> list.index_map(fn(t, i) {
         OutputLine(blame: t.blame, indent: indent, suffix: {
-          let content = jsx_string_processor(t.content, ampersand_replacer)
+          let content = jsx_string_processor(t.content, ampersand_re)
           let start = {i == 0 && {string.starts_with(content, " ") || string.is_empty(content)}} |> bool_2_jsx_space
           let end = {i == n - 1 && {string.ends_with(content, " ") || string.is_empty(content)}} |> bool_2_jsx_space
           start <> content <> end
@@ -524,16 +528,16 @@ fn vxml_to_jsx_output_lines_internal(
       case list.is_empty(children) {
         False ->
           [
-            jsx_tag_open_output_lines(blame, tag, indent, ">", attrs, ampersand_replacer),
+            jsx_tag_open_output_lines(blame, tag, indent, ">", attrs, ampersand_re, indentation),
             children
-            |> list.map(vxml_to_jsx_output_lines_internal(_, indent + 2, ampersand_replacer))
+            |> list.map(vxml_to_jsx_output_lines_internal(_, indent + indentation, ampersand_re, indentation))
             |> list.flatten,
             jsx_tag_close_output_lines(blame, tag, indent),
           ]
           |> list.flatten
 
         True ->
-          jsx_tag_open_output_lines(blame, tag, indent, " />", attrs, ampersand_replacer)
+          jsx_tag_open_output_lines(blame, tag, indent, " />", attrs, ampersand_re, indentation)
       }
     }
   }
@@ -543,17 +547,23 @@ fn vxml_to_jsx_output_lines_internal(
 // VXML -> jsx blamed lines
 // ************************************************************
 
-pub fn vxml_to_jsx_output_lines(vxml: VXML, indent: Int) -> List(OutputLine) {
-  // a regex that matches ampersands that appear outside of html entities:
-  let assert Ok(ampersand_replacer) = regexp.from_string(ampersand_replacer_pattern)
-  vxml_to_jsx_output_lines_internal(vxml, indent, ampersand_replacer)
+pub fn vxml_to_jsx_output_lines(
+  vxml: VXML,
+  starting_indent: Int,
+  indentation: Int,
+ ) -> List(OutputLine) {
+  let assert Ok(ampersand_re) = regexp.from_string(non_html_ampersand_re)
+  vxml_to_jsx_output_lines_internal(vxml, starting_indent, ampersand_re, indentation)
 }
 
-pub fn vxmls_to_jsx_output_lines(vxmls: List(VXML), indent: Int) -> List(OutputLine) {
-  // a regex that matches ampersands that appear outside of html entities:
-  let assert Ok(ampersand_replacer) = regexp.from_string(ampersand_replacer_pattern)
+pub fn vxmls_to_jsx_output_lines(
+  vxmls: List(VXML),
+  starting_indent: Int,
+  indentation: Int,
+) -> List(OutputLine) {
+  let assert Ok(ampersand_re) = regexp.from_string(non_html_ampersand_re)
   vxmls
-  |> list.map(vxml_to_jsx_output_lines_internal(_, indent, ampersand_replacer))
+  |> list.map(vxml_to_jsx_output_lines_internal(_, starting_indent, ampersand_re, indentation))
   |> list.flatten
 }
 
@@ -561,15 +571,23 @@ pub fn vxmls_to_jsx_output_lines(vxmls: List(VXML), indent: Int) -> List(OutputL
 // VXML -> jsx string
 // ************************************************************
 
-pub fn vxml_to_jsx(vxml: VXML, indent: Int) -> String {
+pub fn vxml_to_jsx(
+  vxml: VXML,
+  starting_indent: Int,
+  indentation: Int,
+) -> String {
   vxml
-  |> vxml_to_jsx_output_lines(indent)
+  |> vxml_to_jsx_output_lines(starting_indent, indentation)
   |> io_l.output_lines_to_string
 }
 
-pub fn vxmls_to_jsx(vxmls: List(VXML), indent: Int) -> String {
+pub fn vxmls_to_jsx(
+  vxmls: List(VXML),
+  starting_indent: Int,
+  indentation: Int,
+) -> String {
   vxmls
-  |> vxmls_to_jsx_output_lines(indent)
+  |> vxmls_to_jsx_output_lines(starting_indent, indentation)
   |> io_l.output_lines_to_string
 }
 
@@ -577,9 +595,9 @@ pub fn vxmls_to_jsx(vxmls: List(VXML), indent: Int) -> String {
 // VXML -> html
 // ************************************************************
 
-fn html_string_processor(content: String, ampersand_replacer: regexp.Regexp) -> String {
+fn html_string_processor(content: String, ampersand_re: regexp.Regexp) -> String {
   content
-  |> regexp.replace(ampersand_replacer, _, "&amp;")
+  |> regexp.replace(ampersand_re, _, "&amp;")
   |> string.replace("<", "&lt;")
   |> string.replace(">", "&gt;")
 }
@@ -756,7 +774,7 @@ pub fn init_last(l: List(a)) -> Result(#(List(a), a), Nil) {
   }
 }
 
-fn t_sticky_lines(t: VXML, indent: Int, pre: Bool, ampersand_replacer: regexp.Regexp) -> List(StickyLine) {
+fn t_sticky_lines(t: VXML, indent: Int, pre: Bool, ampersand_re: regexp.Regexp) -> List(StickyLine) {
   let assert T(_, lines) = t
   let indent = case pre {
     True -> 0
@@ -766,7 +784,7 @@ fn t_sticky_lines(t: VXML, indent: Int, pre: Bool, ampersand_replacer: regexp.Re
   let sticky_lines = list.index_map(
     lines,
     fn(line, i) {
-      let content = html_string_processor(line.content, ampersand_replacer)
+      let content = html_string_processor(line.content, ampersand_re)
       StickyLine(
         blame: line.blame,
         indent: indent,
@@ -857,20 +875,20 @@ fn t_very_fancy_sticky_lines_post_processing(
   }
 }
 
-fn t_sticky_tree(t: VXML, indent: Int, pre: Bool, ampersand_replacer: regexp.Regexp) -> StickyTree {
+fn t_sticky_tree(t: VXML, indent: Int, pre: Bool, ampersand_re: regexp.Regexp) -> StickyTree {
   StickyTree(
-    opening_lines: t_sticky_lines(t, indent, pre, ampersand_replacer),
+    opening_lines: t_sticky_lines(t, indent, pre, ampersand_re),
     children: [],
     closing_lines: [],
   )
 }
 
-fn v_sticky_tree(v: VXML, indent: Int, spaces: Int, pre: Bool, ampersand_replacer: regexp.Regexp) -> StickyTree {
+fn v_sticky_tree(v: VXML, indent: Int, spaces: Int, pre: Bool, ampersand_re: regexp.Regexp) -> StickyTree {
   let assert V(_, tag, _, children) = v
   let pre = pre || tag |> string.lowercase == "pre"
   StickyTree(
     opening_lines: opening_tag_to_sticky_lines(v, indent, spaces, pre),
-    children: children |> list.map(vxml_sticky_tree(_, indent + spaces, spaces, pre, ampersand_replacer)),
+    children: children |> list.map(vxml_sticky_tree(_, indent + spaces, spaces, pre, ampersand_re)),
     closing_lines: case list.contains(self_closing_tags, tag) {
       True -> []
       False -> closing_tag_to_sticky_lines(v, indent, pre)
@@ -883,11 +901,11 @@ fn vxml_sticky_tree(
   indent: Int,
   spaces: Int,
   pre: Bool,
-  ampersand_replacer: regexp.Regexp,
+  ampersand_re: regexp.Regexp,
 ) -> StickyTree {
   case node {
-    T(_, _) -> t_sticky_tree(node, indent, pre, ampersand_replacer)
-    V(_, _, _, _) -> v_sticky_tree(node, indent, spaces, pre, ampersand_replacer)
+    T(_, _) -> t_sticky_tree(node, indent, pre, ampersand_re)
+    V(_, _, _, _) -> v_sticky_tree(node, indent, spaces, pre, ampersand_re)
   }
 }
 
@@ -895,9 +913,9 @@ pub fn vxml_to_html_output_lines_internal(
   node: VXML,
   indent: Int,
   spaces: Int,
-  ampersand_replacer: regexp.Regexp,
+  ampersand_re: regexp.Regexp,
 ) -> List(OutputLine) {
-  vxml_sticky_tree(node, indent, spaces, False, ampersand_replacer)
+  vxml_sticky_tree(node, indent, spaces, False, ampersand_re)
   |> sticky_tree_2_sticky_lines([], _)
   |> list.reverse
   |> concat_sticky_lines
@@ -908,10 +926,10 @@ pub fn vxmls_to_html_output_lines_internal(
   vxmls: List(VXML),
   indent: Int,
   spaces: Int,
-  ampersand_replacer: regexp.Regexp,
+  ampersand_re: regexp.Regexp,
 ) -> List(OutputLine) {
   vxmls
-  |> list.map(vxml_to_html_output_lines_internal(_, indent, spaces, ampersand_replacer))
+  |> list.map(vxml_to_html_output_lines_internal(_, indent, spaces, ampersand_re))
   |> list.flatten
 }
 
@@ -920,8 +938,8 @@ pub fn vxml_to_html_output_lines(
   indent: Int,
   spaces: Int,
 ) -> List(OutputLine) {
-  let assert Ok(ampersand_replacer) = regexp.from_string(ampersand_replacer_pattern)
-  vxml_to_html_output_lines_internal(node, indent, spaces, ampersand_replacer)
+  let assert Ok(ampersand_re) = regexp.from_string(non_html_ampersand_re)
+  vxml_to_html_output_lines_internal(node, indent, spaces, ampersand_re)
 }
 
 pub fn vxmls_to_html_output_lines(
@@ -929,8 +947,8 @@ pub fn vxmls_to_html_output_lines(
   indent: Int,
   spaces: Int,
 ) -> List(OutputLine) {
-  let assert Ok(ampersand_replacer) = regexp.from_string(ampersand_replacer_pattern)
-  vxmls_to_html_output_lines_internal(vxmls, indent, spaces, ampersand_replacer)
+  let assert Ok(ampersand_re) = regexp.from_string(non_html_ampersand_re)
+  vxmls_to_html_output_lines_internal(vxmls, indent, spaces, ampersand_re)
 }
 
 // ************************************************************
@@ -1030,19 +1048,19 @@ pub fn xmlm_based_html_parser(
   // use this to debug if you get an input_error on a file, see
   // "input_error" case at end of function
   // **********
-  // // case xmlm.signals(
-  // //   input
-  // // ) {
-  // //   Ok(#(signals, _)) -> {
-  // //     list.each(
-  // //       signals,
-  // //       fn(signal) { io.println(signal |> xmlm.signal_to_string) }
-  // //     )
-  // //   }
-  // //   Error(input_error) -> {
-  // //     io.println("got error:" <> ins(input_error))
-  // //   }
-  // // }
+  // case xmlm.signals(
+  //   input
+  // ) {
+  //   Ok(#(signals, _)) -> {
+  //     list.each(
+  //       signals,
+  //       fn(signal) { io.println(signal |> xmlm.signal_to_string) }
+  //     )
+  //   }
+  //   Error(input_error) -> {
+  //     io.println("got error:" <> ins(input_error))
+  //   }
+  // }
 
   case
     xmlm.document_tree(
