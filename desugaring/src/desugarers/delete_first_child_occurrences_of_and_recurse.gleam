@@ -3,17 +3,23 @@ import gleam/string.{inspect as ins}
 import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as infra
 import nodemaps_2_desugarer_transforms as n2t
 import vxml.{type VXML, V}
-import blame as bl
 
-const our_blame = bl.Des([], name, 8)
+fn delete_in_list(
+  children: List(VXML),
+  inner: InnerParam,
+) -> List(VXML) {
+  case children {
+    [V(_, tag, _, _), ..rest] if tag == inner -> delete_in_list(rest, inner)
+    _ -> children
+  }
+}
 
 fn nodemap(
   vxml: VXML,
   inner: InnerParam,
 ) -> VXML {
   case vxml {
-    V(_, tag, attrs, _) if tag == inner.0 ->
-      V(..vxml, tag: inner.1, attrs: infra.attrs_append_classes(attrs, our_blame, inner.2))
+    V(_, _, _, [V(_, tag, _, _), ..rest]) if tag == inner -> V(..vxml, children: delete_in_list(rest, inner))
     _ -> vxml
   }
 }
@@ -31,18 +37,23 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
   Ok(param)
 }
 
-type Param = #(String,   String,   String)
-//             ↖         ↖         ↖
-//             old_tag   new_tag   class
+type Param = String
 type InnerParam = Param
 
-pub const name = "rename_with_class"
+pub const name = "delete_first_child_occurrences_of_and_recurse"
 
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 // 🏖️🏖️ Desugarer 🏖️🏖️
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 //------------------------------------------------53
-/// renames tags and adds attrs to them
+/// removes all V-nodes of a certain tag when they
+/// occur as the first child of a node, and recurses
+/// (that guarantees the final tree has no such nodes as
+/// first children)
+/// 
+/// is not efficient if the thing to be deleted has
+/// children; if you want to do that plz write another
+/// depth-first-search desugarer
 pub fn constructor(param: Param) -> Desugarer {
   Desugarer(
     name: name,
@@ -59,7 +70,23 @@ pub fn constructor(param: Param) -> Desugarer {
 // 🌊🌊🌊 tests 🌊🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
 fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
-  []
+  [
+    infra.AssertiveTestData(
+      param: "ToBeDeleted",
+      source:   "
+                <> Root
+                  <> ToBeDeleted
+                  <> ToBeDeleted
+                  <> a
+                  <> ToBeDeleted
+                ",
+      expected: "
+                <> Root
+                  <> a
+                  <> ToBeDeleted
+                ",
+    ),
+  ]
 }
 
 pub fn assertive_tests() {
