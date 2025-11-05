@@ -14,7 +14,7 @@ import on
 
 /// a regexp that matches ampersands
 /// that appear outside of html entities:
-pub const non_html_ampersand_re = "&(?!(?:[a-z]{2,6};|#\\d{2,4};))"
+pub const non_html_ampersand_re = "&(?!(?:[a-z]{2,6};|#x[a-f\\d]{1,6};))"
 
 // ************************************************************
 // Attr, Line, VXML (pretend 'blame' does not exist -> makes it more readable)

@@ -192,9 +192,8 @@ fn v_after_transforming_children(
   state: State,
 ) -> Result(#(VXML, State), DesugaringError) {
   let state = State(..state, path: original_state.path)
-  case list.is_empty(ancestors) {
-    False -> Ok(#(vxml, state))
-    True -> {
+  case ancestors {
+    [] -> {
       let grand_wrapper = V(
         desugarer_blame(199),
         "GrandWrapper",
@@ -203,6 +202,7 @@ fn v_after_transforming_children(
       )
       Ok(#(grand_wrapper, state))
     }
+    _ -> Ok(#(vxml, state))
   }
 }
 
