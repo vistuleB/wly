@@ -14,23 +14,21 @@ fn nodemap(
   case node {
     T(_, _) -> Ok([node])
     V(blame, tag, _, _) -> {
-      case dict.get(inner, tag), list.length(ancestors) > 0 {
+      case dict.get(inner, tag), ancestors {
         Error(Nil), _ -> Ok([node])
-        _, False -> Ok([node])
-        Ok(#(above_tag, below_tag)), True -> {
-          let some_none_above = case above_tag == "" {
-            True -> option.None
-            False ->
-              option.Some(
-                V(blame: blame, tag: above_tag, attrs: [], children: []),
-              )
+        _, [] -> Ok([node])
+        Ok(#(above_tag, below_tag)), _ -> {
+          let some_none_above = case above_tag {
+            "" -> option.None
+            _ -> option.Some(
+              V(blame: blame, tag: above_tag, attrs: [], children: []),
+            )
           }
-          let some_none_below = case below_tag == "" {
-            True -> option.None
-            False ->
-              option.Some(
-                V(blame: blame, tag: below_tag, attrs: [], children: []),
-              )
+          let some_none_below = case below_tag {
+            "" -> option.None
+            _ -> option.Some(
+              V(blame: blame, tag: below_tag, attrs: [], children: []),
+            )
           }
           case some_none_above, some_none_below {
             option.None, option.None -> Ok([node])
@@ -63,15 +61,13 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
 }
 
 type Param =
-  #(List(String), String, String)
-//  ↖            ↖       ↖
-//  list of      name of name of
-//  tag names    tag to  tag to
-//  to surround  place   place
-//               above   below
-
-type InnerParam =
-  Dict(String, #(String, String))
+  #(List(String), String,   String)
+//  ↖             ↖         ↖
+//  list of       name of   name of
+//  tag names     tag to    tag to
+//  to surround   place     place
+//                above     below
+type InnerParam = Dict(String, #(String, String))
 
 pub const name = "surround_elements_by"
 

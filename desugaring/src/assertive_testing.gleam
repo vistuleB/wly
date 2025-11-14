@@ -156,12 +156,12 @@ pub fn run_assertive_desugarer_tests_on(
       collections,
       #([], []),
       fn(acc, collection) {
-        case list.length(collection.tests()) > 0 {
-          True -> #(
+        case list.is_empty(collection.tests()) {
+          False -> #(
             [collection, ..acc.0],
             acc.1,
           )
-          False -> #(
+          True -> #(
             [collection, ..acc.0],
             [collection, ..acc.1],
           )
@@ -201,7 +201,7 @@ pub fn run_assertive_desugarer_tests_on(
       fn(acc, coll) {
         case {
           list.contains(names, coll.desugarer_name) &&
-          list.length(coll.tests()) > 0
+          !list.is_empty(coll.tests())
         } {
           False -> acc
           True -> #(

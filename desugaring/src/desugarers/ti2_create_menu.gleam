@@ -167,7 +167,7 @@ fn row1_row2_links_2_menu(
     Top -> #("TopMenu", "top-")
     Bottom -> #("BottomMenu", "bottom-")
   }
-  let dummy = V(desugarer_blame(0), "a", [an_attr("class", "menu-row-placeholder")], [])
+  let dummy = V(desugarer_blame(170), "a", [an_attr("class", "menu-row-placeholder")], [])
   let row_constructor = fn(row: #(Option(VXML), Option(VXML))) {
     let #(left, right) = row
     let right = case right {
@@ -182,7 +182,7 @@ fn row1_row2_links_2_menu(
         let left = option.unwrap(left, dummy)
         let right = option.unwrap(right, dummy)
         Some(V(
-          desugarer_blame(182),
+          desugarer_blame(185),
           "MenuRow",
           an_attr("class", "menu-row") |> into_list,
           [left, right],
@@ -191,7 +191,7 @@ fn row1_row2_links_2_menu(
     }
   }
   V(
-    desugarer_blame(171),
+    desugarer_blame(194),
     tag,
     an_attr("id", p1 <> "menu") |> into_list,
     [row1, row2] |> list.map(row_constructor) |> option.values
@@ -262,18 +262,18 @@ fn data_2_menu_row_version(
 //     Bottom -> #("BottomMenu", "bottom-")
 //   }
 //   V(
-//     desugarer_blame(171),
+//     desugarer_blame(265),
 //     tag,
 //     an_attr("id", p1 <> "menu") |> into_list,
 //     [
 //       V(
-//         desugarer_blame(176),
+//         desugarer_blame(270),
 //         "MenuLeft",
 //         an_attr("id", p1 <> "menu-left") |> into_list,
 //         left,
 //       ),
 //       V(
-//         desugarer_blame(182),
+//         desugarer_blame(276),
 //         "MenuRight",
 //         an_attr("id", p1 <> "menu-right") |> into_list,
 //         right,

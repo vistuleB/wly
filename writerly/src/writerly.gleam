@@ -1320,7 +1320,7 @@ pub fn vxml_to_writerlys(vxml: VXML) -> List(Writerly) { // it would be 'Writerl
         }
         _ if tag == writerly_comment_vxml_tag -> {
           let assert [T(_, lines)] = children
-          assert list.length(lines) > 0
+          assert lines != []
           [Comment(blame, lines)]
         }
         _ -> {

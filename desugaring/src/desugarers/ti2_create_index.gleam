@@ -30,7 +30,7 @@ fn get(root: VXML, key: String) -> Option(#(Blame, String)) {
 }
 
 fn header(root: VXML) -> VXML {
-  let b = desugarer_blame(28)
+  let b = desugarer_blame(33)
   let title = get(root, "title") |> option.unwrap(#(b, "no title"))
   let program = get(root, "program") |> option.unwrap(#(b, "no program"))
   let institution = get(root, "institution") |> option.unwrap(#(b, "no institution"))
@@ -167,7 +167,7 @@ fn href(chapter_no: Int, sub_no: Int) -> String {
 }
 
 fn sub_item(ch_no: Int, sub_no: Int, sub: SubInfo) -> VXML {
-  let b = desugarer_blame(166)
+  let b = desugarer_blame(170)
   let SubInfo(title) = sub
   V(
     b,
@@ -190,7 +190,7 @@ fn chapter_item(
   ch_no: Int,
   chapter: ChapterInfo,
 ) -> VXML {
-  let b = desugarer_blame(189)
+  let b = desugarer_blame(193)
   let ChapterInfo(title, subs) = chapter
   let subchapters_ol = case subs {
     [] -> []
@@ -225,7 +225,7 @@ fn chapter_item(
 }
 
 fn chapter_ol(chapters: List(ChapterInfo)) -> VXML {
-  let b = desugarer_blame(224)
+  let b = desugarer_blame(228)
   V(
     b,
     "ol",
@@ -244,10 +244,10 @@ fn index(root: VXML) -> Result(VXML, DesugaringError) {
   use chapter_infos <- on.ok(gather_chapter_infos(root))
 
   Ok(V(
-    desugarer_blame(243),
+    desugarer_blame(247),
     "Index",
     [
-      Attr(desugarer_blame(246), "path", "./index.html"),
+      Attr(desugarer_blame(250), "path", "./index.html"),
     ],
     [
       header(root),

@@ -18,9 +18,9 @@ import shellout
 import simplifile
 import table_and_co_printer as pr
 import vxml.{type VXML, V} as vp
-import writerly as wp
 import on
 import input
+import writerly as wp
 
 // ************************************************************
 // Assembler(a)                                                // 'a' is assembler error type; "assembler" = "source assembler"
@@ -77,7 +77,7 @@ pub fn default_writerly_parser(
     use vxml <- on.ok(
       case writerlys |> wp.writerlys_to_vxmls {
         [vxml] -> Ok(vxml)
-        _ as vxmls -> Error(#(bl.no_blame, "found " <> ins(list.length(vxmls)) <> " ≠ 1 top-level nodes in writerly source"))
+        vxmls -> Error(#(bl.no_blame, "found " <> ins(list.length(vxmls)) <> " ≠ 1 top-level nodes in writerly source"))
       }
     )
 
@@ -1823,9 +1823,9 @@ pub fn run_renderer(
     }
   }
 
-  case list.length(requested_times) > 0 {
-    False -> Nil
-    True -> {
+  case requested_times {
+    [] -> Nil
+    _ -> {
       let requested_times = [#(list.length(renderer.pipeline), t1), ..requested_times]
       list.fold(requested_times |> list.reverse, #(0, t0), fn(acc, next) {
         let #(step0, t0) = acc
@@ -2116,10 +2116,10 @@ pub fn run_renderer(
 
   let #(_, errors) = result.partition(fragments)
 
-  case list.length(errors) > 0 {
-    True -> {
+  case errors {
+    [] -> Ok(Nil)
+    _ -> {
       Error(EmittingOrWritingOrPrettifyingErrors(errors))
     }
-    False -> Ok(Nil)
   }
 }
