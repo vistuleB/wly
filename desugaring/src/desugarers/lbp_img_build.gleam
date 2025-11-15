@@ -1,3 +1,4 @@
+import gleam/bit_array
 import gleam/dict.{type Dict}
 import gleam/dynamic/decode
 import gleam/float
@@ -8,6 +9,7 @@ import gleam/list
 import gleam/option.{Some, None}
 import gleam/result
 import gleam/string.{inspect as ins}
+import gleam/crypto
 import blame.{type Blame} as bl
 import infrastructure.{
   type Desugarer,
@@ -175,11 +177,18 @@ fn img_extension(src: String, blame: Blame) -> Result(String, DesugaringError) {
   }
 }
 
-@external(erlang, "erlang", "system_time")
-fn erlang_system_time() -> Int
-
-fn get_random_filename() -> String {
-  erlang_system_time() |> int.to_string
+fn get_hashed_filename(original_name: String, image_map: ImageMap) -> String {
+  let big_string =
+    original_name
+    |> bit_array.from_string
+    |> crypto.hash(crypto.Md5, _)
+    |> bit_array.base64_url_encode(False)
+  let s1 = string.slice(big_string, 0, 4)
+  use <- on.false_true(dict.has_key(image_map, s1), s1)
+  let s2 = string.slice(big_string, 4, 8)
+  use <- on.false_true(dict.has_key(image_map, s1 <> s2), s1 <> s2)
+  let s3 = string.slice(big_string, 8, 12)
+  s1 <> s2 <> s3 // 64^(-12) = 2^{-72} seems pretty unlucky! let us know!
 }
 
 fn finish_off_build_image(
@@ -236,6 +245,7 @@ fn build_image_via_svgo(
   build_img_dir_to_image_path: String,
 ) -> Result(BuildImgInfo, DesugaringError) {
   let exec_to_build_image_path = exec_to_build_img_dir_path <> "/" <> build_img_dir_to_image_path
+  let _ = create_dirs_on_path_to_file(exec_to_build_image_path)
   let cmd = "svgo " <> exec_to_src_image_path <> " -o " <> exec_to_build_image_path
 
   io.println(whoami <> ": " <> cmd)
@@ -265,6 +275,7 @@ fn build_image_via_cp(
   build_img_dir_to_image_path: String,
 ) -> Result(BuildImgInfo, DesugaringError) {
   let exec_to_build_image_path = exec_to_build_img_dir_path <> "/" <> build_img_dir_to_image_path
+  let _ = create_dirs_on_path_to_file(exec_to_build_image_path)
   let cmd = "cp " <> exec_to_src_image_path <> " " <> exec_to_build_image_path
 
   io.println(whoami <> ": " <> cmd)
@@ -293,20 +304,11 @@ fn update_src_attr(attrs: List(Attr), src: String) -> List(Attr) {
 }
 
 fn create_dirs_on_path_to_file(path_to_file: String) -> Result(Nil, simplifile.FileError) {
-  let pieces = path_to_file |> string.split("/")
-  let pieces = infra.drop_last(pieces)
-  list.try_fold(pieces, ".", fn(acc, piece) {
-    let acc = acc <> "/" <> piece
-    use exists <- on.ok(simplifile.is_directory(acc))
-    use _ <- on.ok(
-      case exists {
-        True  -> Ok(Nil)
-        False -> simplifile.create_directory(acc)
-      }
-    )
-    Ok(acc)
-  })
-  |> result.map(fn(_) { Nil })
+  path_to_file
+  |> string.split("/")
+  |> infra.drop_last()
+  |> string.join("/")
+  |> simplifile.create_directory_all
 }
 
 fn v_before(
@@ -347,11 +349,17 @@ fn v_before(
   )
 
   let #(
-    build_dir_to_build_img_dir_4_src_attr,
     exec_to_build_img_dir_path,
+    build_dir_to_build_img_dir_4_src_attr_path,
   ) = case inner.3 {
-    "" -> #("", inner.1)
-    _ -> #("/" <> inner.3, inner.1 <> "/" <> inner.3)
+    "" -> #(
+      inner.1,
+      "",
+    )
+    _ -> #(
+      inner.1 <> "/" <> inner.3,
+      "/" <> inner.3,
+    )
   }
 
   let up_to_date_build_img_dir_version = {
@@ -378,29 +386,23 @@ fn v_before(
       let attrs = 
         attrs
         |> infra.attrs_delete("svgo")
-        |> update_src_attr(build_dir_to_build_img_dir_4_src_attr <> "/" <> up_to_date_build_img_dir_version)
+        |> update_src_attr(build_dir_to_build_img_dir_4_src_attr_path <> "/" <> up_to_date_build_img_dir_version)
       Ok(#(V(..vxml, attrs: attrs), image_map))
     }
   )
 
   use extension <- on.ok(img_extension(src, src_attr.blame))
-  let copy_mode = extension != "svg" || is_svg_optimization_suppressed(attrs)
-  let attrs = infra.attrs_delete(attrs, "svgo")
 
+  let copy_mode = extension != "svg" || is_svg_optimization_suppressed(attrs)
   let builder = case copy_mode {
     True -> build_image_via_cp
     False -> build_image_via_svgo
   }
-
   let build_img_dir_to_image_path = case copy_mode {
-    True -> extension <> "/" <> get_random_filename() <> "." <> extension
-    False -> "svgo-svg" <> "/" <> get_random_filename() <> "." <> extension
+    True -> extension <> "/" <> get_hashed_filename(image_map_key, image_map) <> "." <> extension
+    False -> "svgo-svg" <> "/" <> get_hashed_filename(image_map_key, image_map) <> "." <> extension
   }
-
   let exec_to_src_image_path = inner.0 <> "/" <> src
-  let exec_to_build_image_path = exec_to_build_img_dir_path <> "/" <> build_img_dir_to_image_path
-
-  let _ = create_dirs_on_path_to_file(exec_to_build_image_path)
 
   use img_info <- on.ok(builder(
     exec_to_src_image_path,
@@ -408,10 +410,10 @@ fn v_before(
     build_img_dir_to_image_path,
   ))
 
-  let attrs =
+  let attrs = 
     attrs
     |> infra.attrs_delete("svgo")
-    |> update_src_attr(build_dir_to_build_img_dir_4_src_attr <> "/" <> img_info.build_version_path)
+    |> update_src_attr(build_dir_to_build_img_dir_4_src_attr_path <> "/" <> img_info.build_version_path)
   let image_map = dict.insert(image_map, image_map_key, img_info)
 
   Ok(#(V(..vxml, attrs: attrs), image_map))
