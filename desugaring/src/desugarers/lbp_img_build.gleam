@@ -107,9 +107,10 @@ fn load_image_map(image_map_path: String) -> ImageMap {
   }
 }
 
-fn save_image_map(dict: ImageMap, exec_to_image_map_path: String) -> Result(Nil, simplifile.FileError) {
-  let content = image_map_prettified_json_string(dict, 2)
-  simplifile.write(exec_to_image_map_path, content)
+fn save_image_map(image_map: ImageMap, exec_to_image_map_path: String) -> Result(Nil, DesugaringError) {
+  let content = image_map_prettified_json_string(image_map, 2)
+  use error <- on.error(simplifile.write(exec_to_image_map_path, content))
+  Error(DesugaringError(bl.no_blame, "failed to save image map to '" <> exec_to_image_map_path <> "' (" <> simplifile.describe_error(error) <> ")"))
 }
 
 fn last_modified_date(file_path: String) -> Int {
@@ -122,7 +123,7 @@ fn last_modified_date(file_path: String) -> Int {
 fn load_source_dictionary(images_dir: String) -> Result(SourceDictionary, DesugaringError) {
   use paths <- on.error_ok(
     simplifile.get_files(images_dir),
-    fn(err) { Error(DesugaringError(desugarer_blame(114), simplifile.describe_error(err))) }
+    fn(err) { Error(DesugaringError(desugarer_blame(126), simplifile.describe_error(err))) }
   )
   let prefix = images_dir <> "/"
   paths
@@ -200,7 +201,7 @@ fn finish_off_build_image(
     get_created_date(exec_to_build_image_path),
     fn(err) {
       Error(DesugaringError(
-        desugarer_blame(237),
+        desugarer_blame(204),
         "could not get created date of optimized image: " <> exec_to_build_image_path <> ": " <> simplifile.describe_error(err),
       ))
     }
@@ -210,7 +211,7 @@ fn finish_off_build_image(
     get_file_size(exec_to_src_image_path),
     fn(_) {
       Error(DesugaringError(
-        desugarer_blame(247),
+        desugarer_blame(214),
         "Could not get size of original image: " <> exec_to_src_image_path,
       ))
     }
@@ -220,7 +221,7 @@ fn finish_off_build_image(
     get_file_size(exec_to_build_image_path),
     fn(_) {
       Error(DesugaringError(
-        desugarer_blame(257),
+        desugarer_blame(224),
         "Could not get size of build image: " <> exec_to_build_image_path,
       ))
     }
@@ -258,7 +259,7 @@ fn build_image_via_svgo(
       opt: [],
     ),
     fn(err) {
-      Error(DesugaringError(desugarer_blame(292), "failed to execute: '" <> cmd <> "' (error: " <> string.inspect(err) <> ")" ))
+      Error(DesugaringError(desugarer_blame(262), "failed to execute: '" <> cmd <> "' (error: " <> string.inspect(err) <> ")" ))
     },
   )
 
@@ -288,7 +289,7 @@ fn build_image_via_cp(
       opt: [],
     ),
     fn(err) {
-      Error(DesugaringError(desugarer_blame(319), "failed to execute: '" <> cmd <> "' (error: " <> string.inspect(err) <> ")" ))
+      Error(DesugaringError(desugarer_blame(292), "failed to execute: '" <> cmd <> "' (error: " <> string.inspect(err) <> ")" ))
     },
   )
 
@@ -300,7 +301,7 @@ fn build_image_via_cp(
 }
 
 fn update_src_attr(attrs: List(Attr), src: String) -> List(Attr) {
-  infra.attrs_set(attrs, desugarer_blame(427), "src", src)
+  infra.attrs_set(attrs, desugarer_blame(304), "src", src)
 }
 
 fn create_dirs_on_path_to_file(path_to_file: String) -> Result(Nil, simplifile.FileError) {
@@ -427,10 +428,8 @@ fn v_after(
 ) -> Result(#(VXML, ImageMap), DesugaringError) {
   case ancestors {
     [] -> {
-      case save_image_map(state, inner.4) {
-        Ok(Nil) -> Ok(#(vxml, state))
-        Error(err) -> Error(DesugaringError(desugarer_blame(547), "Unable to save image_map to '" <> inner.4 <> "'. Error " <> simplifile.describe_error(err)))
-      }
+      use _ <- on.ok(save_image_map(state, inner.4))
+      Ok(#(vxml, state))
     }
     _ -> Ok(#(vxml, state))
   }
