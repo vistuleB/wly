@@ -292,6 +292,13 @@ pub fn ensure_prefix(s: String, prefix: String) -> String {
   }
 }
 
+pub fn ensure_suffix(s: String, suffix: String) -> String {
+  case string.ends_with(s, suffix) {
+    True -> s
+    False -> s <> suffix
+  }
+}
+
 // ************************************************************
 // list utilities
 // ************************************************************

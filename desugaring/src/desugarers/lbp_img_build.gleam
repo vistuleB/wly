@@ -22,22 +22,44 @@ import shellout
 import simplifile
 import vxml.{type VXML, type Attr, V}
 
-fn build_img_info_to_json(info: BuildImgInfo) -> json.Json {
-  json.object([
-    #("build-version", json.string(info.build_version_path)),
-    #("build-version-created-on", json.int(info.build_version_created_on)),
-    #("build-version-size", json.int(info.build_version_size)),
-    #("original-size", json.int(info.original_size)),
-    #("compression", json.string(info.compression)),
-    #("used-last-build", json.bool(info.used_last_build)),
-  ])
+// fn build_img_info_to_json(info: BuildImgInfo) -> json.Json {
+//   json.object([
+//     #("build-version", json.string(info.build_version_path)),
+//     #("build-version-created-on", json.int(info.build_version_created_on)),
+//     #("build-version-size", json.int(info.build_version_size)),
+//     #("original-size", json.int(info.original_size)),
+//     #("compression", json.string(info.compression)),
+//     #("used-last-build", json.bool(info.used_last_build)),
+//   ])
+// }
+
+// fn build_dictionary_to_json(dict: ImageMap) -> json.Json {
+//   dict
+//   |> dict.to_list()
+//   |> list.map(fn(kv) { #(kv.0, build_img_info_to_json(kv.1)) })
+//   |> json.object()
+// }
+
+fn build_img_info_pretty_string(key: String, info: BuildImgInfo, indent: Int, indentation: Int) -> String {
+  let margin1 = string.repeat(" ", indent)
+  let margin2 = string.repeat(" ", indent + indentation)
+  margin1 <> "\"" <> key <> "\": {\n"
+  <> margin2 <> "\"build-version\": " <> { json.string(info.build_version_path) |> json.to_string } <> ",\n"
+  <> margin2 <> "\"build-version-created-on\": " <> { json.int(info.build_version_created_on) |> json.to_string } <> ",\n"
+  <> margin2 <> "\"build-version-size\": " <> { json.int(info.build_version_size) |> json.to_string } <> ",\n"
+  <> margin2 <> "\"original-size\": " <> { json.int(info.original_size) |> json.to_string } <> ",\n"
+  <> margin2 <> "\"compression\": " <> { json.string(info.compression) |> json.to_string } <> ",\n"
+  <> margin2 <> "\"used-last-build\": " <> { json.bool(info.used_last_build) |> json.to_string } <> "\n"
+  <> margin1 <> "}"
 }
 
-fn build_dictionary_to_json(dict: ImageMap) -> json.Json {
-  dict
-  |> dict.to_list()
-  |> list.map(fn(kv) { #(kv.0, build_img_info_to_json(kv.1)) })
-  |> json.object()
+fn image_map_to_pretty_string(image_map: ImageMap, indentation: Int) -> String {
+  let entries =
+    image_map
+    |> dict.to_list()
+    |> list.map(fn(kv) { build_img_info_pretty_string(kv.0, kv.1, indentation, indentation) })
+    |> string.join(",\n")
+  "{\n" <> entries <> "\n}\n" 
 }
 
 fn build_img_info_decoder() -> decode.Decoder(BuildImgInfo) {
@@ -47,6 +69,7 @@ fn build_img_info_decoder() -> decode.Decoder(BuildImgInfo) {
   use original_size <- decode.field("original-size", decode.int)
   use compression <- decode.field("compression", decode.string)
   use used_last_build <- decode.field("used-last-build", decode.bool)
+
   decode.success(BuildImgInfo(
     build_version_path: build_version_path,
     build_version_created_on: build_version_created_on,
@@ -90,15 +113,11 @@ fn load_image_map(image_map_path: String) -> ImageMap {
   }
 }
 
-fn save_image_map(dict: ImageMap, image_map_path: String) -> Result(Nil, simplifile.FileError) {
-  let abs_path = case simplifile.current_directory() {
-    Ok(cwd) -> Ok(cwd <> "/" <> image_map_path)
-    Error(err) -> Error(err)
-  }
-  let json_content = build_dictionary_to_json(dict) |> json.to_string()
-
-  abs_path
-  |> on.ok(fn(abs_path) { simplifile.write(abs_path, json_content)})
+fn save_image_map(dict: ImageMap, exec_to_image_map_path: String) -> Result(Nil, simplifile.FileError) {
+  // use exec <- on.ok(simplifile.current_directory())
+  // let abs_path = exec <> "/" <> exec_to_image_map_path
+  let content = image_map_to_pretty_string(dict, 2)
+  simplifile.write(exec_to_image_map_path, content)
 }
 
 fn last_modified_date(file_path: String) -> Int {
@@ -133,29 +152,13 @@ fn compression_pct_string(original_size: Int, new_size: Int) -> String {
   case original_size {
     0 -> panic
     _ -> {
-      let compression = int.to_float(original_size - new_size) /. int.to_float(original_size) *. 100.0
-      float.to_string(compression) <> "%"
+      let original_size = int.to_float(original_size)
+      let new_size = int.to_float(new_size)
+      let savings = original_size -. new_size
+      let compression = 100.0 *. savings /. original_size
+      compression |> float.to_precision(2) |> float.to_string() <> "%"
     }
   }
-}
-
-fn sanitize_path_in_param(param: Param) -> Param {
-  assert !string.starts_with(param.2, "/")
-  assert !string.starts_with(param.2, "./")
-  assert !string.starts_with(param.2, "../")
-  assert !string.starts_with(param.3, "/")
-  assert !string.starts_with(param.3, "./")
-  assert !string.starts_with(param.3, "../")
-  assert string.ends_with(param.4, ".json")
-  #(
-    param.0 |> infra.drop_suffix("/"),
-    param.1 |> infra.drop_suffix("/"),
-    param.2 |> infra.drop_suffix("/"),
-    param.3 |> infra.drop_suffix("/"),
-    param.4,
-    param.5,
-    param.6,
-  )
 }
 
 fn is_svg_optimization_suppressed(attrs: List(Attr)) -> Bool {
@@ -320,11 +323,10 @@ fn v_before(
 ) -> Result(#(VXML, ImageMap), DesugaringError) {
   let assert V(_, tag, attrs, _) = vxml
   let source_dict = inner.5
-  let image_tags = ["img", "Image", "ImageLeft", "ImageRight"]
 
   // escape #1: no 'src' expected:
   use <- on.lazy_false_true(
-    list.contains(image_tags, tag),
+    list.contains(img_tags, tag),
     fn() { Ok(#(vxml, image_map)) },
   )
 
@@ -436,26 +438,36 @@ fn nodemap_factory(inner: InnerParam) -> n2t.FancyOneToOneBeforeAndAfterStateful
   )
 }
 
-fn transform_factory(inner: InnerParam, image_map: Option(ImageMap)) -> DesugarerTransform {
-  let image_map = case image_map {
-    Some(x) -> x 
-    None -> load_image_map(inner.4)
-  }
+fn transform_factory(inner: InnerParam) -> DesugarerTransform {
+  let image_map = load_image_map(inner.4)
   nodemap_factory(inner)
   |> n2t.fancy_one_to_one_before_and_after_stateful_nodemap_2_desugarer_transform(image_map)
 }
 
+fn sanitize_path_in_param(param: Param) -> Param {
+  assert !string.starts_with(param.2, "/")
+  assert !string.starts_with(param.2, "./")
+  assert !string.starts_with(param.2, "../")
+  assert !string.starts_with(param.3, "/")
+  assert !string.starts_with(param.3, "./")
+  assert !string.starts_with(param.3, "../")
+  assert string.ends_with(param.4, ".json")
+  #(
+    param.0 |> infra.drop_suffix("/"),
+    param.1 |> infra.drop_suffix("/"),
+    param.2 |> infra.drop_suffix("/"),
+    param.3 |> infra.drop_suffix("/"),
+    param.4,
+  )
+}
+
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
   let param = sanitize_path_in_param(param)
-  use source_dict <- on.ok(
-    case param.5 {
-      Some(x) -> Ok(x)
-      None -> construct_source_dictionary(param.0)
-    }
-  )
+  use source_dict <- on.ok(construct_source_dictionary(param.0))
   Ok(#(param.0, param.1, param.2, param.3, param.4, source_dict))
 }
 
+const img_tags = ["img", "Image", "ImageLeft", "ImageRight"]
 const supported_extensions = ["svg", "png", "jpg", "jpeg", "gif", "webp"]
 
 pub type BuildImgInfo {
@@ -479,9 +491,8 @@ type Param = #(
   String, // src_dir_to_src_img_dir
   String, // build_dir_to_build_img_dir
   String, // path_to_image_map.json
-  Option(SourceDictionary),
-  Option(ImageMap),
 )
+
 type InnerParam = #(
   String,
   String,
@@ -509,7 +520,7 @@ pub fn constructor(param: Param) -> Desugarer {
     stringified_outside: option.None,
     transform: case param_to_inner_param(param) {
       Error(error) -> fn(_) { Error(error) }
-      Ok(inner) -> transform_factory(inner, param.6)
+      Ok(inner) -> transform_factory(inner)
     },
   )
 }
