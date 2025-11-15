@@ -5,7 +5,7 @@ import gleam/int
 import gleam/io
 import gleam/json
 import gleam/list
-import gleam/option.{type Option, None, Some}
+import gleam/option.{Some, None}
 import gleam/result
 import gleam/string.{inspect as ins}
 import blame.{type Blame} as bl
@@ -22,25 +22,12 @@ import shellout
 import simplifile
 import vxml.{type VXML, type Attr, V}
 
-// fn build_img_info_to_json(info: BuildImgInfo) -> json.Json {
-//   json.object([
-//     #("build-version", json.string(info.build_version_path)),
-//     #("build-version-created-on", json.int(info.build_version_created_on)),
-//     #("build-version-size", json.int(info.build_version_size)),
-//     #("original-size", json.int(info.original_size)),
-//     #("compression", json.string(info.compression)),
-//     #("used-last-build", json.bool(info.used_last_build)),
-//   ])
-// }
-
-// fn build_dictionary_to_json(dict: ImageMap) -> json.Json {
-//   dict
-//   |> dict.to_list()
-//   |> list.map(fn(kv) { #(kv.0, build_img_info_to_json(kv.1)) })
-//   |> json.object()
-// }
-
-fn build_img_info_pretty_string(key: String, info: BuildImgInfo, indent: Int, indentation: Int) -> String {
+fn build_img_info_prettified_json_string(
+  key: String,
+  info: BuildImgInfo,
+  indent: Int,
+  indentation: Int,
+) -> String {
   let margin1 = string.repeat(" ", indent)
   let margin2 = string.repeat(" ", indent + indentation)
   margin1 <> "\"" <> key <> "\": {\n"
@@ -53,11 +40,14 @@ fn build_img_info_pretty_string(key: String, info: BuildImgInfo, indent: Int, in
   <> margin1 <> "}"
 }
 
-fn image_map_to_pretty_string(image_map: ImageMap, indentation: Int) -> String {
+fn image_map_prettified_json_string(
+  image_map: ImageMap,
+  indentation: Int,
+) -> String {
   let entries =
     image_map
     |> dict.to_list()
-    |> list.map(fn(kv) { build_img_info_pretty_string(kv.0, kv.1, indentation, indentation) })
+    |> list.map(fn(kv) { build_img_info_prettified_json_string(kv.0, kv.1, indentation, indentation) })
     |> string.join(",\n")
   "{\n" <> entries <> "\n}\n" 
 }
@@ -84,6 +74,8 @@ fn image_map_decoder() -> decode.Decoder(ImageMap) {
   decode.dict(decode.string, build_img_info_decoder())
 }
 
+const whoami = "  " <> name
+
 fn load_image_map(image_map_path: String) -> ImageMap {
   case simplifile.is_file(image_map_path) {
     Ok(True) -> {
@@ -92,31 +84,29 @@ fn load_image_map(image_map_path: String) -> ImageMap {
           case json.parse(content, image_map_decoder()) {
             Ok(map) -> map
             Error(err) -> {
-              io.println("JSON cannot be parsed. Error " <> string.inspect(err))
-              io.println("New ImageMap is constructed")
+              io.println(whoami <> ": JSON cannot be parsed. Error: " <> string.inspect(err))
+              io.println(whoami <> ": constructing new image map (1)")
               dict.new()
             }
           }
         }
         Error(err) -> {
-          io.println("File " <> image_map_path <> " cannot be read. Error is " <> simplifile.describe_error(err))
-          io.println("New ImageMap is constructed")
+          io.println(whoami <> ": '" <> image_map_path <> "' cannot be read (" <> simplifile.describe_error(err) <> ")")
+          io.println(whoami <> ": constructing new image map (2)")
           dict.new()
         }
       }
     }
     _ -> {
-      io.println("File " <> image_map_path <> " does not exist")
-      io.println("New ImageMap is constructed")
+      io.println(whoami <> ": '" <> image_map_path <> "' does not exist")
+      io.println(whoami <> ": constructing new image map (3)")
       dict.new()
     }
   }
 }
 
 fn save_image_map(dict: ImageMap, exec_to_image_map_path: String) -> Result(Nil, simplifile.FileError) {
-  // use exec <- on.ok(simplifile.current_directory())
-  // let abs_path = exec <> "/" <> exec_to_image_map_path
-  let content = image_map_to_pretty_string(dict, 2)
+  let content = image_map_prettified_json_string(dict, 2)
   simplifile.write(exec_to_image_map_path, content)
 }
 
@@ -127,13 +117,14 @@ fn last_modified_date(file_path: String) -> Int {
   }
 }
 
-fn construct_source_dictionary(images_dir: String) -> Result(SourceDictionary, DesugaringError) {
+fn load_source_dictionary(images_dir: String) -> Result(SourceDictionary, DesugaringError) {
   use paths <- on.error_ok(
     simplifile.get_files(images_dir),
     fn(err) { Error(DesugaringError(desugarer_blame(114), simplifile.describe_error(err))) }
   )
+  let prefix = images_dir <> "/"
   paths
-  |> list.map( fn(path) { #(path, last_modified_date(path)) })
+  |> list.map( fn(path) { #(path |> infra.assert_drop_prefix(prefix), last_modified_date(path)) })
   |> dict.from_list
   |> Ok
 }
@@ -194,7 +185,7 @@ fn get_random_filename() -> String {
 fn finish_off_build_image(
   exec_to_src_image_path: String,
   exec_to_build_image_path: String,
-  build_dir_to_image_path: String,
+  build_img_dir_to_image_path: String,
 ) -> Result(BuildImgInfo, DesugaringError) {
   use created_date <- on.error_ok(
     get_created_date(exec_to_build_image_path),
@@ -229,7 +220,7 @@ fn finish_off_build_image(
   let compression = compression_pct_string(original_size, new_size)
 
   BuildImgInfo(
-    build_version_path: build_dir_to_image_path,
+    build_version_path: build_img_dir_to_image_path,
     build_version_created_on: created_date,
     build_version_size: new_size,
     original_size: original_size,
@@ -241,13 +232,13 @@ fn finish_off_build_image(
 
 fn build_image_via_svgo(
   exec_to_src_image_path: String,
-  exec_to_build_dir_path: String,
-  build_dir_to_image_path: String,
+  exec_to_build_img_dir_path: String,
+  build_img_dir_to_image_path: String,
 ) -> Result(BuildImgInfo, DesugaringError) {
-  let exec_to_build_image_path = exec_to_build_dir_path <> "/" <> build_dir_to_image_path
+  let exec_to_build_image_path = exec_to_build_img_dir_path <> "/" <> build_img_dir_to_image_path
   let cmd = "svgo " <> exec_to_src_image_path <> " -o " <> exec_to_build_image_path
 
-  io.println("  running: " <> cmd)
+  io.println(whoami <> ": " <> cmd)
 
   use _ <- on.error_ok(
     shellout.command(
@@ -264,17 +255,19 @@ fn build_image_via_svgo(
   finish_off_build_image(
     exec_to_src_image_path,
     exec_to_build_image_path,
-    build_dir_to_image_path,
+    build_img_dir_to_image_path,
   )
 }
 
 fn build_image_via_cp(
   exec_to_src_image_path: String,
-  exec_to_build_dir_path: String,
-  build_dir_to_image_path: String,
+  exec_to_build_img_dir_path: String,
+  build_img_dir_to_image_path: String,
 ) -> Result(BuildImgInfo, DesugaringError) {
-  let exec_to_build_image_path = exec_to_build_dir_path <> "/" <> build_dir_to_image_path
+  let exec_to_build_image_path = exec_to_build_img_dir_path <> "/" <> build_img_dir_to_image_path
   let cmd = "cp " <> exec_to_src_image_path <> " " <> exec_to_build_image_path
+
+  io.println(whoami <> ": " <> cmd)
 
   use _ <- on.error_ok(
     shellout.command(
@@ -291,12 +284,12 @@ fn build_image_via_cp(
   finish_off_build_image(
     exec_to_src_image_path,
     exec_to_build_image_path,
-    build_dir_to_image_path,
+    build_img_dir_to_image_path,
   )
 }
 
 fn update_src_attr(attrs: List(Attr), src: String) -> List(Attr) {
-  infra.attrs_set(attrs, desugarer_blame(427), "src", "/" <> src)
+  infra.attrs_set(attrs, desugarer_blame(427), "src", src)
 }
 
 fn create_dirs_on_path_to_file(path_to_file: String) -> Result(Nil, simplifile.FileError) {
@@ -344,23 +337,48 @@ fn v_before(
     fn() { Ok(#(vxml |> remove_svgo_attribute, image_map)) },
   )
 
-  let src_dict_key = inner.0 <> "/" <> src
+  let image_map_key = src |> string.drop_start(inner.6)
+  let source_dict_key = image_map_key
 
   // escape #4: this file does actually not exist; user's problem, we ignore (we KULD generate a warning)
   use last_modified <- on.error_ok(
-    dict.get(source_dict, src_dict_key),
+    dict.get(source_dict, source_dict_key),
     fn(_) { Ok(#(vxml |> remove_svgo_attribute, image_map)) },
   )
 
-  // escape #5: this file exists in the image_map and its image as 
-  let #(need_to_do_something, existing_build_img_path) = case dict.get(image_map, src_dict_key) {
-    Error(_) -> #(True, "")
-    Ok(img_info) -> case last_modified > img_info.build_version_created_on {
-      True -> #(True, img_info.build_version_path)
-      // MISSING: we should actually check that the build_version exists, here
-      False -> #(False, img_info.build_version_path)
-    }
+  let #(
+    build_dir_to_build_img_dir_4_src_attr,
+    exec_to_build_img_dir_path,
+  ) = case inner.3 {
+    "" -> #("", inner.1)
+    _ -> #("/" <> inner.3, inner.1 <> "/" <> inner.3)
   }
+
+  let up_to_date_build_img_dir_version = {
+    use img_info <- on.error_ok(
+      dict.get(image_map, image_map_key),
+      fn(_) { None },
+    )
+    use <- on.true_false(
+      last_modified > img_info.build_version_created_on,
+      None,
+    )
+    use <- on.true_false(
+      simplifile.is_file(exec_to_build_img_dir_path <> "/" <> img_info.build_version_path) == Ok(True),
+      Some(img_info.build_version_path),
+    )
+    io.println(whoami <> ": " <> img_info.build_version_path <> " missing from " <> exec_to_build_img_dir_path <> " (!!)")
+    None
+  }
+
+  // escape #5: there exists an 'up_to_date_build_img_dir_version'
+  use <- on.some_none(
+    up_to_date_build_img_dir_version,
+    fn (build_img_dir_to_image_path) {
+      let attrs = update_src_attr(attrs, build_dir_to_build_img_dir_4_src_attr <> "/" <> build_img_dir_to_image_path)
+      Ok(#(V(..vxml, attrs: attrs), image_map))
+    }
+  )
 
   use extension <- on.ok(img_extension(src, src_attr.blame))
   let copy_mode = extension != "svg" || is_svg_optimization_suppressed(attrs)
@@ -371,38 +389,24 @@ fn v_before(
     False -> build_image_via_svgo
   }
 
-  use <- on.lazy_false_true(
-    need_to_do_something,
-    fn () {
-      let attrs = update_src_attr(attrs, existing_build_img_path)
-      Ok(#(V(..vxml, attrs: attrs), image_map))
-    }
-  )
-
-  let exec_to_src_image_path = src_dict_key
-
   let build_img_dir_to_image_path = case copy_mode {
     True -> extension <> "/" <> get_random_filename() <> "." <> extension
     False -> "svgo-svg" <> "/" <> get_random_filename() <> "." <> extension
   }
 
-  let build_dir_to_build_image_path = case inner.3 {
-    "" -> build_img_dir_to_image_path
-    _ -> inner.3 <> "/" <> build_img_dir_to_image_path
-  }
-
-  let exec_to_build_image_path = inner.1 <> "/" <> build_dir_to_build_image_path
+  let exec_to_src_image_path = inner.0 <> "/" <> src
+  let exec_to_build_image_path = exec_to_build_img_dir_path <> "/" <> build_img_dir_to_image_path
 
   let _ = create_dirs_on_path_to_file(exec_to_build_image_path)
 
   use img_info <- on.ok(builder(
-    exec_to_src_image_path, 
-    inner.1,
-    build_dir_to_build_image_path,
+    exec_to_src_image_path,
+    exec_to_build_img_dir_path,
+    build_img_dir_to_image_path,
   ))
 
-  let attrs = update_src_attr(attrs, img_info.build_version_path)
-  let image_map = dict.insert(image_map, src_dict_key, img_info)
+  let attrs = update_src_attr(attrs, build_dir_to_build_img_dir_4_src_attr <> "/" <> img_info.build_version_path)
+  let image_map = dict.insert(image_map, image_map_key, img_info)
 
   Ok(#(V(..vxml, attrs: attrs), image_map))
 }
@@ -417,7 +421,7 @@ fn v_after(
     [] -> {
       case save_image_map(state, inner.4) {
         Ok(Nil) -> Ok(#(vxml, state))
-        Error(err) -> Error(DesugaringError(desugarer_blame(547), "Unable to save " <> inner.2 <> ". Error " <> simplifile.describe_error(err)))
+        Error(err) -> Error(DesugaringError(desugarer_blame(547), "Unable to save image_map to '" <> inner.4 <> "'. Error " <> simplifile.describe_error(err)))
       }
     }
     _ -> Ok(#(vxml, state))
@@ -463,8 +467,8 @@ fn sanitize_path_in_param(param: Param) -> Param {
 
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
   let param = sanitize_path_in_param(param)
-  use source_dict <- on.ok(construct_source_dictionary(param.0))
-  Ok(#(param.0, param.1, param.2, param.3, param.4, source_dict))
+  use source_dict <- on.ok(load_source_dictionary(param.0 <> "/" <> param.2))
+  Ok(#(param.0, param.1, param.2, param.3, param.4, source_dict, string.length(param.2) + 1))
 }
 
 const img_tags = ["img", "Image", "ImageLeft", "ImageRight"]
@@ -500,6 +504,7 @@ type InnerParam = #(
   String,
   String,
   SourceDictionary,
+  Int,
 )
 
 pub const name = "lbp_img_build"
@@ -516,7 +521,7 @@ pub fn constructor(param: Param) -> Desugarer {
 
   Desugarer(
     name: name,
-    stringified_param: Some(ins(#(param.0, param.1, param.2, param.3, param.4))),
+    stringified_param: option.Some(ins(#(param.0, param.1, param.2, param.3, param.4))),
     stringified_outside: option.None,
     transform: case param_to_inner_param(param) {
       Error(error) -> fn(_) { Error(error) }

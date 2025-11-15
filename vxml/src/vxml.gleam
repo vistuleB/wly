@@ -470,27 +470,28 @@ fn jsx_tag_open_output_lines(
   blame: Blame,
   tag: String,
   indent: Int,
-  closing: String,
+  closing_same_line: String,
+  closing_different_line: String,
   attrs: List(Attr),
   ampersand_re: regexp.Regexp,
   indentation: Int,
 ) -> List(OutputLine) {
   case attrs {
     [] -> [
-      OutputLine(blame: blame, indent: indent, suffix: "<" <> tag <> closing),
+      OutputLine(blame: blame, indent: indent, suffix: "<" <> tag <> closing_same_line),
     ]
     [first] -> [
       OutputLine(
         blame: blame,
         indent: indent,
-        suffix: "<" <> tag <> " " <> jsx_key_val(first, ampersand_re) <> closing,
+        suffix: "<" <> tag <> " " <> jsx_key_val(first, ampersand_re) <> closing_same_line,
       ),
     ]
     _ -> {
       [
         [OutputLine(blame: blame, indent: indent, suffix: "<" <> tag)],
         attrs |> list.map(jsx_attr_output_line(_, indent + indentation, ampersand_re)),
-        [OutputLine(blame: blame, indent: indent, suffix: closing)],
+        [OutputLine(blame: blame, indent: indent, suffix: closing_different_line)],
       ]
       |> list.flatten
     }
@@ -528,7 +529,7 @@ fn vxml_to_jsx_output_lines_internal(
       case list.is_empty(children) {
         False ->
           [
-            jsx_tag_open_output_lines(blame, tag, indent, ">", attrs, ampersand_re, indentation),
+            jsx_tag_open_output_lines(blame, tag, indent, ">", ">", attrs, ampersand_re, indentation),
             children
             |> list.map(vxml_to_jsx_output_lines_internal(_, indent + indentation, ampersand_re, indentation))
             |> list.flatten,
@@ -537,7 +538,7 @@ fn vxml_to_jsx_output_lines_internal(
           |> list.flatten
 
         True ->
-          jsx_tag_open_output_lines(blame, tag, indent, " />", attrs, ampersand_re, indentation)
+          jsx_tag_open_output_lines(blame, tag, indent, " />", "/>", attrs, ampersand_re, indentation)
       }
     }
   }
