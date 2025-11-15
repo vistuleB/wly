@@ -374,8 +374,11 @@ fn v_before(
   // escape #5: there exists an 'up_to_date_build_img_dir_version'
   use <- on.some_none(
     up_to_date_build_img_dir_version,
-    fn (build_img_dir_to_image_path) {
-      let attrs = update_src_attr(attrs, build_dir_to_build_img_dir_4_src_attr <> "/" <> build_img_dir_to_image_path)
+    fn (up_to_date_build_img_dir_version) {
+      let attrs = 
+        attrs
+        |> infra.attrs_delete("svgo")
+        |> update_src_attr(build_dir_to_build_img_dir_4_src_attr <> "/" <> up_to_date_build_img_dir_version)
       Ok(#(V(..vxml, attrs: attrs), image_map))
     }
   )
@@ -405,7 +408,10 @@ fn v_before(
     build_img_dir_to_image_path,
   ))
 
-  let attrs = update_src_attr(attrs, build_dir_to_build_img_dir_4_src_attr <> "/" <> img_info.build_version_path)
+  let attrs =
+    attrs
+    |> infra.attrs_delete("svgo")
+    |> update_src_attr(build_dir_to_build_img_dir_4_src_attr <> "/" <> img_info.build_version_path)
   let image_map = dict.insert(image_map, image_map_key, img_info)
 
   Ok(#(V(..vxml, attrs: attrs), image_map))
