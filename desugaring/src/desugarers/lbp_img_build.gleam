@@ -132,29 +132,6 @@ fn load_source_dictionary(images_dir: String) -> Result(SourceDictionary, Desuga
   |> Ok
 }
 
-fn get_created_date(path: String) -> Result(Int, simplifile.FileError) {
-  use info <- result.try(simplifile.file_info(path))
-  Ok(info.ctime_seconds)
-}
-
-fn get_file_size(path: String) -> Result(Int, simplifile.FileError) {
-  use info <- result.try(simplifile.file_info(path))
-  Ok(info.size)
-}
-
-fn compression_pct_string(original_size: Int, new_size: Int) -> String {
-  case original_size {
-    0 -> panic
-    _ -> {
-      let original_size = int.to_float(original_size)
-      let new_size = int.to_float(new_size)
-      let savings = original_size -. new_size
-      let compression = 100.0 *. savings /. original_size
-      compression |> float.to_precision(2) |> float.to_string() <> "%"
-    }
-  }
-}
-
 fn is_svg_optimization_suppressed(attrs: List(Attr)) -> Bool {
   list.any(attrs, fn(a) { a.key == "svgo" && a.val == "false" })
 }
@@ -192,11 +169,92 @@ fn get_hashed_filename(original_name: String, image_map: ImageMap) -> String {
   s1 <> s2 <> s3 // 64^(-12) = 2^{-72} seems pretty unlucky! let us know!
 }
 
-fn finish_off_build_image(
+fn get_created_date(path: String) -> Result(Int, simplifile.FileError) {
+  use info <- result.try(simplifile.file_info(path))
+  Ok(info.ctime_seconds)
+}
+
+fn get_file_size(path: String) -> Result(Int, simplifile.FileError) {
+  use info <- result.try(simplifile.file_info(path))
+  Ok(info.size)
+}
+
+fn compression_pct_string(original_size: Int, new_size: Int) -> String {
+  case original_size {
+    0 -> panic
+    _ -> {
+      let original_size = int.to_float(original_size)
+      let new_size = int.to_float(new_size)
+      let savings = original_size -. new_size
+      let compression = 100.0 *. savings /. original_size
+      compression |> float.to_precision(2) |> float.to_string() <> "%"
+    }
+  }
+}
+
+type Command {
+  SVGO
+  CP
+}
+
+fn run_shellout(
+  via: Command,
   exec_to_src_image_path: String,
   exec_to_build_image_path: String,
+) -> Result(Nil, DesugaringError) {
+  let cmd = case via {
+    SVGO -> "svgo " <> exec_to_src_image_path <> " -o " <> exec_to_build_image_path
+    CP -> "cp " <> exec_to_src_image_path <> " " <> exec_to_build_image_path
+  }
+  io.println(whoami <> ": " <> cmd)
+  let result = case via {
+    SVGO -> {
+      shellout.command(
+        run: "svgo",
+        with: [exec_to_src_image_path, "-o", exec_to_build_image_path],
+        in: ".",
+        opt: [],
+      )
+    }
+    CP -> {
+      shellout.command(
+        run: "cp",
+        with: [exec_to_src_image_path, exec_to_build_image_path],
+        in: ".",
+        opt: [],
+      )
+    }
+  }
+  case result {
+    Ok(_) -> Ok(Nil)
+    Error(e) -> Error(DesugaringError(
+      desugarer_blame(262),
+      "failed to execute: '" <> cmd <> "' (error: " <> string.inspect(e) <> ")"
+    ))
+  }
+}
+
+fn create_dirs_on_path_to_file(path_to_file: String) -> Result(Nil, simplifile.FileError) {
+  path_to_file
+  |> string.split("/")
+  |> infra.drop_last()
+  |> string.join("/")
+  |> simplifile.create_directory_all
+}
+
+fn build_image(
+  via: Command,
+  exec_to_src_image_path: String,
+  exec_to_build_img_dir_path: String,
   build_img_dir_to_image_path: String,
 ) -> Result(BuildImgInfo, DesugaringError) {
+  let exec_to_build_image_path = exec_to_build_img_dir_path <> "/" <> build_img_dir_to_image_path
+  let _ = create_dirs_on_path_to_file(exec_to_build_image_path)
+
+  use _ <- on.ok(
+    run_shellout(via, exec_to_src_image_path, exec_to_build_image_path)
+  )
+
   use created_date <- on.error_ok(
     get_created_date(exec_to_build_image_path),
     fn(err) {
@@ -229,87 +287,18 @@ fn finish_off_build_image(
 
   let compression = compression_pct_string(original_size, new_size)
 
-  BuildImgInfo(
+  Ok(BuildImgInfo(
     build_version_path: build_img_dir_to_image_path,
     build_version_created_on: created_date,
     build_version_size: new_size,
     original_size: original_size,
     compression: compression,
     used_last_build: True,
-  )
-  |> Ok
-}
-
-fn build_image_via_svgo(
-  exec_to_src_image_path: String,
-  exec_to_build_img_dir_path: String,
-  build_img_dir_to_image_path: String,
-) -> Result(BuildImgInfo, DesugaringError) {
-  let exec_to_build_image_path = exec_to_build_img_dir_path <> "/" <> build_img_dir_to_image_path
-  let _ = create_dirs_on_path_to_file(exec_to_build_image_path)
-  let cmd = "svgo " <> exec_to_src_image_path <> " -o " <> exec_to_build_image_path
-
-  io.println(whoami <> ": " <> cmd)
-
-  use _ <- on.error_ok(
-    shellout.command(
-      run: "svgo",
-      with: [exec_to_src_image_path, "-o", exec_to_build_image_path],
-      in: ".",
-      opt: [],
-    ),
-    fn(err) {
-      Error(DesugaringError(desugarer_blame(262), "failed to execute: '" <> cmd <> "' (error: " <> string.inspect(err) <> ")" ))
-    },
-  )
-
-  finish_off_build_image(
-    exec_to_src_image_path,
-    exec_to_build_image_path,
-    build_img_dir_to_image_path,
-  )
-}
-
-fn build_image_via_cp(
-  exec_to_src_image_path: String,
-  exec_to_build_img_dir_path: String,
-  build_img_dir_to_image_path: String,
-) -> Result(BuildImgInfo, DesugaringError) {
-  let exec_to_build_image_path = exec_to_build_img_dir_path <> "/" <> build_img_dir_to_image_path
-  let _ = create_dirs_on_path_to_file(exec_to_build_image_path)
-  let cmd = "cp " <> exec_to_src_image_path <> " " <> exec_to_build_image_path
-
-  io.println(whoami <> ": " <> cmd)
-
-  use _ <- on.error_ok(
-    shellout.command(
-      run: "cp",
-      with: [exec_to_src_image_path, exec_to_build_image_path],
-      in: ".",
-      opt: [],
-    ),
-    fn(err) {
-      Error(DesugaringError(desugarer_blame(292), "failed to execute: '" <> cmd <> "' (error: " <> string.inspect(err) <> ")" ))
-    },
-  )
-
-  finish_off_build_image(
-    exec_to_src_image_path,
-    exec_to_build_image_path,
-    build_img_dir_to_image_path,
-  )
+  ))
 }
 
 fn update_src_attr(attrs: List(Attr), src: String) -> List(Attr) {
   infra.attrs_set(attrs, desugarer_blame(304), "src", src)
-}
-
-fn create_dirs_on_path_to_file(path_to_file: String) -> Result(Nil, simplifile.FileError) {
-  path_to_file
-  |> string.split("/")
-  |> infra.drop_last()
-  |> string.join("/")
-  |> simplifile.create_directory_all
 }
 
 fn v_before(
@@ -394,18 +383,20 @@ fn v_before(
 
   use extension <- on.ok(img_extension(src, src_attr.blame))
 
-  let copy_mode = extension != "svg" || is_svg_optimization_suppressed(attrs)
-  let builder = case copy_mode {
-    True -> build_image_via_cp
-    False -> build_image_via_svgo
+  let cmd = case extension != "svg" || is_svg_optimization_suppressed(attrs) {
+    True -> CP
+    False -> SVGO
   }
-  let build_img_dir_to_image_path = case copy_mode {
-    True -> extension <> "/" <> get_hashed_filename(image_map_key, image_map) <> "." <> extension
-    False -> "svgo-svg" <> "/" <> get_hashed_filename(image_map_key, image_map) <> "." <> extension
+
+  let build_img_dir_to_image_path = case cmd {
+    CP -> extension <> "/" <> get_hashed_filename(image_map_key, image_map) <> "." <> extension
+    SVGO -> "svgo-svg" <> "/" <> get_hashed_filename(image_map_key, image_map) <> "." <> extension
   }
+
   let exec_to_src_image_path = inner.0 <> "/" <> src
 
-  use img_info <- on.ok(builder(
+  use img_info <- on.ok(build_image(
+    cmd,
     exec_to_src_image_path,
     exec_to_build_img_dir_path,
     build_img_dir_to_image_path,
@@ -415,6 +406,7 @@ fn v_before(
     attrs
     |> infra.attrs_delete("svgo")
     |> update_src_attr(build_dir_to_build_img_dir_4_src_attr_path <> "/" <> img_info.build_version_path)
+
   let image_map = dict.insert(image_map, image_map_key, img_info)
 
   Ok(#(V(..vxml, attrs: attrs), image_map))
@@ -481,7 +473,7 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
 const img_tags = ["img", "Image", "ImageLeft", "ImageRight"]
 const supported_extensions = ["svg", "png", "jpg", "jpeg", "gif", "webp"]
 
-pub type BuildImgInfo {
+type BuildImgInfo {
   BuildImgInfo(
     build_version_path: String,
     build_version_created_on: Int,
@@ -492,9 +484,9 @@ pub type BuildImgInfo {
   )
 }
 
-pub type ImageMap = Dict(String, BuildImgInfo)
-pub type SourceDictionary = Dict(String, Int) // path -> last_modified timestamp
-pub type State = ImageMap
+type ImageMap = Dict(String, BuildImgInfo)
+type SourceDictionary = Dict(String, Int) // path -> last_modified timestamp
+type State = ImageMap
 
 type Param = #(
   String, // exec_dir_to_src_dir
@@ -525,10 +517,9 @@ fn desugarer_blame(line_no: Int) -> bl.Blame { bl.Des([], name, line_no) }
 /// copies other images, maintains build dictionary with
 /// compression stats and timestamps
 pub fn constructor(param: Param) -> Desugarer {
-
   Desugarer(
     name: name,
-    stringified_param: option.Some(ins(#(param.0, param.1, param.2, param.3, param.4))),
+    stringified_param: option.Some(ins(param)),
     stringified_outside: option.None,
     transform: case param_to_inner_param(param) {
       Error(error) -> fn(_) { Error(error) }
