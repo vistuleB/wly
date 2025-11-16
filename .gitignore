@@ -7,3 +7,5 @@ erl_crash.dump
 this.code-workspace
 **/.DS_store
 .zed/
+.vscode
+.vscode/

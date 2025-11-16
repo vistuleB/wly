@@ -128,7 +128,7 @@ fn add_sub_with_title_to_state(
   [first, ..rest]
 }
 
-fn chapter_info_information_gatherer(
+fn chapter_info_information_collector(
   vxml: VXML,
   state: List(ChapterInfo),
 ) -> Result(#(List(ChapterInfo), TrafficLight), DesugaringError) {
@@ -151,10 +151,10 @@ fn chapter_info_information_gatherer(
 }
 
 fn gather_chapter_infos(root: VXML) -> Result(List(ChapterInfo), DesugaringError) {
-  n2t.early_return_information_gatherer_traverse_tree(
+  n2t.early_return_information_collector_walk(
     root,
     [],
-    chapter_info_information_gatherer,
+    chapter_info_information_collector,
   )
 }
 

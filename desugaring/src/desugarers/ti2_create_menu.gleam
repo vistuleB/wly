@@ -451,7 +451,7 @@ fn at_root(
     infra.v_val_of_first_attr_with_key(root, "homepage")
     |> option.unwrap("")
 
-  n2t.early_return_one_to_one_nodemap_traverse_tree(
+  n2t.early_return_one_to_one_nodemap_walk(
     root,
     nodemap(_, homepage_url),
   )

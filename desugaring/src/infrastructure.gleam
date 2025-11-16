@@ -539,6 +539,13 @@ pub fn map_first(
   }
 }
 
+pub fn not_contains(
+  list: List(a),
+  element: a,
+) -> Bool {
+  !list.contains(list, element)
+}
+
 // ************************************************************
 // tuples
 // ************************************************************

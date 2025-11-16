@@ -78,7 +78,7 @@ fn add_sub_to_page_gathering_state(
   PageGatheringState(pages, ch_no, sub_no + 1)
 }
 
-fn page_information_gatherer(
+fn page_information_collector(
   vxml: VXML,
   state: PageGatheringState,
 ) -> Result(#(PageGatheringState, TrafficLight), DesugaringError) {
@@ -102,10 +102,10 @@ fn page_information_gatherer(
 
 fn gather_pages(root: VXML) -> Result(List(Page), DesugaringError) {
   use PageGatheringState(pages, _, _) <- on.ok(
-    n2t.early_return_information_gatherer_traverse_tree(
+    n2t.early_return_information_collector_walk(
       root,
       PageGatheringState([], 0, 0),
-      page_information_gatherer,
+      page_information_collector,
     )
   )
 
@@ -236,7 +236,7 @@ fn at_root(root: VXML) -> Result(VXML, DesugaringError) {
   use pages <- on.ok(gather_pages(root))
 
   let assert Ok(#(root, #(_, []))) =
-    n2t.early_return_one_to_one_before_and_after_stateful_nodemap_traverse_tree(
+    n2t.early_return_one_to_one_before_and_after_stateful_nodemap_walk(
       #([], pages),
       root,
       page_depositor_nodemap(),

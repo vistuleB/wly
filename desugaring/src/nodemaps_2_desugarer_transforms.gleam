@@ -31,6 +31,13 @@ pub fn at_root_no_errors_2_desugarer_transform(at_root: fn(VXML) -> VXML) {
   }
 }
 
+pub fn at_root_no_changes_2_desugarer_transform(at_root: fn(VXML) -> Result(Nil, DesugaringError)) {
+  fn(vxml) {
+    use _ <- on.ok(at_root(vxml))
+    Ok(#(vxml, []))
+  }
+}
+
 pub fn identity_transform(vxml: VXML) {
   Ok(#(vxml, []))
 }
@@ -77,7 +84,7 @@ pub type OneToOneNoErrorNodeMap =
 
 // *** without forbidden ***
 
-pub fn one_to_one_no_error_nodemap_traverse_tree(
+pub fn one_to_one_no_error_nodemap_walk(
   node: VXML,
   nodemap: OneToOneNoErrorNodeMap,
 ) -> VXML {
@@ -87,7 +94,7 @@ pub fn one_to_one_no_error_nodemap_traverse_tree(
       ..node,
       children: list.map(
         children,
-        one_to_one_no_error_nodemap_traverse_tree(_, nodemap),
+        one_to_one_no_error_nodemap_walk(_, nodemap),
       ),
     ))
   }
@@ -97,7 +104,7 @@ pub fn one_to_one_no_error_nodemap_2_desugarer_transform(
   nodemap: OneToOneNoErrorNodeMap,
 ) -> DesugarerTransform {
   fn (vxml) {
-    one_to_one_no_error_nodemap_traverse_tree(vxml, nodemap)
+    one_to_one_no_error_nodemap_walk(vxml, nodemap)
     |> add_no_warnings
     |> Ok
   }
@@ -105,7 +112,7 @@ pub fn one_to_one_no_error_nodemap_2_desugarer_transform(
 
 // *** with forbidden ***
 
-fn one_to_one_no_error_nodemap_traverse_tree_with_forbidden(
+fn one_to_one_no_error_nodemap_walk_with_forbidden(
   node: VXML,
   nodemap: OneToOneNoErrorNodeMap,
   forbidden: List(String),
@@ -119,7 +126,7 @@ fn one_to_one_no_error_nodemap_traverse_tree_with_forbidden(
           ..node,
           children: list.map(
             children, 
-            one_to_one_no_error_nodemap_traverse_tree_with_forbidden(_, nodemap, forbidden),
+            one_to_one_no_error_nodemap_walk_with_forbidden(_, nodemap, forbidden),
           )
         ))
       }
@@ -134,7 +141,7 @@ pub fn one_to_one_no_error_nodemap_2_desugarer_transform_with_forbidden(
   use <- bad_tag_guard(forbidden)
 
   fn(vxml) {
-    one_to_one_no_error_nodemap_traverse_tree_with_forbidden(vxml, nodemap, forbidden)
+    one_to_one_no_error_nodemap_walk_with_forbidden(vxml, nodemap, forbidden)
     |> add_no_warnings
     |> Ok
   }
@@ -142,7 +149,7 @@ pub fn one_to_one_no_error_nodemap_2_desugarer_transform_with_forbidden(
 
 // *** with forbidden, self_first ***
 
-fn one_to_one_no_error_nodemap_traverse_tree_with_forbidden_self_first(
+fn one_to_one_no_error_nodemap_walk_with_forbidden_self_first(
   node: VXML,
   nodemap: OneToOneNoErrorNodeMap,
   forbidden: List(String),
@@ -155,7 +162,7 @@ fn one_to_one_no_error_nodemap_traverse_tree_with_forbidden_self_first(
         let assert V(_, _, _, children) as node = nodemap(node)
         let children = list.map(
           children,
-          one_to_one_no_error_nodemap_traverse_tree_with_forbidden_self_first(_, nodemap, forbidden)
+          one_to_one_no_error_nodemap_walk_with_forbidden_self_first(_, nodemap, forbidden)
         )
         V(..node, children: children)
       }
@@ -170,7 +177,7 @@ pub fn one_to_one_no_error_nodemap_2_desugarer_transform_with_forbidden_self_fir
   use <- bad_tag_guard(forbidden)
 
   fn (vxml) {
-    one_to_one_no_error_nodemap_traverse_tree_with_forbidden_self_first(vxml, nodemap, forbidden)
+    one_to_one_no_error_nodemap_walk_with_forbidden_self_first(vxml, nodemap, forbidden)
     |> add_no_warnings
     |> Ok
   }
@@ -185,7 +192,7 @@ pub type OneToOneNodeMap =
 
 // *** without forbidden ***
 
-fn one_to_one_nodemap_traverse_tree(
+fn one_to_one_nodemap_walk(
   node: VXML,
   nodemap: OneToOneNodeMap,
 ) -> Result(VXML, DesugaringError) {
@@ -193,7 +200,7 @@ fn one_to_one_nodemap_traverse_tree(
     T(_, _) -> nodemap(node)
     V(_, _, _, children) -> {
       use children <- on.ok(
-        children |> list.try_map(one_to_one_nodemap_traverse_tree(_, nodemap))
+        children |> list.try_map(one_to_one_nodemap_walk(_, nodemap))
       )
 
       nodemap(V(..node, children: children))
@@ -205,14 +212,14 @@ pub fn one_to_one_nodemap_2_desugarer_transform(
   nodemap: OneToOneNodeMap,
 ) -> DesugarerTransform {
   fn (vxml) {
-    one_to_one_nodemap_traverse_tree(vxml, nodemap)
+    one_to_one_nodemap_walk(vxml, nodemap)
     |> result.map(add_no_warnings)
   }
 }
 
 // *** with forbidden ***
 
-fn one_to_one_nodemap_traverse_tree_with_forbidden(
+fn one_to_one_nodemap_walk_with_forbidden(
   node: VXML,
   nodemap: OneToOneNodeMap,
   forbidden: List(String),
@@ -224,7 +231,7 @@ fn one_to_one_nodemap_traverse_tree_with_forbidden(
       False -> {
         use children <- on.ok(
           children
-          |> list.try_map(one_to_one_nodemap_traverse_tree_with_forbidden(_, nodemap, forbidden))
+          |> list.try_map(one_to_one_nodemap_walk_with_forbidden(_, nodemap, forbidden))
         )
         nodemap(V(..node, children: children))
       }
@@ -239,7 +246,7 @@ pub fn one_to_one_nodemap_2_desugarer_transform_with_forbidden(
   use <- bad_tag_guard(forbidden)
 
   fn (vxml) {
-    one_to_one_nodemap_traverse_tree_with_forbidden(vxml, nodemap, forbidden)
+    one_to_one_nodemap_walk_with_forbidden(vxml, nodemap, forbidden)
     |> result.map(add_no_warnings)
   }
 }
@@ -253,7 +260,7 @@ pub type OneToManyNoErrorNodeMap =
 
 // *** without forbidden ***
 
-fn one_to_many_no_error_nodemap_traverse_tree(
+fn one_to_many_no_error_nodemap_walk(
   node: VXML,
   nodemap: OneToManyNoErrorNodeMap,
 ) -> List(VXML) {
@@ -263,18 +270,18 @@ fn one_to_many_no_error_nodemap_traverse_tree(
       // option 1:
       // let children =
       //   children
-      //   |> list.flat_map(one_to_many_no_error_nodemap_traverse_tree(_, nodemap))
+      //   |> list.flat_map(one_to_many_no_error_nodemap_walk(_, nodemap))
       // option 2:
       // let children =
       //   children
-      //   |> infra.our_flat_map(one_to_many_no_error_nodemap_traverse_tree(_, nodemap))
+      //   |> infra.our_flat_map(one_to_many_no_error_nodemap_walk(_, nodemap))
       // option 3:
       let children =
         list.fold(
           children,
           [],
           fn(acc, child) {
-            infra.pour(one_to_many_no_error_nodemap_traverse_tree(child, nodemap), acc)
+            infra.pour(one_to_many_no_error_nodemap_walk(child, nodemap), acc)
           }
         )
         |> list.reverse
@@ -287,7 +294,7 @@ pub fn one_to_many_no_error_nodemap_2_desugarer_transform(
   nodemap: OneToManyNoErrorNodeMap,
 ) -> DesugarerTransform {
   fn (vxml) {
-    one_to_many_no_error_nodemap_traverse_tree(vxml, nodemap)
+    one_to_many_no_error_nodemap_walk(vxml, nodemap)
     |> get_root
     |> result.map(add_no_warnings)
   }
@@ -295,7 +302,7 @@ pub fn one_to_many_no_error_nodemap_2_desugarer_transform(
 
 // *** with forbidden ***
 
-fn one_to_many_no_error_nodemap_traverse_tree_with_forbidden(
+fn one_to_many_no_error_nodemap_walk_with_forbidden(
   node: VXML,
   nodemap: OneToManyNoErrorNodeMap,
   forbidden: List(String),
@@ -307,7 +314,7 @@ fn one_to_many_no_error_nodemap_traverse_tree_with_forbidden(
       False -> {
         let children =
           children
-          |> list.map(one_to_many_no_error_nodemap_traverse_tree_with_forbidden(_, nodemap, forbidden))
+          |> list.map(one_to_many_no_error_nodemap_walk_with_forbidden(_, nodemap, forbidden))
           |> list.flatten
         nodemap(V(..node, children: children))
       }
@@ -322,7 +329,7 @@ pub fn one_to_many_no_error_nodemap_2_desugarer_transform_with_forbidden(
   use <- bad_tag_guard(forbidden)
 
   fn (vxml) {
-    one_to_many_no_error_nodemap_traverse_tree_with_forbidden(vxml, nodemap, forbidden)
+    one_to_many_no_error_nodemap_walk_with_forbidden(vxml, nodemap, forbidden)
     |> get_root
     |> result.map(add_no_warnings)
   }
@@ -337,7 +344,7 @@ pub type OneToManyNodeMap =
 
 // *** without forbidden ***
 
-fn one_to_many_nodemap_traverse_tree(
+fn one_to_many_nodemap_walk(
   node: VXML,
   nodemap: OneToManyNodeMap,
 ) -> Result(List(VXML), DesugaringError) {
@@ -346,7 +353,7 @@ fn one_to_many_nodemap_traverse_tree(
     V(_, _, _, children) -> {
       use children <- on.ok(
         children
-        |> list.try_map(one_to_many_nodemap_traverse_tree(_, nodemap))
+        |> list.try_map(one_to_many_nodemap_walk(_, nodemap))
         |> result.map(list.flatten)
       )
       nodemap(V(..node, children: children))
@@ -358,7 +365,7 @@ pub fn one_to_many_nodemap_2_desugarer_transform(
   nodemap: OneToManyNodeMap,
 ) -> DesugarerTransform {
   fn (vxml) {
-    one_to_many_nodemap_traverse_tree(vxml, nodemap)
+    one_to_many_nodemap_walk(vxml, nodemap)
     |> on.ok(get_root)
     |> result.map(add_no_warnings)
   }
@@ -366,7 +373,7 @@ pub fn one_to_many_nodemap_2_desugarer_transform(
 
 // *** with forbidden ***
 
-fn one_to_many_nodemap_traverse_tree_with_forbidden(
+fn one_to_many_nodemap_walk_with_forbidden(
   node: VXML,
   nodemap: OneToManyNodeMap,
   forbidden: List(String),
@@ -378,7 +385,7 @@ fn one_to_many_nodemap_traverse_tree_with_forbidden(
       False -> {
         use children <- on.ok(
           children
-          |> list.try_map(one_to_many_nodemap_traverse_tree_with_forbidden(_, nodemap, forbidden))
+          |> list.try_map(one_to_many_nodemap_walk_with_forbidden(_, nodemap, forbidden))
           |> result.map(list.flatten)
         )
         nodemap(V(..node, children: children))
@@ -394,7 +401,7 @@ pub fn one_to_many_nodemap_2_desugarer_transform_with_forbidden(
   use <- bad_tag_guard(forbidden)
 
   fn (vxml) {
-    one_to_many_nodemap_traverse_tree_with_forbidden(vxml, nodemap, forbidden)
+    one_to_many_nodemap_walk_with_forbidden(vxml, nodemap, forbidden)
     |> on.ok(get_root)
     |> result.map(add_no_warnings)
   }
@@ -407,7 +414,7 @@ pub fn one_to_many_nodemap_2_desugarer_transform_with_forbidden(
 pub type FancyOneToOneNoErrorNodeMap =
   fn(VXML, List(VXML), List(VXML), List(VXML), List(VXML)) -> VXML
 
-fn fancy_one_to_one_no_error_nodemap_traverse_tree(
+fn fancy_one_to_one_no_error_nodemap_walk(
   node: VXML,
   ancestors: List(VXML),
   previous_siblings_before_mapping: List(VXML),
@@ -432,7 +439,7 @@ fn fancy_one_to_one_no_error_nodemap_traverse_tree(
           #([], [], list.drop(children, 1)),
           fn(acc, child) {
             let mapped_child =
-              fancy_one_to_one_no_error_nodemap_traverse_tree(child, children_ancestors, acc.0, acc.1, acc.2, nodemap)
+              fancy_one_to_one_no_error_nodemap_walk(child, children_ancestors, acc.0, acc.1, acc.2, nodemap)
             #(
               [child, ..acc.0],
               [mapped_child, ..acc.1],
@@ -456,7 +463,7 @@ pub fn fancy_one_to_one_no_error_nodemap_2_desugarer_transform(
   nodemap: FancyOneToOneNoErrorNodeMap,
 ) -> DesugarerTransform {
   fn (vxml) {
-    fancy_one_to_one_no_error_nodemap_traverse_tree(vxml, [], [], [], [], nodemap)
+    fancy_one_to_one_no_error_nodemap_walk(vxml, [], [], [], [], nodemap)
     |> add_no_warnings
     |> Ok
   }
@@ -470,7 +477,7 @@ pub type FancyOneToOneNodeMap =
   fn(VXML, List(VXML), List(VXML), List(VXML), List(VXML)) ->
     Result(VXML, DesugaringError)
 
-fn fancy_one_to_one_nodemap_traverse_tree(
+fn fancy_one_to_one_nodemap_walk(
   node: VXML,
   ancestors: List(VXML),
   previous_siblings_before_mapping: List(VXML),
@@ -494,7 +501,7 @@ fn fancy_one_to_one_nodemap_traverse_tree(
           children,
           #([], [], list.drop(children, 1)),
           fn(acc, child) {
-            case fancy_one_to_one_nodemap_traverse_tree(child, children_ancestors, acc.0, acc.1, acc.2, nodemap) {
+            case fancy_one_to_one_nodemap_walk(child, children_ancestors, acc.0, acc.1, acc.2, nodemap) {
               Error(e) -> Error(e)
               Ok(mapped_child) -> {
                 Ok(#(
@@ -523,7 +530,7 @@ pub fn fancy_one_to_one_nodemap_2_desugarer_transform(
   nodemap: FancyOneToOneNodeMap,
 ) -> DesugarerTransform {
   fn (vxml) {
-    fancy_one_to_one_nodemap_traverse_tree(vxml, [], [], [], [], nodemap)
+    fancy_one_to_one_nodemap_walk(vxml, [], [], [], [], nodemap)
     |> result.map(add_no_warnings)
   }
 }
@@ -536,7 +543,7 @@ pub type FancyOneToManyNoErrorNodeMap =
   fn(VXML, List(VXML), List(VXML), List(VXML), List(VXML)) ->
     List(VXML)
 
-fn fancy_one_to_many_no_error_nodemap_traverse_tree(
+fn fancy_one_to_many_no_error_nodemap_walk(
   node: VXML,
   ancestors: List(VXML),
   previous_siblings_before_mapping: List(VXML),
@@ -561,7 +568,7 @@ fn fancy_one_to_many_no_error_nodemap_traverse_tree(
           #([], [], list.drop(children, 1)),
           fn(acc, child) {
             let shat_children =
-              fancy_one_to_many_no_error_nodemap_traverse_tree(
+              fancy_one_to_many_no_error_nodemap_walk(
                 child,
                 children_ancestors,
                 acc.0,
@@ -592,7 +599,7 @@ pub fn fancy_one_to_many_no_error_nodemap_2_desugarer_transform(
   nodemap: FancyOneToManyNoErrorNodeMap,
 ) -> DesugarerTransform {
   fn(root: VXML) {
-    fancy_one_to_many_no_error_nodemap_traverse_tree(
+    fancy_one_to_many_no_error_nodemap_walk(
       root,
       [],
       [],
@@ -613,7 +620,7 @@ pub type FancyOneToManyNodeMap =
   fn(VXML, List(VXML), List(VXML), List(VXML), List(VXML)) ->
     Result(List(VXML), DesugaringError)
 
-fn fancy_one_to_many_nodemap_traverse_tree(
+fn fancy_one_to_many_nodemap_walk(
   node: VXML,
   ancestors: List(VXML),
   previous_siblings_before_mapping: List(VXML),
@@ -637,7 +644,7 @@ fn fancy_one_to_many_nodemap_traverse_tree(
           children,
           #([], [], list.drop(children, 1)),
           fn(acc, child) {
-            case fancy_one_to_many_nodemap_traverse_tree(
+            case fancy_one_to_many_nodemap_walk(
               child,
               children_ancestors,
               acc.0,
@@ -673,7 +680,7 @@ pub fn fancy_one_to_many_nodemap_2_desugarer_transform(
   nodemap: FancyOneToManyNodeMap,
 ) -> DesugarerTransform {
   fn(root: VXML) {
-    fancy_one_to_many_nodemap_traverse_tree(
+    fancy_one_to_many_nodemap_walk(
       root,
       [],
       [],
@@ -693,7 +700,7 @@ pub fn fancy_one_to_many_nodemap_2_desugarer_transform(
 pub type OneToOneStatefulNodeMap(a) =
   fn(VXML, a) -> Result(#(VXML, a), DesugaringError)
 
-fn one_to_one_stateful_nodemap_traverse_tree(
+fn one_to_one_stateful_nodemap_walk(
   state: a,
   node: VXML,
   nodemap: OneToOneStatefulNodeMap(a),
@@ -706,7 +713,7 @@ fn one_to_one_stateful_nodemap_traverse_tree(
         |> infra.try_map_fold(
           state,
           fn(acc, child) {
-            one_to_one_stateful_nodemap_traverse_tree(acc, child, nodemap)
+            one_to_one_stateful_nodemap_walk(acc, child, nodemap)
           }
         )
       )
@@ -720,7 +727,7 @@ pub fn one_to_one_stateful_nodemap_2_desugarer_transform(
   initial_state: a,
 ) -> DesugarerTransform {
   fn(vxml) {
-    case one_to_one_stateful_nodemap_traverse_tree(initial_state, vxml, nodemap) {
+    case one_to_one_stateful_nodemap_walk(initial_state, vxml, nodemap) {
       Error(err) -> Error(err)
       Ok(#(new_vxml, _)) -> Ok(#(new_vxml, []))
     }
@@ -735,7 +742,7 @@ pub type FancyOneToOneStatefulNodeMap(a) =
   fn(VXML, List(VXML), List(VXML), List(VXML), List(VXML), a) ->
     Result(#(VXML, a), DesugaringError)
 
-fn fancy_one_to_one_stateful_nodemap_traverse_tree(
+fn fancy_one_to_one_stateful_nodemap_walk(
   state: a,
   node: VXML,
   ancestors: List(VXML),
@@ -761,7 +768,7 @@ fn fancy_one_to_one_stateful_nodemap_traverse_tree(
           children,
           #([], [], list.drop(children, 1), state),
           fn(acc, child) {
-            case fancy_one_to_one_stateful_nodemap_traverse_tree(
+            case fancy_one_to_one_stateful_nodemap_walk(
               acc.3,
               child,
               children_ancestors,
@@ -801,7 +808,7 @@ pub fn fancy_one_to_one_stateful_nodemap_2_desugarer_transform(
   initial_state: a,
 ) -> DesugarerTransform {
   fn(vxml) {
-    case fancy_one_to_one_stateful_nodemap_traverse_tree(
+    case fancy_one_to_one_stateful_nodemap_walk(
       initial_state,
       vxml,
       [],
@@ -828,7 +835,7 @@ pub type OneToOneBeforeAndAfterNoErrorStatefulNodeMap(a) {
   )
 }
 
-fn one_to_one_before_and_after_no_error_stateful_nodemap_traverse_tree(
+fn one_to_one_before_and_after_no_error_stateful_nodemap_walk(
   original_state: a,
   node: VXML,
   nodemap: OneToOneBeforeAndAfterNoErrorStatefulNodeMap(a),
@@ -846,7 +853,7 @@ fn one_to_one_before_and_after_no_error_stateful_nodemap_traverse_tree(
           children,
           latest_state,
           fn (acc, child) {
-            let #(vxml, state) = one_to_one_before_and_after_no_error_stateful_nodemap_traverse_tree(acc, child, nodemap)
+            let #(vxml, state) = one_to_one_before_and_after_no_error_stateful_nodemap_walk(acc, child, nodemap)
             #(state, vxml)
           }
         )
@@ -865,7 +872,7 @@ pub fn one_to_one_before_and_after_no_error_stateful_nodemap_2_desugarer_transfo
 ) -> DesugarerTransform {
   fn(vxml) {
     let #(vxml, _) =
-      one_to_one_before_and_after_no_error_stateful_nodemap_traverse_tree(
+      one_to_one_before_and_after_no_error_stateful_nodemap_walk(
         initial_state,
         vxml,
         nodemap,
@@ -893,7 +900,7 @@ fn custom_map_folder(
   }
 }
 
-fn one_to_one_before_and_after_no_error_stateful_nodemap_traverse_tree_with_forbidden(
+fn one_to_one_before_and_after_no_error_stateful_nodemap_walk_with_forbidden(
   original_state: a,
   node: VXML,
   nodemap: OneToOneBeforeAndAfterNoErrorStatefulNodeMap(a),
@@ -914,7 +921,7 @@ fn one_to_one_before_and_after_no_error_stateful_nodemap_traverse_tree_with_forb
             custom_map_folder(
               children,
               latest_state,
-              fn(child, state) { one_to_one_before_and_after_no_error_stateful_nodemap_traverse_tree_with_forbidden(state, child, nodemap, forbidden) },
+              fn(child, state) { one_to_one_before_and_after_no_error_stateful_nodemap_walk_with_forbidden(state, child, nodemap, forbidden) },
               [],
             )
           nodemap.v_after_transforming_children(
@@ -935,7 +942,7 @@ pub fn one_to_one_before_and_after_no_error_stateful_nodemap_2_desugarer_transfo
 ) -> DesugarerTransform {
   fn(vxml) {
     let #(vxml, _) =
-      one_to_one_before_and_after_no_error_stateful_nodemap_traverse_tree_with_forbidden(
+      one_to_one_before_and_after_no_error_stateful_nodemap_walk_with_forbidden(
         initial_state,
         vxml,
         nodemap,
@@ -960,7 +967,7 @@ pub type OneToOneBeforeAndAfterStatefulNodeMap(a) {
   )
 }
 
-fn one_to_one_before_and_after_stateful_nodemap_traverse_tree(
+fn one_to_one_before_and_after_stateful_nodemap_walk(
   original_state: a,
   node: VXML,
   nodemap: OneToOneBeforeAndAfterStatefulNodeMap(a),
@@ -979,7 +986,7 @@ fn one_to_one_before_and_after_stateful_nodemap_traverse_tree(
         infra.try_map_fold(
           children,
           latest_state,
-          fn (acc, child) { one_to_one_before_and_after_stateful_nodemap_traverse_tree(acc, child, nodemap) }
+          fn (acc, child) { one_to_one_before_and_after_stateful_nodemap_walk(acc, child, nodemap) }
         )
       )
       nodemap.v_after_transforming_children(
@@ -997,7 +1004,7 @@ pub fn one_to_one_before_and_after_stateful_nodemap_2_desugarer_transform(
 ) -> DesugarerTransform {
   fn(vxml) {
     use #(vxml, _) <- on.ok(
-      one_to_one_before_and_after_stateful_nodemap_traverse_tree(
+      one_to_one_before_and_after_stateful_nodemap_walk(
         initial_state,
         vxml,
         nodemap,
@@ -1022,7 +1029,7 @@ pub type EarlyReturnOneToOneBeforeAndAfterStatefulNodeMap(a) {
   )
 }
 
-pub fn early_return_one_to_one_before_and_after_stateful_nodemap_traverse_tree(
+pub fn early_return_one_to_one_before_and_after_stateful_nodemap_walk(
   original_state: a,
   node: VXML,
   nodemap: EarlyReturnOneToOneBeforeAndAfterStatefulNodeMap(a),
@@ -1045,7 +1052,7 @@ pub fn early_return_one_to_one_before_and_after_stateful_nodemap_traverse_tree(
               children,
               latest_state,
               fn (acc, child) {
-                early_return_one_to_one_before_and_after_stateful_nodemap_traverse_tree(acc, child, nodemap)
+                early_return_one_to_one_before_and_after_stateful_nodemap_walk(acc, child, nodemap)
               }
             )
           }
@@ -1066,7 +1073,7 @@ pub fn early_return_one_to_one_before_and_after_stateful_nodemap_2_desugarer_tra
 ) -> DesugarerTransform {
   fn(vxml) {
     use #(vxml, _) <- on.ok(
-      early_return_one_to_one_before_and_after_stateful_nodemap_traverse_tree(
+      early_return_one_to_one_before_and_after_stateful_nodemap_walk(
         initial_state,
         vxml,
         nodemap,
@@ -1091,7 +1098,7 @@ pub type FancyOneToOneBeforeAndAfterStatefulNodeMap(a) {
   )
 }
 
-fn fancy_one_to_one_before_and_after_stateful_nodemap_traverse_tree(
+fn fancy_one_to_one_before_and_after_stateful_nodemap_walk(
   original_state: a,
   node: VXML,
   ancestors: List(VXML),
@@ -1127,7 +1134,7 @@ fn fancy_one_to_one_before_and_after_stateful_nodemap_traverse_tree(
           children,
           #([], [], list.drop(children, 1), latest_state),
           fn (acc, child) {
-            use #(mapped_child, state) <- on.ok(fancy_one_to_one_before_and_after_stateful_nodemap_traverse_tree(
+            use #(mapped_child, state) <- on.ok(fancy_one_to_one_before_and_after_stateful_nodemap_walk(
               acc.3,
               child,
               children_ancestors,
@@ -1166,7 +1173,7 @@ pub fn fancy_one_to_one_before_and_after_stateful_nodemap_2_desugarer_transform(
 ) -> DesugarerTransform {
   fn(vxml) {
     use #(vxml, _) <- on.ok(
-      fancy_one_to_one_before_and_after_stateful_nodemap_traverse_tree(
+      fancy_one_to_one_before_and_after_stateful_nodemap_walk(
         initial_state,
         vxml,
         [],
@@ -1195,7 +1202,7 @@ pub type OneToManyBeforeAndAfterStatefulNodeMap(a) {
   )
 }
 
-fn one_to_many_before_and_after_stateful_nodemap_traverse_tree(
+fn one_to_many_before_and_after_stateful_nodemap_walk(
   original_state: a,
   node: VXML,
   nodemap: OneToManyBeforeAndAfterStatefulNodeMap(a),
@@ -1214,7 +1221,7 @@ fn one_to_many_before_and_after_stateful_nodemap_traverse_tree(
         |> list.try_fold(
           #([], latest_state),
           fn (acc, child) {
-            use #(shat_children, latest_state) <- on.ok(one_to_many_before_and_after_stateful_nodemap_traverse_tree(
+            use #(shat_children, latest_state) <- on.ok(one_to_many_before_and_after_stateful_nodemap_walk(
               acc.1,
               child,
               nodemap,
@@ -1242,7 +1249,7 @@ pub fn one_to_many_before_and_after_stateful_nodemap_2_desufarer_transform(
   initial_state: a,
 ) -> DesugarerTransform {
   fn(vxml) {
-    one_to_many_before_and_after_stateful_nodemap_traverse_tree(initial_state, vxml, nodemap)
+    one_to_many_before_and_after_stateful_nodemap_walk(initial_state, vxml, nodemap)
     |> result.map(fn(pair){pair.0})
     |> on.ok(get_root)
     |> result.map(add_no_warnings)
@@ -1264,7 +1271,7 @@ pub type OneToManyBeforeAndAfterStatefulNodeMapWithWarnings(a) {
   )
 }
 
-fn one_to_many_before_and_after_stateful_nodemap_with_warnings_traverse_tree(
+fn one_to_many_before_and_after_stateful_nodemap_with_warnings_walk(
   collected_warnings: List(DesugaringWarning),
   original_state: a,
   node: VXML,
@@ -1286,7 +1293,7 @@ fn one_to_many_before_and_after_stateful_nodemap_with_warnings_traverse_tree(
           #([], latest_state, collected_warnings),
           fn (acc, child) {
             use #(shat_children, latest_state, collected_warnings) <- on.ok(
-              one_to_many_before_and_after_stateful_nodemap_with_warnings_traverse_tree(
+              one_to_many_before_and_after_stateful_nodemap_with_warnings_walk(
                 acc.2,
                 acc.1,
                 child,
@@ -1327,7 +1334,7 @@ pub fn one_to_many_before_and_after_stateful_nodemap_with_warnings_2_desufarer_t
 ) -> DesugarerTransform {
   fn(vxml) {
     use #(vxmls, _, warnings) <- on.ok(
-      one_to_many_before_and_after_stateful_nodemap_with_warnings_traverse_tree(
+      one_to_many_before_and_after_stateful_nodemap_with_warnings_walk(
         [],
         initial_state,
         vxml,
@@ -1346,7 +1353,7 @@ pub fn one_to_many_before_and_after_stateful_nodemap_with_warnings_2_desufarer_t
 pub type EarlyReturnOneToOneNoErrorNodeMap =
   fn(VXML) -> #(VXML, TrafficLight)
 
-fn early_return_one_to_one_no_error_nodemap_traverse_tree(
+fn early_return_one_to_one_no_error_nodemap_walk(
   node: VXML,
   nodemap: EarlyReturnOneToOneNoErrorNodeMap,
 ) -> VXML {
@@ -1356,7 +1363,7 @@ fn early_return_one_to_one_no_error_nodemap_traverse_tree(
       let children =
         children
         |> list.map(
-          early_return_one_to_one_no_error_nodemap_traverse_tree(_, nodemap)
+          early_return_one_to_one_no_error_nodemap_walk(_, nodemap)
         )
       V(..node, children: children)
     }
@@ -1368,7 +1375,7 @@ pub fn early_return_one_to_one_no_error_nodemap_2_desugarer_transform(
   nodemap: EarlyReturnOneToOneNoErrorNodeMap,
 ) -> DesugarerTransform {
   fn (vxml) {
-    early_return_one_to_one_no_error_nodemap_traverse_tree(vxml, nodemap)
+    early_return_one_to_one_no_error_nodemap_walk(vxml, nodemap)
     |> add_no_warnings
     |> Ok
   }
@@ -1376,7 +1383,7 @@ pub fn early_return_one_to_one_no_error_nodemap_2_desugarer_transform(
 
 // *** with forbidden ***
 
-fn early_return_one_to_one_no_error_nodemap_traverse_tree_with_forbidden(
+fn early_return_one_to_one_no_error_nodemap_walk_with_forbidden(
   node: VXML,
   nodemap: EarlyReturnOneToOneNoErrorNodeMap,
   forbidden: List(String),
@@ -1391,7 +1398,7 @@ fn early_return_one_to_one_no_error_nodemap_traverse_tree_with_forbidden(
       let children =
         children
         |> list.map(
-          early_return_one_to_one_no_error_nodemap_traverse_tree_with_forbidden(_, nodemap, forbidden)
+          early_return_one_to_one_no_error_nodemap_walk_with_forbidden(_, nodemap, forbidden)
         )
       V(..node, children: children)
     }
@@ -1406,7 +1413,7 @@ pub fn early_return_one_to_one_no_error_nodemap_2_desugarer_transform_with_forbi
   use <- bad_tag_guard(forbidden)
 
   fn (vxml) {
-    early_return_one_to_one_no_error_nodemap_traverse_tree_with_forbidden(vxml, nodemap, forbidden)
+    early_return_one_to_one_no_error_nodemap_walk_with_forbidden(vxml, nodemap, forbidden)
     |> add_no_warnings
     |> Ok
   }
@@ -1420,7 +1427,7 @@ pub type EarlyReturnOneToOneNodeMap =
   fn(VXML) -> Result(#(VXML, TrafficLight), DesugaringError)
 
 
-pub fn early_return_one_to_one_nodemap_traverse_tree(
+pub fn early_return_one_to_one_nodemap_walk(
   node: VXML,
   nodemap: EarlyReturnOneToOneNodeMap,
 ) -> Result(VXML, DesugaringError) {
@@ -1430,7 +1437,7 @@ pub fn early_return_one_to_one_nodemap_traverse_tree(
       use children <- on.ok(
         list.try_map(
           children,
-          early_return_one_to_one_nodemap_traverse_tree(_, nodemap),
+          early_return_one_to_one_nodemap_walk(_, nodemap),
         )
       )
       Ok(V(..node, children: children))
@@ -1443,7 +1450,7 @@ pub fn early_return_one_to_one_nodemap_2_desugarer_transform(
   nodemap: EarlyReturnOneToOneNodeMap,
 ) -> DesugarerTransform {
   fn (vxml) {
-    early_return_one_to_one_nodemap_traverse_tree(vxml, nodemap)
+    early_return_one_to_one_nodemap_walk(vxml, nodemap)
     |> result.map(add_no_warnings)
   }
 }
@@ -1457,7 +1464,7 @@ pub type EarlyReturnOneToManyNoErrorNodeMap =
 
 // *** without forbidden ***
 
-fn early_return_one_to_many_no_error_nodemap_traverse_tree(
+fn early_return_one_to_many_no_error_nodemap_walk(
   node: VXML,
   nodemap: EarlyReturnOneToManyNoErrorNodeMap,
 ) -> List(VXML) {
@@ -1469,7 +1476,7 @@ fn early_return_one_to_many_no_error_nodemap_traverse_tree(
     [V(_, _, _, children) as node], Continue -> {
       let children =
         children
-        |> list.map(early_return_one_to_many_no_error_nodemap_traverse_tree(_, nodemap))
+        |> list.map(early_return_one_to_many_no_error_nodemap_walk(_, nodemap))
         |> list.flatten
       [V(..node, children: children)]
     }
@@ -1486,7 +1493,7 @@ pub fn early_return_one_to_many_no_error_nodemap_2_desugarer_transform(
   nodemap: EarlyReturnOneToManyNoErrorNodeMap,
 ) -> DesugarerTransform {
   fn (vxml) {
-    early_return_one_to_many_no_error_nodemap_traverse_tree(vxml, nodemap)
+    early_return_one_to_many_no_error_nodemap_walk(vxml, nodemap)
     |> get_root
     |> result.map(add_no_warnings)
   }
@@ -1494,7 +1501,7 @@ pub fn early_return_one_to_many_no_error_nodemap_2_desugarer_transform(
 
 // *** with forbidden ***
 
-fn early_return_one_to_many_no_error_nodemap_traverse_tree_with_forbidden(
+fn early_return_one_to_many_no_error_nodemap_walk_with_forbidden(
   node: VXML,
   nodemap: EarlyReturnOneToManyNoErrorNodeMap,
   forbidden: List(String),
@@ -1511,7 +1518,7 @@ fn early_return_one_to_many_no_error_nodemap_traverse_tree_with_forbidden(
     [V(_, _, _, children) as node], Continue -> {
       let children =
         children
-        |> list.map(early_return_one_to_many_no_error_nodemap_traverse_tree_with_forbidden(_, nodemap, forbidden))
+        |> list.map(early_return_one_to_many_no_error_nodemap_walk_with_forbidden(_, nodemap, forbidden))
         |> list.flatten
       [V(..node, children: children)]
     }
@@ -1531,23 +1538,48 @@ pub fn early_return_one_to_many_no_error_nodemap_2_desugarer_transform_with_forb
   use <- bad_tag_guard(forbidden)
 
   fn (vxml) {
-    early_return_one_to_many_no_error_nodemap_traverse_tree_with_forbidden(vxml, nodemap, forbidden)
+    early_return_one_to_many_no_error_nodemap_walk_with_forbidden(vxml, nodemap, forbidden)
     |> get_root
     |> result.map(add_no_warnings)
   }
 }
 
 // ************************************************************
-// EarlyReturnInformationGatherer
+// NoErrorInformationCollector
 // ************************************************************
 
-pub type EarlyReturnInformationGatherer(a) =
-  fn(VXML, a) -> Result(#(a, TrafficLight), DesugaringError)
+pub type NoErrorInformationCollector(a) =
+  fn(VXML, a) -> a
 
-pub fn early_return_information_gatherer_traverse_tree(
+pub fn no_error_information_collector_walk(
   vxml: VXML,
   state: state,
-  gatherer:  EarlyReturnInformationGatherer(state),
+  collector:  NoErrorInformationCollector(state),
+) -> state {
+  case vxml {
+    T(..) -> collector(vxml, state)
+    V(_, _, _, children) -> {
+      list.fold(
+        children,
+        state,
+        fn(state, c) { no_error_information_collector_walk(c, state, collector) }
+      )
+      |> collector(vxml, _)
+    }
+  }
+}
+
+// ************************************************************
+// EarlyReturnInformationCollector
+// ************************************************************
+
+pub type EarlyReturnInformationCollector(a) =
+  fn(VXML, a) -> Result(#(a, TrafficLight), DesugaringError)
+
+pub fn early_return_information_collector_walk(
+  vxml: VXML,
+  state: state,
+  gatherer:  EarlyReturnInformationCollector(state),
 ) -> Result(state, DesugaringError) {
   use #(state, traffic_light) <- on.ok(gatherer(vxml, state))
   case traffic_light, vxml {
@@ -1556,7 +1588,7 @@ pub fn early_return_information_gatherer_traverse_tree(
         children,
         state,
         fn (state, child) {
-          early_return_information_gatherer_traverse_tree(child, state, gatherer)
+          early_return_information_collector_walk(child, state, gatherer)
         }
       )
     }
