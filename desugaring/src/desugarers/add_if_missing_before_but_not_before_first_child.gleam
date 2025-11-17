@@ -45,15 +45,15 @@ fn transform_factory(inner: InnerParam) -> DesugarerTransform {
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
   #(
     param.0,
-    infra.v_attrs_constructor(desugarer_blame(48), param.1, param.2),
+    V(desugarer_blame(48), param.1, [], []),
     param.1,
   )
   |> Ok
 }
 
-type Param = #(String,        String,          List(#(String, String)))
-//             ↖              ↖                ↖
-//             insert divs    tag name         attrs
+type Param = #(String,        String)
+//             ↖              ↖
+//             insert divs    tag name
 //             before tags    of new element
 //             of this name
 //             (except if tag is first child)

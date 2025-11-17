@@ -51,16 +51,16 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
     fn(p) {
       #(
         p.0,
-        infra.v_attrs_constructor(desugarer_blame(54), p.1, p.2),
+        V(desugarer_blame(54), p.1, [], []),
       )
     }
   )
   |> infra.dict_from_list
 }
 
-type Param = List(#(String,        String,          List(#(String, String))))
-//                  ↖              ↖                ↖
-//                  insert divs    tag name         attrs
+type Param = List(#(String,        String))
+//                  ↖              ↖
+//                  insert divs    tag name
 //                  before tags    of new element
 //                  of this name
 //                  (except if tag is first child)

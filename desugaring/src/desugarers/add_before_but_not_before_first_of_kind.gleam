@@ -47,14 +47,14 @@ fn transform_factory(inner: InnerParam) -> DesugarerTransform {
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
   #(
     param.0,
-    infra.v_attrs_constructor(desugarer_blame(50), param.1, param.2),
+    V(desugarer_blame(50), param.1, [], []),
   )
   |> Ok
 }
 
-type Param = #(String,         String,          List(#(String, String)))
-//             ↖               ↖                ↖
-//             insert          tag name         attrs
+type Param = #(String,         String)
+//             ↖               ↖
+//             insert          tag name
 //             before tags     of new
 //             of this name    element
 type InnerParam = #(String, VXML)

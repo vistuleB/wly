@@ -28,15 +28,15 @@ fn transform_factory(inner: InnerParam) -> DesugarerTransform {
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
   #(
     param.0,
-    infra.v_attrs_constructor(desugarer_blame(31), param.1, param.2),
+    V(desugarer_blame(31), param.1, [], [])
   )
   |> Ok
 }
 
-type Param = #(String,          String,         List(#(String, String)))
-//             ↖                ↖               ↖
-//             prepend node     tag name for    attrs for
-//             with this tag    new element     new element
+type Param = #(String,          String)
+//             ↖                ↖
+//             prepend node     tag name for
+//             with this tag    new element
 type InnerParam = #(String, VXML)
 
 pub const name = "prepend"

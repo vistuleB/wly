@@ -50,15 +50,15 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
   #(
     param.0,
     param.1,
-    infra.v_attrs_constructor(desugarer_blame(53), param.2, param.3),
+    V(desugarer_blame(53), param.2, [], []),
   )
   |> Ok
 }
 
-type Param = #(String,          String, String,         List(#(String, String)))
-//             ↖                ↗       ↖               ↖
-//             insert divs              tag name for    attrs for
-//             between adjacent         new element     new element
+type Param = #(String,          String, String)
+//             ↖                ↗       ↖
+//             insert divs              tag name for
+//             between adjacent         new element
 //             siblings of these
 //             two names
 type InnerParam = #(String, String, VXML)
