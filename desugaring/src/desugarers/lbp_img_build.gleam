@@ -14,15 +14,31 @@ import blame.{type Blame} as bl
 import infrastructure.{
   type Desugarer,
   type DesugaringError,
+  type DesugaringWarning,
   type DesugarerTransform,
   Desugarer,
   DesugaringError,
+  DesugaringWarning,
 } as infra
 import nodemaps_2_desugarer_transforms as n2t
 import on
 import shellout
 import simplifile
-import vxml.{type VXML, type Attr, V}
+import vxml.{
+  type VXML,
+  type Attr,
+  Attr,
+  V,
+}
+
+fn build_method_to_string(
+  build_method: BuildMethod,
+) -> String {
+  case build_method {
+    CP -> "cp"
+    SVGO -> "svgo"
+  }
+}
 
 fn build_img_info_prettified_json_string(
   key: String,
@@ -33,8 +49,9 @@ fn build_img_info_prettified_json_string(
   let margin1 = string.repeat(" ", indent)
   let margin2 = string.repeat(" ", indent + indentation)
   margin1 <> "\"" <> key <> "\": {\n"
-  <> margin2 <> "\"build-version\": " <> { json.string(info.build_version_path) |> json.to_string } <> ",\n"
+  <> margin2 <> "\"build-version\": " <> { json.string(info.build_version) |> json.to_string } <> ",\n"
   <> margin2 <> "\"build-version-created-on\": " <> { json.int(info.build_version_created_on) |> json.to_string } <> ",\n"
+  <> margin2 <> "\"build-method\": " <> { json.string(info.build_method |> build_method_to_string) |> json.to_string } <> ",\n"
   <> margin2 <> "\"build-version-size\": " <> { json.int(info.build_version_size) |> json.to_string } <> ",\n"
   <> margin2 <> "\"original-size\": " <> { json.int(info.original_size) |> json.to_string } <> ",\n"
   <> margin2 <> "\"compression\": " <> { json.string(info.compression) |> json.to_string } <> ",\n"
@@ -55,20 +72,44 @@ fn image_map_prettified_json_string(
 }
 
 fn build_img_info_decoder() -> decode.Decoder(BuildImgInfo) {
-  use build_version_path <- decode.field("build-version", decode.string)
+  use build_version <- decode.field("build-version", decode.string)
   use build_version_created_on <- decode.field("build-version-created-on", decode.int)
+  use build_method <- decode.field("build-method", decode.string)
   use build_version_size <- decode.field("build-version-size", decode.int)
   use original_size <- decode.field("original-size", decode.int)
   use compression <- decode.field("compression", decode.string)
-  use used_last_build <- decode.field("used-last-build", decode.bool)
+  use _used_last_build <- decode.field("used-last-build", decode.bool)
+
+  use build_method <- on.error_ok(
+    case build_method {
+      "cp" -> Ok(CP)
+      "svgo" -> Ok(SVGO)
+      _ -> Error(Nil)
+    },
+    fn(_) {
+      decode.failure(
+        BuildImgInfo(
+          build_version: build_version,
+          build_version_created_on: build_version_created_on,
+          build_method: SVGO,
+          build_version_size: build_version_size,
+          original_size: original_size,
+          compression: compression,
+          used_last_build: False,
+        ),
+        "build-method"
+      )
+    },
+  )
 
   decode.success(BuildImgInfo(
-    build_version_path: build_version_path,
+    build_version: build_version,
     build_version_created_on: build_version_created_on,
+    build_method: build_method,
     build_version_size: build_version_size,
     original_size: original_size,
     compression: compression,
-    used_last_build: used_last_build,
+    used_last_build: False,
   ))
 }
 
@@ -116,31 +157,19 @@ fn save_image_map(image_map: ImageMap, exec_to_image_map_path: String) -> Result
 fn last_modified_date(file_path: String) -> Int {
   case simplifile.file_info(file_path) {
     Ok(info) -> info.mtime_seconds
-    Error(_) -> 0 // fallback to epoch time if we can't read file info
+    Error(_) -> panic as "unable to read last modified time from supposedly existing file"
   }
 }
 
-fn load_source_dictionary(images_dir: String) -> Result(SourceDictionary, DesugaringError) {
+fn load_last_modified_times(exec_2_src_img: String) -> Result(LastModifiedTimes, DesugaringError) {
   use paths <- on.error_ok(
-    simplifile.get_files(images_dir),
-    fn(err) { Error(DesugaringError(desugarer_blame(126), simplifile.describe_error(err))) }
+    simplifile.get_files(exec_2_src_img),
+    fn(err) { Error(DesugaringError(desugarer_blame(167), simplifile.describe_error(err))) }
   )
-  let prefix = images_dir <> "/"
   paths
-  |> list.map( fn(path) { #(path |> infra.assert_drop_prefix(prefix), last_modified_date(path)) })
+  |> list.map( fn(path) { #(path |> infra.assert_drop_prefix(exec_2_src_img), last_modified_date(path)) })
   |> dict.from_list
   |> Ok
-}
-
-fn is_svg_optimization_suppressed(attrs: List(Attr)) -> Bool {
-  list.any(attrs, fn(a) { a.key == "svgo" && a.val == "false" })
-}
-
-fn remove_svgo_attribute(vxml: VXML) -> VXML {
-  case vxml {
-    V(blame, tag, attrs, children) -> V(blame, tag, infra.attrs_delete(attrs, "svgo"), children)
-    t -> t
-  }
 }
 
 fn img_extension(src: String, blame: Blame) -> Result(String, DesugaringError) {
@@ -192,26 +221,26 @@ fn compression_pct_string(original_size: Int, new_size: Int) -> String {
   }
 }
 
-type Command {
+type BuildMethod {
   SVGO
   CP
 }
 
 fn run_shellout(
-  via: Command,
-  exec_to_src_image_path: String,
-  exec_to_build_image_path: String,
+  via: BuildMethod,
+  exec_2_src_version: String,
+  exec_2_build_version: String,
 ) -> Result(Nil, DesugaringError) {
   let cmd = case via {
-    SVGO -> "svgo " <> exec_to_src_image_path <> " -o " <> exec_to_build_image_path
-    CP -> "cp " <> exec_to_src_image_path <> " " <> exec_to_build_image_path
+    SVGO -> "svgo " <> exec_2_src_version <> " -o " <> exec_2_build_version
+    CP -> "cp " <> exec_2_src_version <> " " <> exec_2_build_version
   }
   io.println(whoami <> ": " <> cmd)
   let result = case via {
     SVGO -> {
       shellout.command(
         run: "svgo",
-        with: [exec_to_src_image_path, "-o", exec_to_build_image_path],
+        with: [exec_2_src_version, "-o", exec_2_build_version],
         in: ".",
         opt: [],
       )
@@ -219,7 +248,7 @@ fn run_shellout(
     CP -> {
       shellout.command(
         run: "cp",
-        with: [exec_to_src_image_path, exec_to_build_image_path],
+        with: [exec_2_src_version, exec_2_build_version],
         in: ".",
         opt: [],
       )
@@ -228,7 +257,7 @@ fn run_shellout(
   case result {
     Ok(_) -> Ok(Nil)
     Error(e) -> Error(DesugaringError(
-      desugarer_blame(262),
+      desugarer_blame(260),
       "failed to execute: '" <> cmd <> "' (error: " <> string.inspect(e) <> ")"
     ))
   }
@@ -242,119 +271,140 @@ fn create_dirs_on_path_to_file(path_to_file: String) -> Result(Nil, simplifile.F
   |> simplifile.create_directory_all
 }
 
-fn build_image(
-  via: Command,
-  exec_to_src_image_path: String,
-  exec_to_build_img_dir_path: String,
-  build_img_dir_to_image_path: String,
+fn build_or_miraculously_retrieve_existing_build_image(
+  via: BuildMethod,
+  exec_2_src_version: String,
+  exec_2_build_img: String,
+  build_img_2_build_version: String,
+  original_last_modified: Int,
 ) -> Result(BuildImgInfo, DesugaringError) {
-  let exec_to_build_image_path = exec_to_build_img_dir_path <> "/" <> build_img_dir_to_image_path
-  let _ = create_dirs_on_path_to_file(exec_to_build_image_path)
+  let exec_2_build_version = exec_2_build_img <> build_img_2_build_version
+  let _ = create_dirs_on_path_to_file(exec_2_build_version)
 
   use _ <- on.ok(
-    run_shellout(via, exec_to_src_image_path, exec_to_build_image_path)
+    case {
+      { simplifile.is_file(exec_2_build_version) == Ok(True) } &&
+      { get_created_date(exec_2_build_version) |> result.unwrap(-1) } > original_last_modified
+    } {
+      True -> {
+        io.println(whoami <> ": found existing " <> {via |> build_method_to_string |> string.uppercase} <> "-build of " <> exec_2_src_version <> "; adding back to dictionary")
+        Ok(Nil)
+      }
+      False -> run_shellout(via, exec_2_src_version, exec_2_build_version)
+    }
   )
 
   use created_date <- on.error_ok(
-    get_created_date(exec_to_build_image_path),
+    get_created_date(exec_2_build_version),
     fn(err) {
       Error(DesugaringError(
-        desugarer_blame(204),
-        "could not get created date of optimized image: " <> exec_to_build_image_path <> ": " <> simplifile.describe_error(err),
+        desugarer_blame(301),
+        "could not get created date of optimized image: " <> exec_2_build_version <> ": " <> simplifile.describe_error(err),
       ))
     }
   )
 
   use original_size <- on.error_ok(
-    get_file_size(exec_to_src_image_path),
+    get_file_size(exec_2_src_version),
     fn(_) {
       Error(DesugaringError(
-        desugarer_blame(214),
-        "Could not get size of original image: " <> exec_to_src_image_path,
+        desugarer_blame(311),
+        "Could not get size of original image: " <> exec_2_src_version,
       ))
     }
   )
 
   use new_size <- on.error_ok(
-    get_file_size(exec_to_build_image_path),
+    get_file_size(exec_2_build_version),
     fn(_) {
       Error(DesugaringError(
-        desugarer_blame(224),
-        "Could not get size of build image: " <> exec_to_build_image_path,
+        desugarer_blame(321),
+        "Could not get size of build image: " <> exec_2_build_version,
       ))
     }
   )
 
   let compression = compression_pct_string(original_size, new_size)
 
-  Ok(BuildImgInfo(
-    build_version_path: build_img_dir_to_image_path,
+  BuildImgInfo(
+    build_version: build_img_2_build_version,
     build_version_created_on: created_date,
+    build_method: via,
     build_version_size: new_size,
     original_size: original_size,
     compression: compression,
     used_last_build: True,
-  ))
+  )
+  |> Ok
 }
 
 fn update_src_attr(attrs: List(Attr), src: String) -> List(Attr) {
-  infra.attrs_set(attrs, desugarer_blame(304), "src", src)
+  infra.attrs_set(attrs, desugarer_blame(342), "src", src)
 }
 
 fn v_before(
   vxml: VXML,
   image_map: ImageMap,
   inner: InnerParam,
-) -> Result(#(VXML, ImageMap), DesugaringError) {
+) -> Result(#(VXML, ImageMap, List(DesugaringWarning)), DesugaringError) {
   let assert V(_, tag, attrs, _) = vxml
-  let source_dict = inner.5
 
   // escape #1: no 'src' expected:
   use <- on.lazy_false_true(
     list.contains(img_tags, tag),
-    fn() { Ok(#(vxml, image_map)) },
+    fn() { Ok(#(vxml, image_map, [])) },
   )
+
+  use #(svgo_attr, attrs) <- on.ok(
+    infra.attrs_extract_unique_key_or_none(attrs, "svgo"),
+  )
+
+  let vxml = V(..vxml, attrs: attrs)
 
   // escape #2: 'src' missing:
   use src_attr <- on.lazy_none_some(
     infra.attrs_first_with_key(attrs, "src"),
-    fn() { Ok(#(vxml |> remove_svgo_attribute, image_map)) },
+    fn() { Ok(#(vxml, image_map, [])) },
   )
 
   let src = src_attr.val |> infra.drop_prefix("./") |> infra.drop_prefix("/")
 
-  // escape #3: src does not start with the expected src_dir_to_src_img_dir directory
+  // escape #3: src does not start with the expected src_2_src_img prefix
   use <- on.lazy_false_true(
-    string.starts_with(src, inner.2),
-    fn() { Ok(#(vxml |> remove_svgo_attribute, image_map)) },
+    string.starts_with(src, inner.src_2_src_img),
+    fn() { Ok(#(vxml, image_map, [])) },
   )
 
-  let image_map_key = src |> string.drop_start(inner.6)
-  let source_dict_key = image_map_key
+  let src_img_2_src_version = src |> string.drop_start(inner.src_2_src_img_length)
 
-  // escape #4: this file does actually not exist; user's problem, we ignore (we KULD generate a warning)
+  // escape #4: the source file does not exist; we escape,
+  // but generate a warning
   use last_modified <- on.error_ok(
-    dict.get(source_dict, source_dict_key),
-    fn(_) { Ok(#(vxml |> remove_svgo_attribute, image_map)) },
+    dict.get(inner.src_img_mod_times, src_img_2_src_version),
+    fn(_) {
+      Ok(#(
+        vxml,
+        image_map,
+        [DesugaringWarning(src_attr.blame, "file not found: " <> src_attr.val)],
+      ))
+    },
   )
 
-  let #(
-    exec_to_build_img_dir_path,
-    build_dir_to_build_img_dir_4_src_attr_path,
-  ) = case inner.3 {
-    "" -> #(
-      inner.1,
-      "",
-    )
-    _ -> #(
-      inner.1 <> "/" <> inner.3,
-      "/" <> inner.3,
-    )
+  use extension <- on.ok(img_extension(src, src_attr.blame))
+
+  let svgo_suppressed = case svgo_attr {
+    Some(Attr(_, _, "false")) -> True
+    _ -> False
   }
 
-  let up_to_date_build_img_dir_version = {
+  let cmd = case extension != "svg" || svgo_suppressed || inner.quick_mode {
+    True -> CP
+    False -> SVGO
+  }
+
+  let up_to_date_img_info = {
     use img_info <- on.error_ok(
-      dict.get(image_map, image_map_key),
+      dict.get(image_map, src_img_2_src_version),
       fn(_) { None },
     )
     use <- on.true_false(
@@ -362,54 +412,46 @@ fn v_before(
       None,
     )
     use <- on.true_false(
-      simplifile.is_file(exec_to_build_img_dir_path <> "/" <> img_info.build_version_path) == Ok(True),
-      Some(img_info.build_version_path),
+      cmd == SVGO && img_info.build_method != cmd && !inner.quick_mode,
+      None,
     )
-    io.println(whoami <> ": " <> img_info.build_version_path <> " missing from " <> exec_to_build_img_dir_path <> " (!!)")
+    use <- on.true_false(
+      simplifile.is_file(inner.exec_2_build_img <> img_info.build_version) == Ok(True),
+      Some(img_info),
+    )
+    io.println(whoami <> ": " <> img_info.build_version <> " missing from " <> inner.exec_2_build_img <> " (!!)")
     None
   }
 
-  // escape #5: there exists an 'up_to_date_build_img_dir_version'
+  // escape #5: there exists an 'up_to_date_img_info'
   use <- on.some_none(
-    up_to_date_build_img_dir_version,
-    fn (up_to_date_build_img_dir_version) {
-      let attrs = 
-        attrs
-        |> infra.attrs_delete("svgo")
-        |> update_src_attr(build_dir_to_build_img_dir_4_src_attr_path <> "/" <> up_to_date_build_img_dir_version)
-      Ok(#(V(..vxml, attrs: attrs), image_map))
+    up_to_date_img_info,
+    fn (up_to_date_img_info) {
+      let attrs = attrs |> update_src_attr("/" <> inner.build_2_build_img <> up_to_date_img_info.build_version)
+      let up_to_date_img_info = BuildImgInfo(..up_to_date_img_info, used_last_build: True)
+      let image_map = dict.insert(image_map, src_img_2_src_version, up_to_date_img_info)
+      Ok(#(V(..vxml, attrs: attrs), image_map, []))
     }
   )
 
-  use extension <- on.ok(img_extension(src, src_attr.blame))
-
-  let cmd = case extension != "svg" || is_svg_optimization_suppressed(attrs) {
-    True -> CP
-    False -> SVGO
+  let build_img_2_build_version = case cmd {
+    CP -> extension <> "/" <> get_hashed_filename(src_img_2_src_version, image_map) <> "." <> extension
+    SVGO -> "svgo-svg" <> "/" <> get_hashed_filename(src_img_2_src_version, image_map) <> "." <> extension
   }
 
-  let build_img_dir_to_image_path = case cmd {
-    CP -> extension <> "/" <> get_hashed_filename(image_map_key, image_map) <> "." <> extension
-    SVGO -> "svgo-svg" <> "/" <> get_hashed_filename(image_map_key, image_map) <> "." <> extension
-  }
-
-  let exec_to_src_image_path = inner.0 <> "/" <> src
-
-  use img_info <- on.ok(build_image(
+  use img_info <- on.ok(build_or_miraculously_retrieve_existing_build_image(
     cmd,
-    exec_to_src_image_path,
-    exec_to_build_img_dir_path,
-    build_img_dir_to_image_path,
+    inner.exec_2_src_img <> src_img_2_src_version,
+    inner.exec_2_build_img,
+    build_img_2_build_version,
+    last_modified,
   ))
 
-  let attrs = 
-    attrs
-    |> infra.attrs_delete("svgo")
-    |> update_src_attr(build_dir_to_build_img_dir_4_src_attr_path <> "/" <> img_info.build_version_path)
+  let attrs = attrs |> update_src_attr("/" <> inner.build_2_build_img <> img_info.build_version)
 
-  let image_map = dict.insert(image_map, image_map_key, img_info)
+  let image_map = dict.insert(image_map, src_img_2_src_version, img_info)
 
-  Ok(#(V(..vxml, attrs: attrs), image_map))
+  Ok(#(V(..vxml, attrs: attrs), image_map, []))
 }
 
 fn v_after(
@@ -417,18 +459,64 @@ fn v_after(
   ancestors: List(VXML),
   state: ImageMap,
   inner: InnerParam,
-) -> Result(#(VXML, ImageMap), DesugaringError) {
+) -> Result(#(VXML, ImageMap, List(DesugaringWarning)), DesugaringError) {
   case ancestors {
     [] -> {
-      use _ <- on.ok(save_image_map(state, inner.4))
-      Ok(#(vxml, state))
+      let state = case inner.cleanup_image_map {
+        True -> {
+          dict.filter(state, fn(k, v) {
+            case v.used_last_build {
+              True -> True
+              False -> {
+                io.println(whoami <> ": removing '" <> k <> "' from image_map")
+                False
+              }
+            }
+          })
+        }
+        False -> state
+      }
+      use _ <- on.ok(case inner.cleanup_build_img {
+        False -> Ok(Nil)
+        True -> {
+          use paths <- on.error_ok(
+            simplifile.get_files(inner.exec_2_build_img),
+            fn(err) { Error(DesugaringError(desugarer_blame(484), "could not read build_img files at "  <> inner.exec_2_build_img <> " for cleanup: "  <> simplifile.describe_error(err))) }
+          )
+          let values = dict.values(state) |> list.map(fn(info) { info.build_version })
+          list.each(
+            paths,
+            fn (path) {
+              let key = path |> infra.assert_drop_prefix(inner.exec_2_build_img)
+              case list.contains(values, key) {
+                True -> Nil
+                False -> {
+                  io.println(whoami <> ": rm " <> path)
+                  let _ = shellout.command(
+                    run: "rm",
+                    with: [path],
+                    in: ".",
+                    opt: [],
+                  )
+                  Nil
+                }
+              }
+            }
+          )
+          Ok(Nil)
+        }
+      })
+      use _ <- on.ok(save_image_map(state, inner.image_map_path))
+      Ok(#(vxml, state, []))
     }
-    _ -> Ok(#(vxml, state))
+    _ -> Ok(#(vxml, state, []))
   }
 }
 
-fn nodemap_factory(inner: InnerParam) -> n2t.FancyOneToOneBeforeAndAfterStatefulNodeMap(State) {
-   n2t.FancyOneToOneBeforeAndAfterStatefulNodeMap(
+fn nodemap_factory(
+  inner: InnerParam,
+) -> n2t.FancyOneToOneBeforeAndAfterStatefulNodeMapWithWarnings(State) {
+   n2t.FancyOneToOneBeforeAndAfterStatefulNodeMapWithWarnings(
     v_before_transforming_children: fn(vxml, _, _, _, _, state) {
       v_before(vxml, state, inner)
     },
@@ -436,38 +524,59 @@ fn nodemap_factory(inner: InnerParam) -> n2t.FancyOneToOneBeforeAndAfterStateful
       v_after(vxml, ancestors, latest_state, inner)
     },
     t_nodemap: fn(vxml, _, _, _, _, state) {
-      Ok(#(vxml, state))
+      Ok(#(vxml, state, []))
     },
   )
 }
 
 fn transform_factory(inner: InnerParam) -> DesugarerTransform {
-  let image_map = load_image_map(inner.4)
+  let image_map = load_image_map(inner.image_map_path)
   nodemap_factory(inner)
-  |> n2t.fancy_one_to_one_before_and_after_stateful_nodemap_2_desugarer_transform(image_map)
+  |> n2t.fancy_one_to_one_before_and_after_stateful_nodemap_with_warnings_2_desugarer_transform(image_map)
 }
 
-fn sanitize_path_in_param(param: Param) -> Param {
+fn ensure_suffix_if_nonempty(s: String, t: String) -> String {
+  case s {
+    "" -> ""
+    _ -> s |> infra.ensure_suffix(t)
+  }
+}
+
+fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
+  assert param.0 != ""
+  assert param.1 != ""
   assert !string.starts_with(param.2, "/")
   assert !string.starts_with(param.2, "./")
   assert !string.starts_with(param.2, "../")
   assert !string.starts_with(param.3, "/")
   assert !string.starts_with(param.3, "./")
   assert !string.starts_with(param.3, "../")
-  assert string.ends_with(param.4, ".json")
-  #(
-    param.0 |> infra.drop_suffix("/"),
-    param.1 |> infra.drop_suffix("/"),
-    param.2 |> infra.drop_suffix("/"),
-    param.3 |> infra.drop_suffix("/"),
-    param.4,
-  )
-}
 
-fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
-  let param = sanitize_path_in_param(param)
-  use source_dict <- on.ok(load_source_dictionary(param.0 <> "/" <> param.2))
-  Ok(#(param.0, param.1, param.2, param.3, param.4, source_dict, string.length(param.2) + 1))
+  let exec_2_src = param.0 |> infra.ensure_suffix("/")
+  let exec_2_build = param.1 |> infra.ensure_suffix("/")
+  let src_2_src_img = param.2 |> ensure_suffix_if_nonempty("/")
+  let build_2_build_img = param.3 |> ensure_suffix_if_nonempty("/")
+  let exec_2_src_img = exec_2_src <> src_2_src_img
+  let exec_2_build_img = exec_2_build <> build_2_build_img
+  let src_2_src_img_length = src_2_src_img |> string.length()
+
+  use src_img_mod_times <- on.ok(load_last_modified_times(exec_2_src_img))
+
+  InnerParam(
+    exec_2_src: exec_2_src,
+    exec_2_src_img: exec_2_src_img,
+    exec_2_build: exec_2_build,
+    exec_2_build_img: exec_2_build_img,
+    src_2_src_img: src_2_src_img,
+    src_2_src_img_length: src_2_src_img_length,
+    build_2_build_img: build_2_build_img,
+    image_map_path: param.4,
+    src_img_mod_times: src_img_mod_times,
+    cleanup_image_map: param.5,
+    cleanup_build_img: param.6,
+    quick_mode: param.7,
+  )
+  |> Ok
 }
 
 const img_tags = ["img", "Image", "ImageLeft", "ImageRight"]
@@ -475,8 +584,9 @@ const supported_extensions = ["svg", "png", "jpg", "jpeg", "gif", "webp"]
 
 type BuildImgInfo {
   BuildImgInfo(
-    build_version_path: String,
+    build_version: String,
     build_version_created_on: Int,
+    build_method: BuildMethod,
     build_version_size: Int,
     original_size: Int,
     compression: String, // e.g. "38.85%"
@@ -485,26 +595,69 @@ type BuildImgInfo {
 }
 
 type ImageMap = Dict(String, BuildImgInfo)
-type SourceDictionary = Dict(String, Int) // path -> last_modified timestamp
+type LastModifiedTimes = Dict(String, Int) // path -> last_modified timestamp
 type State = ImageMap
 
 type Param = #(
-  String, // exec_dir_to_src_dir
-  String, // exec_dir_to_build_dir
-  String, // src_dir_to_src_img_dir
-  String, // build_dir_to_build_img_dir
-  String, // path_to_image_map.json
+  // **********************************************************
+  // on the following semantics, please note:
+  //
+  //  - 'src' means the directory that author mentally
+  //    uses as the root folder for 'src' attributes
+  //  - 'src_img' is the subfolder of src
+  //    that contains images that are to be processed
+  //    by this image pipeline
+  //
+  // for example, if 'src' attributes have the form
+  //
+  //    src=imgs/ch2/something.svg
+  //
+  // and the 'imgs' directory sit inside of '../assets'
+  // relative to the executable, and where 'imgs' directory
+  // is the director that contains images that are meant to be
+  // processed by this (the standard) pipeline, then we would
+  // have
+  //
+  //    exec_2_src = "../assets/"   (callers can skip the trailing backlash, it will be added automatically the desugarer)
+  //    src_2_src_img = "imgs/"     (ditto)
+  //
+  // Also:
+  //
+  //  - 'build' is the build directory
+  //  - 'build_img' is the subdirectory of build meant
+  //    to contain the build version of images produced
+  //    by this pipeline
+  //  - image-map.json contains a dictionary whose keys
+  //    are paths relative to src_img; the 'build_version'
+  //    field of each item is a path relative to build_img
+  //    directory
+  // **********************************************************
+  String,           // exec_2_src
+  String,           // exec_2_build
+  String,           // src_2_src_img
+  String,           // build_2_build_img
+  String,           // location of image_map.json relative to exec
+  Bool,             // remove unused entries from image_map
+  Bool,             // remove unused files in build_img
+  Bool,             // 'quick mode': build with cp instead of svgo
 )
 
-type InnerParam = #(
-  String,
-  String,
-  String,
-  String,
-  String,
-  SourceDictionary,
-  Int,
-)
+type InnerParam {
+  InnerParam(
+    exec_2_src: String,
+    exec_2_src_img: String,
+    exec_2_build: String,
+    exec_2_build_img: String,
+    src_2_src_img: String,
+    src_2_src_img_length: Int,
+    build_2_build_img: String,
+    image_map_path: String,
+    src_img_mod_times: LastModifiedTimes,
+    cleanup_image_map: Bool,
+    cleanup_build_img: Bool,
+    quick_mode: Bool,
+  )
+}
 
 pub const name = "lbp_img_build"
 fn desugarer_blame(line_no: Int) -> bl.Blame { bl.Des([], name, line_no) }

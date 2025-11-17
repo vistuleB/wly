@@ -60,7 +60,7 @@ fn at_root(
     simplifile.get_files(exec_dir_to_img_dir),
     fn(err) {
       Error(DesugaringError(
-        desugarer_blame(126),
+        desugarer_blame(63),
         "unable to load files in '" <> inner.0 <> "': " <> simplifile.describe_error(err))
       )
     }
@@ -96,7 +96,7 @@ fn at_root(
       opt: [],
     )
     |> result.map_error(fn(e) {
-      DesugaringError(desugarer_blame(0), "failed to delete " <> inner.0 <> "/" <> p <> " (" <> ins(e) <> ")")
+      DesugaringError(desugarer_blame(99), "failed to delete " <> inner.0 <> "/" <> p <> " (" <> ins(e) <> ")")
     })
   })
 }

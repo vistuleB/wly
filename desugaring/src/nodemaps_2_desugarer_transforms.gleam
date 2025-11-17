@@ -1188,6 +1188,112 @@ pub fn fancy_one_to_one_before_and_after_stateful_nodemap_2_desugarer_transform(
 }
 
 // ************************************************************
+// FancyOneToOneBeforeAndAfterStatefulNodeMapWithWarnings(a)
+// ************************************************************
+
+pub type FancyOneToOneBeforeAndAfterStatefulNodeMapWithWarnings(a) {
+  FancyOneToOneBeforeAndAfterStatefulNodeMapWithWarnings(
+    v_before_transforming_children: fn(VXML, List(VXML), List(VXML), List(VXML), List(VXML), a) ->
+      Result(#(VXML, a, List(DesugaringWarning)), DesugaringError),
+    v_after_transforming_children: fn(VXML, List(VXML), List(VXML), List(VXML), List(VXML), a, a) ->
+      Result(#(VXML, a, List(DesugaringWarning)), DesugaringError),
+    t_nodemap: fn(VXML, List(VXML), List(VXML), List(VXML), List(VXML), a) ->
+      Result(#(VXML, a, List(DesugaringWarning)), DesugaringError),
+  )
+}
+
+fn fancy_one_to_one_before_and_after_stateful_nodemap_with_warnings_walk(
+  original_state: a,
+  node: VXML,
+  ancestors: List(VXML),
+  previous_siblings_before_mapping: List(VXML),
+  previous_siblings_after_mapping: List(VXML),
+  following_siblings_before_mapping: List(VXML),
+  nodemap: FancyOneToOneBeforeAndAfterStatefulNodeMapWithWarnings(a),
+) -> Result(#(VXML, a, List(DesugaringWarning)), DesugaringError) {
+  case node {
+    T(_, _) -> nodemap.t_nodemap(
+      node,
+      ancestors,
+      previous_siblings_before_mapping,
+      previous_siblings_after_mapping,
+      following_siblings_before_mapping,
+      original_state,
+    )
+    V(_, _, _, _) -> {
+      use #(node, latest_state, warnings) <- on.ok(
+        nodemap.v_before_transforming_children(
+          node,
+          ancestors,
+          previous_siblings_before_mapping,
+          previous_siblings_after_mapping,
+          following_siblings_before_mapping,
+          original_state,
+        ),
+      )
+      let assert V(_, _, _, children) = node
+      let children_ancestors = [node, ..ancestors]
+      use #(children, latest_state, children_warnings) <- on.ok(
+        list.try_fold(
+          children,
+          #([], [], list.drop(children, 1), latest_state, warnings),
+          fn (acc, child) {
+            use #(mapped_child, state, ws) <- on.ok(fancy_one_to_one_before_and_after_stateful_nodemap_with_warnings_walk(
+              acc.3,
+              child,
+              children_ancestors,
+              acc.0,
+              acc.1,
+              acc.2,
+              nodemap,
+            ))
+            Ok(#(
+              [child, ..acc.0],
+              [mapped_child, ..acc.1],
+              list.drop(acc.2, 1),
+              state,
+              infra.pour(ws, acc.4)
+            ))
+          }
+        )
+        |> result.map(fn(acc){#(acc.1 |> list.reverse, acc.3, acc.4)})
+      )
+      let node = V(..node, children: children)
+      use #(vxml, latest_state, after_warnings) <- on.ok(nodemap.v_after_transforming_children(
+        node,
+        ancestors,
+        previous_siblings_before_mapping,
+        previous_siblings_after_mapping,
+        following_siblings_before_mapping,
+        original_state,
+        latest_state,
+      ))
+      Ok(#(vxml, latest_state, infra.pour(after_warnings, children_warnings)))
+    }
+  }
+}
+
+pub fn fancy_one_to_one_before_and_after_stateful_nodemap_with_warnings_2_desugarer_transform(
+  nodemap: FancyOneToOneBeforeAndAfterStatefulNodeMapWithWarnings(a),
+  initial_state: a,
+) -> DesugarerTransform {
+  fn(vxml) {
+    use #(vxml, _, warnings) <- on.ok(
+      fancy_one_to_one_before_and_after_stateful_nodemap_with_warnings_walk(
+        initial_state,
+        vxml,
+        [],
+        [],
+        [],
+        [],
+        nodemap,
+      )
+    )
+    Ok(#(vxml, warnings))
+  }
+}
+
+// ************************************************************
 // OneToManyBeforeAndAfterStatefulNodeMap
 // ************************************************************
 
