@@ -454,6 +454,37 @@ fn v_before(
   Ok(#(V(..vxml, attrs: attrs), image_map, []))
 }
 
+fn cleanup_build_img(
+  state: ImageMap,
+  inner: InnerParam,
+) -> Result(Nil, DesugaringError) {
+  use paths <- on.error_ok(
+    simplifile.get_files(inner.exec_2_build_img),
+    fn(err) { Error(DesugaringError(desugarer_blame(484), "could not read build_img files at "  <> inner.exec_2_build_img <> " for cleanup: "  <> simplifile.describe_error(err))) }
+  )
+  let values = dict.values(state) |> list.map(fn(info) { info.build_version })
+  list.each(
+    paths,
+    fn (path) {
+      let key = path |> infra.assert_drop_prefix(inner.exec_2_build_img)
+      case list.contains(values, key) {
+        True -> Nil
+        False -> {
+          io.println(whoami <> ": rm " <> path)
+          let _ = shellout.command(
+            run: "rm",
+            with: [path],
+            in: ".",
+            opt: [],
+          )
+          Nil
+        }
+      }
+    }
+  )
+  |> Ok
+}
+
 fn v_after(
   vxml: VXML,
   ancestors: List(VXML),
@@ -478,33 +509,7 @@ fn v_after(
       }
       use _ <- on.ok(case inner.cleanup_build_img {
         False -> Ok(Nil)
-        True -> {
-          use paths <- on.error_ok(
-            simplifile.get_files(inner.exec_2_build_img),
-            fn(err) { Error(DesugaringError(desugarer_blame(484), "could not read build_img files at "  <> inner.exec_2_build_img <> " for cleanup: "  <> simplifile.describe_error(err))) }
-          )
-          let values = dict.values(state) |> list.map(fn(info) { info.build_version })
-          list.each(
-            paths,
-            fn (path) {
-              let key = path |> infra.assert_drop_prefix(inner.exec_2_build_img)
-              case list.contains(values, key) {
-                True -> Nil
-                False -> {
-                  io.println(whoami <> ": rm " <> path)
-                  let _ = shellout.command(
-                    run: "rm",
-                    with: [path],
-                    in: ".",
-                    opt: [],
-                  )
-                  Nil
-                }
-              }
-            }
-          )
-          Ok(Nil)
-        }
+        True -> cleanup_build_img(state, inner)
       })
       use _ <- on.ok(save_image_map(state, inner.image_map_path))
       Ok(#(vxml, state, []))
