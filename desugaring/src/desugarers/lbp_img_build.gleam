@@ -579,7 +579,7 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
   |> Ok
 }
 
-const img_tags = ["img", "Image", "ImageLeft", "ImageRight"]
+const img_tags = ["img", "Image", "ImageLeft", "ImageRight", "InlineImage"]
 const supported_extensions = ["svg", "png", "jpg", "jpeg", "gif", "webp"]
 
 type BuildImgInfo {
