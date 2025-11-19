@@ -454,7 +454,7 @@ fn v_before(
   Ok(#(V(..vxml, attrs: attrs), image_map, []))
 }
 
-fn cleanup_build_img(
+fn remove_files_from_build_img_that_have_no_image_map_preimage(
   state: ImageMap,
   inner: InnerParam,
 ) -> Result(Nil, DesugaringError) {
@@ -509,7 +509,7 @@ fn v_after(
       }
       use _ <- on.ok(case inner.cleanup_build_img {
         False -> Ok(Nil)
-        True -> cleanup_build_img(state, inner)
+        True -> remove_files_from_build_img_that_have_no_image_map_preimage(state, inner)
       })
       use _ <- on.ok(save_image_map(state, inner.image_map_path))
       Ok(#(vxml, state, []))
