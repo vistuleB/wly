@@ -332,22 +332,22 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
       source:   "
                 <> root
                   <>
-                    \"Some text\"
-                    \"\\begin{align}\"
-                    \"x = 1\"
-                    \"\\end{align}\"
-                    \"More text\"
+                    'Some text'
+                    '\\begin{align}'
+                    'x = 1'
+                    '\\end{align}'
+                    'More text'
                 ",
       expected: "
                 <> root
                   <>
-                    \"Some text\"
-                    \"$$\"
-                    \"\\begin{align}\"
-                    \"x = 1\"
-                    \"\\end{align}\"
-                    \"$$\"
-                    \"More text\"
+                    'Some text'
+                    '$$'
+                    '\\begin{align}'
+                    'x = 1'
+                    '\\end{align}'
+                    '$$'
+                    'More text'
                 ",
     ),
     infra.AssertiveTestData(
@@ -355,22 +355,22 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
       source:   "
                 <> root
                   <>
-                    \"Some text\"
-                    \"\\begin{align*}\"
-                    \"x = 1\"
-                    \"\\end{align*}\"
-                    \"More text\"
+                    'Some text'
+                    '\\begin{align*}'
+                    'x = 1'
+                    '\\end{align*}'
+                    'More text'
                 ",
       expected: "
                 <> root
                   <>
-                    \"Some text\"
-                    \"$$\"
-                    \"\\begin{align*}\"
-                    \"x = 1\"
-                    \"\\end{align*}\"
-                    \"$$\"
-                    \"More text\"
+                    'Some text'
+                    '$$'
+                    '\\begin{align*}'
+                    'x = 1'
+                    '\\end{align*}'
+                    '$$'
+                    'More text'
                 ",
     ),
     infra.AssertiveTestData(
@@ -378,24 +378,24 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
       source:   "
                 <> root
                   <>
-                    \"Some text\"
-                    \"$$ \"
-                    \"\\begin{align}\"
-                    \"x = 1\"
-                    \"\\end{align}\"
-                    \" $$\"
-                    \"More text\"
+                    'Some text'
+                    '$$ '
+                    '\\begin{align}'
+                    'x = 1'
+                    '\\end{align}'
+                    ' $$'
+                    'More text'
                 ",
       expected: "
                 <> root
                   <>
-                    \"Some text\"
-                    \"$$\"
-                    \"\\begin{align}\"
-                    \"x = 1\"
-                    \"\\end{align}\"
-                    \"$$\"
-                    \"More text\"
+                    'Some text'
+                    '$$'
+                    '\\begin{align}'
+                    'x = 1'
+                    '\\end{align}'
+                    '$$'
+                    'More text'
                 ",
     ),
     infra.AssertiveTestData(
@@ -403,22 +403,22 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
       source:   "
                 <> root
                   <>
-                    \"Some text\"
-                    \"$$\\begin{align*}\"
-                    \"x = 1\"
-                    \"\\end{align*}$$\"
-                    \"More text\"
+                    'Some text'
+                    '$$\\begin{align*}'
+                    'x = 1'
+                    '\\end{align*}$$'
+                    'More text'
                 ",
       expected: "
                 <> root
                   <>
-                    \"Some text\"
-                    \"$$\"
-                    \"\\begin{align*}\"
-                    \"x = 1\"
-                    \"\\end{align*}\"
-                    \"$$\"
-                    \"More text\"
+                    'Some text'
+                    '$$'
+                    '\\begin{align*}'
+                    'x = 1'
+                    '\\end{align*}'
+                    '$$'
+                    'More text'
                 ",
     ),
     infra.AssertiveTestData(
@@ -426,28 +426,28 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
       source:   "
                 <> root
                   <>
-                    \"Some text\"
-                    \"$$\"
-                    \"\"
-                    \"\"
-                    \"\\begin{align*}\"
-                    \"x = 1\"
-                    \"\\end{align}\"
-                    \"\"
-                    \"\"
-                    \"$$\"
-                    \"More text\"
+                    'Some text'
+                    '$$'
+                    ''
+                    ''
+                    '\\begin{align*}'
+                    'x = 1'
+                    '\\end{align}'
+                    ''
+                    ''
+                    '$$'
+                    'More text'
                 ",
       expected: "
                 <> root
                   <>
-                    \"Some text\"
-                    \"$$\"
-                    \"\\begin{align*}\"
-                    \"x = 1\"
-                    \"\\end{align}\"
-                    \"$$\"
-                    \"More text\"
+                    'Some text'
+                    '$$'
+                    '\\begin{align*}'
+                    'x = 1'
+                    '\\end{align}'
+                    '$$'
+                    'More text'
                 ",
     ),
     infra.AssertiveTestData(
@@ -455,23 +455,23 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
       source:   "
                 <> root
                   <>
-                    \"Some text\"
-                    \"\\begin{align*}\"
-                    \"\\begin{align}\"
-                    \"\\end{align*}$$\"
-                    \"More text\"
+                    'Some text'
+                    '\\begin{align*}'
+                    '\\begin{align}'
+                    '\\end{align*}$$'
+                    'More text'
                 ",
       expected: "
                 <> root
                   <>
-                    \"Some text\"
-                    \"$$\"
-                    \"\\begin{align*}\"
-                    \"$$\"
-                    \"\\begin{align}\"
-                    \"\\end{align*}\"
-                    \"$$\"
-                    \"More text\"
+                    'Some text'
+                    '$$'
+                    '\\begin{align*}'
+                    '$$'
+                    '\\begin{align}'
+                    '\\end{align*}'
+                    '$$'
+                    'More text'
                 ",
     ),
     infra.AssertiveTestData(
@@ -479,38 +479,38 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
       source:   "
                 <> root
                   <>
-                    \"A\"
-                    \"B\"
-                    \"\\begin{align}\\end{align}\"
-                    \"C\"
-                    \"D\"
-                    \"\\begin{align}\\end{align}\"
-                    \"E\"
-                    \"F\"
-                    \"\\begin{align}\\end{align}\"
-                    \"G\"
-                    \"H\"
+                    'A'
+                    'B'
+                    '\\begin{align}\\end{align}'
+                    'C'
+                    'D'
+                    '\\begin{align}\\end{align}'
+                    'E'
+                    'F'
+                    '\\begin{align}\\end{align}'
+                    'G'
+                    'H'
                 ",
       expected: "
                 <> root
                   <>
-                    \"A\"
-                    \"B\"
-                    \"$$\"
-                    \"\\begin{align}\\end{align}\"
-                    \"$$\"
-                    \"C\"
-                    \"D\"
-                    \"$$\"
-                    \"\\begin{align}\\end{align}\"
-                    \"$$\"
-                    \"E\"
-                    \"F\"
-                    \"$$\"
-                    \"\\begin{align}\\end{align}\"
-                    \"$$\"
-                    \"G\"
-                    \"H\"
+                    'A'
+                    'B'
+                    '$$'
+                    '\\begin{align}\\end{align}'
+                    '$$'
+                    'C'
+                    'D'
+                    '$$'
+                    '\\begin{align}\\end{align}'
+                    '$$'
+                    'E'
+                    'F'
+                    '$$'
+                    '\\begin{align}\\end{align}'
+                    '$$'
+                    'G'
+                    'H'
                 ",
     ),
   ]

@@ -12,6 +12,13 @@ import xmlm
 import xml_streamer as xs
 import on
 
+// ************************************************************
+// public constants
+// ************************************************************
+
+pub const vxml_indent = 2
+pub const vxml_line_delimiter = "'"
+
 /// a regexp that matches ampersands
 /// that appear outside of html entities:
 pub const non_html_ampersand_re = "&(?!(?:[a-z]{2,6};|#x[a-f\\d]{1,6};))"
@@ -34,15 +41,23 @@ pub type VXML {
 }
 
 // ************************************************************
-// more public types
+// validation & parse error types
 // ************************************************************
+
+pub type BadKey {
+  EmptyKey
+  IllegalKeyCharacter(String, String)
+}
+
+pub type BadTag {
+  EmptyTag
+  IllegalTagCharacter(String, String)
+}
 
 pub type VXMLParseError {
   VXMLParseErrorAttributeAssignmentMissing(Blame, String)
-  VXMLParseErrorEmptyTag(Blame)
-  VXMLParseErrorEmptyKey(Blame, String)
-  VXMLParseErrorIllegalTagCharacter(Blame, String, String)
-  VXMLParseErrorIllegalKeyCharacter(Blame, String, String)
+  VXMLParseErrorBadTag(Blame, BadTag)
+  VXMLParseErrorBadAttributeKey(Blame, BadKey)
   VXMLParseErrorIndentationTooLarge(Blame, String)
   VXMLParseErrorIndentationNotMultipleOfFour(Blame, String)
   VXMLParseErrorTextMissing(Blame)
@@ -56,16 +71,6 @@ pub type VXMLParseError {
 pub type VXMLParseFileError {
   IOError(simplifile.FileError)
   DocumentError(VXMLParseError)
-}
-
-pub type BadAttrKey {
-  EmptyKey
-  IllegalKeyCharacter(String, String)
-}
-
-pub type BadTagName {
-  EmptyTag
-  IllegalTagCharacter(String, String)
 }
 
 // ************************************************************
@@ -104,7 +109,7 @@ fn parse_text_lines_at_indent(
 
   // missing opening quote
   use <- on.lazy_false_true(
-    suffix |> string.starts_with("\""),
+    suffix |> string.starts_with(vxml_line_delimiter),
     fn() { Error(VXMLParseErrorTextNoOpeningQuote(blame, suffix)) }
   )
 
@@ -112,7 +117,7 @@ fn parse_text_lines_at_indent(
 
   // missing closing quote
   use <- on.lazy_false_true(
-    content |> string.ends_with("\""),
+    content |> string.ends_with(vxml_line_delimiter),
     fn() { Error(VXMLParseErrorTextNoClosingQuote(blame, suffix)) }
   )
 
@@ -165,12 +170,7 @@ fn parse_attributes_at_indent(
   // bad key
   use _ <- on.error_ok(
     validate_key(key),
-    fn(e) {
-      case e {
-        EmptyKey -> Error(VXMLParseErrorEmptyKey(blame, suffix))
-        IllegalKeyCharacter(bad_char, _) ->  Error(VXMLParseErrorIllegalKeyCharacter(blame, bad_char, suffix))
-      }
-    }
+    fn(e) { Error(VXMLParseErrorBadAttributeKey(blame, e)) },
   )
 
   let val = val |> string.trim
@@ -232,12 +232,7 @@ pub fn parse_nodes_at_indent(
     _ -> {
       use _ <- on.error_ok(
         validate_tag(tag),
-        fn(e) {
-          case e {
-            EmptyTag -> Error(VXMLParseErrorEmptyTag(blame))
-            IllegalTagCharacter(bad_char, _) ->  Error(VXMLParseErrorIllegalTagCharacter(blame, bad_char, suffix))
-          }
-        }
+        fn(e) { Error(VXMLParseErrorBadTag(blame, e)) },
       )
       use #(attrs, after) <- on.ok(parse_attributes_at_indent(indent + vxml_indent, rest))
       use #(children, after) <- on.ok(parse_nodes_at_indent(indent + vxml_indent, after))
@@ -252,7 +247,6 @@ pub fn parse_nodes_at_indent(
 // private types & constants
 // ************************************************************
 
-const vxml_indent = 2
 const illegal_tag_characters = [".", " ", "\"", "-"]
 const illegal_key_characters = [".", " ", "\"", ";"]
 
@@ -260,31 +254,27 @@ type FileHead =
   List(InputLine)
 
 // ************************************************************
-// List(InputLine) -> Tentative
+// tag & attribute key validation
 // ************************************************************
 
-fn add_quotes(s: String) -> String {
-  "\"" <> s <> "\""
-}
-
-fn contains_one_of(thing: String, substrings: List(String)) -> String {
+fn contains_chars(thing: String, substrings: List(String)) -> String {
   case substrings {
     [] -> ""
 
     [first, ..rest] -> {
       case string.contains(thing, first) {
         True -> first
-        False -> contains_one_of(thing, rest)
+        False -> contains_chars(thing, rest)
       }
     }
   }
 }
 
-pub fn validate_key(key: String) -> Result(String, BadAttrKey) {
+pub fn validate_key(key: String) -> Result(String, BadKey) {
   case key {
     "" -> Error(EmptyKey)
     _ -> {
-      let bad_char = contains_one_of(key, illegal_key_characters)
+      let bad_char = contains_chars(key, illegal_key_characters)
       case bad_char == "" {
         True -> Ok(key)
         False -> Error(IllegalKeyCharacter(key, bad_char))
@@ -293,11 +283,11 @@ pub fn validate_key(key: String) -> Result(String, BadAttrKey) {
   }
 }
 
-pub fn validate_tag(tag: String) -> Result(String, BadTagName) {
+pub fn validate_tag(tag: String) -> Result(String, BadTag) {
   case tag == "" {
     True -> Error(EmptyTag)
     False -> {
-      let bad_char = contains_one_of(tag, illegal_tag_characters)
+      let bad_char = contains_chars(tag, illegal_tag_characters)
       case bad_char == "" {
         True -> Ok(tag)
         False -> Error(IllegalTagCharacter(tag, bad_char))
@@ -345,6 +335,10 @@ pub fn annotate_blames(vxml: VXML) -> VXML {
 // VXML -> List(OutputLine)
 // ************************************************************
 
+fn delimit(s: String) -> String {
+  vxml_line_delimiter <> s <> vxml_line_delimiter
+}
+
 fn vxml_to_output_lines_internal(
   vxml: VXML,
   indentation: Int,
@@ -356,7 +350,7 @@ fn vxml_to_output_lines_internal(
         OutputLine(
           line.blame,
           indentation + vxml_indent,
-          add_quotes(line.content),
+          delimit(line.content),
         )
       })
     ]

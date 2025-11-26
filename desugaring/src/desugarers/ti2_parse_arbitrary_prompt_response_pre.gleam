@@ -162,13 +162,13 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
                 <> pre
                   language=arbitrary-prompt-response
                   <>
-                    \"user@home:~$ java TestRegex\"
-                    \"Please enter a regular expression: <- (a+)(:a+)*\"
-                    \"Enter words to be matched, one per line\"
-                    \"<- aaaaa:aa:aaaa:a\"
-                    \"true\"
-                    \"<- aaa:aa:\"
-                    \"false\"
+                    'user@home:~$ java TestRegex'
+                    'Please enter a regular expression: <- (a+)(:a+)*'
+                    'Enter words to be matched, one per line'
+                    '<- aaaaa:aa:aaaa:a'
+                    'true'
+                    '<- aaa:aa:'
+                    'false'
                 ",
       expected: "
                 <> pre
@@ -176,77 +176,77 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
                   <> span
                     class=terminal-prompt
                     <>
-                      \"user@home:~$\"
+                      'user@home:~$'
                   <> span
                     class=terminal-prompt-content
                     <>
-                      \" java TestRegex\"
+                      ' java TestRegex'
                   <>
-                    \"\"
-                    \"\"
+                    ''
+                    ''
                   <> span
                     class=arbitrary-prompt
                     <>
-                      \"Please enter a regular expression: \"
+                      'Please enter a regular expression: '
                   <> span
                     class=arbitrary-response
                     <>
-                      \"(a+)(:a+)*\"
+                      '(a+)(:a+)*'
                   <>
-                    \"\"
-                    \"\"
+                    ''
+                    ''
                   <> span
                     class=arbitrary-prompt
                     <>
-                      \"Enter words to be matched, one per line\"
+                      'Enter words to be matched, one per line'
                   <> span
                     class=arbitrary-response
                     <>
-                      \"\"
+                      ''
                   <>
-                    \"\"
-                    \"\"
+                    ''
+                    ''
                   <> span
                     class=arbitrary-prompt
                     <>
-                      \"\"
+                      ''
                   <> span
                     class=arbitrary-response
                     <>
-                      \"aaaaa:aa:aaaa:a\"
+                      'aaaaa:aa:aaaa:a'
                   <>
-                    \"\"
-                    \"\"
+                    ''
+                    ''
                   <> span
                     class=arbitrary-prompt
                     <>
-                      \"true\"
+                      'true'
                   <> span
                     class=arbitrary-response
                     <>
-                      \"\"
+                      ''
                   <>
-                    \"\"
-                    \"\"
+                    ''
+                    ''
                   <> span
                     class=arbitrary-prompt
                     <>
-                      \"\"
+                      ''
                   <> span
                     class=arbitrary-response
                     <>
-                      \"aaa:aa:\"
+                      'aaa:aa:'
                   <>
-                    \"\"
-                    \"\"
+                    ''
+                    ''
                   <> span
                     class=arbitrary-prompt
                     <>
-                      \"false\"
+                      'false'
                   <> span
                     class=arbitrary-response
                     <>
-                      \"\"
+                      ''
                 "
     ),
   ]

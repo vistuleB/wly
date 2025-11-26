@@ -105,45 +105,45 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
     infra.AssertiveTestData(
       param: #("MathBlock", "\\begin{align}"),
       source:   "
-                  <> root
-                    <> MathBlock
-                      <>
-                        \"\\begin{align}x + y = z\"
-                    <> MathBlock
-                      <>
-                        \"\\begin{align}\"
-                        \"a + b = c\"
-                    <> MathBlock
-                      <>
-                        \"\\begin{align} \"
-                        \"more content\"
-                    <> MathBlock
-                      <>
-                        \"normal content\"
-                    <> OtherElement
-                      <>
-                        \"\\begin{align}should not change\"
+                <> root
+                  <> MathBlock
+                    <>
+                      '\\begin{align}x + y = z'
+                  <> MathBlock
+                    <>
+                      '\\begin{align}'
+                      'a + b = c'
+                  <> MathBlock
+                    <>
+                      '\\begin{align} '
+                      'more content'
+                  <> MathBlock
+                    <>
+                      'normal content'
+                  <> OtherElement
+                    <>
+                      '\\begin{align}should not change'
                 ",
       expected: "
-                  <> root
-                    <> MathBlock
-                      <>
-                        \"\\begin{align}\"
-                        \"x + y = z\"
-                    <> MathBlock
-                      <>
-                        \"\\begin{align}\"
-                        \"a + b = c\"
-                    <> MathBlock
-                      <>
-                        \"\\begin{align}\"
-                        \"more content\"
-                    <> MathBlock
-                      <>
-                        \"normal content\"
-                    <> OtherElement
-                      <>
-                        \"\\begin{align}should not change\"
+                <> root
+                  <> MathBlock
+                    <>
+                      '\\begin{align}'
+                      'x + y = z'
+                  <> MathBlock
+                    <>
+                      '\\begin{align}'
+                      'a + b = c'
+                  <> MathBlock
+                    <>
+                      '\\begin{align}'
+                      'more content'
+                  <> MathBlock
+                    <>
+                      'normal content'
+                  <> OtherElement
+                    <>
+                      '\\begin{align}should not change'
                 ",
     ),
   ]

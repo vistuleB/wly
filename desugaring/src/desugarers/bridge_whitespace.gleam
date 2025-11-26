@@ -251,16 +251,16 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
                 <> root
                   <> b
                     <>
-                      \"hello1\"
+                      'hello1'
                   <> b
                     <>
-                      \"hello\"
+                      'hello'
                 ",
       expected: "
                 <> root
                   <> b
                     <>
-                      \"hello1hello\"
+                      'hello1hello'
                 ",
     ),
     infra.AssertiveTestData(
@@ -269,18 +269,18 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
                 <> root
                   <> b
                     <>
-                      \"hello1\"
+                      'hello1'
                   <>
-                    \" \"
+                    ' '
                   <> b
                     <>
-                      \"hello\"
+                      'hello'
                 ",
       expected: "
                 <> root
                   <> b
                     <>
-                      \"hello1 hello\"
+                      'hello1 hello'
                 ",
     ),
     infra.AssertiveTestData(
@@ -289,24 +289,24 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
                 <> root
                   <> b
                     <>
-                      \"hello1\"
-                      \"hello2\"
+                      'hello1'
+                      'hello2'
                   <>
-                    \"\"
-                    \"\"
+                    ''
+                    ''
                   <> b
                     <>
-                      \"hello3\"
-                      \"hello4\"
+                      'hello3'
+                      'hello4'
                 ",
       expected: "
                 <> root
                   <> b
                     <>
-                      \"hello1\"
-                      \"hello2\"
-                      \"hello3\"
-                      \"hello4\"
+                      'hello1'
+                      'hello2'
+                      'hello3'
+                      'hello4'
                 ",
     ),
     infra.AssertiveTestData(
@@ -315,40 +315,40 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
                 <> root
                   <> b
                     <>
-                      \"hello1\"
-                      \"hello2\"
+                      'hello1'
+                      'hello2'
                     <> i
                       <>
-                        \"hey1\"
+                        'hey1'
                   <>
-                    \"\"
-                    \"\"
+                    ''
+                    ''
                   <> b
                     <> i
                       <>
-                        \"hey2\"
+                        'hey2'
                     <>
-                      \"hello3\"
-                      \"hello4\"
+                      'hello3'
+                      'hello4'
                 ",
       expected: "
                 <> root
                   <> b
                     <>
-                      \"hello1\"
-                      \"hello2\"
+                      'hello1'
+                      'hello2'
                     <> i
                       <>
-                        \"hey1\"
+                        'hey1'
                     <>
-                      \"\"
-                      \"\"
+                      ''
+                      ''
                     <> i
                       <>
-                        \"hey2\"
+                        'hey2'
                     <>
-                      \"hello3\"
-                      \"hello4\"
+                      'hello3'
+                      'hello4'
                 ",
     ),
     infra.AssertiveTestData(
@@ -357,29 +357,29 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
                 <> root
                   <> b
                     <>
-                      \"hello1\"
-                      \"hello2\"
+                      'hello1'
+                      'hello2'
                   <>
-                    \"\"
-                    \"caramel\"
+                    ''
+                    'caramel'
                   <> b
                     <>
-                      \"hello3\"
-                      \"hello4\"
+                      'hello3'
+                      'hello4'
                 ",
       expected: "
                 <> root
                   <> b
                     <>
-                      \"hello1\"
-                      \"hello2\"
+                      'hello1'
+                      'hello2'
                   <>
-                    \"\"
-                    \"caramel\"
+                    ''
+                    'caramel'
                   <> b
                     <>
-                      \"hello3\"
-                      \"hello4\"
+                      'hello3'
+                      'hello4'
                 ",
     ),
   ]

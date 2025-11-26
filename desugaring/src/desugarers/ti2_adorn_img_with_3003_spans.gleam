@@ -88,18 +88,18 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataWithOutside(Param)) {
       param: "./public/",
       outside: [],
       source:   "
-                <> root
-                  <> img
-                    src=img/hello.svg
+                          <> root
+                            <> img
+                              src=img/hello.svg
                 ",
       expected: "
-                <> root
-                  <> img
-                    src=img/hello.svg
-                  <> span
-                    class=t-3003 t-3003-i
-                    <>
-                      \"./public/img/hello.svg\"
+                          <> root
+                            <> img
+                              src=img/hello.svg
+                            <> span
+                              class=t-3003 t-3003-i
+                              <>
+                                './public/img/hello.svg'
                 "
     ),
   ]

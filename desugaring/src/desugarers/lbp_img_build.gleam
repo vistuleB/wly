@@ -460,7 +460,7 @@ fn remove_files_from_build_img_that_have_no_image_map_preimage(
 ) -> Result(Nil, DesugaringError) {
   use paths <- on.error_ok(
     simplifile.get_files(inner.exec_2_build_img),
-    fn(err) { Error(DesugaringError(desugarer_blame(484), "could not read build_img files at "  <> inner.exec_2_build_img <> " for cleanup: "  <> simplifile.describe_error(err))) }
+    fn(err) { Error(DesugaringError(desugarer_blame(463), "could not read build_img files at "  <> inner.exec_2_build_img <> " for cleanup: "  <> simplifile.describe_error(err))) }
   )
   let values = dict.values(state) |> list.map(fn(info) { info.build_version })
   list.each(

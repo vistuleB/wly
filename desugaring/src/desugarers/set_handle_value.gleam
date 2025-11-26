@@ -105,30 +105,30 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
                     <> Chapter
                       handle=complexity-theory:page
                       <>
-                        \"Chapter content\"
+                        'Chapter content'
                     <> Chapter
                       handle=algorithms:intro some-existing-value
                       <>
-                        \"More content\"
+                        'More content'
                     <> OtherElement
                       handle=should-not-change
                       <>
-                        \"Should not change\"
+                        'Should not change'
                 ",
       expected: "
                   <> root
                     <> Chapter
                       handle=complexity-theory:page ::øøChapterCounter
                       <>
-                        \"Chapter content\"
+                        'Chapter content'
                     <> Chapter
                       handle=algorithms:intro some-existing-value
                       <>
-                        \"More content\"
+                        'More content'
                     <> OtherElement
                       handle=should-not-change
                       <>
-                        \"Should not change\"
+                        'Should not change'
                 ",
     ),
     infra.AssertiveTestData(
@@ -138,30 +138,30 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
                     <> Sub
                       handle=theorem:proof
                       <>
-                        \"Sub content\"
+                        'Sub content'
                     <> Sub
                       handle=lemma:basic already-has-value
                       <>
-                        \"More sub content\"
+                        'More sub content'
                     <> Chapter
                       handle=should-not-change
                       <>
-                        \"Chapter content\"
+                        'Chapter content'
                 ",
       expected: "
                   <> root
                     <> Sub
                       handle=theorem:proof ::øøChapterCounter.::øøSubCounter
                       <>
-                        \"Sub content\"
+                        'Sub content'
                     <> Sub
                       handle=lemma:basic already-has-value
                       <>
-                        \"More sub content\"
+                        'More sub content'
                     <> Chapter
                       handle=should-not-change
                       <>
-                        \"Chapter content\"
+                        'Chapter content'
                 ",
     ),
   ]

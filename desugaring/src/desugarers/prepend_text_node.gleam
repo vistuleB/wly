@@ -86,31 +86,31 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
                   <> root
                     <> ChapterTitle
                       <>
-                        \"Einleitung\"
+                        'Einleitung'
                     <> ChapterTitle
                       <>
-                        \"Advanced Topics\"
-                        \"More content\"
+                        'Advanced Topics'
+                        'More content'
                     <> OtherElement
                       <>
-                        \"Should not change\"
+                        'Should not change'
                 ",
       expected: "
                   <> root
                     <> ChapterTitle
                       <>
-                        \"::øøChapterCounter. \"
+                        '::øøChapterCounter. '
                       <>
-                        \"Einleitung\"
+                        'Einleitung'
                     <> ChapterTitle
                       <>
-                        \"::øøChapterCounter. \"
+                        '::øøChapterCounter. '
                       <>
-                        \"Advanced Topics\"
-                        \"More content\"
+                        'Advanced Topics'
+                        'More content'
                     <> OtherElement
                       <>
-                        \"Should not change\"
+                        'Should not change'
                 ",
     ),
     infra.AssertiveTestData(
@@ -119,31 +119,31 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
                   <> root
                     <> SubTitle
                       <>
-                        \"Overview\"
+                        'Overview'
                     <> SubTitle
                       <>
-                        \"Details\"
-                        \"Additional info\"
+                        'Details'
+                        'Additional info'
                     <> ChapterTitle
                       <>
-                        \"Should not change\"
+                        'Should not change'
                 ",
       expected: "
                   <> root
                     <> SubTitle
                       <>
-                        \"::øøChapterCounter.::øøSubCounter \"
+                        '::øøChapterCounter.::øøSubCounter '
                       <>
-                        \"Overview\"
+                        'Overview'
                     <> SubTitle
                       <>
-                        \"::øøChapterCounter.::øøSubCounter \"
+                        '::øøChapterCounter.::øøSubCounter '
                       <>
-                        \"Details\"
-                        \"Additional info\"
+                        'Details'
+                        'Additional info'
                     <> ChapterTitle
                       <>
-                        \"Should not change\"
+                        'Should not change'
                 ",
     ),
   ]

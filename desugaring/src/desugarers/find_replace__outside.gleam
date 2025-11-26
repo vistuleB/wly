@@ -58,34 +58,34 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataWithOutside(Param)) {
                   <> A
                     <> B
                       <>
-                        \"from a thing\"
-                        \"to a thing\"
+                        'from a thing'
+                        'to a thing'
                       <> keep_out
                         <>
-                          \"from a thing\"
-                          \"to a thing\"
+                          'from a thing'
+                          'to a thing'
                     <> keep_out
                       <> B
                         <>
-                          \"from a thing\"
-                          \"to a thing\"
+                          'from a thing'
+                          'to a thing'
                 ",
       expected: "
                 <> root
                   <> A
                     <> B
                       <>
-                        \"to a thing\"
-                        \"to a thing\"
+                        'to a thing'
+                        'to a thing'
                       <> keep_out
                         <>
-                          \"from a thing\"
-                          \"to a thing\"
+                          'from a thing'
+                          'to a thing'
                     <> keep_out
                       <> B
                         <>
-                          \"from a thing\"
-                          \"to a thing\"
+                          'from a thing'
+                          'to a thing'
                 ",
     )
   ]

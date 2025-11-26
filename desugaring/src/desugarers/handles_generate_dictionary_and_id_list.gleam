@@ -332,11 +332,11 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
                   <> ChapterChapter
                     local_path=./ch1.html
                     <>
-                      \"some text\"
+                      'some text'
                     <> Math
                       handle=super-name|AA|_23-super-id
                       <>
-                        \"$x^2 + b^2$\"
+                        '$x^2 + b^2$'
                 ",
       expected: "
                 <> GrandWrapper
@@ -345,10 +345,10 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
                     <> ChapterChapter
                       local_path=./ch1.html
                       <>
-                        \"some text\"
+                        'some text'
                       <> Math
                         <>
-                          \"$x^2 + b^2$\"
+                          '$x^2 + b^2$'
                 "
     ),
   ]

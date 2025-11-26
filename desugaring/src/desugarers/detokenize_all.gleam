@@ -137,18 +137,18 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
                 <> __EndTokenizedT
                 <> inside
                   <>
-                    \"some text\"
+                    'some text'
       ",
       expected: "
           <> testing
             <> bb
               <>
-                \"first line\"
-                \"second line\"
+                'first line'
+                'second line'
 
               <> inside
                 <>
-                  \"some text\"
+                  'some text'
       ",
     ),
     infra.AssertiveTestDataNoParam(
@@ -168,7 +168,7 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
             <> testing
               <> bb
                 <>
-                  \"first  line\"
+                  'first  line'
       ",
     ),
     infra.AssertiveTestDataNoParam(
@@ -189,8 +189,8 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
             <> testing
               <> bb
                 <>
-                  \"first \"
-                  \" line\"
+                  'first '
+                  ' line'
       ",
     ),
     infra.AssertiveTestDataNoParam(
@@ -209,8 +209,8 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
             <> testing
               <> bb
                 <>
-                  \"\"
-                  \"\"
+                  ''
+                  ''
       ",
     )
   ]

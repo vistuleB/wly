@@ -94,7 +94,7 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
                   <> span
                     class=qed
                     <>
-                      \"\\(\\square\\)\"
+                      '\\(\\square\\)'
                 ",
     ),
 

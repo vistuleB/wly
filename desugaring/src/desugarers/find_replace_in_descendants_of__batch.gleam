@@ -76,25 +76,25 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
                 <> root
                   <> B
                     <>
-                      \"hello _FROM_\"
-                      \"_FROM__FROM_\"
+                      'hello _FROM_'
+                      '_FROM__FROM_'
                   <> ancestor
                     <> B
                       <>
-                        \"hello _FROM_\"
-                        \"_FROM__FROM_\"
+                        'hello _FROM_'
+                        '_FROM__FROM_'
                 ",
       expected: "
                 <> root
                   <> B
                     <>
-                      \"hello _FROM_\"
-                      \"_FROM__FROM_\"
+                      'hello _FROM_'
+                      '_FROM__FROM_'
                   <> ancestor
                     <> B
                       <>
-                        \"hello _TO_\"
-                        \"_TO__TO_\"
+                        'hello _TO_'
+                        '_TO__TO_'
                 ",
     )
   ]

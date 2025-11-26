@@ -230,9 +230,10 @@ import desugarers/wrap_children_up_to
 import desugarers/wrap_children_up_to_custom
 import desugarers/wrap_custom
 import desugarers/wrap_each_child
+import desugarers/wrap_if_child_of
+import desugarers/wrap_if_text_contains
 import desugarers/wrap_with_custom_if_child_of
 import desugarers/wrap_with_custom_if_not_child_of
-import desugarers/wrap_with_if_child_of
 
 pub const absorb_backward_one = absorb_backward_one.constructor
 pub const absorb_forward_one = absorb_forward_one.constructor
@@ -465,9 +466,10 @@ pub const wrap_children_up_to = wrap_children_up_to.constructor
 pub const wrap_children_up_to_custom = wrap_children_up_to_custom.constructor
 pub const wrap_custom = wrap_custom.constructor
 pub const wrap_each_child = wrap_each_child.constructor
+pub const wrap_if_child_of = wrap_if_child_of.constructor
+pub const wrap_if_text_contains = wrap_if_text_contains.constructor
 pub const wrap_with_custom_if_child_of = wrap_with_custom_if_child_of.constructor
 pub const wrap_with_custom_if_not_child_of = wrap_with_custom_if_not_child_of.constructor
-pub const wrap_with_if_child_of = wrap_with_if_child_of.constructor
 
 pub const assertive_tests : List(fn() -> infra.AssertiveTestCollection) = [
   absorb_backward_one.assertive_tests,
@@ -701,7 +703,8 @@ pub const assertive_tests : List(fn() -> infra.AssertiveTestCollection) = [
   wrap_children_up_to_custom.assertive_tests,
   wrap_custom.assertive_tests,
   wrap_each_child.assertive_tests,
+  wrap_if_child_of.assertive_tests,
+  wrap_if_text_contains.assertive_tests,
   wrap_with_custom_if_child_of.assertive_tests,
   wrap_with_custom_if_not_child_of.assertive_tests,
-  wrap_with_if_child_of.assertive_tests,
 ]

@@ -81,17 +81,17 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
       source:   "
                 <> R
                   <>
-                    \"hello world\"
+                    'hello world'
                   <> blabla
                   <> keep_this
                     <>
-                      \"hello world\"
+                      'hello world'
                 ",
       expected: "
                 <> R
                   <> keep_this
                     <>
-                      \"hello world\"
+                      'hello world'
                 ",
     ),
   ]

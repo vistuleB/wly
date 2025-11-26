@@ -595,27 +595,27 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
                     <> Chapter
                       path=./ch1.html
                       <>
-                        \"some text with >>fluescence in it\"
+                        'some text with >>fluescence in it'
                       <> Math
                         <>
-                          \"$x^2 + b^2$\"
+                          '$x^2 + b^2$'
                 ",
       expected: "
                 <> root
                   <> Chapter
                     path=./ch1.html
                     <>
-                      \"some text with \"
+                      'some text with '
                     <> InChapterLink
                       href=./ch1.html#_23-super-id
                       class=handle-in-chapter-link
                       <>
-                        \"AA\"
+                        'AA'
                     <>
-                      \" in it\"
+                      ' in it'
                     <> Math
                       <>
-                        \"$x^2 + b^2$\"
+                        '$x^2 + b^2$'
                 ",
     ),
      infra.AssertiveTestData(
@@ -634,42 +634,42 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
                     <> Page
                       testerpath=./ch1.html
                       <>
-                        \"some text with >>fluescence in it\"
+                        'some text with >>fluescence in it'
                       <> Math
                         <>
-                          \"$x^2 + b^2$\"
+                          '$x^2 + b^2$'
                     <> Page
                       testerpath=./ch2.html
                       <>
-                        \"this is >>out outer link\"
+                        'this is >>out outer link'
                 ",
       expected: "
                 <> root
                   <> Page
                     testerpath=./ch1.html
                     <>
-                      \"some text with \"
+                      'some text with '
                     <> inLink
                       href=./ch1.html#_23-super-id
                       class=handle-in-link-class
                       <>
-                        \"AA\"
+                        'AA'
                     <>
-                      \" in it\"
+                      ' in it'
                     <> Math
                       <>
-                        \"$x^2 + b^2$\"
+                        '$x^2 + b^2$'
                   <> Page
                     testerpath=./ch2.html
                     <>
-                      \"this is \"
+                      'this is '
                     <> outLink
                       href=./ch1.html#_24-super-id
                       class=handle-out-link-class
                       <>
-                        \"AA\"
+                        'AA'
                     <>
-                      \" outer link\"
+                      ' outer link'
                 ",
     ),
     infra.AssertiveTestData(
@@ -688,34 +688,34 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
                     <> Chapter
                       path=./ch1.html
                       <>
-                        \"Reference to >>my-cardinal and >>test^handle here\"
+                        'Reference to >>my-cardinal and >>test^handle here'
                       <> Math
                         <>
-                          \"$x^2 + b^2$\"
+                          '$x^2 + b^2$'
                 ",
       expected: "
                 <> root
                   <> Chapter
                     path=./ch1.html
                     <>
-                      \"Reference to \"
+                      'Reference to '
                     <> InChapterLink
                       href=./ch1.html#_25-dash-id
                       class=handle-in-chapter-link
                       <>
-                        \"Cardinal Number\"
+                        'Cardinal Number'
                     <>
-                      \" and \"
+                      ' and '
                     <> InChapterLink
                       href=./ch1.html#_26-caret-id
                       class=handle-in-chapter-link
                       <>
-                        \"Caret Test\"
+                        'Caret Test'
                     <>
-                      \" here\"
+                      ' here'
                     <> Math
                       <>
-                        \"$x^2 + b^2$\"
+                        '$x^2 + b^2$'
                 ",
     )
   ]

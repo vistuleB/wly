@@ -294,46 +294,46 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
                     <> ChapterTitle
                       number-chiron=1.
                       <>
-                        \"Banana\"
+                        'Banana'
                     <> Sub
                       <> SubTitle
                         number-chiron=1.1
                         <>
-                          \"Green\"
+                          'Green'
                     <> Sub
                       <> SubTitle
                         number-chiron=1.2
                         <> b
                           <>
-                            \"Fig\"
+                            'Fig'
                         <>
-                          \" Tree\"
+                          ' Tree'
                   <> Chapter
                     <> ChapterTitle
                       number-chiron=2.
                       <>
-                        \"And\"
+                        'And'
                     <> Sub
                       <> SubTitle
                         number-chiron=2.1
                         <>
-                          \"Leaf\"
+                          'Leaf'
                     <> Sub
                       <> SubTitle
                         number-chiron=2.2
                         <>
-                          \"Absolute\"
+                          'Absolute'
                     <> Sub
                       <> SubTitle
                         number-chiron=2.3
                         <>
-                          \"Absolute\"
-                          \" Tree\"
+                          'Absolute'
+                          ' Tree'
                   <> Chapter
                     <> ChapterTitle
                       number-chiron=3.
                       <>
-                        \"And\"
+                        'And'
                 ",
       expected: "
                 <> Document
@@ -342,18 +342,18 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
                       ch_no=1
                       number-chiron=1.
                       <>
-                        \"Banana\"
+                        'Banana'
                   <> Chapter
                     <> NextChapterOrSubTitle
                       ch_no=1
                       sub_no=1
                       number-chiron=1.1
                       <>
-                        \"Green\"
+                        'Green'
                     <> ChapterTitle
                       number-chiron=1.
                       <>
-                        \"Banana\"
+                        'Banana'
                     <> Sub
                       <> NextChapterOrSubTitle
                         ch_no=1
@@ -361,120 +361,120 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
                         number-chiron=1.2
                         <> b
                           <>
-                            \"Fig\"
+                            'Fig'
                         <>
-                          \" Tree\"
+                          ' Tree'
                       <> PrevChapterOrSubTitle
                         ch_no=1
                         number-chiron=1.
                         <>
-                          \"Banana\"
+                          'Banana'
                       <> SubTitle
                         number-chiron=1.1
                         <>
-                          \"Green\"
+                          'Green'
                     <> Sub
                       <> NextChapterOrSubTitle
                         ch_no=2
                         number-chiron=2.
                         <>
-                          \"And\"
+                          'And'
                       <> PrevChapterOrSubTitle
                         ch_no=1
                         sub_no=1
                         number-chiron=1.1
                         <>
-                          \"Green\"
+                          'Green'
                       <> SubTitle
                         number-chiron=1.2
                         <> b
                           <>
-                            \"Fig\"
+                            'Fig'
                         <>
-                          \" Tree\"
+                          ' Tree'
                   <> Chapter
                     <> NextChapterOrSubTitle
                       ch_no=2
                       sub_no=1
                       number-chiron=2.1
                       <>
-                        \"Leaf\"
+                        'Leaf'
                     <> PrevChapterOrSubTitle
                       ch_no=1
                       sub_no=2
                       number-chiron=1.2
                       <> b
                         <>
-                          \"Fig\"
+                          'Fig'
                       <>
-                        \" Tree\"
+                        ' Tree'
                     <> ChapterTitle
                       number-chiron=2.
                       <>
-                        \"And\"
+                        'And'
                     <> Sub
                       <> NextChapterOrSubTitle
                         ch_no=2
                         sub_no=2
                         number-chiron=2.2
                         <>
-                          \"Absolute\"
+                          'Absolute'
                       <> PrevChapterOrSubTitle
                         ch_no=2
                         number-chiron=2.
                         <>
-                          \"And\"
+                          'And'
                       <> SubTitle
                         number-chiron=2.1
                         <>
-                          \"Leaf\"
+                          'Leaf'
                     <> Sub
                       <> NextChapterOrSubTitle
                         ch_no=2
                         sub_no=3
                         number-chiron=2.3
                         <>
-                          \"Absolute\"
-                          \" Tree\"
+                          'Absolute'
+                          ' Tree'
                       <> PrevChapterOrSubTitle
                         ch_no=2
                         sub_no=1
                         number-chiron=2.1
                         <>
-                          \"Leaf\"
+                          'Leaf'
                       <> SubTitle
                         number-chiron=2.2
                         <>
-                          \"Absolute\"
+                          'Absolute'
                     <> Sub
                       <> NextChapterOrSubTitle
                         ch_no=3
                         number-chiron=3.
                         <>
-                          \"And\"
+                          'And'
                       <> PrevChapterOrSubTitle
                         ch_no=2
                         sub_no=2
                         number-chiron=2.2
                         <>
-                          \"Absolute\"
+                          'Absolute'
                       <> SubTitle
                         number-chiron=2.3
                         <>
-                          \"Absolute\"
-                          \" Tree\"
+                          'Absolute'
+                          ' Tree'
                   <> Chapter
                     <> PrevChapterOrSubTitle
                       ch_no=2
                       sub_no=3
                       number-chiron=2.3
                       <>
-                        \"Absolute\"
-                        \" Tree\"
+                        'Absolute'
+                        ' Tree'
                     <> ChapterTitle
                       number-chiron=3.
                       <>
-                        \"And\"
+                        'And'
                 "
     )
   ]

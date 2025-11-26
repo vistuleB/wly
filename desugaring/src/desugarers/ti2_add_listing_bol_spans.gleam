@@ -110,8 +110,8 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
                     <> pre
                       class=listing
                       <>
-                        \"first line\"
-                        \"second line\"
+                        'first line'
+                        'second line'
                 ",
       expected: "
                   <> root
@@ -120,46 +120,46 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
                       <> span
                         class=listing-bol
                       <>
-                        \"first line\"
-                        \"\"
+                        'first line'
+                        ''
                       <> span
                         class=listing-bol
                       <>
-                        \"second line\"
+                        'second line'
                 ",
     ),
     infra.AssertiveTestDataNoParam(
       source:   "
-                  <> root
-                    <> pre
-                      class=listing
-                      <>
-                        \"single line\"
+                <> root
+                  <> pre
+                    class=listing
+                    <>
+                      'single line'
                 ",
       expected: "
-                  <> root
-                    <> pre
-                      class=listing
-                      <> span
-                        class=listing-bol
-                      <>
-                        \"single line\"
+                <> root
+                  <> pre
+                    class=listing
+                    <> span
+                      class=listing-bol
+                    <>
+                      'single line'
                 ",
     ),
     infra.AssertiveTestDataNoParam(
       source:   "
-                  <> root
-                    <> pre
-                      class=other
-                      <>
-                        \"should not change\"
+                <> root
+                  <> pre
+                    class=other
+                    <>
+                      'should not change'
                 ",
       expected: "
-                  <> root
-                    <> pre
-                      class=other
-                      <>
-                        \"should not change\"
+                <> root
+                  <> pre
+                    class=other
+                    <>
+                      'should not change'
                 ",
     ),
   ]

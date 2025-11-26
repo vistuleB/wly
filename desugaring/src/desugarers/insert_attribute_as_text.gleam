@@ -77,55 +77,55 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
       param: #("div", "title"),
       source: "
                 <> div
-                  title=\"Hello World\"
+                  title='Hello World'
                   <> p
                     <>
-                      \"Content\"
+                      'Content'
                 ",
       expected: "
                 <> div
-                  title=\"Hello World\"
+                  title='Hello World'
                   <>
-                    \"\"Hello World\"\"
+                    ''Hello World''
                   <> p
                     <>
-                      \"Content\"
+                      'Content'
                 ",
     ),
     infra.AssertiveTestData(
       param: #("div", "missing"),
       source: "
                 <> div
-                  class=\"test\"
+                  class='test'
                   <> p
                     <>
-                      \"Content\"
+                      'Content'
                 ",
       expected: "
                 <> div
-                  class=\"test\"
+                  class='test'
                   <> p
                     <>
-                      \"Content\"
+                      'Content'
                 ",
     ),
     infra.AssertiveTestData(
       param: #("section", "description"),
       source: "
                 <> section
-                  description=\"Line 1\\nLine 2\\nLine 3\"
+                  description='Line 1\\nLine 2\\nLine 3'
                   <> h1
                     <>
-                      \"Title\"
+                      'Title'
                 ",
       expected: "
                 <> section
-                  description=\"Line 1\\nLine 2\\nLine 3\"
+                  description='Line 1\\nLine 2\\nLine 3'
                   <>
-                    \"\"Line 1\\nLine 2\\nLine 3\"\"
+                    ''Line 1\\nLine 2\\nLine 3''
                   <> h1
                     <>
-                      \"Title\"
+                      'Title'
                 ",
     ),
     infra.AssertiveTestData(
@@ -135,14 +135,14 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
                   data=
                   <> em
                     <>
-                      \"Text\"
+                      'Text'
                 ",
       expected: "
                 <> span
                   data=
                   <> em
                     <>
-                      \"Text\"
+                      'Text'
                 ",
     ),
     infra.AssertiveTestData(
@@ -155,21 +155,21 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
                       title=Inner Section
                       <> p
                         <>
-                          \"Content\"
+                          'Content'
                 ",
       expected: "
                 <> div
                   <> section
                     title=Outer Section
                     <>
-                      \"Outer Section\"
+                      'Outer Section'
                     <> section
                       title=Inner Section
                       <>
-                        \"Inner Section\"
+                        'Inner Section'
                       <> p
                         <>
-                          \"Content\"
+                          'Content'
                 ",
     ),
     infra.AssertiveTestData(
@@ -182,39 +182,39 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
                       value=Child1
                       <> p
                         <>
-                          \"Text1\"
+                          'Text1'
                     <> item
                       value=Child2
                       <> p
                         <>
-                          \"Text2\"
+                          'Text2'
                     <> p
                       <>
-                        \"Parent Content\"
+                        'Parent Content'
                 ",
       expected: "
                 <> container
                   <> item
                     value=Parent
                     <>
-                      \"Parent\"
+                      'Parent'
                     <> item
                       value=Child1
                       <>
-                        \"Child1\"
+                        'Child1'
                       <> p
                         <>
-                          \"Text1\"
+                          'Text1'
                     <> item
                       value=Child2
                       <>
-                        \"Child2\"
+                        'Child2'
                       <> p
                         <>
-                          \"Text2\"
+                          'Text2'
                     <> p
                       <>
-                        \"Parent Content\"
+                        'Parent Content'
                 ",
     ),
     infra.AssertiveTestData(
@@ -226,32 +226,32 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
                     <> item
                       value=Child1
                       <>
-                        \"Text1\"
+                        'Text1'
                     <> item
                       value=Child2
                       <>
-                        \"Text2\"
+                        'Text2'
                     <> p
                       <>
-                        \"Parent Content\"
+                        'Parent Content'
                 ",
       expected: "
                 <> container
                   <> item
                     value=Parent
                     <>
-                      \"Parent\"
+                      'Parent'
                     <> item
                       value=Child1
                       <>
-                        \"Child1Text1\"
+                        'Child1Text1'
                     <> item
                       value=Child2
                       <>
-                        \"Child2Text2\"
+                        'Child2Text2'
                     <> p
                       <>
-                        \"Parent Content\"
+                        'Parent Content'
                 ",
     ),
   ]

@@ -72,9 +72,9 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
                       <> B
                       <> B
                       <>
-                        \"text1\"
+                        'text1'
                       <>
-                        \"text2\"
+                        'text2'
                       <> C
                       <> C
                     <> A
@@ -88,9 +88,9 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
                     <> B
                     <> A
                       <>
-                        \"text1\"
+                        'text1'
                       <>
-                        \"text2\"
+                        'text2'
                     <> C
                     <> C
                     <> A

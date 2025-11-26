@@ -117,14 +117,14 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
                     <> pre
                       language=orange-comments
                       <>
-                        \"some code here\"
+                        'some code here'
                 ",
       expected: "
                   <> root
                     <> pre
                       language=orange-comments
                       <>
-                        \"some code here\"
+                        'some code here'
                 ",
     ),
     infra.AssertiveTestDataNoParam(
@@ -134,8 +134,8 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
                       language=python
                       class=listing
                       <>
-                        \"def hello():\"
-                        \"    print('world')\"
+                        'def hello():'
+                        '    print('world')'
                 ",
       expected: "
                   <> root
@@ -143,8 +143,8 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
                       language=python
                       class=listing
                       <>
-                        \"def hello():\"
-                        \"    print('world')\"
+                        'def hello():'
+                        '    print('world')'
                 ",
     ),
     infra.AssertiveTestDataNoParam(
@@ -154,7 +154,7 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
                       language=javascript
                       class=bob listing@10
                       <>
-                        \"console.log('test');\"
+                        'console.log('test');'
                 ",
       expected: "
                   <> root
@@ -163,7 +163,7 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
                       class=bob listing
                       style=counter-set:listing 9
                       <>
-                        \"console.log('test');\"
+                        'console.log('test');'
                 ",
     ),
     infra.AssertiveTestDataNoParam(
@@ -172,8 +172,8 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
                     <> pre
                       class=listing:3
                       <>
-                        \"line one\"
-                        \"line two\"
+                        'line one'
+                        'line two'
                 ",
       expected: "
                   <> root
@@ -181,8 +181,8 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
                       class=listing
                       style=counter-set:listing 2
                       <>
-                        \"line one\"
-                        \"line two\"
+                        'line one'
+                        'line two'
                 ",
     ),
     infra.AssertiveTestDataNoParam(
@@ -190,13 +190,13 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
                   <> root
                     <> pre
                       <>
-                        \"plain code block\"
+                        'plain code block'
                 ",
       expected: "
                   <> root
                     <> pre
                       <>
-                        \"plain code block\"
+                        'plain code block'
                 ",
     ),
   ]

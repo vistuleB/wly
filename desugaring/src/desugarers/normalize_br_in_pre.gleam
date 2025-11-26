@@ -83,16 +83,16 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
       source: "
                 <> pre
                   <>
-                    \"line 1\"
+                    'line 1'
                   <> br
                   <>
-                    \"line 2\"
+                    'line 2'
                 ",
       expected: "
                 <> pre
                   <>
-                    \"line 1\"
-                    \"line 2\"
+                    'line 1'
+                    'line 2'
                 "
     ),
   ]

@@ -6,22 +6,22 @@
   <> c
   <> WriterlyBlurb
     <>
-      "this is a text child"
-      "with two lines"
-      "with two lines"
-      "with fourth line"
+      'this is a text child'
+      'with two lines'
+      'with two lines'
+      'with fourth line'
   <>
-    "more text here"
+    'more text here'
   <> html
     <> header
       charset=utf-8
     <> body
       <> p
         <>
-          "hello "
+          'hello '
       <> i
         <>
-          "gates"
+          'gates'
       <>
-        ")"
+        ')'
 <> yello

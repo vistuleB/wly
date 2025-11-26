@@ -79,20 +79,20 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
                   <> div
                     <> p
                       <>
-                        \"Hello\"
+                        'Hello'
                     <> span
                       <>
-                        \"World\"
+                        'World'
                 ",
       expected: "
                 <> root
                   <> div
                     <> p
                       <>
-                        \"Hello\"
+                        'Hello'
                     <> span
                       <>
-                        \"World\"
+                        'World'
                 ",
     ),
     infra.AssertiveTestData(
@@ -102,14 +102,14 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
                   <> section
                     <> h1
                       <>
-                        \"Title\"
+                        'Title'
                 ",
       expected: "
                 <> root
                   <> section
                     <> h1
                       <>
-                        \"Title\"
+                        'Title'
                 ",
     ),
   ]

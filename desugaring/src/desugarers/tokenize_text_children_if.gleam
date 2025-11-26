@@ -138,17 +138,54 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
     infra.AssertiveTestData(
       param: test_param,
       source: "
+                <> testing
+                  <> a
+                    <>
+                      'first line'
+                      'second line'
+                    <>
+                      'third line'
+                    <> inside
+                      <>
+                        'some text'
+                ",
+      expected: "
+                <> testing
+                  <> a
+                    <> __StartTokenizedT
+                    <> __OneWord
+                      val=first
+                    <> __OneSpace
+                    <> __OneWord
+                      val=line
+                    <> __OneNewLine
+                    <> __OneWord
+                      val=second
+                    <> __OneSpace
+                    <> __OneWord
+                      val=line
+                    <> __EndTokenizedT
+                    <> __StartTokenizedT
+                    <> __OneWord
+                      val=third
+                    <> __OneSpace
+                    <> __OneWord
+                      val=line
+                    <> __EndTokenizedT
+                    <> inside
+                      <>
+                        'some text'
+                ",
+    ),
+    infra.AssertiveTestData(
+      param: test_param,
+      source: "
             <> testing
               <> a
                 <>
-                  \"first line\"
-                  \"second line\"
-                <>
-                  \"third line\"
-
-                <> inside
-                  <>
-                    \"some text\"
+                  'first  line'
+                  'second  '
+                  '   line'
       ",
       expected: "
             <> testing
@@ -157,44 +194,6 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
                 <> __OneWord
                   val=first
                 <> __OneSpace
-                <> __OneWord
-                  val=line
-                <> __OneNewLine
-                <> __OneWord
-                  val=second
-                <> __OneSpace
-                <> __OneWord
-                  val=line
-                <> __EndTokenizedT
-                <> __StartTokenizedT
-                <> __OneWord
-                  val=third
-                <> __OneSpace
-                <> __OneWord
-                  val=line
-                <> __EndTokenizedT
-                <> inside
-                  <>
-                    \"some text\"
-      ",
-    ),
-    infra.AssertiveTestData(
-      param: test_param,
-      source: "
-            <> testing
-              <> a
-                <>
-                  \"first  line\"
-                  \"second  \"
-                  \"   line\"
-      ",
-      expected: "
-            <> testing
-              <> a
-                <> __StartTokenizedT
-                <> __OneWord
-                  val=first
-                <> __OneSpace
                 <> __OneSpace
                 <> __OneWord
                   val=line
@@ -218,8 +217,8 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
             <> testing
               <> a
                 <>
-                  \"\"
-                  \"\"
+                  ''
+                  ''
       ",
       expected: "
             <> testing

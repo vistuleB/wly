@@ -214,56 +214,56 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
   [
     infra.AssertiveTestDataNoParam(
       source: "
-                <> pre
-                  language=python-prompt
-                  <>
-                    \">>> (6 + 8) * 3\"
-                    \"42\"
-                    \">>> (2 * 3))\"
-                    \"  File \\\"<stdin>\\\", line 1\"
-                    \"    (2 * 3))\"
-                    \"           ^\"
-                    \"SyntaxError: unmatched ')'\"
+                          <> pre
+                            language=python-prompt
+                            <>
+                              '>>> (6 + 8) * 3'
+                              '42'
+                              '>>> (2 * 3))'
+                              '  File '<stdin>', line 1'
+                              '    (2 * 3))'
+                              '           ^'
+                              'SyntaxError: unmatched ')''
                 ",
       expected: "
-                <> pre
-                  class=python-prompt
-                  <> span
-                    class=python-prompt-carets
-                    <>
-                      \">>>\"
-                  <> span
-                    class=python-prompt-content
-                    <>
-                      \" (6 + 8) * 3\"
-                  <>
-                    \"\"
-                    \"\"
-                  <> span
-                    class=python-prompt-ok-response
-                    <>
-                      \"42\"
-                  <>
-                    \"\"
-                    \"\"
-                  <> span
-                    class=python-prompt-carets
-                    <>
-                      \">>>\"
-                  <> span
-                    class=python-prompt-content
-                    <>
-                      \" (2 * 3))\"
-                  <>
-                    \"\"
-                    \"\"
-                  <> span
-                    class=python-prompt-error-response
-                    <>
-                      \"  File \\\"<stdin>\\\", line 1\"
-                      \"    (2 * 3))\"
-                      \"           ^\"
-                      \"SyntaxError: unmatched ')'\"
+                          <> pre
+                            class=python-prompt
+                            <> span
+                              class=python-prompt-carets
+                              <>
+                                '>>>'
+                            <> span
+                              class=python-prompt-content
+                              <>
+                                ' (6 + 8) * 3'
+                            <>
+                              ''
+                              ''
+                            <> span
+                              class=python-prompt-ok-response
+                              <>
+                                '42'
+                            <>
+                              ''
+                              ''
+                            <> span
+                              class=python-prompt-carets
+                              <>
+                                '>>>'
+                            <> span
+                              class=python-prompt-content
+                              <>
+                                ' (2 * 3))'
+                            <>
+                              ''
+                              ''
+                            <> span
+                              class=python-prompt-error-response
+                              <>
+                                '  File '<stdin>', line 1'
+                                '    (2 * 3))'
+                                '           ^'
+                                'SyntaxError: unmatched ')''
                 "
     ),
   ]

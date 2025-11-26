@@ -1,7 +1,12 @@
 import gleam/list
 import gleam/option
 import gleam/string.{inspect as ins}
-import infrastructure.{ type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError } as infra
+import infrastructure.{
+  type Desugarer,
+  type DesugaringError,
+  type DesugarerTransform,
+  Desugarer,
+} as infra
 import nodemaps_2_desugarer_transforms as n2t
 import vxml.{ type Line, type VXML, Attr, Line, T, V }
 import blame as bl
@@ -125,18 +130,18 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataWithOutside(Param)) {
       source:   "
                 <> root
                   <>
-                    \"some text\"
+                    'some text'
                 ",
       expected: "
                 <> root
                   <> span
                     class=t-3003-c
                     <>
-                      \"some text\"
+                      'some text'
                     <> span
                       class=t-3003
                       <>
-                        \"../path/to/content/tst.source:3:5\"
+                        '../path/to/content/tst.source:3:5'
                 "
     ),
   ]

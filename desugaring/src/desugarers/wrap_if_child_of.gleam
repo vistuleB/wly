@@ -47,13 +47,13 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
   Ok(param)
 }
 
-type Param = #(String, String,     List(String))
-//             ↖       ↖           ↖               
-//             tag     thing to    ...if child of
-//             tag     wrap with   one of these  
+type Param = #(String,  String,     List(String))
+//             ↖        ↖           ↖               
+//             tag to   tag to      ...if child of
+//             wrap     wrap with   one of these  
 type InnerParam = Param
 
-pub const name = "wrap_with_if_child_of"
+pub const name = "wrap_if_child_of"
 fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
 
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️

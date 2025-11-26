@@ -72,53 +72,53 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
   [
     infra.AssertiveTestDataNoParam(
       source:   "
-                  <> root
-                    <> pre
-                      language=redyellow
-                      class=listing
-                      <>
-                        \"some code here\"
-                        \"with multiple lines\"
+                          <> root
+                            <> pre
+                              language=redyellow
+                              class=listing
+                              <>
+                                'some code here'
+                                'with multiple lines'
                 ",
       expected: "
-                  <> root
-                    <> pre
-                      class=listing redyellow
-                      <>
-                        \"some code here\"
-                        \"with multiple lines\"
+                          <> root
+                            <> pre
+                              class=listing redyellow
+                              <>
+                                'some code here'
+                                'with multiple lines'
                 ",
     ),
     infra.AssertiveTestDataNoParam(
       source:   "
-                  <> root
-                    <> pre
-                      language=redyellow
-                      <>
-                        \"just redyellow code\"
+                          <> root
+                            <> pre
+                              language=redyellow
+                              <>
+                                'just redyellow code'
                 ",
       expected: "
-                  <> root
-                    <> pre
-                      class=redyellow
-                      <>
-                        \"just redyellow code\"
+                          <> root
+                            <> pre
+                              class=redyellow
+                              <>
+                                'just redyellow code'
                 ",
     ),
     infra.AssertiveTestDataNoParam(
       source:   "
-                  <> root
-                    <> pre
-                      language=other
-                      <>
-                        \"should not change\"
+                          <> root
+                            <> pre
+                              language=other
+                              <>
+                                'should not change'
                 ",
       expected: "
-                  <> root
-                    <> pre
-                      language=other
-                      <>
-                        \"should not change\"
+                          <> root
+                            <> pre
+                              language=other
+                              <>
+                                'should not change'
                 ",
     ),
   ]

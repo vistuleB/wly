@@ -107,21 +107,21 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
                     <> Chapter
                       title=Einleitung
                       <>
-                        \"Chapter content\"
+                        'Chapter content'
                     <> Chapter
                       title=Advanced Topics
                       <> ChapterTitle
                         <>
-                          \"Existing title\"
+                          'Existing title'
                       <>
-                        \"More content\"
+                        'More content'
                     <> Chapter
                       <>
-                        \"No title attr\"
+                        'No title attr'
                     <> OtherElement
                       title=Should not change
                       <>
-                        \"Other content\"
+                        'Other content'
                 ",
       expected: "
                   <> root
@@ -129,23 +129,23 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
                       title=Einleitung
                       <> ChapterTitle
                         <>
-                          \"Einleitung\"
+                          'Einleitung'
                       <>
-                        \"Chapter content\"
+                        'Chapter content'
                     <> Chapter
                       title=Advanced Topics
                       <> ChapterTitle
                         <>
-                          \"Existing title\"
+                          'Existing title'
                       <>
-                        \"More content\"
+                        'More content'
                     <> Chapter
                       <>
-                        \"No title attr\"
+                        'No title attr'
                     <> OtherElement
                       title=Should not change
                       <>
-                        \"Other content\"
+                        'Other content'
                 ",
     ),
     infra.AssertiveTestData(
@@ -155,21 +155,21 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
                     <> Sub
                       title=Overview
                       <>
-                        \"Sub content\"
+                        'Sub content'
                     <> Sub
                       title=Details
                       <> SubTitle
                         <>
-                          \"Existing subtitle\"
+                          'Existing subtitle'
                       <>
-                        \"More sub content\"
+                        'More sub content'
                     <> Sub
                       <>
-                        \"No title attr\"
+                        'No title attr'
                     <> Chapter
                       title=Should not change
                       <>
-                        \"Chapter content\"
+                        'Chapter content'
                 ",
       expected: "
                   <> root
@@ -177,23 +177,23 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
                       title=Overview
                       <> SubTitle
                         <>
-                          \"Overview\"
+                          'Overview'
                       <>
-                        \"Sub content\"
+                        'Sub content'
                     <> Sub
                       title=Details
                       <> SubTitle
                         <>
-                          \"Existing subtitle\"
+                          'Existing subtitle'
                       <>
-                        \"More sub content\"
+                        'More sub content'
                     <> Sub
                       <>
-                        \"No title attr\"
+                        'No title attr'
                     <> Chapter
                       title=Should not change
                       <>
-                        \"Chapter content\"
+                        'Chapter content'
                 ",
     ),
   ]

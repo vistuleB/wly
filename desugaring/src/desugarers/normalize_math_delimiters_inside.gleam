@@ -137,12 +137,12 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
       source:   "
                 <> MathBlock
                   <>
-                    \"x\"
+                    'x'
                 ",
       expected: "
                 <> MathBlock
                   <>
-                    \"$$x$$\"
+                    '$$x$$'
                 ",
     ),
     infra.AssertiveTestData(
@@ -150,12 +150,12 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
       source:   "
                 <> MathBlock
                   <>
-                    \"\\[x\\]\"
+                    '\\[x\\]'
                 ",
       expected: "
                 <> MathBlock
                   <>
-                    \"$$x$$\"
+                    '$$x$$'
                 ",
     ),
   ]

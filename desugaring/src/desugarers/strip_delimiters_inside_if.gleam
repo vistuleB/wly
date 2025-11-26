@@ -132,25 +132,25 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
                 <> root
                   <> Z
                     <>
-                      \"$$x$$\"
+                      '$$x$$'
                   <> W
                     <>
-                      \"$$x$$\"
+                      '$$x$$'
                   <> Z
                     <>
-                      \"$$w$$\"
+                      '$$w$$'
                 ",
       expected: "
                 <> root
                   <> Z
                     <>
-                      \"x\"
+                      'x'
                   <> W
                     <>
-                      \"$$x$$\"
+                      '$$x$$'
                   <> Z
                     <>
-                      \"$$w$$\"
+                      '$$w$$'
                 ",
     ),
   ]

@@ -690,13 +690,13 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
                 <> root
                   counter=QCounter -3
                   <>
-                    \"::--QCounter;::--QCounter\"
+                    '::--QCounter;::--QCounter'
                 ",
       expected: "
                 <> root
                   counter=QCounter -3
                   <>
-                    \"-4;-5\"
+                    '-4;-5'
                 ",
     ),
     infra.AssertiveTestDataNoParam(
@@ -704,9 +704,9 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
                 <> root
                   counter=QCounter -3
                   <>
-                    \"t<<::--QCounter;..--QCounter\"
-                    \"u<<..--QCounter;::--QCounter\"
-                    \"GooseMan..--QCounter;::--QCounter;..--QCounter;..--QCounter.::--QCounter@hoverboard\"
+                    't<<::--QCounter;..--QCounter'
+                    'u<<..--QCounter;::--QCounter'
+                    'GooseMan..--QCounter;::--QCounter;..--QCounter;..--QCounter.::--QCounter@hoverboard'
                 ",
       expected: "
                 <> root
@@ -714,9 +714,9 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
                   handle=t -4;-5
                   handle=u -6;-7
                   <>
-                    \"-4\"
-                    \"-7\"
-                    \"GooseMan-9.-12@hoverboard\"
+                    '-4'
+                    '-7'
+                    'GooseMan-9.-12@hoverboard'
                 ",
     ),
     infra.AssertiveTestDataNoParam(
@@ -724,9 +724,9 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
                 <> root
                   counter=QCounter -3
                   <>
-                    \"z<<::++QCounter t<<..øøQCounter\"
-                    \"w<<::--QCounter\"
-                    \"b<<a<<::++QCounter.::++QCounter f<<g<<..øøQCounter\"
+                    'z<<::++QCounter t<<..øøQCounter'
+                    'w<<::--QCounter'
+                    'b<<a<<::++QCounter.::++QCounter f<<g<<..øøQCounter'
                 ",
       expected: "
                 <> root
@@ -739,9 +739,9 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
                   handle=f -1
                   handle=g -1
                   <>
-                    \"-2 \"
-                    \"-3\"
-                    \"-2.-1 \"
+                    '-2 '
+                    '-3'
+                    '-2.-1 '
                 ",
     ),
     infra.AssertiveTestDataNoParam(
@@ -749,9 +749,9 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
                 <> root
                   counter=my_counter 5
                   <>
-                    \"first-handle<<::++my_counter\"
-                    \"second-handle<<::--my_counter\"
-                    \"third-handle<<::++my_counter.::++my_counter\"
+                    'first-handle<<::++my_counter'
+                    'second-handle<<::--my_counter'
+                    'third-handle<<::++my_counter.::++my_counter'
                 ",
       expected: "
                 <> root
@@ -760,9 +760,9 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
                   handle=second-handle 5
                   handle=third-handle 6.7
                   <>
-                    \"6\"
-                    \"5\"
-                    \"6.7\"
+                    '6'
+                    '5'
+                    '6.7'
                 ",
     ),
     infra.AssertiveTestDataNoParam(
@@ -770,8 +770,8 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
                 <> root
                   counter=TestCounter 1
                   <>
-                    \"handle^with^caret<<::++TestCounter\"
-                    \"another^handle<<::--TestCounter\"
+                    'handle^with^caret<<::++TestCounter'
+                    'another^handle<<::--TestCounter'
                 ",
       expected: "
                 <> root
@@ -779,8 +779,8 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
                   handle=handle^with^caret 2
                   handle=another^handle 1
                   <>
-                    \"2\"
-                    \"1\"
+                    '2'
+                    '1'
                 ",
     ),
   ]

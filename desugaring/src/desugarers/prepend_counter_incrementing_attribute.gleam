@@ -98,18 +98,18 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
                     <> Chapter
                       title=Introduction
                       <>
-                        \"Chapter content\"
+                        'Chapter content'
                       <> Chapter
                         title=Should not change
                     <> Chapter
                       title=Advanced Topics
                       <>
-                        \"More content\"
+                        'More content'
                       <> Chapter
                         title=Should not change
                     <> OtherElement
                       <>
-                        \"Should not change\"
+                        'Should not change'
                 ",
       expected: "
                   <> root
@@ -117,19 +117,19 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
                       _=ChapterCounter ::++ChapterCounter
                       title=Introduction
                       <>
-                        \"Chapter content\"
+                        'Chapter content'
                       <> Chapter
                         title=Should not change
                     <> Chapter
                       _=ChapterCounter ::++ChapterCounter
                       title=Advanced Topics
                       <>
-                        \"More content\"
+                        'More content'
                       <> Chapter
                         title=Should not change
                     <> OtherElement
                       <>
-                        \"Should not change\"
+                        'Should not change'
                 ",
     ),
     infra.AssertiveTestData(
@@ -139,15 +139,15 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
                     <> Sub
                       title=Overview
                       <>
-                        \"Sub content\"
+                        'Sub content'
                       <> Sub
                         title=Details
                         <>
-                          \"More sub content\"
+                          'More sub content'
                     <> Chapter
                       title=Should not change
                       <>
-                        \"Chapter content\"
+                        'Chapter content'
                 ",
       expected: "
                   <> root
@@ -155,16 +155,16 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
                       _=SubCounter ::++SubCounter
                       title=Overview
                       <>
-                        \"Sub content\"
+                        'Sub content'
                       <> Sub
                         _=SubCounter ::++SubCounter
                         title=Details
                         <>
-                          \"More sub content\"
+                          'More sub content'
                     <> Chapter
                       title=Should not change
                       <>
-                        \"Chapter content\"
+                        'Chapter content'
                 ",
     ),
     infra.AssertiveTestData(
@@ -176,12 +176,12 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
                       <> Exercise
                         number=nested
                         <>
-                          \"Nested exercise\"
+                          'Nested exercise'
                       <>
-                        \"Exercise content\"
+                        'Exercise content'
                     <> Section
                       <>
-                        \"Section content\"
+                        'Section content'
                 ",
       expected: "
                   <> root
@@ -192,12 +192,12 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
                         _=ExerciseCounter ::++ExerciseCounter
                         number=nested
                         <>
-                          \"Nested exercise\"
+                          'Nested exercise'
                       <>
-                        \"Exercise content\"
+                        'Exercise content'
                     <> Section
                       <>
-                        \"Section content\"
+                        'Section content'
                 ",
     ),
   ]

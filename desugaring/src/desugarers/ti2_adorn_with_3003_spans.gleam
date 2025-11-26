@@ -73,24 +73,24 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
     infra.AssertiveTestData(
       param: #("./wly/", "sum_class", ["MathBlock"]),
       source:   "
-                <> root
-                  <> MathBlock
-                    <>
-                      \"$$\"
-                      \"hello\"
-                      \"$$\"
+                          <> root
+                            <> MathBlock
+                              <>
+                                '$$'
+                                'hello'
+                                '$$'
                 ",
       expected: "
-                <> root
-                  <> MathBlock
-                    <>
-                      \"$$\"
-                      \"hello\"
-                      \"$$\"
-                    <> span
-                      class=t-3003 sum_class
-                      <>
-                        \"./wly/tst.source:2:3\"
+                          <> root
+                            <> MathBlock
+                              <>
+                                '$$'
+                                'hello'
+                                '$$'
+                              <> span
+                                class=t-3003 sum_class
+                                <>
+                                  './wly/tst.source:2:3'
                 ",
     ),
   ]

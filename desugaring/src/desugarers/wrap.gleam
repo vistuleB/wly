@@ -76,10 +76,10 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
                   <> div
                     <> p
                       <>
-                        \"Hello\"
+                        'Hello'
                     <> span
                       <>
-                        \"World\"
+                        'World'
                 ",
       expected: "
                 <> root
@@ -87,10 +87,10 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
                     <> wrapper
                       <> p
                         <>
-                          \"Hello\"
+                          'Hello'
                     <> span
                       <>
-                        \"World\"
+                        'World'
                 ",
     ),
     infra.AssertiveTestData(
@@ -100,7 +100,7 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
                   <> section
                     <> h1
                       <>
-                        \"Title\"
+                        'Title'
                 ",
       expected: "
                 <> root
@@ -108,7 +108,7 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
                     <> section
                       <> h1
                         <>
-                          \"Title\"
+                          'Title'
                 ",
     ),
     infra.AssertiveTestData(
@@ -118,10 +118,10 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
                   <> article
                     <> h1
                       <>
-                        \"Title\"
+                        'Title'
                     <> footer
                       <>
-                        \"Footer\"
+                        'Footer'
                 ",
       expected: "
                 <> root
@@ -129,10 +129,10 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
                     <> article
                       <> h1
                         <>
-                          \"Title\"
+                          'Title'
                       <> footer
                         <>
-                          \"Footer\"
+                          'Footer'
                 ",
     ),
     infra.AssertiveTestData(
@@ -142,14 +142,14 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
                   <> div
                     <> p
                       <>
-                        \"First paragraph\"
+                        'First paragraph'
                     <> section
                       <> p
                         <>
-                          \"Second paragraph\"
+                          'Second paragraph'
                       <> p
                         <>
-                          \"Third paragraph\"
+                          'Third paragraph'
                 ",
       expected: "
                 <> root
@@ -157,16 +157,16 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
                     <> wrapper
                       <> p
                         <>
-                          \"First paragraph\"
+                          'First paragraph'
                     <> section
                       <> wrapper
                         <> p
                           <>
-                            \"Second paragraph\"
+                            'Second paragraph'
                       <> wrapper
                         <> p
                           <>
-                            \"Third paragraph\"
+                            'Third paragraph'
                 ",
     ),
   ]

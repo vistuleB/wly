@@ -3,7 +3,10 @@ import gleam/list
 import gleam/option
 import gleam/string
 import infrastructure.{
-  type Desugarer, type DesugarerTransform, type DesugaringError, Desugarer,
+  type Desugarer,
+  type DesugaringError,
+  type DesugarerTransform,
+  Desugarer,
 } as infra
 import nodemaps_2_desugarer_transforms as n2t
 import vxml.{type VXML, Attr, T, V}
@@ -160,14 +163,14 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
               <> zz
                 href=bla
                 <>
-                  \"first line\"
-                  \"second line\"
+                  'first line'
+                  'second line'
                 <>
-                  \"third line\"
+                  'third line'
 
                 <> inside
                   <>
-                    \"some text\"
+                    'some text'
       ",
       expected: "
             <> testing
@@ -196,7 +199,7 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
                 <> __EndTokenizedT
                 <> inside
                   <>
-                    \"some text\"
+                    'some text'
       ",
     ),
     infra.AssertiveTestDataNoParam(
@@ -205,9 +208,9 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
               <> zz
                 href=true
                 <>
-                  \"first  line\"
-                  \"second  \"
-                  \"   line\"
+                  'first  line'
+                  'second  '
+                  '   line'
       ",
       expected: "
             <> testing
@@ -241,8 +244,8 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
               <> zz
                 href=cx
                 <>
-                  \"\"
-                  \"\"
+                  ''
+                  ''
       ",
       expected: "
             <> testing
@@ -259,15 +262,15 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
             <> testing
               <> zz
                 <>
-                  \"\"
-                  \"\"
+                  ''
+                  ''
       ",
       expected: "
             <> testing
               <> zz
                 <>
-                  \"\"
-                  \"\"
+                  ''
+                  ''
       ",
     ),
   ]

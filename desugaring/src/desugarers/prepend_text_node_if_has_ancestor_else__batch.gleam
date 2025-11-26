@@ -96,12 +96,12 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
                 <> root
                   <> ze_tag
                     <>
-                      \"some text V1\"
+                      'some text V1'
                   <> ze_ancestor
                     <> distraction
                       <> ze_tag
                         <>
-                          \"some text V2\"
+                          'some text V2'
                   <> ze_tag
                     <> AnotherNode
                       a=b
@@ -110,19 +110,19 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
                 <> root
                   <> ze_tag
                     <>
-                      \"_else_text_\"
+                      '_else_text_'
                     <>
-                      \"some text V1\"
+                      'some text V1'
                   <> ze_ancestor
                     <> distraction
                       <> ze_tag
                         <>
-                          \"_if_text_\"
+                          '_if_text_'
                         <>
-                          \"some text V2\"
+                          'some text V2'
                   <> ze_tag
                     <>
-                      \"_else_text_\"
+                      '_else_text_'
                     <> AnotherNode
                       a=b
                 ",

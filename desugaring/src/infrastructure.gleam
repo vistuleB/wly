@@ -3159,7 +3159,7 @@ fn t_s_line(blame: Blame, indent: Int) {
 }
 
 fn l_s_line(blame: Blame, indent: Int, content: String) {
-  TSLine(blame, indent, "\"" <> content <> "\"", NotSelected)
+  TSLine(blame, indent, vxml.vxml_line_delimiter <> content <> vxml.vxml_line_delimiter, NotSelected)
 }
 
 fn v_s_lines(

@@ -119,7 +119,7 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
                     <> pre
                       info=python.listing
                       <>
-                        \"plain code block\"
+                        'plain code block'
                 ",
       expected: "
                   <> root
@@ -127,7 +127,7 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
                       language=python
                       class=listing
                       <>
-                        \"plain code block\"
+                        'plain code block'
                 ",
     ),
     infra.AssertiveTestData(
@@ -137,7 +137,7 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
                     <> pre
                       info=python.listing#bob
                       <>
-                        \"plain code block\"
+                        'plain code block'
                 ",
       expected: "
                   <> root
@@ -146,7 +146,7 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
                       id=bob
                       class=listing
                       <>
-                        \"plain code block\"
+                        'plain code block'
                 ",
     ),
     infra.AssertiveTestData(
@@ -156,7 +156,7 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
                     <> pre
                       info=python.listing#bob.background-color:taupe
                       <>
-                        \"plain code block\"
+                        'plain code block'
                 ",
       expected: "
                   <> root
@@ -166,7 +166,7 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
                       class=listing
                       style=background-color:taupe
                       <>
-                        \"plain code block\"
+                        'plain code block'
                 ",
     ),
     infra.AssertiveTestData(
@@ -176,14 +176,14 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
                     <> pre
                       info=.listing
                       <>
-                        \"plain code block\"
+                        'plain code block'
                 ",
       expected: "
                   <> root
                     <> pre
                       class=listing
                       <>
-                        \"plain code block\"
+                        'plain code block'
                 ",
     ),
   ]

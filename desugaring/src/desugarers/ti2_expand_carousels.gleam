@@ -178,90 +178,90 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
   [
     infra.AssertiveTestDataNoParam(
       source:   "
-                <> Carousel
-                  src=\"image1.jpg\"
-                  src=\"image2.jpg\"
-                  src=\"image3.jpg\"
+                          <> Carousel
+                            src=image1.jpg
+                            src=image2.jpg
+                            src=image3.jpg
                 ",
       expected: "
-                <> Carousel
-                  <> CarouselItem
-                    <> img
-                      src=\"image1.jpg\"
-                  <> CarouselItem
-                    <> img
-                      src=\"image2.jpg\"
-                  <> CarouselItem
-                    <> img
-                      src=\"image3.jpg\"
+                          <> Carousel
+                            <> CarouselItem
+                              <> img
+                                src=image1.jpg
+                            <> CarouselItem
+                              <> img
+                                src=image2.jpg
+                            <> CarouselItem
+                              <> img
+                                src=image3.jpg
                 ",
     ),
     infra.AssertiveTestDataNoParam(
       source:   "
-                <> Carousel
-                  src=\"image1.jpg\"
-                  src=\"image2.jpg\"
-                  width=\"200px\"
-                  height=\"150px\"
+                          <> Carousel
+                            src=image1.jpg
+                            src=image2.jpg
+                            width=200px
+                            height=150px
                 ",
       expected: "
-                <> Carousel
-                  <> CarouselItem
-                    <> img
-                      style=width:\"200px\";height:\"150px\"
-                      src=\"image1.jpg\"
-                  <> CarouselItem
-                    <> img
-                      style=width:\"200px\";height:\"150px\"
-                      src=\"image2.jpg\"
+                          <> Carousel
+                            <> CarouselItem
+                              <> img
+                                style=width:200px;height:150px
+                                src=image1.jpg
+                            <> CarouselItem
+                              <> img
+                                style=width:200px;height:150px
+                                src=image2.jpg
                 ",
     ),
     infra.AssertiveTestDataNoParam(
       source:   "
-                <> Carousel
-                  src=\"only.jpg\"
-                  width=\"100px\"
+                          <> Carousel
+                            src=only.jpg
+                            width=100px
                 ",
       expected: "
-                <> Carousel
-                  <> CarouselItem
-                    <> img
-                      style=width:\"100px\"
-                      src=\"only.jpg\"
+                          <> Carousel
+                            <> CarouselItem
+                              <> img
+                                style=width:100px
+                                src=only.jpg
                 ",
     ),
     infra.AssertiveTestDataNoParam(
       source:   "
-                <> root
-                  <> Carousel
-                    src=\"single.jpg\"
-                  <> div
-                    <>
-                      \"Other content\"
+                          <> root
+                            <> Carousel
+                              src=single.jpg
+                            <> div
+                              <>
+                                'Other content'
                 ",
       expected: "
-                <> root
-                  <> Carousel
-                    <> CarouselItem
-                      <> img
-                        src=\"single.jpg\"
-                  <> div
-                    <>
-                      \"Other content\"
+                          <> root
+                            <> Carousel
+                              <> CarouselItem
+                                <> img
+                                  src=single.jpg
+                            <> div
+                              <>
+                                'Other content'
                 ",
     ),
     infra.AssertiveTestDataNoParam(
       source:   "
-                <> root
-                  <> div
-                    <>
-                      \"No carousel here\"
+                          <> root
+                            <> div
+                              <>
+                                'No carousel here'
                 ",
       expected: "
-                <> root
-                  <> div
-                    <>
-                      \"No carousel here\"
+                          <> root
+                            <> div
+                              <>
+                                'No carousel here'
                 ",
     ),
   ]

@@ -82,7 +82,7 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
                   <> Root
                     <> n1
                       <> 
-                        \"text\"
+                        'text'
                     <> A
                     <> A
                     <> B
@@ -93,7 +93,7 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
                   <> Root
                     <> n1
                       <> 
-                        \"text\"
+                        'text'
                       <> A
                       <> A
                       <> B
@@ -107,7 +107,7 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
                   <> Root
                     <> n1
                       <> 
-                        \"text\"
+                        'text'
                     <> A
                     <> B
                     <> last
@@ -118,7 +118,7 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
                   <> Root
                     <> n1
                       <> 
-                        \"text\"
+                        'text'
                       <> A
                       <> B
                     <> last

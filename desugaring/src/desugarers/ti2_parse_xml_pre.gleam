@@ -155,7 +155,7 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
                     <> pre
                       language=xml
                       <>
-                        \"<div class=\\\"example\\\">Hello</div>\"
+                        '<div class='example'>Hello</div>'
                 ",
       expected: "
                   <> root
@@ -163,45 +163,45 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
                       <> span
                         class=xml-0
                         <>
-                          \"<\"
+                          '<'
                       <> span
                         class=xml-1
                         <>
-                          \"div\"
+                          'div'
                       <>
-                        \" \"
+                        ' '
                       <> span
                         class=xml-2
                         <>
-                          \"class\"
+                          'class'
                       <> span
                         class=xml-3
                         <>
-                          \"=\"
+                          '='
                       <> span
-                        class=xml-2b
+                        class=xml-4
                         <>
-                          \"\\\"example\\\"\"
+                          ''example''
                       <> span
                         class=xml-0
                         <>
-                          \">\"
+                          '>'
                       <> span
                         class=xml-5
                         <>
-                          \"Hello\"
+                          'Hello'
                       <> span
                         class=xml-0
                         <>
-                          \"</\"
+                          '</'
                       <> span
                         class=xml-1
                         <>
-                          \"div\"
+                          'div'
                       <> span
                         class=xml-0
                         <>
-                          \">\"
+                          '>'
                 ",
     ),
     infra.AssertiveTestDataNoParam(
@@ -210,7 +210,7 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
                     <> pre
                       language=xml
                       <>
-                        \"<img src=\\\"test.jpg\\\" />\"
+                        '<img src=\"test.jpg\" />'
                 ",
       expected: "
                   <> root
@@ -218,31 +218,31 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
                       <> span
                         class=xml-0
                         <>
-                          \"<\"
+                          '<'
                       <> span
                         class=xml-1
                         <>
-                          \"img\"
+                          'img'
                       <>
-                        \" \"
+                        ' '
                       <> span
                         class=xml-2
                         <>
-                          \"src\"
+                          'src'
                       <> span
                         class=xml-3
                         <>
-                          \"=\"
+                          '='
                       <> span
-                        class=xml-2b
+                        class=xml-4
                         <>
-                          \"\\\"test.jpg\\\"\"
+                          '\"test.jpg\"'
                       <>
-                        \" \"
+                        ' '
                       <> span
                         class=xml-0
                         <>
-                          \"/>\"
+                          '/>'
                 ",
     ),
     infra.AssertiveTestDataNoParam(
@@ -251,14 +251,14 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
                     <> pre
                       language=other
                       <>
-                        \"<div>should not change</div>\"
+                        '<div>should not change</div>'
                 ",
       expected: "
                   <> root
                     <> pre
                       language=other
                       <>
-                        \"<div>should not change</div>\"
+                        '<div>should not change</div>'
                 ",
     ),
   ]
