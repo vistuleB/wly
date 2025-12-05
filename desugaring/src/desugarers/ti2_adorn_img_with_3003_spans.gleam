@@ -38,6 +38,10 @@ fn v_before(
   }
 }
 
+fn span_url(inner: InnerParam, path: String) -> VXML {
+  V(b, "span", [Attr(b, "class", "t-3003-i-url")], [ T(b, [Line(b, inner <> path)]) ])
+}
+
 fn v_after(
   vxml: VXML,
   inner: InnerParam,
@@ -53,22 +57,20 @@ fn v_after(
                   b,
                   "span",
                   [ Attr(b, "class", tooltip_classname) ],
-                  [ T(b, [Line(b, inner <> src)]) ],
+                  [ span_url(inner, src)],
                 )
           Ok(#([vxml, span], original_state))
         }
         Some(original_src) -> {
-          let inner_span1 = V(b, "span", [], [ T(b, [Line(b, inner <> original_src)]) ])
           let br = V(b, "br", [], [])
-          let inner_span2 = V(b, "span", [], [ T(b, [Line(b, inner <> src)]) ])
           let span = V(
             b,
             "span",
             [ Attr(b, "class", tooltip_classname) ],
             [
-              inner_span1,
+              span_url(inner, original_src),
               br,
-              inner_span2,
+              span_url(inner, src),
             ],
           )
           Ok(#([vxml, span], original_state))
@@ -142,8 +144,10 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataWithOutside(Param)) {
                               src=img/hello.svg
                             <> span
                               class=t-3003 t-3003-i
-                              <>
-                                './public/img/hello.svg'
+                              <> span
+                                class=t-3003-i-url
+                                <>
+                                  './public/img/hello.svg'
                 "
     ),
     infra.AssertiveTestDataWithOutside(
@@ -163,10 +167,12 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataWithOutside(Param)) {
                             <> span
                               class=t-3003 t-3003-i
                               <> span
+                                class=t-3003-i-url
                                 <>
                                   './assets/img/original.jpg'
                               <> br
                               <> span
+                                class=t-3003-i-url
                                 <>
                                   './assets/img/compressed.jpg'
                 "
@@ -190,10 +196,12 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataWithOutside(Param)) {
                               <> span
                                 class=t-3003 t-3003-i
                                 <> span
+                                  class=t-3003-i-url
                                   <>
                                     '/media/photos/fullsize.png'
                                 <> br
                                 <> span
+                                  class=t-3003-i-url
                                   <>
                                     '/media/photos/thumb.png'
                 "
@@ -217,15 +225,16 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataWithOutside(Param)) {
                               <> span
                                 class=t-3003 t-3003-i
                                 <> span
+                                  class=t-3003-i-url
                                   <>
                                     './static/carousel/slide-hq.webp'
                                 <> br
                                 <> span
+                                  class=t-3003-i-url
                                   <>
                                     './static/carousel/slide.webp'
                 "
     ),
-    // Test case - Mixed elements with nested structure
     infra.AssertiveTestDataWithOutside(
       param: "./public/",
       outside: [],
@@ -247,18 +256,22 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataWithOutside(Param)) {
                               src=img/logo.svg
                             <> span
                               class=t-3003 t-3003-i
-                              <>
-                                './public/img/logo.svg'
+                              <> span
+                                class=t-3003-i-url
+                                <>
+                                  './public/img/logo.svg'
                             <> img
                               src=img/banner.jpg
                               original=img/banner-original.jpg
                             <> span
                               class=t-3003 t-3003-i
                               <> span
+                                class=t-3003-i-url
                                 <>
                                   './public/img/banner-original.jpg'
                               <> br
                               <> span
+                                class=t-3003-i-url
                                 <>
                                   './public/img/banner.jpg'
                             <> figure
@@ -268,10 +281,12 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataWithOutside(Param)) {
                               <> span
                                 class=t-3003 t-3003-i
                                 <> span
+                                  class=t-3003-i-url
                                   <>
                                     './public/img/photo-hires.png'
                                 <> br
                                 <> span
+                                  class=t-3003-i-url
                                   <>
                                     './public/img/photo.png'
                 "
@@ -293,10 +308,12 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataWithOutside(Param)) {
                             <> span
                               class=t-3003 t-3003-i
                               <> span
+                                class=t-3003-i-url
                                 <>
                                   '../images/gallery/full-resolution.jpg'
                               <> br
                               <> span
+                                class=t-3003-i-url
                                 <>
                                   '../images/gallery/thumbnail.jpg'
                 "
@@ -325,10 +342,12 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataWithOutside(Param)) {
                               <> span
                                 class=t-3003 t-3003-i
                                 <> span
+                                  class=t-3003-i-url
                                   <>
                                     './public/diagrams/chart-hires.svg'
                                 <> br
                                 <> span
+                                  class=t-3003-i-url
                                   <>
                                     './public/diagrams/chart.svg'
                             <> Carousel
@@ -338,10 +357,12 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataWithOutside(Param)) {
                               <> span
                                 class=t-3003 t-3003-i
                                 <> span
+                                  class=t-3003-i-url
                                   <>
                                     './public/gallery/slide-full.jpg'
                                 <> br
                                 <> span
+                                  class=t-3003-i-url
                                   <>
                                     './public/gallery/slide-thumb.jpg'
                 "
