@@ -1350,7 +1350,7 @@ fn one_to_many_before_and_after_stateful_nodemap_walk(
   }
 }
 
-pub fn one_to_many_before_and_after_stateful_nodemap_2_desufarer_transform(
+pub fn one_to_many_before_and_after_stateful_nodemap_2_desugarer_transform(
   nodemap: OneToManyBeforeAndAfterStatefulNodeMap(a),
   initial_state: a,
 ) -> DesugarerTransform {
