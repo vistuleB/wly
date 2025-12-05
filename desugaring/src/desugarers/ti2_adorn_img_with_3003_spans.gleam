@@ -10,13 +10,12 @@ import blame as bl
 const tooltip_classname = "t-3003 t-3003-i"
 const b = bl.Des([], name, 14)
 
-fn add_in_list(
-  children: List(VXML),
+fn nodemap(
+  vxml: VXML,
   inner: InnerParam,
 ) -> List(VXML) {
-  case children {
-    [] -> []
-    [V(_, "img", attrs, _) as first, ..rest] -> {
+  case vxml {
+    V(_, "img", attrs, _) -> {
       let assert Some(src) = infra.attrs_val_of_first_with_key(attrs, "src")
       let span = V(
         b,
@@ -24,29 +23,19 @@ fn add_in_list(
         [ Attr(b, "class", tooltip_classname) ],
         [ T(b, [Line(b, inner <> src)]) ],
       )
-      [first, span, ..add_in_list(rest, inner)]
+      [vxml, span]
     }
-    [first, ..rest] -> [first, ..add_in_list(rest, inner)]
+    _ -> [vxml]
   }
 }
 
-fn nodemap(
-  vxml: VXML,
-  inner: InnerParam,
-) -> VXML {
-  case vxml {
-    V(_, _, _, children) -> V(..vxml, children: add_in_list(children, inner))
-    _ -> vxml
-  }
-}
-
-fn nodemap_factory(inner: InnerParam) -> n2t.OneToOneNoErrorNodeMap {
+fn nodemap_factory(inner: InnerParam) -> n2t.OneToManyNoErrorNodeMap {
   nodemap(_, inner)
 }
 
 fn transform_factory(inner: InnerParam, outside: List(String)) -> DesugarerTransform {
   nodemap_factory(inner)
-  |> n2t.one_to_one_no_error_nodemap_2_desugarer_transform_with_forbidden(outside)
+  |> n2t.one_to_many_no_error_nodemap_2_desugarer_transform_with_forbidden(outside)
 }
 
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
