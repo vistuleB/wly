@@ -44,3 +44,4 @@ splitter = { version = ">= 1.1.0 and < 2.0.0" }
 vxml = { path = "../vxml" }
 writerly = { path = "../writerly" }
 xmlm = { version = ">= 1.0.0 and < 2.0.0" }
+filepath = { version = ">= 1.1.2 and < 2.0.0" }

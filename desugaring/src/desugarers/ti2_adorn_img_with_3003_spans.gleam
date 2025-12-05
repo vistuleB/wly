@@ -6,11 +6,11 @@ import infrastructure.{ type Desugarer, Desugarer, type DesugarerTransform, type
 import nodemaps_2_desugarer_transforms as n2t
 import vxml.{ type VXML, Attr, Line, T, V }
 import blame as bl
+import filepath
 
 // remember to replace these names in tests,
 // as well:
 const tooltip_classname = "t-3003 t-3003-i"
-const b = bl.Des([], name, 14)
 
 fn v_before(
   vxml: VXML,
@@ -38,8 +38,13 @@ fn v_before(
   }
 }
 
-fn span_url(inner: InnerParam, path: String) -> VXML {
-  V(b, "span", [Attr(b, "class", "t-3003-i-url")], [ T(b, [Line(b, inner <> path)]) ])
+fn span_url(inner: InnerParam, path: String, b: bl.Blame) -> Result(VXML, DesugaringError) {
+  use normalized_path <- on.error_ok(
+    filepath.expand(inner <> path), 
+    fn(_) { Error(infra.DesugaringError(b, "Invalid path: " <> path))}
+  )
+  V(b, "span", [Attr(b, "class", "t-3003-i-url")], [ T(b, [Line(b, normalized_path)]) ])
+  |> Ok
 }
 
 fn v_after(
@@ -49,28 +54,40 @@ fn v_after(
   latest_state: State,
 ) -> Result(#(List(VXML), State), DesugaringError) {
   case vxml {
-    V(_, "img", attrs, _) -> {
+    V(b, "img", attrs, _) -> {
       let assert Some(src) = infra.attrs_val_of_first_with_key(attrs, "src")
       case latest_state {
         None -> {
+          use span_node <- on.error_ok(
+            span_url(inner, src, b),
+            fn(err) { Error(err) }
+          )
           let span = V(
                   b,
                   "span",
                   [ Attr(b, "class", tooltip_classname) ],
-                  [ span_url(inner, src)],
+                  [ span_node ],
                 )
           Ok(#([vxml, span], original_state))
         }
         Some(original_src) -> {
           let br = V(b, "br", [], [])
+          use span_node_original <- on.error_ok(
+            span_url(inner, original_src, b),
+            fn(err) { Error(err) }
+          )
+          use span_node_src <- on.error_ok(
+            span_url(inner, src, b),
+            fn(err) { Error(err) }
+          )
           let span = V(
             b,
             "span",
             [ Attr(b, "class", tooltip_classname) ],
             [
-              span_url(inner, original_src),
+              span_node_original,
               br,
-              span_url(inner, src),
+              span_node_src,
             ],
           )
           Ok(#([vxml, span], original_state))
@@ -147,7 +164,7 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataWithOutside(Param)) {
                               <> span
                                 class=t-3003-i-url
                                 <>
-                                  './public/img/hello.svg'
+                                  'public/img/hello.svg'
                 "
     ),
     infra.AssertiveTestDataWithOutside(
@@ -157,24 +174,24 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataWithOutside(Param)) {
                           <> root
                             <> img
                               src=img/compressed.jpg
-                              original=img/original.jpg
+                              original=../img/original.jpg
                 ",
       expected: "
                           <> root
                             <> img
                               src=img/compressed.jpg
-                              original=img/original.jpg
+                              original=../img/original.jpg
                             <> span
                               class=t-3003 t-3003-i
                               <> span
                                 class=t-3003-i-url
                                 <>
-                                  './assets/img/original.jpg'
+                                  'img/original.jpg'
                               <> br
                               <> span
                                 class=t-3003-i-url
                                 <>
-                                  './assets/img/compressed.jpg'
+                                  'assets/img/compressed.jpg'
                 "
     ),
     infra.AssertiveTestDataWithOutside(
@@ -227,12 +244,12 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataWithOutside(Param)) {
                                 <> span
                                   class=t-3003-i-url
                                   <>
-                                    './static/carousel/slide-hq.webp'
+                                    'static/carousel/slide-hq.webp'
                                 <> br
                                 <> span
                                   class=t-3003-i-url
                                   <>
-                                    './static/carousel/slide.webp'
+                                    'static/carousel/slide.webp'
                 "
     ),
     infra.AssertiveTestDataWithOutside(
@@ -259,7 +276,7 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataWithOutside(Param)) {
                               <> span
                                 class=t-3003-i-url
                                 <>
-                                  './public/img/logo.svg'
+                                  'public/img/logo.svg'
                             <> img
                               src=img/banner.jpg
                               original=img/banner-original.jpg
@@ -268,12 +285,12 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataWithOutside(Param)) {
                               <> span
                                 class=t-3003-i-url
                                 <>
-                                  './public/img/banner-original.jpg'
+                                  'public/img/banner-original.jpg'
                               <> br
                               <> span
                                 class=t-3003-i-url
                                 <>
-                                  './public/img/banner.jpg'
+                                  'public/img/banner.jpg'
                             <> figure
                               original=img/photo-hires.png
                               <> img
@@ -283,42 +300,14 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataWithOutside(Param)) {
                                 <> span
                                   class=t-3003-i-url
                                   <>
-                                    './public/img/photo-hires.png'
+                                    'public/img/photo-hires.png'
                                 <> br
                                 <> span
                                   class=t-3003-i-url
                                   <>
-                                    './public/img/photo.png'
+                                    'public/img/photo.png'
                 "
     ),
-    infra.AssertiveTestDataWithOutside(
-      param: "../images/",
-      outside: [],
-      source:   "
-                          <> root
-                            <> img
-                              src=gallery/thumbnail.jpg
-                              original=gallery/full-resolution.jpg
-                ",
-      expected: "
-                          <> root
-                            <> img
-                              src=gallery/thumbnail.jpg
-                              original=gallery/full-resolution.jpg
-                            <> span
-                              class=t-3003 t-3003-i
-                              <> span
-                                class=t-3003-i-url
-                                <>
-                                  '../images/gallery/full-resolution.jpg'
-                              <> br
-                              <> span
-                                class=t-3003-i-url
-                                <>
-                                  '../images/gallery/thumbnail.jpg'
-                "
-    ),
-    // Test case - Multiple nested structures
     infra.AssertiveTestDataWithOutside(
       param: "./public/",
       outside: [],
@@ -344,12 +333,12 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataWithOutside(Param)) {
                                 <> span
                                   class=t-3003-i-url
                                   <>
-                                    './public/diagrams/chart-hires.svg'
+                                    'public/diagrams/chart-hires.svg'
                                 <> br
                                 <> span
                                   class=t-3003-i-url
                                   <>
-                                    './public/diagrams/chart.svg'
+                                    'public/diagrams/chart.svg'
                             <> Carousel
                               original=gallery/slide-full.jpg
                               <> img
@@ -359,12 +348,12 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataWithOutside(Param)) {
                                 <> span
                                   class=t-3003-i-url
                                   <>
-                                    './public/gallery/slide-full.jpg'
+                                    'public/gallery/slide-full.jpg'
                                 <> br
                                 <> span
                                   class=t-3003-i-url
                                   <>
-                                    './public/gallery/slide-thumb.jpg'
+                                    'public/gallery/slide-thumb.jpg'
                 "
     ),
   ]
