@@ -1,50 +1,72 @@
+import gleam/result
 import on
 import gleam/list
 import gleam/option.{type Option, Some, None}
 import gleam/string.{inspect as ins}
-import infrastructure.{ type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError } as infra
+import infrastructure.{
+  type Desugarer,
+  type DesugarerTransform,
+  type DesugaringError,
+  DesugaringError,
+  Desugarer,
+} as infra
 import nodemaps_2_desugarer_transforms as n2t
-import vxml.{ type VXML, Attr, Line, T, V }
-import blame as bl
+import vxml.{
+  type VXML,
+  Attr,
+  Line,
+  T,
+  V,
+}
+import blame.{type Blame} as bl
 import filepath
 
-// remember to replace these names in tests,
-// as well:
 const tooltip_classname = "t-3003 t-3003-i"
+const tags = ["img", "figure", "Carousel"]
+const original_key = "original"
+const b = bl.Des([], name, 27)
+const outer_span_attrs = [Attr(b, "class", tooltip_classname)]
+const inner_span_attrs = [Attr(b, "class", "t-3003-i-url")]
+const br = V(b, "br", [], [])
+
+fn compose_and_simplify_path(
+  blame: Blame,
+  path: String,
+  inner: InnerParam,
+) -> Result(String, DesugaringError) {
+  filepath.expand(inner <> path)
+  |> result.map_error(fn(_) {
+    DesugaringError(blame, "path '" <> path <> "' points outside of root directory (?)")
+  })
+}
 
 fn v_before(
   vxml: VXML,
-  state: State
+  state: State,
+  inner: InnerParam,
 ) ->  Result(#(VXML, State), DesugaringError) {
-  let tags = ["img", "figure", "Carousel"]
-  let attr = "original"
-  case vxml {
-    V(blame, tag, _, _) as v -> case list.contains(tags, tag) && infra.v_has_attr_with_key(v, attr) {
-      True -> {
-        case state {
-          Some(_) -> Error(infra.DesugaringError(bl.Des([], name, 44), "The state has already been set, which shouldn't happen"))
-          None -> {
-            use url <- on.lazy_none_some(
-              infra.v_val_of_first_attr_with_key(v, attr),
-              fn() { Error(infra.DesugaringError(blame, "Value of attribute \"original\" missing")) }
-            )
-            Ok(#(vxml, Some(url)))
-          }
-        }
-      }
-      False -> Ok(#(vxml, state))
+  let assert V(blame, tag, _, _) = vxml
+  use <- on.false_true(
+    list.contains(tags, tag),
+    Ok(#(vxml, state)),
+  )
+  case infra.v_first_attr_with_key(vxml, original_key), state {
+    None, _ -> Ok(#(vxml, state))
+    Some(attr), None -> {
+      use path <- on.ok(compose_and_simplify_path(attr.blame, attr.val, inner))
+      Ok(#(vxml, Some(path)))
     }
-    _ -> Ok(#(vxml, state))
+    Some(_), Some(_) -> {
+      Error(DesugaringError(
+        blame,
+        "descendant attempting to overwrite ancestor '" <> original_key <> "' attribute",
+      ))
+    }
   }
 }
 
-fn span_url(inner: InnerParam, path: String, b: bl.Blame) -> Result(VXML, DesugaringError) {
-  use normalized_path <- on.error_ok(
-    filepath.expand(inner <> path), 
-    fn(_) { Error(infra.DesugaringError(b, "Invalid path: " <> path))}
-  )
-  V(b, "span", [Attr(b, "class", "t-3003-i-url")], [ T(b, [Line(b, normalized_path)]) ])
-  |> Ok
+fn inner_span(path: String) -> VXML {
+  V(b, "span", inner_span_attrs, [ T(b, [Line(b, path)]) ])
 }
 
 fn v_after(
@@ -53,55 +75,31 @@ fn v_after(
   original_state: State,
   latest_state: State,
 ) -> Result(#(List(VXML), State), DesugaringError) {
-  case vxml {
-    V(b, "img", attrs, _) -> {
-      let assert Some(src) = infra.attrs_val_of_first_with_key(attrs, "src")
-      case latest_state {
-        None -> {
-          use span_node <- on.error_ok(
-            span_url(inner, src, b),
-            fn(err) { Error(err) }
-          )
-          let span = V(
-                  b,
-                  "span",
-                  [ Attr(b, "class", tooltip_classname) ],
-                  [ span_node ],
-                )
-          Ok(#([vxml, span], original_state))
-        }
-        Some(original_src) -> {
-          let br = V(b, "br", [], [])
-          use span_node_original <- on.error_ok(
-            span_url(inner, original_src, b),
-            fn(err) { Error(err) }
-          )
-          use span_node_src <- on.error_ok(
-            span_url(inner, src, b),
-            fn(err) { Error(err) }
-          )
-          let span = V(
-            b,
-            "span",
-            [ Attr(b, "class", tooltip_classname) ],
-            [
-              span_node_original,
-              br,
-              span_node_src,
-            ],
-          )
-          Ok(#([vxml, span], original_state))
-        }
-      }
-    }
-    _ -> Ok(#([vxml], original_state))
+  let assert V(_, tag, attrs, _) = vxml
+  use <- on.false_true(
+    tag == "img",
+    Ok(#([vxml], original_state)),
+  )
+  let assert Some(attr) = infra.attrs_first_with_key(attrs, "src")
+  use src <- on.ok(compose_and_simplify_path(attr.blame, attr.val, inner))
+  let children = case latest_state {
+    None -> [
+      inner_span(src)
+    ]
+    Some(original_src) -> [
+      inner_span(original_src),
+      br,
+      inner_span(src),
+    ]
   }
+  let outer_span = V(b, "span", outer_span_attrs, children)
+  Ok(#([vxml, outer_span], original_state))
 }
 
 fn nodemap_factory(inner: InnerParam) -> n2t.OneToManyBeforeAndAfterStatefulNodeMap(State) {
   n2t.OneToManyBeforeAndAfterStatefulNodeMap(
-    v_before_transforming_children: v_before,
-    v_after_transforming_children: fn(vxml, original_state, latest_state) { v_after(vxml, inner, original_state, latest_state)  },
+    v_before_transforming_children: fn(vxml, state) { v_before(vxml, state, inner) },
+    v_after_transforming_children: fn(vxml, original_state, latest_state) { v_after(vxml, inner, original_state, latest_state) },
     t_nodemap: fn(vxml, _) { Ok(#([vxml], None)) }
   )
 }
@@ -118,8 +116,7 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
 type State = Option(String)
 type Param = String
 //           ↖
-//           local path
-//           of source
+//           path from exec dir to public
 type InnerParam = Param
 
 pub const name = "ti2_adorn_img_with_3003_spans"
@@ -128,8 +125,6 @@ pub const name = "ti2_adorn_img_with_3003_spans"
 // 🏖️🏖️ Desugarer 🏖️🏖️
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 //------------------------------------------------53
-/// add a <span class=t-3003 t-3003-i>...</span>
-/// after each img containing
 pub fn constructor(param: Param, _outside: List(String)) -> Desugarer {
   Desugarer(
     name: name,
