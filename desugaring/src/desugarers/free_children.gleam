@@ -49,46 +49,33 @@ pub const name = "free_children"
 // 🏖️🏖️ Desugarer 🏖️🏖️
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 //------------------------------------------------53
-/// given a parent-child structure of the form
+/// given a VXML of the form
 ///
-///     A[parent]
+/// <> root
+///   <> A
+///     <> B
+///     <> C
+///     <> B
+///     <> D
+///     <> C
+///     <> B
 ///
-///         B[child]
+/// a call to
 ///
-///         C[child]
+///   free_children(#(A, C))
 ///
-///         B[child]
+/// will result in the updated structure
 ///
-///         D[child]
-///
-///         C[child]
-///
-///         B[child]
-///
-/// where A, B, C, D represent tags, a call to
-///
-/// free_children(#(A, C))
-///
-/// will for example result in the updated
-/// structure
-///
-///     A[parent]
-///
-///         B[child]
-///
-///     C[parent]
-///
-///     A[parent]
-///
-///         B[child]
-///
-///         D[child]
-///
-///     C[parent]
-///
-///     A[parent]
-///
-///         B[child]
+/// <> root
+///   <> A
+///     <> B
+///   <> C
+///   <> A
+///     <> B
+///     <> D
+///   <> C
+///   <> A
+///     <> B
 ///
 /// with the original attr values of A
 /// copied over to the newly created 'copies' of

@@ -348,7 +348,7 @@ fn handle_non_unary_att_value(
 
   use step <- on.error_ok(
     int.parse(step),
-    fn(_) { Error(DesugaringError(attr.blame, "counter starting value must be a number")) },
+    fn(_) { Error(DesugaringError(attr.blame, "counter step size must be a number")) },
   )
 
   case list.is_empty(rest) {
