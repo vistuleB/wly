@@ -17,6 +17,7 @@ fn directory_contents_internal(
 ) -> List(DirTree) {
   case remaining, under_construction {
     [], None -> previous |> list.reverse
+
     [], Some(#(name, files)) -> {
       let constructed = DirTree(
         name: name,
@@ -24,6 +25,7 @@ fn directory_contents_internal(
       )
       [constructed, ..previous] |> list.reverse
     }
+
     [first, ..rest], None -> {
       let under_construction = case string.split_once(first, "/") |> result.unwrap(#(first, "")) {
         #(dirname, path) if path != "" -> Some(#(dirname, [path]))
@@ -31,12 +33,14 @@ fn directory_contents_internal(
       }
       directory_contents_internal(previous, under_construction, rest)
     }
+
     [first, ..rest], Some(#(name, files)) -> {
       case string.split_once(first, "/") |> result.unwrap(#(first, "")) {
         #(dirname, path) if dirname == name -> {
           let assert True = path != ""
           directory_contents_internal(previous, Some(#(name, [path, ..files])), rest)
         }
+
         #(dirname, path) -> {
           let constructed = DirTree(
             name: name,
@@ -61,10 +65,12 @@ pub fn directory_tree_from_dir_and_paths(
   let local_paths =
     local_paths
     |> list.filter(fn(s){!string.is_empty(s)})
+
   let local_paths = case sort {
     False -> local_paths
     True -> list.sort(local_paths, string.compare)
   }
+
   DirTree(
     dirname,
     directory_contents_internal([], None, local_paths),

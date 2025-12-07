@@ -1033,6 +1033,22 @@ fn input_lines_for_file_at_depth(
   }
 }
 
+fn path_2_dir_and_filename(path: String) -> #(String, String) {
+  let reversed_path = path |> string.reverse
+  let #(reversed_filename, reversed_dir) =
+    reversed_path
+    |> string.split_once("/")
+    |> result.unwrap(#(reversed_path, ""))
+  #(reversed_dir |> string.reverse, reversed_filename |> string.reverse)
+}
+
+fn dir_and_filename_2_path(p: #(String, String)) -> String {
+  case p.0 {
+    "" -> p.1
+    _ -> p.0 <> "/" <> p.1
+  }
+}
+
 fn get_dirname_and_relative_paths_of_uncommented_wly_in_dir(
   dirpath_or_filepath: String,
 ) -> Result(#(String, List(String)), AssemblyError) {
@@ -1042,7 +1058,7 @@ fn get_dirname_and_relative_paths_of_uncommented_wly_in_dir(
         Ok(#(dirpath_or_filepath |> drop_slash, files))
       }
       Error(simplifile.Enotdir) -> {
-        let #(dirname, filepath) = dirpath_or_filepath |> dir_and_filename
+        let #(dirname, filepath) = dirpath_or_filepath |> path_2_dir_and_filename
         Ok(#(dirname, [dirname <> "/" <> filepath]))
       }
       Error(error) -> Error(
@@ -1064,15 +1080,6 @@ fn get_dirname_and_relative_paths_of_uncommented_wly_in_dir(
     })
 
   Ok(#(dirname, relative_filepaths))
-}
-
-fn dir_and_filename(path: String) -> #(String, String) {
-  let reversed_path = path |> string.reverse
-  let #(reversed_filename, reversed_dir) =
-    reversed_path
-    |> string.split_once("/")
-    |> result.unwrap(#(reversed_path, ""))
-  #(reversed_dir |> string.reverse, reversed_filename |> string.reverse)
 }
 
 fn filename_compare(f1: String, f2: String) {
@@ -1098,19 +1105,6 @@ fn lexicographic_sort_but_parent_comes_first_v2(
     _ -> dir_order
   }
 }
-
-// fn lexicographic_sort_but_parent_comes_first(
-//   path1: String,
-//   path2: String,
-// ) -> order.Order {
-//   let #(dir1, f1) = dir_and_filename(path1)
-//   let #(dir2, f2) = dir_and_filename(path2)
-//   let dir_order = string.compare(dir1, dir2)
-//   case dir_order {
-//     order.Eq -> filename_compare(f1, f2)
-//     _ -> dir_order
-//   }
-// }
 
 fn has_duplicate(l: List(String)) -> Option(String) {
   case l {
@@ -1204,12 +1198,9 @@ pub fn assemble_input_lines_advanced_mode(
 
   let sorted =
     paths
-    |> list.map(dir_and_filename)
+    |> list.map(path_2_dir_and_filename)
     |> list.sort(lexicographic_sort_but_parent_comes_first_v2)
-    |> list.map(fn(p) { case p.0 {
-        "" -> p.1
-        _ -> p.0 <> "/" <> p.1
-    }})
+    |> list.map(dir_and_filename_2_path)
     |> list.filter(
       // fyi the implementation of this function could be optimized
       // to take advantage of the sorted paths (but only matters if
