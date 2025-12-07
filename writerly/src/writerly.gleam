@@ -9,7 +9,7 @@ import gleam/regexp.{type Regexp}
 import gleam/string.{inspect as ins}
 import simplifile
 import vxml.{type Attr, type Line, type VXML, Attr, Line, T, V}
-import dirtree as dt
+import dirtree.{type DirTree} as dt
 import splitter
 import on.{Return, Continue as Stay}
 
@@ -58,6 +58,7 @@ pub type AssemblyError {
   ReadFileError(String)
   ReadFileOrDirectoryError(String)
   TwoFilesSameName(String) // because we accept both .emu and .wly extensions, but we want to avoid mixing error
+  NoFilesFound(String)
 }
 
 pub type AssemblyOrParseError {
@@ -971,79 +972,29 @@ fn file_is_not_commented(path: String) -> Bool {
   !{ string.contains(path, "/#") || string.starts_with(path, "#") }
 }
 
-fn has_extension(path: String, exts: List(String)) {
-  list.any(exts, string.ends_with(path, _))
-}
-
 fn is_parent(path: String) -> Bool {
-  string.ends_with(path, "__parent.emu") || string.ends_with(path, "__parent.wly")
+  path == "__parent.wly" || string.ends_with(path, "/__parent.wly")
 }
 
-fn file_is_parent_or_is_selected(
+fn file_is_selected_or_has_selected_descendant(
   path_selectors: List(String),
   path: String,
+  all_paths: List(String),
 ) -> Bool {
-  is_parent(path)
-  || path_selectors == []
+  path_selectors == []
   || list.any(path_selectors, string.contains(path, _))
-}
-
-fn file_is_not_parent_or_has_selected_descendant_or_is_selected(
-  path_selectors: List(String),
-  selected_with_unwanted_parents: List(String),
-  path: String,
-) -> Bool {
-  !is_parent(path)
-  || path_selectors == []
-  || list.any(path_selectors, string.contains(path, _))
-  || list.any(
-    selected_with_unwanted_parents,
-    fn(x) {
-      // is a descendant of ours:
-      string.starts_with(x, path |> string.drop_end(string.length("__parent.wly"))) &&
-      // ...and is selected:
-      list.any(path_selectors, string.contains(x, _))
+  || {
+    is_parent(path) && {
+      let prefix = path |> string.drop_end(string.length("__parent.wly"))
+      list.any(
+        all_paths,
+        fn (x) {
+          string.starts_with(x, prefix) &&
+          list.any(path_selectors, string.contains(x, _))
+        }
+      )
     }
-  )
-}
-
-fn parent_path_without_extension(path: String) -> String {
-  let pieces = string.split(path, "/") |> list.reverse
-  case pieces {
-    [] -> "wut?"
-    [_, ..rest] -> string.join(list.reverse(rest), "/") <> "/__parent."
   }
-}
-
-fn depth_in_directory_tree(path: String, dirname: String) -> Int {
-  {
-    path
-    |> string.drop_start(string.length(dirname) + 1)
-    |> string.split("/")
-    |> list.length
-  }
-  - 1
-}
-
-fn zero_one(b: Bool) -> Int {
-  case b {
-    True -> 1
-    False -> 0
-  }
-}
-
-fn add_tree_depth(path: String, dirname: String) -> #(Int, String) {
-  let base_depth = depth_in_directory_tree(path, dirname)
-  let would_be_parent_path = parent_path_without_extension(path)
-  let must_add_1 = {
-    string.starts_with(would_be_parent_path, dirname)
-    && {
-      { simplifile.is_file(would_be_parent_path <> "emu") |> result.unwrap(False) } ||
-      { simplifile.is_file(would_be_parent_path <> "wly") |> result.unwrap(False) }
-    }
-    && !is_parent(path)
-  }
-  #(base_depth + zero_one(must_add_1), path)
 }
 
 fn shortname_for_blame(path: String, dirname: String) -> String {
@@ -1055,10 +1006,10 @@ fn shortname_for_blame(path: String, dirname: String) -> String {
 }
 
 fn input_lines_for_file_at_depth(
-  pair: #(Int, String),
   dirname: String,
+  path: String,
+  depth: Int,
 ) -> Result(List(InputLine), AssemblyError) {
-  let #(depth, path) = pair
   let shortname = shortname_for_blame(path, dirname)
   case shortname == "" {
     True ->
@@ -1082,18 +1033,37 @@ fn input_lines_for_file_at_depth(
   }
 }
 
-fn get_files(
-  dirname: String,
-) -> Result(#(Bool, List(String)), simplifile.FileError) {
-  case simplifile.get_files(dirname) {
-    Ok(files) ->
-      Ok(#(
-        True,
-        files |> list.filter(fn(file) {string.ends_with(file, ".wly") || string.ends_with(file, ".emu")}),
-      ))
-    Error(simplifile.Enotdir) -> Ok(#(False, [dirname]))
-    Error(error) -> Error(error)
-  }
+fn get_dirname_and_relative_paths_of_uncommented_wly_in_dir(
+  dirpath_or_filepath: String,
+) -> Result(#(String, List(String)), AssemblyError) {
+  use #(dirname, fullpaths_including_dirname) <- on.ok(
+    case simplifile.get_files(dirpath_or_filepath) {
+      Ok(files) -> {
+        Ok(#(dirpath_or_filepath |> drop_slash, files))
+      }
+      Error(simplifile.Enotdir) -> {
+        let #(dirname, filepath) = dirpath_or_filepath |> dir_and_filename
+        Ok(#(dirname, [dirname <> "/" <> filepath]))
+      }
+      Error(error) -> Error(
+        ReadFileOrDirectoryError("error accessing dirpath_or_filepath:"  <> dirpath_or_filepath  <> ", " <> ins(error))
+      )
+    }
+  )
+
+  assert !string.ends_with(dirname, "/")
+  let dirname_length = string.length(dirname)
+  let relative_filepaths =
+    fullpaths_including_dirname
+    |> list.filter(string.ends_with(_, ".wly"))
+    |> list.filter(file_is_not_commented)
+    |> list.map(fn(path) {
+      let path = string.drop_start(path, dirname_length)
+      assert string.starts_with(path, "/")
+      string.drop_start(path, 1)
+    })
+
+  Ok(#(dirname, relative_filepaths))
 }
 
 fn dir_and_filename(path: String) -> #(String, String) {
@@ -1106,10 +1076,11 @@ fn dir_and_filename(path: String) -> #(String, String) {
 }
 
 fn filename_compare(f1: String, f2: String) {
-  case is_parent(f1) {
+  assert f1 != f2
+  case f1 == "__parent.wly" {
     True -> order.Lt
     False -> {
-      case is_parent(f2) {
+      case f2 == "__parent.wly" {
         True -> order.Gt
         False -> string.compare(f1, f2)
       }
@@ -1117,18 +1088,29 @@ fn filename_compare(f1: String, f2: String) {
   }
 }
 
-fn lexicographic_sort_but_parent_comes_first(
-  path1: String,
-  path2: String,
+fn lexicographic_sort_but_parent_comes_first_v2(
+  dirname_and_file_1: #(String, String),
+  dirname_and_file_2: #(String, String),
 ) -> order.Order {
-  let #(dir1, f1) = dir_and_filename(path1)
-  let #(dir2, f2) = dir_and_filename(path2)
-  let dir_order = string.compare(dir1, dir2)
+  let dir_order = string.compare(dirname_and_file_1.0, dirname_and_file_2.0)
   case dir_order {
-    order.Eq -> filename_compare(f1, f2)
+    order.Eq -> filename_compare(dirname_and_file_1.1, dirname_and_file_2.1)
     _ -> dir_order
   }
 }
+
+// fn lexicographic_sort_but_parent_comes_first(
+//   path1: String,
+//   path2: String,
+// ) -> order.Order {
+//   let #(dir1, f1) = dir_and_filename(path1)
+//   let #(dir2, f2) = dir_and_filename(path2)
+//   let dir_order = string.compare(dir1, dir2)
+//   case dir_order {
+//     order.Eq -> filename_compare(f1, f2)
+//     _ -> dir_order
+//   }
+// }
 
 fn has_duplicate(l: List(String)) -> Option(String) {
   case l {
@@ -1152,6 +1134,54 @@ fn check_no_duplicate_files(files: List(String)) -> Result(Nil, AssemblyError) {
   }
 }
 
+fn input_lines_for_dirtree_at_depth(
+  original_dirname: String,
+  path_to_tree: String,
+  tree: DirTree,
+  depth: Int,
+) -> Result(List(InputLine), AssemblyError) {
+  assert string.ends_with(path_to_tree, tree.name)
+  case tree.contents {
+    [] -> {
+      assert string.ends_with(tree.name, ".wly")
+      input_lines_for_file_at_depth(
+        original_dirname,
+        path_to_tree,
+        depth,
+      )
+    }
+    [first, ..rest] -> {
+      // the first guy never gets indented, whether there is a parent or not!:
+      use first_lines <- on.ok(
+        input_lines_for_file_at_depth(original_dirname, path_to_tree <> "/" <> first.name, depth)
+      )
+      let added_depth = case first.name == "__parent.wly" {
+        True -> 1
+        False -> 0
+      }
+      use lines_of_rest <- on.ok(
+        list.try_map(
+          rest,
+          fn(subtree) {
+            input_lines_for_dirtree_at_depth(
+              original_dirname,
+              path_to_tree <> "/" <> subtree.name,
+              subtree,
+              depth + added_depth,
+            )
+          }
+        )
+      )
+      [
+        first_lines,
+        ..lines_of_rest
+      ]
+      |> list.flatten
+      |> Ok
+    }
+  }
+}
+
 fn drop_slash(s: String) {
   case string.ends_with(s, "/") {
     True -> string.drop_end(s, 1)
@@ -1160,58 +1190,42 @@ fn drop_slash(s: String) {
 }
 
 pub fn assemble_input_lines_advanced_mode(
-  dirname: String,
+  dirpath_or_filepath: String,
   path_selectors: List(String),
 ) -> Result(#(List(String), List(InputLine)), AssemblyError) {
-  let dirname = drop_slash(dirname)
-  case get_files(dirname) {
-    Ok(#(was_dir, files)) -> {
-      let selected_with_unwanted_parents =
-        files
-        |> list.filter(has_extension(_, [".emu", ".wly"]))
-        |> list.filter(file_is_not_commented)
-        |> list.filter(file_is_parent_or_is_selected(path_selectors, _))
+  use #(dirname, paths) <- on.ok(
+    get_dirname_and_relative_paths_of_uncommented_wly_in_dir(dirpath_or_filepath)
+  )
 
-      let sorted =
-        selected_with_unwanted_parents
-        |> list.filter(
-          file_is_not_parent_or_has_selected_descendant_or_is_selected(
-            path_selectors,
-            selected_with_unwanted_parents,
-            _,
-          ),
-        )
-        |> list.sort(lexicographic_sort_but_parent_comes_first)
+  use _, _ <- on.empty_nonempty(
+    paths,
+    Error(NoFilesFound("no files found in: " <> dirpath_or_filepath)),
+  )
 
-      use _ <- on.ok(check_no_duplicate_files(sorted))
+  let sorted =
+    paths
+    |> list.map(dir_and_filename)
+    |> list.sort(lexicographic_sort_but_parent_comes_first_v2)
+    |> list.map(fn(p) { case p.0 {
+        "" -> p.1
+        _ -> p.0 <> "/" <> p.1
+    }})
+    |> list.filter(
+      // fyi the implementation of this function could be optimized
+      // to take advantage of the sorted paths (but only matters if
+      // path_selectors != []):
+      file_is_selected_or_has_selected_descendant(path_selectors, _, paths),
+    )
 
-      let tree = 
-        sorted
-        |> list.map(string.drop_start(_, string.length(dirname) + 1))
-        |> dt.directory_tree_from_dir_and_paths(dirname, _, False)
-        |> dt.pretty_printer
+  use _ <- on.ok(check_no_duplicate_files(sorted))
 
-      use lines <- on.ok(
-        sorted
-        |> list.map(add_tree_depth(_, dirname))
-        |> list.map(
-          input_lines_for_file_at_depth(
-            _,
-            case was_dir {
-              True -> dirname
-              False -> ""
-            }
-          ),
-        )
-        |> result.all
-        |> result.map(list.flatten)
-      )
+  let tree = dt.directory_tree_from_dir_and_paths(dirname, sorted, False)
 
-      Ok(#(tree, lines))
-    }
+  use lines <- on.ok(
+    input_lines_for_dirtree_at_depth(dirname, dirname, tree, 0)
+  )
 
-    Error(_) -> Error(ReadFileOrDirectoryError(dirname))
-  }
+  Ok(#(tree |> dt.pretty_printer, lines))
 }
 
 // ************************************************************

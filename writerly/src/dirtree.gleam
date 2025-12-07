@@ -3,22 +3,22 @@ import gleam/list
 import gleam/string
 import gleam/result
 
-pub type DirectoryOrFile {
-  DirectoryOrFile(
+pub type DirTree {
+  DirTree(
     name: String,
-    contents: List(DirectoryOrFile),
+    contents: List(DirTree),
   )
 }
 
 fn directory_contents_internal(
-  previous: List(DirectoryOrFile),
+  previous: List(DirTree),
   under_construction: Option(#(String, List(String))),
   remaining: List(String),
-) -> List(DirectoryOrFile) {
+) -> List(DirTree) {
   case remaining, under_construction {
     [], None -> previous |> list.reverse
     [], Some(#(name, files)) -> {
-      let constructed = DirectoryOrFile(
+      let constructed = DirTree(
         name: name,
         contents: directory_contents_internal([], None, files |> list.reverse),
       )
@@ -38,7 +38,7 @@ fn directory_contents_internal(
           directory_contents_internal(previous, Some(#(name, [path, ..files])), rest)
         }
         #(dirname, path) -> {
-          let constructed = DirectoryOrFile(
+          let constructed = DirTree(
             name: name,
             contents: directory_contents_internal([], None, files |> list.reverse),
           )
@@ -58,12 +58,14 @@ pub fn directory_tree_from_dir_and_paths(
   local_paths: List(String),
   sort: Bool,
 ) {
+  let local_paths =
+    local_paths
+    |> list.filter(fn(s){!string.is_empty(s)})
   let local_paths = case sort {
     False -> local_paths
     True -> list.sort(local_paths, string.compare)
   }
-  |> list.filter(fn(s){!string.is_empty(s)})
-  DirectoryOrFile(
+  DirTree(
     dirname,
     directory_contents_internal([], None, local_paths),
   )
@@ -99,7 +101,7 @@ fn directory_pretty_printer_add_margin(
   }
 }
 
-pub fn pretty_printer(dir: DirectoryOrFile) -> List(String) {
+pub fn pretty_printer(dir: DirTree) -> List(String) {
   let num_children = list.length(dir.contents)
   let xtra_margin = case string.reverse(dir.name) |> string.split_once("/") {
     Ok(#(_, after)) -> string.length(after) + 1

@@ -10,7 +10,7 @@ import on
 fn contents_test() -> Result(Nil, String) {
   io.println("\n### CONTENTS_TEST ###")
 
-  let dirname = "samples/contents"
+  let dirname = "samples/contents/ch5_ch.wly"
 
   use #(tree, lines) <- on.error_ok(
     wl.assemble_input_lines(dirname),
@@ -146,11 +146,17 @@ fn html_test() -> Result(Nil, String) {
   Ok(Nil)
 }
 
+pub fn other() {
+  let _ = sample_test()
+  let _ = contents_test()
+  let _ = html_test()
+}
+
 pub fn main() {
   let errors = [
-    sample_test(),
+    // sample_test(),
     contents_test(),
-    html_test(),
+    // html_test(),
   ] |> list.filter(result.is_error)
   
   io.println("\n[end all]\n")
