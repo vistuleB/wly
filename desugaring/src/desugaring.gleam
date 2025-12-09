@@ -118,7 +118,7 @@ pub const default_html_parser = default_xml_parser
 // PipelineDebugOptions
 // ************************************************************
 
-const default_one_hundreth_seconds_num_bars = 14
+const default_times_table_char_width = 90 // MacBook 16' can take 140
 
 pub type PipelineDebugOptions {
   PipelineDebugOptions(
@@ -603,10 +603,10 @@ pub fn basic_cli_usage(header: String) {
   io.println(margin <> "        tags and elder siblings tags of selected lines and their")
   io.println(margin <> "        attributes")
   io.println(margin <> "     • '-i': \"interactive mode\": pauses for user input after each")
-  io.println(margin <> "        output; type 'enter' to access next chunk of output, else:")
+  io.println(margin <> "        output; type 'enter' for next chunk, else:")
   io.println(margin <> "          • 'e' to escape the interactive mode;")
   io.println(margin <> "          • <n> to fast-forward past n next outputs;")
-  io.println(margin <> "          • 'c' to cancel the desugaring entirely")
+  io.println(margin <> "          • 'c' to cancel the desugaring entirely;")
   io.println("")
   io.println(margin <> "--prettier [<dir>]")
   io.println(margin <> "  -> turn the prettifier on and have the prettifier output to")
@@ -619,8 +619,8 @@ pub fn basic_cli_usage(header: String) {
   io.println(margin <> "--table/--no-table")
   io.println(margin <> "  -> include/exclude a printout of the pipeline steps")
   io.println("")
-  io.println(margin <> "--times [<cols>]")
-  io.println(margin <> "  -> include desugarer timing table with <cols> block per 0.01s")
+  io.println(margin <> "--times [<cols=" <> ins(default_times_table_char_width) <> ">]")
+  io.println(margin <> "  -> include desugarer timing table using <cols> columns")
   io.println("")
 }
 
@@ -702,10 +702,10 @@ pub fn process_command_line_arguments(
         }
 
         "--times" -> {
-          use times <- on.ok(
+          use arg <- on.ok(
             parse_times_args(values)
           )
-          Ok(CommandLineAmendments(..amendments, times: times |> infra.with_default(default_one_hundreth_seconds_num_bars)))
+          Ok(CommandLineAmendments(..amendments, times: arg |> infra.with_default(default_times_table_char_width)))
         }
 
         "--input-dir" -> {
@@ -1945,11 +1945,12 @@ pub fn run_renderer(
     None -> {
       io.println("  ..ended pipeline (" <> ins(seconds) <> "s)")
     }
-    Some(one_hundreth_seconds_num_bars) -> {
+    Some(total_chars) -> {
       let all_times = [t1, ..all_times]
       let all_seconds = durations(all_times) |> list.map(duration.to_seconds) |> list.reverse
       let assert Ok(max_secs) = list.max(all_seconds, float.compare)
       let num_hundreth_seconds = float.round(float.ceiling(max_secs *. 100.0))
+      let one_hundreth_seconds_num_bars = int.max(1, total_chars / num_hundreth_seconds)
       let scale =
         list.repeat(Nil, num_hundreth_seconds)
         |> list.map_fold(0.0, fn(x, _) { #(x +. 0.01, x) })
