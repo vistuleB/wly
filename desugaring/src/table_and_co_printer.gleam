@@ -206,7 +206,7 @@ pub fn print_lines_at_indent(
 // desugarer
 // ************************
 
-pub fn name_and_param_string(
+pub fn name_and_param_string_lines(
   desugarer: Desugarer,
   step_no: Int,
 ) -> List(String) {

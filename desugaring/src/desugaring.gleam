@@ -1456,6 +1456,10 @@ pub type InSituDesugaringWarning {
   )
 }
 
+fn producer(main_process_subject: Subject(Message)) -> Nil {
+  io.println("hello")
+}
+
 fn run_pipeline(
   vxml: VXML,
   pipeline: Pipeline,
@@ -1485,13 +1489,16 @@ fn run_pipeline(
         got_arrow,
         wait,
       ) = acc
+
       let Pipe(desugarer, selector, mode, peek) = pipe
       let now = timestamp.system_time()
       let all_times = [now, ..all_times]
+
       let requested_times = case desugarer.name == "timer" {
         True -> [#(step_no, now), ..requested_times]
         False -> requested_times
       }
+
       let printed_arrow = case track_any && !got_arrow {
         True -> {
           io.println("    💠")
@@ -1499,6 +1506,7 @@ fn run_pipeline(
         }
         False -> False
       }
+
       use #(vxml, new_warnings) <- on.error_ok(
         desugarer.transform(vxml),
         fn(error) {
@@ -1510,6 +1518,7 @@ fn run_pipeline(
           ))
         }
       )
+
       let new_warnings = list.map(
         new_warnings,
         fn(warning) {
@@ -1521,8 +1530,10 @@ fn run_pipeline(
           )
         }
       )
+
       let #(selected_2_print, next_tracking_output) = case mode == TrackingOff && !peek {
         True -> #([], last_tracking_output)
+
         False -> {
           let selected_2_print =
             vxml
@@ -1538,14 +1549,16 @@ fn run_pipeline(
           #(selected_2_print, next_tracking_output)
         }
       }
+
       let must_print = 
         peek ||
         mode == TrackingForced ||
         { mode == TrackingOnChange && next_tracking_output != last_tracking_output }
+
       let #(got_arrow, wait) = case must_print {
         True -> {
           list.each(
-            pr.name_and_param_string(desugarer, step_no),
+            pr.name_and_param_string_lines(desugarer, step_no),
             fn(s) { io.println("    " <> s) },
           )
           io.println("    💠")
@@ -1555,9 +1568,8 @@ fn run_pipeline(
           let wait = case wait {
             True -> {
               case input.input("") {
-                Ok("e") -> False
-                Error(_) -> False
-                _ -> wait
+                Ok("e") | Error(_) -> False
+                _ -> True
               }
             }
             False -> {
@@ -1567,6 +1579,7 @@ fn run_pipeline(
           }
           #(False, wait)
         }
+
         False -> case printed_arrow && step_no < last_step {
           True -> {
             io.println("    ⋮")
@@ -1575,6 +1588,7 @@ fn run_pipeline(
           False -> #(True, wait)
         }
       }
+
       #(
         vxml,
         list.append(warnings, new_warnings),
