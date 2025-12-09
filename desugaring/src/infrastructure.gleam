@@ -3490,6 +3490,17 @@ pub fn s_lines_2_output_lines(
   |> list.reverse
 }
 
+pub fn s_lines_table_lines(
+  lines: List(SLine),
+  banner: String,
+  dry_run: Bool,
+  indent: Int,
+) -> List(String) {
+  lines
+  |> s_lines_2_output_lines(dry_run)
+  |> io_l.output_lines_table_lines(banner, indent)
+}
+
 pub fn s_lines_table(
   lines: List(SLine),
   banner: String,

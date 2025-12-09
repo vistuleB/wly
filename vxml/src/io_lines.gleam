@@ -110,15 +110,23 @@ pub fn input_lines_table(
   |> string.join("\n")
 }
 
-pub fn output_lines_table(
+pub fn output_lines_table_lines(
   content: List(OutputLine),
   banner: String,
   indent: Int,
-) -> String {
+) -> List(String) {
   let margin = spaces(indent)
   content
   |> list.map(fn(c) {#(c.blame, spaces(c.indent) <> c.suffix)})
   |> bl.blamed_strings_annotated_table_no1(banner)
   |> list.map(fn(s) {margin <> s})
+}
+
+pub fn output_lines_table(
+  content: List(OutputLine),
+  banner: String,
+  indent: Int,
+) -> String {
+  output_lines_table_lines(content, banner, indent)
   |> string.join("\n")
 }

@@ -21,6 +21,7 @@ import vxml.{type VXML, V} as vp
 import on
 import input
 import writerly as wp
+import gleam/erlang/process.{type Subject, spawn, send, receive}
 
 // ************************************************************
 // Assembler(a)                                                // 'a' is assembler error type; "assembler" = "source assembler"
@@ -122,7 +123,7 @@ const default_one_hundreth_seconds_num_bars = 14
 pub type PipelineDebugOptions {
   PipelineDebugOptions(
     times: Option(Int),
-    wait_for_enter_after_tracking_output: Bool,
+    interactive_mode: Bool,
   )
 }
 
@@ -446,7 +447,7 @@ pub fn empty_parser_debug_options() -> ParserDebugOptions {
 }
 
 pub fn empty_pipeline_debug_options() -> PipelineDebugOptions {
-  PipelineDebugOptions(times: None, wait_for_enter_after_tracking_output: False)
+  PipelineDebugOptions(times: None, interactive_mode: False)
 }
 
 pub fn empty_splitter_debug_options() -> SplitterDebugOptions(d) {
@@ -486,7 +487,7 @@ pub type PipelineTrackingModifier {
     selector: Option(infra.Selector),
     steps_with_tracking_on_change: List(Int),
     steps_with_tracking_forced: List(Int),
-    wait_for_enter_after_tracking_output: Bool,
+    interactive_mode: Bool,
   )
 }
 
@@ -601,8 +602,11 @@ pub fn basic_cli_usage(header: String) {
   io.println(margin <> "     • 'with-elder-sibling-attrs': trigger selection of ancestor")
   io.println(margin <> "        tags and elder siblings tags of selected lines and their")
   io.println(margin <> "        attributes")
-  io.println(margin <> "     • '-i': \"stepthrough\" mode: pauses for user input after each")
-  io.println(margin <> "        output (type 'e' to escape)")
+  io.println(margin <> "     • '-i': \"interactive mode\": pauses for user input after each")
+  io.println(margin <> "        output; type 'enter' to access next chunk of output, else:")
+  io.println(margin <> "          • 'e' to escape the interactive mode;")
+  io.println(margin <> "          • <n> to fast-forward past n next outputs;")
+  io.println(margin <> "          • 'c' to cancel the desugaring entirely")
   io.println("")
   io.println(margin <> "--prettier [<dir>]")
   io.println(margin <> "  -> turn the prettifier on and have the prettifier output to")
@@ -1091,7 +1095,7 @@ fn parse_track_args(
         selector: Some(selector),
         steps_with_tracking_on_change: [],
         steps_with_tracking_forced: [],
-        wait_for_enter_after_tracking_output: with_enter,
+        interactive_mode: with_enter,
       ),
     ),
   )
@@ -1118,7 +1122,7 @@ fn parse_track_args(
     selector: Some(selector),
     steps_with_tracking_on_change: restrict,
     steps_with_tracking_forced: force,
-    wait_for_enter_after_tracking_output: with_enter,
+    interactive_mode: with_enter,
   ))
 }
 
@@ -1133,7 +1137,7 @@ fn parse_track_steps_args(
     selector: None,
     steps_with_tracking_on_change: restrict,
     steps_with_tracking_forced: force,
-    wait_for_enter_after_tracking_output: False,
+    interactive_mode: False,
   ))
 }
 
@@ -1157,9 +1161,9 @@ fn join_pipeline_modifiers(
     },
     steps_with_tracking_on_change: restrict,
     steps_with_tracking_forced: force,
-    wait_for_enter_after_tracking_output: {
-      pm1.wait_for_enter_after_tracking_output ||
-      pm2.wait_for_enter_after_tracking_output
+    interactive_mode: {
+      pm1.interactive_mode ||
+      pm2.interactive_mode
     }
   )
 }
@@ -1244,9 +1248,9 @@ pub fn db_amend_pipeline_debug_options(
 ) -> PipelineDebugOptions {
   PipelineDebugOptions(
     times: amendments.times,
-    wait_for_enter_after_tracking_output: case amendments.track {
-      None -> options.wait_for_enter_after_tracking_output
-      Some(track) -> track.wait_for_enter_after_tracking_output
+    interactive_mode: case amendments.track {
+      None -> options.interactive_mode
+      Some(track) -> track.interactive_mode
     },
   )
 }
@@ -1438,6 +1442,10 @@ fn apply_pipeline_tracking_modifier(
 // run_pipeline
 // ************************************************************
 
+pub type UserExit {
+  UserExit(step_no: Int)
+}
+
 pub type InSituDesugaringError {
   InSituDesugaringError(
     desugarer: Desugarer,
@@ -1456,153 +1464,270 @@ pub type InSituDesugaringWarning {
   )
 }
 
-fn producer(main_process_subject: Subject(Message)) -> Nil {
-  io.println("hello")
+type Message {
+  ProducedString(List(String), Int)
+  ProducerFinished(
+    Result(
+      #(
+        VXML,
+        List(InSituDesugaringWarning),
+        List(Timestamp),
+        List(#(Int, Timestamp)),
+        List(String),
+      ),
+      InSituDesugaringError,
+    ),
+  )
 }
 
-fn run_pipeline(
+fn producer(
+  main_process_subject: Subject(Message),
   vxml: VXML,
   pipeline: Pipeline,
-  wait_for_enter_after_tracking_output: Bool,
+) -> Nil {
+  let track_any = list.any(pipeline, fn(p) { p.tracking_mode != TrackingOff })
+  let last_step = list.length(pipeline)
+
+  let final =
+    pipeline
+    |> list.try_fold(
+      #(vxml, [], [], [], 1, "", False, []),
+      fn(acc, pipe) {
+        let #(
+          vxml,
+          warnings,
+          all_times,
+          requested_times,
+          step_no,
+          last_tracking_output,
+          got_arrow,
+          lines,
+        ) = acc
+
+        let Pipe(desugarer, selector, mode, peek) = pipe
+        let now = timestamp.system_time()
+        let all_times = [now, ..all_times]
+
+        let requested_times = case desugarer.name == "timer" {
+          True -> [#(step_no, now), ..requested_times]
+          False -> requested_times
+        }
+
+        let #(printed_arrow, lines) = case track_any && !got_arrow {
+          True -> {
+            #(True, ["    💠", ..lines])
+          }
+          False -> #(False, lines)
+        }
+
+        use #(vxml, new_warnings) <- on.error_ok(
+          desugarer.transform(vxml),
+          fn(error) {
+            Error(InSituDesugaringError(
+              desugarer: desugarer,
+              step_no: step_no,
+              blame: error.blame,
+              message: error.message,
+            ))
+          }
+        )
+
+        let new_warnings = list.map(
+          new_warnings,
+          fn(warning) {
+            InSituDesugaringWarning(
+              desugarer: desugarer,
+              step_no: step_no,
+              blame: warning.blame,
+              message: warning.message,
+            )
+          }
+        )
+
+        let #(selected_2_print, next_tracking_output) = case mode == TrackingOff && !peek {
+          True -> #([], last_tracking_output)
+
+          False -> {
+            let selected_2_print =
+              vxml
+              |> infra.vxml_to_s_lines
+              |> selector
+            let next_tracking_output =
+              selected_2_print
+              |> infra.s_lines_table("", True, 0)
+            let selected_2_print = case peek {
+              True -> vxml |> infra.vxml_to_s_lines |> sl.all()
+              False -> selected_2_print
+            }
+            #(selected_2_print, next_tracking_output)
+          }
+        }
+
+        let must_print = 
+          peek ||
+          mode == TrackingForced ||
+          { mode == TrackingOnChange && next_tracking_output != last_tracking_output }
+
+        let #(got_arrow, lines) = case must_print {
+          True -> {
+            // list.each(
+            //   pr.name_and_param_string_lines(desugarer, step_no),
+            //   fn(s) { io.println("    " <> s) },
+            // )
+            let lines = infra.pour(
+              pr.name_and_param_string_lines(desugarer, step_no, 4),
+              lines,
+            )
+            // io.println("    💠")
+            let lines = ["    💠", ..lines] 
+            let lines = 
+              selected_2_print
+              |> infra.s_lines_table_lines("", False, 2)
+              |> infra.pour(lines)
+            send(main_process_subject, ProducedString(lines |> list.reverse, step_no))
+            #(False, [])
+          }
+
+          False -> case printed_arrow && step_no < last_step {
+            True -> {
+              // io.println("    ⋮")
+              let lines = ["    ⋮", ..lines]
+              #(True, lines)
+            }
+            False -> #(True, lines)
+          }
+        }
+
+        #(
+          vxml,
+          list.append(warnings, new_warnings),
+          all_times,
+          requested_times,
+          step_no + 1,
+          next_tracking_output,
+          got_arrow,
+          lines,
+        )
+        |> Ok
+      }
+    )
+    |> result.map(fn(acc) { #(acc.0, acc.1, acc.2, acc.3, acc.7) })
+
+  send(main_process_subject, ProducerFinished(final))
+}
+
+fn loop(
+  subject: Subject(Message),
+  countdown: Int, // pause for user only when countdown == 0
 ) -> Result(#(
     VXML,
     List(InSituDesugaringWarning),
     List(Timestamp),
     List(#(Int, Timestamp)),
   ),
-  InSituDesugaringError
+  Result(
+    UserExit,
+    InSituDesugaringError,
+  )
 ) {
-  let track_any = list.any(pipeline, fn(p) { p.tracking_mode != TrackingOff })
-  let last_step = list.length(pipeline)
-
-  pipeline
-  |> list.try_fold(
-    #(vxml, [], [], [], 1, "", False, wait_for_enter_after_tracking_output),
-    fn(acc, pipe) {
-      let #(
-        vxml,
-        warnings,
-        all_times,
-        requested_times,
-        step_no,
-        last_tracking_output,
-        got_arrow,
-        wait,
-      ) = acc
-
-      let Pipe(desugarer, selector, mode, peek) = pipe
-      let now = timestamp.system_time()
-      let all_times = [now, ..all_times]
-
-      let requested_times = case desugarer.name == "timer" {
-        True -> [#(step_no, now), ..requested_times]
-        False -> requested_times
-      }
-
-      let printed_arrow = case track_any && !got_arrow {
-        True -> {
-          io.println("    💠")
-          True
-        }
-        False -> False
-      }
-
-      use #(vxml, new_warnings) <- on.error_ok(
-        desugarer.transform(vxml),
-        fn(error) {
-          Error(InSituDesugaringError(
-            desugarer: desugarer,
-            step_no: step_no,
-            blame: error.blame,
-            message: error.message,
-          ))
-        }
-      )
-
-      let new_warnings = list.map(
-        new_warnings,
-        fn(warning) {
-          InSituDesugaringWarning(
-            desugarer: desugarer,
-            step_no: step_no,
-            blame: warning.blame,
-            message: warning.message,
-          )
-        }
-      )
-
-      let #(selected_2_print, next_tracking_output) = case mode == TrackingOff && !peek {
-        True -> #([], last_tracking_output)
-
+  case receive(subject, within: 100000) {
+    Ok(ProducedString(lines, step_no)) -> {
+      io.print(lines |> string.join("\n"))
+      io.print(" (@" <> ins(step_no) <> ") ")
+      case countdown == 0 {
         False -> {
-          let selected_2_print =
-            vxml
-            |> infra.vxml_to_s_lines
-            |> selector
-          let next_tracking_output =
-            selected_2_print
-            |> infra.s_lines_table("", True, 0)
-          let selected_2_print = case peek {
-            True -> vxml |> infra.vxml_to_s_lines |> sl.all()
-            False -> selected_2_print
-          }
-          #(selected_2_print, next_tracking_output)
+          io.println("")
+          loop(subject, countdown - 1)
         }
-      }
-
-      let must_print = 
-        peek ||
-        mode == TrackingForced ||
-        { mode == TrackingOnChange && next_tracking_output != last_tracking_output }
-
-      let #(got_arrow, wait) = case must_print {
-        True -> {
-          list.each(
-            pr.name_and_param_string_lines(desugarer, step_no),
-            fn(s) { io.println("    " <> s) },
-          )
-          io.println("    💠")
-          selected_2_print
-          |> infra.s_lines_table("", False, 2)
-          |> io.print
-          let wait = case wait {
-            True -> {
-              case input.input("") {
-                Ok("e") | Error(_) -> False
-                _ -> True
+        True -> case input.input("(↵|<n>|e|c) ") {
+          Ok(msg) -> {
+            let #(countdown, quit) = case int.parse(msg) {
+              Ok(q) -> #(q, False)
+              Error(_) -> case msg {
+                "e" -> #(-1, False)
+                "c" -> #(-1, True)
+                _ -> #(1, False)
               }
             }
-            False -> {
-              io.println("")
-              wait
+            case quit {
+              True -> Error(Ok(UserExit(step_no)))
+              False -> loop(subject, countdown - 1)
             }
           }
-          #(False, wait)
-        }
-
-        False -> case printed_arrow && step_no < last_step {
-          True -> {
-            io.println("    ⋮")
-            #(True, wait)
+          Error(_) -> {
+            panic as "error reading input"
           }
-          False -> #(True, wait)
         }
       }
-
-      #(
-        vxml,
-        list.append(warnings, new_warnings),
-        all_times,
-        requested_times,
-        step_no + 1,
-        next_tracking_output,
-        got_arrow,
-        wait,
-      )
-      |> Ok
     }
-  )
-  |> result.map(fn(acc) { #(acc.0, acc.1, acc.2, acc.3) })
+
+    Ok(ProducerFinished(result)) -> {
+      case result {
+        Ok(#(
+          vxml,
+          in_situ_warnings,
+          timestamps,
+          indexed_timestamps,
+          last_lines,
+        )) -> {
+          case last_lines != [] {
+            True -> {
+              io.print(last_lines |> string.join("\n"))
+              io.println("")
+            }
+            False -> Nil
+          }
+          Ok(#(
+            vxml,
+            in_situ_warnings,
+            timestamps,
+            indexed_timestamps,
+          ))
+        }
+        Error(error) -> Error(Error(error))
+      }
+    }
+
+    Error(_) -> {
+      io.println("Timeout while waiting for messages. Is the producer stuck?")
+      panic
+    }
+  }
+}
+
+fn run_pipeline(
+  vxml: VXML,
+  pipeline: Pipeline,
+  interactive_mode: Bool,
+) -> Result(#(
+    VXML,
+    List(InSituDesugaringWarning),
+    List(Timestamp),
+    List(#(Int, Timestamp)),
+  ),
+  Result(
+    UserExit,
+    InSituDesugaringError,
+  ),
+) {
+  let main_subject = process.new_subject()
+
+  let producer_pid = spawn(fn() {
+    producer(
+      main_subject,
+      vxml,
+      pipeline,
+    )
+  })
+
+  process.link(producer_pid)
+
+  let countdown = case interactive_mode {
+    True -> 0
+    False -> -1
+  }
+
+  loop(main_subject, countdown)
 }
 
 // ************************************************************
@@ -1647,6 +1772,7 @@ pub type RendererError(a, c, e, f, g, h) {
   FileOrParseError(a)
   SourceParserError(Blame, c)
   PipelineError(InSituDesugaringError)
+  UserExitError(Int)
   SplitterError(e)
   EmittingOrWritingOrPrettifyingErrors(List(ThreePossibilities(f, g, h)))
 }
@@ -1774,28 +1900,40 @@ pub fn run_renderer(
   let t0 = timestamp.system_time()
 
   use #(desugared, warnings, all_times, requested_times) <- on.error_ok(
-    run_pipeline(parsed, renderer.pipeline, debug_options.pipeline_debug_options.wait_for_enter_after_tracking_output),
-    on_error: fn(e: InSituDesugaringError) {
-      let assert [first, ..rest] =
-        pr.padded_error_paragraph(e.message, 80, "                  ")
-
-      io.println("\n  DesugaringError:")
-      [
-        [
-          "                  ",
-          "  thrown by:      " <> e.desugarer.name,
-          "  pipeline step:  " <> ins(e.step_no),
-          "  blame:          " <> pr.our_blame_digest(e.blame),
-          "  message:        " <> first,
-        ],
-        rest,
-        [
-          ""
-        ],
-      ]
-      |> list.flatten
-      |> pr.boxed_error_announcer("💥", 2, #(1, 0))
-      Error(PipelineError(e))
+    run_pipeline(
+      parsed,
+      renderer.pipeline,
+      debug_options.pipeline_debug_options.interactive_mode,
+    ),
+    on_error: fn(e) {
+      case e {
+        Ok(UserExit(step_no)) -> {
+          io.println("")
+          io.println("user exit at step_no " <> ins(step_no))
+          Error(UserExitError(step_no))
+        }
+        Error(e) -> {
+          let assert [first, ..rest] =
+            pr.padded_error_paragraph(e.message, 80, "                  ")
+          io.println("\n  DesugaringError:")
+          [
+            [
+              "                  ",
+              "  thrown by:      " <> e.desugarer.name,
+              "  pipeline step:  " <> ins(e.step_no),
+              "  blame:          " <> pr.our_blame_digest(e.blame),
+              "  message:        " <> first,
+            ],
+            rest,
+            [
+              ""
+            ],
+          ]
+          |> list.flatten
+          |> pr.boxed_error_announcer("💥", 2, #(1, 0))
+          Error(PipelineError(e))
+        } 
+      }
     }
   )
 

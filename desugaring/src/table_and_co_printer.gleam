@@ -209,6 +209,7 @@ pub fn print_lines_at_indent(
 pub fn name_and_param_string_lines(
   desugarer: Desugarer,
   step_no: Int,
+  margin: Int,
 ) -> List(String) {
   let #(first_line, batch_params) = {
     let start =
@@ -236,7 +237,7 @@ pub fn name_and_param_string_lines(
             #(end, [])
           }
           [first, ..rest] -> {
-            assert string.starts_with(first, "[ ")
+            // assert string.starts_with(first, "[ ")
             let first = string.drop_start(first, 2)
             let assert [last, ..rest] = [first, ..rest] |> list.reverse
             case string.ends_with(last, "]") {
@@ -278,6 +279,8 @@ pub fn name_and_param_string_lines(
       }
     }
 
+  let spaces = spaces(margin)
+
   case desugarer.stringified_outside {
     None -> so_far
     Some(x) -> {
@@ -285,6 +288,7 @@ pub fn name_and_param_string_lines(
       [last <> " " <> x, ..rest] |> list.reverse
     }
   }
+  |> list.map(fn(l) { spaces <> l })
 }
 
 pub fn turn_into_paragraph(
