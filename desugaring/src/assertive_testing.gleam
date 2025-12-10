@@ -147,9 +147,12 @@ fn run_assertive_test_collection(test_group: AssertiveTestCollection) -> Bool {
 }
 
 pub fn run_assertive_desugarer_tests_on(
-  desugarer_names names: List(String),
+  names: List(String),
 ) {
-  let collections = list.map(dl.assertive_tests, fn(constructor){constructor()})
+  let collections = list.map(
+    dl.assertive_tests,
+    fn(constructor) { constructor() },
+  )
 
   let #(all, dont_have_tests) =
     list.fold(
@@ -171,9 +174,9 @@ pub fn run_assertive_desugarer_tests_on(
 
   let all_names = all |> list.map(fn(c) { c.desugarer_name })
 
-  let names = case list.is_empty(names) {
-    True -> all_names
-    False -> names
+  let names = case names {
+    [] -> all_names
+    _ -> names
   }
 
   let dont_have_tests = list.filter(
@@ -181,9 +184,9 @@ pub fn run_assertive_desugarer_tests_on(
     fn(c) { list.contains(names, c.desugarer_name) }
   )
 
-  case list.is_empty(dont_have_tests) {
-    True -> Nil
-    False -> {
+  case dont_have_tests {
+    [] -> Nil
+    _ -> {
       io.println("")
       io.println(ins(list.length(dont_have_tests)) <> " desugarers do not have tests:\n")
       list.each(

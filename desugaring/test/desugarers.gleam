@@ -1,5 +1,7 @@
+import argv
 import assertive_testing
 
 pub fn main() {
-  assertive_testing.run_assertive_desugarer_tests_on([])
+  let args = argv.load().arguments
+  assertive_testing.run_assertive_desugarer_tests_on(args)
 }
