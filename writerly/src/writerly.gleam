@@ -21,7 +21,7 @@ pub type Writerly {
   BlankLine(
     blame: Blame,
   )
-  Blurb(
+  Paragraph(
     blame: Blame,
     lines: List(Line),
   )
@@ -276,7 +276,7 @@ fn parse_writerlys_at_indent_from_encounter(
     EncounteredTextLine(blame, suffix) -> {
       let line = drop_text_line_escape(blame, suffix, rgxs)
       use #(lines, encounter, rest) <- on.ok(parse_text_lines_at_indent(indent, rest, rgxs))
-      let writerly = Blurb(blame, [line, ..lines])
+      let writerly = Paragraph(blame, [line, ..lines])
       use #(s1, s2, encounter, rest) <- on.ok(parse_writerlys_at_indent_from_encounter(indent, rest, rgxs, encounter))
       Ok(#([writerly, ..s1], s2, encounter, rest))
     }
@@ -707,8 +707,8 @@ fn lines_to_output_lines(
 pub fn writerly_annotate_blames(writerly: Writerly) -> Writerly {
   case writerly {
     BlankLine(blame) -> BlankLine(blame |> pc("BlankLine"))
-    Blurb(blame, lines) ->
-      Blurb(
+    Paragraph(blame, lines) ->
+      Paragraph(
         blame |> pc("Blurb"),
         list.index_map(lines, fn(line, i) {
           Line(
@@ -780,7 +780,7 @@ fn attrs_to_output_lines(
 
 fn first_child_is_blurb_and_first_line_of_blurb_could_be_read_as_attr_value_pair(nodes: List(Writerly)) -> Bool {
   case nodes {
-    [Blurb(_, lines), ..] -> {
+    [Paragraph(_, lines), ..] -> {
       let assert [first, ..] = lines
       case string.split_once(first.content, "=") {
         Error(_) -> False
@@ -803,7 +803,7 @@ fn writerly_to_output_lines_internal(
   case t {
     BlankLine(blame) -> [OutputLine(blame, 0, "")]
 
-    Blurb(_, lines) ->
+    Paragraph(_, lines) ->
       lines
       |> add_escapes_in_lines(rgxs.requires_bol_te_escape)
       |> lines_to_output_lines(indentation)
@@ -925,7 +925,7 @@ pub fn writerly_to_vxml(t: Writerly) -> VXML {
         children: [],
       )
 
-    Blurb(blame, lines) -> T(blame: blame, lines: lines)
+    Paragraph(blame, lines) -> T(blame: blame, lines: lines)
     
     Comment(blame, lines) -> 
       V(
@@ -998,6 +998,7 @@ fn file_is_selected_or_has_selected_descendant(
 }
 
 fn shortname_for_blame(path: String, dirname: String) -> String {
+  assert string.starts_with(path, dirname)
   let length_to_drop = case string.ends_with(dirname, "/") || dirname == "" {
     True -> string.length(dirname)
     False -> string.length(dirname) + 1
@@ -1095,7 +1096,7 @@ fn filename_compare(f1: String, f2: String) {
   }
 }
 
-fn lexicographic_sort_but_parent_comes_first_v2(
+fn lexicographic_sort_but_parent_comes_first(
   dirname_and_file_1: #(String, String),
   dirname_and_file_2: #(String, String),
 ) -> order.Order {
@@ -1103,28 +1104,6 @@ fn lexicographic_sort_but_parent_comes_first_v2(
   case dir_order {
     order.Eq -> filename_compare(dirname_and_file_1.1, dirname_and_file_2.1)
     _ -> dir_order
-  }
-}
-
-fn has_duplicate(l: List(String)) -> Option(String) {
-  case l {
-    [] -> None
-    [first, ..rest] -> {
-      case list.contains(rest, first) {
-        True -> Some(first)
-        False -> has_duplicate(rest)
-      }
-    }
-  }
-}
-
-fn check_no_duplicate_files(files: List(String)) -> Result(Nil, AssemblyError) {
-  let files =
-    files
-    |> list.map(string.drop_end(_, 4))
-  case has_duplicate(files) {
-    Some(dup) -> Error(TwoFilesSameName(dup <> ".emu has both .emu & .wly versions"))
-    None -> Ok(Nil)
   }
 }
 
@@ -1199,7 +1178,7 @@ pub fn assemble_input_lines_advanced_mode(
   let sorted =
     paths
     |> list.map(path_2_dir_and_filename)
-    |> list.sort(lexicographic_sort_but_parent_comes_first_v2)
+    |> list.sort(lexicographic_sort_but_parent_comes_first)
     |> list.map(dir_and_filename_2_path)
     |> list.filter(
       // fyi the implementation of this function could be optimized
@@ -1207,8 +1186,6 @@ pub fn assemble_input_lines_advanced_mode(
       // path_selectors != []):
       file_is_selected_or_has_selected_descendant(path_selectors, _, paths),
     )
-
-  use _ <- on.ok(check_no_duplicate_files(sorted))
 
   let tree = dt.directory_tree_from_dir_and_paths(dirname, sorted, False)
 
@@ -1224,9 +1201,9 @@ pub fn assemble_input_lines_advanced_mode(
 // ************************************************************
 
 pub fn assemble_input_lines(
-  dirname: String,
+  dirpath_or_filepath: String,
 ) -> Result(#(List(String), List(InputLine)), AssemblyError) {
-  assemble_input_lines_advanced_mode(dirname, [])
+  assemble_input_lines_advanced_mode(dirpath_or_filepath, [])
 }
 
 // ************************************************************
@@ -1234,10 +1211,10 @@ pub fn assemble_input_lines(
 // ************************************************************
 
 pub fn assemble_and_parse(
-  dir_or_filename: String,
+  dirpath_or_filepath: String,
 ) -> Result(List(Writerly), AssemblyOrParseError) {
   use #(_, assembled) <- on.error_ok(
-    assemble_input_lines(dir_or_filename),
+    assemble_input_lines(dirpath_or_filepath),
     fn(e) { Error(AssemblyError(e)) },
   )
 
@@ -1290,7 +1267,7 @@ fn process_vxml_t_node(vxml: VXML) -> List(Writerly) {
   |> fn(lines) {
     case lines {
       [] -> []
-      [first, ..] -> [Blurb(first.blame, lines)]
+      [first, ..] -> [Paragraph(first.blame, lines)]
     }
   }
 }
