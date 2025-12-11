@@ -9,7 +9,7 @@ import gleam/regexp.{type Regexp}
 import gleam/string.{inspect as ins}
 import simplifile
 import vxml.{type Attr, type Line, type VXML, Attr, Line, T, V}
-import dirtree.{type DirTree} as dt
+import dirtree_v2.{type DirTreeV2} as d2
 import splitter
 import on.{Return, Continue as Stay}
 
@@ -1043,10 +1043,17 @@ fn path_2_dir_and_filename(path: String) -> #(String, String) {
   #(reversed_dir |> string.reverse, reversed_filename |> string.reverse)
 }
 
-fn dir_and_filename_2_path(p: #(String, String)) -> String {
-  case p.0 {
-    "" -> p.1
-    _ -> p.0 <> "/" <> p.1
+fn dir_and_filename_2_path(dir: String, path: String) -> String {
+  case dir {
+    "" -> path
+    _ -> dir <> "/" <> path
+  }
+}
+
+fn drop_slash(s: String) {
+  case string.ends_with(s, "/") {
+    True -> string.drop_end(s, 1)
+    False -> string.drop_end(s, 0)
   }
 }
 
@@ -1060,7 +1067,7 @@ fn get_dirname_and_relative_paths_of_uncommented_wly_in_dir(
       }
       Error(simplifile.Enotdir) -> {
         let #(dirname, filepath) = dirpath_or_filepath |> path_2_dir_and_filename
-        Ok(#(dirname, [dirname <> "/" <> filepath]))
+        Ok(#(dirname, [dir_and_filename_2_path(dirname, filepath)]))
       }
       Error(error) -> Error(
         ReadFileOrDirectoryError("error accessing dirpath_or_filepath:"  <> dirpath_or_filepath  <> ", " <> ins(error))
@@ -1083,82 +1090,55 @@ fn get_dirname_and_relative_paths_of_uncommented_wly_in_dir(
   Ok(#(dirname, relative_filepaths))
 }
 
-fn filename_compare(f1: String, f2: String) {
-  assert f1 != f2
-  case f1 == "__parent.wly" {
-    True -> order.Lt
-    False -> {
-      case f2 == "__parent.wly" {
-        True -> order.Gt
-        False -> string.compare(f1, f2)
-      }
-    }
-  }
-}
-
-fn lexicographic_sort_but_parent_comes_first(
-  dirname_and_file_1: #(String, String),
-  dirname_and_file_2: #(String, String),
-) -> order.Order {
-  let dir_order = string.compare(dirname_and_file_1.0, dirname_and_file_2.0)
-  case dir_order {
-    order.Eq -> filename_compare(dirname_and_file_1.1, dirname_and_file_2.1)
-    _ -> dir_order
-  }
-}
-
-fn input_lines_for_dirtree_at_depth(
+fn input_lines_for_dirtree_v2_at_depth(
   original_dirname: String,
-  path_to_tree: String,
-  tree: DirTree,
+  acc: String,
+  tree: DirTreeV2,
   depth: Int,
 ) -> Result(List(InputLine), AssemblyError) {
-  assert string.ends_with(path_to_tree, tree.name)
-  case tree.contents {
-    [] -> {
-      assert string.ends_with(tree.name, ".wly")
+  case tree {
+    d2.Filepath(path) -> {
+      assert string.ends_with(path, ".wly")
       input_lines_for_file_at_depth(
         original_dirname,
-        path_to_tree,
+        dir_and_filename_2_path(acc, path),
         depth,
       )
     }
-    [first, ..rest] -> {
-      // the first guy never gets indented, whether there is a parent or not!:
-      use first_lines <- on.ok(
-        input_lines_for_file_at_depth(original_dirname, path_to_tree <> "/" <> first.name, depth)
-      )
-      let added_depth = case first.name == "__parent.wly" {
-        True -> 1
-        False -> 0
+    d2.Dirpath(path, contents) -> {
+      let assert [first, ..rest] = contents
+      use first_lines <- on.ok({
+        input_lines_for_dirtree_v2_at_depth(
+          original_dirname,
+          dir_and_filename_2_path(acc, path),
+          first,
+          depth,
+        )
+      })
+      let depth = case first {
+        d2.Filepath("__parent.wly") -> depth + 1
+        _ -> depth
       }
       use lines_of_rest <- on.ok(
         list.try_map(
           rest,
           fn(subtree) {
-            input_lines_for_dirtree_at_depth(
+            input_lines_for_dirtree_v2_at_depth(
               original_dirname,
-              path_to_tree <> "/" <> subtree.name,
+              dir_and_filename_2_path(acc, path),
               subtree,
-              depth + added_depth,
+              depth,
             )
           }
         )
       )
       [
         first_lines,
-        ..lines_of_rest
+        ..lines_of_rest,
       ]
       |> list.flatten
       |> Ok
     }
-  }
-}
-
-fn drop_slash(s: String) {
-  case string.ends_with(s, "/") {
-    True -> string.drop_end(s, 1)
-    False -> string.drop_end(s, 0)
   }
 }
 
@@ -1175,25 +1155,27 @@ pub fn assemble_input_lines_advanced_mode(
     Error(NoFilesFound("no files found in: " <> dirpath_or_filepath)),
   )
 
-  let sorted =
+  let paths =
     paths
-    |> list.map(path_2_dir_and_filename)
-    |> list.sort(lexicographic_sort_but_parent_comes_first)
-    |> list.map(dir_and_filename_2_path)
     |> list.filter(
-      // fyi the implementation of this function could be optimized
-      // to take advantage of the sorted paths (but only matters if
-      // path_selectors != []):
       file_is_selected_or_has_selected_descendant(path_selectors, _, paths),
     )
 
-  let tree = dt.directory_tree_from_dir_and_paths(dirname, sorted, False)
+  let tree =
+    d2.from_paths(dirname, paths)
+    |> d2.sort(fn(t1, t2) {
+      case t1, t2 {
+        d2.Filepath("__parent.wly"), _ -> order.Lt
+        _, d2.Filepath("__parent.wly") -> order.Gt
+        _, _ -> string.compare(t1.name, t2.name)
+      }
+    })
 
   use lines <- on.ok(
-    input_lines_for_dirtree_at_depth(dirname, dirname, tree, 0)
+    input_lines_for_dirtree_v2_at_depth(dirname, "", tree, 0)
   )
 
-  Ok(#(tree |> dt.pretty_printer, lines))
+  Ok(#(tree |> d2.pretty_printer, lines))
 }
 
 // ************************************************************

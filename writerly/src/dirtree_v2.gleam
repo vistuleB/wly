@@ -1,88 +1,22 @@
+import gleam/order
 import gleam/option.{type Option, None, Some}
 import gleam/list
 import gleam/string
-import gleam/result
-import filepath
+import gleam/io
 
 pub type DirTreeV2 {
-  Filepath(String)
-  Dirpath(String, List(DirTreeV2))
+  Filepath(name: String)
+  Dirpath(name: String, contents: List(DirTreeV2))
 }
 
-fn assert_drop_slash(path: String) -> String {
-  assert string.starts_with(path, "/")
-  path
-}
-
-fn assert_drop_all(paths: List(String)) -> List(String) {
-  list.map(paths, assert_drop_slash)
-}
-
-fn filter_empty(paths: List(String)) -> List(String) {
-  list.filter(paths, fn(p) {p != ""})
-}
-
-fn directory_contents_internal(
-  previous: List(DirTreeV2),
-  under_construction: Option(#(String, List(String))),
-  remaining: List(String),
-) -> List(DirTreeV2) {
-  let pass_files_on = fn(files: List(String)) {
-    files
-    |> assert_drop_all
-    |> filter_empty
-    |> list.reverse
-  }
-
-  case remaining, under_construction {
-    [], None -> previous |> list.reverse
-    [], Some(#(name, [])) -> {
-      let constructed = Filepath(name)
-      [constructed, ..previous] |> list.reverse
-    }
-    [], Some(#(name, files)) -> {
-      let constructed = Dirpath(
-        name,
-        directory_contents_internal([], None, files |> pass_files_on),
-      )
-      [constructed, ..previous] |> list.reverse
-    }
-    [first, ..rest], None -> {
-      let under_construction = case string.split_once(first, "/") |> result.unwrap(#(first, "")) {
-        #(dirname, path) if path != "" -> Some(#(dirname, [path]))
-        #(dirname, _) -> Some(#(dirname, []))
-      }
-      directory_contents_internal(previous, under_construction, rest)
-    }
-    [first, ..rest], Some(#(name, files)) -> {
-      case string.split_once(first, "/") |> result.unwrap(#(first, "")) {
-        #(dirname, path) if dirname == name -> {
-          let assert True = path != ""
-          directory_contents_internal(previous, Some(#(name, [path, ..files])), rest)
-        }
-        #(dirname, path) -> {
-          let constructed = DirTree(
-            name: name,
-            contents: directory_contents_internal([], None, files |> list.reverse),
-          )
-          let under_construction = case path == "" {
-            True -> Some(#(dirname, []))
-            False -> Some(#(dirname, [path]))
-          }
-          directory_contents_internal([constructed, ..previous], under_construction, rest)
-        }
-      }
-    }
-  }
-}
-
-pub fn try_again(
+pub fn from_paths_acc(
   previous: List(DirTreeV2),
   under_construction: Option(#(String, List(List(String)))),
   remaining: List(List(String)),
 ) -> List(DirTreeV2) {
   let package_current = fn(name: String, decomposed_paths) {
-    let subdirs = try_again([], None, decomposed_paths)
+    assert name != ""
+    let subdirs = from_paths_acc([], None, decomposed_paths |> list.reverse)
     Dirpath(name, subdirs)
   }
 
@@ -97,12 +31,17 @@ pub fn try_again(
     [first, ..rest], None -> {
       case first {
         [] -> panic
+
+        [""] -> from_paths_acc(previous, None, rest)
+
         [filename] -> {
           let constructed = Filepath(filename)
-          try_again([constructed, ..previous], None, rest)
+          from_paths_acc([constructed, ..previous], None, rest)
         }
+
         [dirname, ..decomposed_path] -> {
-          try_again(previous, Some(#(dirname, [decomposed_path])), rest)
+          assert dirname != ""
+          from_paths_acc(previous, Some(#(dirname, [decomposed_path])), rest)
         }
       }
     }
@@ -111,11 +50,13 @@ pub fn try_again(
       case first {
         [] -> panic
 
+        [""] -> panic
+
         [filename] -> {
           assert filename != name
           let constructed1 = package_current(name, decomposed_paths)
           let constructed2 = Filepath(filename)
-          try_again(
+          from_paths_acc(
             [constructed2, constructed1, ..previous],
             None,
             rest,
@@ -123,7 +64,7 @@ pub fn try_again(
         }
 
         [dirname, ..decomposed_path] if dirname == name -> {
-          try_again(
+          from_paths_acc(
             previous,
             Some(#(name, [decomposed_path, ..decomposed_paths])),
             rest,
@@ -132,7 +73,7 @@ pub fn try_again(
 
         [dirname, ..decomposed_path] if dirname != name -> {
           let constructed1 = package_current(name, decomposed_paths)
-          try_again(
+          from_paths_acc(
             [constructed1, ..previous],
             Some(#(dirname, [decomposed_path])),
             rest,
@@ -170,58 +111,89 @@ pub fn from_paths(
     |> list.map(string.split(_, "/"))
 
   let dirname = string.drop_end(dirname, 1)
-  Dirpath(
-    dirname,
-    try_again([], None, paths)
-  )
+
+  Dirpath(dirname, from_paths_acc([], None, paths))
+}
+
+pub fn sort(
+  tree: DirTreeV2,
+  order: fn(DirTreeV2, DirTreeV2) -> order.Order,
+) -> DirTreeV2 {
+  case tree {
+    Filepath(_) -> tree
+    Dirpath(name, contents) -> {
+      let contents =
+        contents
+        |> list.map(sort(_, order))
+        |> list.sort(order)
+      Dirpath(name, contents)
+    }
+  }
 }
 
 pub fn main() {
-  
+  let paths = [
+    "hello/a",
+    "hello/b",
+    "hello/c/a",
+    "hello/c/b",
+    "hello/c/c/a",
+    "hello/c/c/b",
+    "hello/c/c/c/a",
+    "hello/c/c/c/b",
+    "bitch",
+  ]
+  let tree = from_paths(
+    "/home/jpsteinb",
+    paths,
+  )
+  pretty_printer(tree)
+  |> string.join("\n")
+  |> io.println
 }
 
-// fn directory_pretty_printer_add_margin(
-//   lines: List(String),
-//   is_last: Bool,
-// ) -> List(String) {
-//   let t = "├─ "
-//   let b = "│  "
-//   let l = "└─ "
-//   let s = "   "
-//   case is_last {
-//     False -> list.index_map(
-//       lines,
-//       fn (line, i) {
-//         case i == 0 {
-//           True -> t <> line
-//           False -> b <> line
-//         }
-//       }
-//     )
-//     True -> list.index_map(
-//       lines,
-//       fn (line, i) {
-//         case i == 0 {
-//           True -> l <> line
-//           False -> s <> line
-//         }
-//       }
-//     )
-//   }
-// }
+fn directory_pretty_printer_add_margin(
+  lines: List(String),
+  is_last: Bool,
+) -> List(String) {
+  let t = "├─ "
+  let b = "│  "
+  let l = "└─ "
+  let s = "   "
+  case is_last {
+    False -> list.index_map(
+      lines,
+      fn (line, i) {
+        case i == 0 {
+          True -> t <> line
+          False -> b <> line
+        }
+      }
+    )
+    True -> list.index_map(
+      lines,
+      fn (line, i) {
+        case i == 0 {
+          True -> l <> line
+          False -> s <> line
+        }
+      }
+    )
+  }
+}
 
 pub fn pretty_printer(tree: DirTreeV2) -> List(String) {
   case tree {
     Filepath(path) -> [path]
     Dirpath(path, children) -> {
       let num_children = children |> list.length
-      let xtra_margin = case string.reverse(tree.name) |> string.split_once("/") {
+      let xtra_margin = case string.reverse(path) |> string.split_once("/") {
         Ok(#(_, after)) -> string.length(after) + 1
         _ -> 0
       }
       let xtra_margin = string.repeat(" ", xtra_margin)
       list.index_map(
-        tree.contents,
+        children,
         fn (child, i) {
           pretty_printer(child)
           |> directory_pretty_printer_add_margin(i == num_children - 1)
@@ -229,8 +201,7 @@ pub fn pretty_printer(tree: DirTreeV2) -> List(String) {
         }
       )
       |> list.flatten
-      |> list.prepend(tree.name)
-
+      |> list.prepend(path)
     }
   }
 }
