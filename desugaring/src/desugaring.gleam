@@ -43,10 +43,10 @@ pub fn default_assembler(
   spotlight_paths: List(String),
 ) -> Assembler(wp.AssemblyError) {
   fn(input_dir) {
-    use #(directory_tree, assembled) <- on.ok(
+    use #(tree, assembled) <- on.ok(
       wp.assemble_input_lines_advanced_mode(input_dir, spotlight_paths),
     )
-    Ok(#(assembled, directory_tree))
+    Ok(#(assembled, tree))
   }
 }
 

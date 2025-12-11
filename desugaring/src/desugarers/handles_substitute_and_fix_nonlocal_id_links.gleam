@@ -470,7 +470,7 @@ type State {
 
 type Param = #(String,            String,                 String,                List(#(String, String)),   List(#(String, String)))
 //             ↖                  ↖                       ↖                      ↖                          ↖
-//             attr key      tag to use              tag to use             additional key-value       additional key-value
+//             attr key           tag to use              tag to use             additional key-value       additional key-value
 //             to update the      when handle path        when handle path       pairs for former case      pairs for latter case
 //             local path         equals local path       !equals local path
 //                                at point of insertion   at point of insertion
