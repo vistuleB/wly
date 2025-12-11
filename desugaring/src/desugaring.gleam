@@ -29,7 +29,7 @@ import gleam/erlang/process.{type Subject, spawn, send, receive}
 // ************************************************************
 
 pub type Assembler(a) =
-  fn(String) -> Result(#(List(InputLine), List(String)), a)    // the 'List(String)' is a feedback/success message on assembly
+  fn(String) -> Result(#(List(InputLine), List(String)), a)    // the 'List(String)' is a feedback/success message on assembly, such as specifically a directory tree
 
 pub type AssemblerDebugOptions {
   AssemblerDebugOptions(echo_: Bool)
@@ -47,6 +47,21 @@ pub fn default_assembler(
       wp.assemble_input_lines_advanced_mode(input_dir, spotlight_paths),
     )
     Ok(#(assembled, directory_tree))
+  }
+}
+
+// unfinished: we also wanted 1 that chooses the shortname4u:
+pub fn custom_shortname_assembler(
+  shortname: String,
+) -> Assembler(simplifile.FileError) {
+  fn(path) {
+    use string <- on.ok(
+      simplifile.read(path)
+    )
+    Ok(#(
+      io_l.string_to_input_lines(string, shortname, 0),
+      [path],
+    ))
   }
 }
 
