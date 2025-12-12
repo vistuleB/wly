@@ -1145,7 +1145,7 @@ fn input_lines_for_dirtree_v2_at_depth(
 pub fn assemble_input_lines_advanced_mode(
   dirpath_or_filepath: String,
   path_selectors: List(String),
-) -> Result(#(List(String), List(InputLine)), AssemblyError) {
+) -> Result(#(DirTreeV2, List(InputLine)), AssemblyError) {
   use #(dirname, paths) <- on.ok(
     get_dirname_and_relative_paths_of_uncommented_wly_in_dir(dirpath_or_filepath)
   )
@@ -1175,7 +1175,7 @@ pub fn assemble_input_lines_advanced_mode(
     input_lines_for_dirtree_v2_at_depth(dirname, "", tree, 0)
   )
 
-  Ok(#(tree |> d2.pretty_printer, lines))
+  Ok(#(tree, lines))
 }
 
 // ************************************************************
@@ -1184,7 +1184,7 @@ pub fn assemble_input_lines_advanced_mode(
 
 pub fn assemble_input_lines(
   dirpath_or_filepath: String,
-) -> Result(#(List(String), List(InputLine)), AssemblyError) {
+) -> Result(#(DirTreeV2, List(InputLine)), AssemblyError) {
   assemble_input_lines_advanced_mode(dirpath_or_filepath, [])
 }
 

@@ -22,7 +22,7 @@ import on
 import input
 import writerly as wp
 import gleam/erlang/process.{type Subject, spawn, send, receive}
-// import dirtree_v2.{type DirTreeV2}
+import dirtree_v2.{type DirTreeV2} as dt
 
 // ************************************************************
 // Assembler(a)                                                // 'a' is assembler error type; "assembler" = "source assembler"
@@ -30,7 +30,7 @@ import gleam/erlang/process.{type Subject, spawn, send, receive}
 // ************************************************************
 
 pub type Assembler(a) =
-  fn(String) -> Result(#(List(InputLine), List(String)), a)    // the 'List(String)' is a feedback/success message on assembly
+  fn(String) -> Result(#(List(InputLine), Option(DirTreeV2)), a)    // the 'List(String)' is a feedback/success message on assembly
 
 pub type AssemblerDebugOptions {
   AssemblerDebugOptions(echo_: Bool)
@@ -47,7 +47,7 @@ pub fn default_assembler(
     use #(tree, assembled) <- on.ok(
       wp.assemble_input_lines_advanced_mode(input_dir, spotlight_paths),
     )
-    Ok(#(assembled, tree))
+    Ok(#(assembled, Some(tree)))
   }
 }
 
@@ -1822,7 +1822,7 @@ pub fn run_renderer(
 
   io.println("• assembling...")
 
-  use #(assembled, feedback) <- on.error_ok(
+  use #(assembled, tree) <- on.error_ok(
     renderer.assembler(input_dir),
     fn(error_a) {
       io.println("\n  ...assembler error on input_dir " <> input_dir <> ":")
@@ -1836,14 +1836,13 @@ pub fn run_renderer(
     },
   )
 
-  case verbose {
-    False -> Nil
-    True -> {
+  case verbose, tree {
+    True, Some(tree) -> {
       let spaces = 
         string.repeat(" ", string.length("  -> assembled "))
 
       list.index_map(
-        feedback,
+        tree |> dt.pretty_printer,
         fn(line, i) {
           case i == 0 { True -> "  -> assembled " False -> spaces}
           <> line
@@ -1851,6 +1850,7 @@ pub fn run_renderer(
       )
       |> string.join("\n") |> io.println
     }
+    _, _ -> Nil
   }
 
   case debug_options.assembler_debug_options.echo_ {
