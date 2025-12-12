@@ -86,31 +86,26 @@ pub fn from_paths_acc(
   }
 }
 
+
+/// paths must be relative to dir
 pub fn from_paths(
   dirname: String,
   paths: List(String),
 ) ->  DirTreeV2 {
-  let dirname = case string.ends_with(dirname, "/") {
-    True -> dirname
-    False -> dirname <> "/"
-  }
-
-  let dirname_length = dirname |> string.length
+  assert list.all(
+    paths,
+    fn(p) { !string.starts_with(p, "/") },
+  )
 
   let paths =
     paths
-    |> list.map(fn(path) {
-      let path = case string.starts_with(path, dirname) {
-        True -> string.drop_start(path, dirname_length)
-        False -> path
-      }
-      assert !string.starts_with(path, "/")
-      path
-    })
     |> list.sort(string.compare)
     |> list.map(string.split(_, "/"))
 
-  let dirname = string.drop_end(dirname, 1)
+  let dirname = case string.ends_with(dirname, "/") {
+    True -> string.drop_end(dirname, 1)
+    False -> dirname
+  }
 
   Dirpath(dirname, from_paths_acc([], None, paths))
 }
