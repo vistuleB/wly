@@ -9,7 +9,7 @@ import gleam/regexp.{type Regexp}
 import gleam/string.{inspect as ins}
 import simplifile
 import vxml.{type Attr, type Line, type VXML, Attr, Line, T, V}
-import dirtree_v2.{type DirTreeV2} as d2
+import dirtree.{type DirTree} as dt
 import splitter
 import on.{Return, Continue as Stay}
 
@@ -1093,11 +1093,11 @@ fn get_dirname_and_relative_paths_of_uncommented_wly_in_dir(
 fn input_lines_for_dirtree_v2_at_depth(
   original_dirname: String,
   acc: String,
-  tree: DirTreeV2,
+  tree: DirTree,
   depth: Int,
 ) -> Result(List(InputLine), AssemblyError) {
   case tree {
-    d2.Filepath(path) -> {
+    dt.Filepath(path) -> {
       assert string.ends_with(path, ".wly")
       input_lines_for_file_at_depth(
         original_dirname,
@@ -1105,7 +1105,7 @@ fn input_lines_for_dirtree_v2_at_depth(
         depth,
       )
     }
-    d2.Dirpath(path, contents) -> {
+    dt.Dirpath(path, contents) -> {
       let assert [first, ..rest] = contents
       use first_lines <- on.ok({
         input_lines_for_dirtree_v2_at_depth(
@@ -1116,7 +1116,7 @@ fn input_lines_for_dirtree_v2_at_depth(
         )
       })
       let depth = case first {
-        d2.Filepath("__parent.wly") -> depth + 1
+        dt.Filepath("__parent.wly") -> depth + 1
         _ -> depth
       }
       use lines_of_rest <- on.ok(
@@ -1145,7 +1145,7 @@ fn input_lines_for_dirtree_v2_at_depth(
 pub fn assemble_input_lines_advanced_mode(
   dirpath_or_filepath: String,
   path_selectors: List(String),
-) -> Result(#(DirTreeV2, List(InputLine)), AssemblyError) {
+) -> Result(#(DirTree, List(InputLine)), AssemblyError) {
   use #(dirname, paths) <- on.ok(
     get_dirname_and_relative_paths_of_uncommented_wly_in_dir(dirpath_or_filepath)
   )
@@ -1162,11 +1162,11 @@ pub fn assemble_input_lines_advanced_mode(
     )
 
   let tree =
-    d2.from_paths(dirname, paths)
-    |> d2.sort(fn(t1, t2) {
+    dt.from_paths(dirname, paths)
+    |> dt.sort(fn(t1, t2) {
       case t1, t2 {
-        d2.Filepath("__parent.wly"), _ -> order.Lt
-        _, d2.Filepath("__parent.wly") -> order.Gt
+        dt.Filepath("__parent.wly"), _ -> order.Lt
+        _, dt.Filepath("__parent.wly") -> order.Gt
         _, _ -> string.compare(t1.name, t2.name)
       }
     })
@@ -1184,7 +1184,7 @@ pub fn assemble_input_lines_advanced_mode(
 
 pub fn assemble_input_lines(
   dirpath_or_filepath: String,
-) -> Result(#(DirTreeV2, List(InputLine)), AssemblyError) {
+) -> Result(#(DirTree, List(InputLine)), AssemblyError) {
   assemble_input_lines_advanced_mode(dirpath_or_filepath, [])
 }
 

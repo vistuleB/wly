@@ -22,7 +22,7 @@ import on
 import input
 import writerly as wp
 import gleam/erlang/process.{type Subject, spawn, send, receive}
-import dirtree_v2.{type DirTreeV2} as dt
+import dirtree.{type DirTree} as dt
 
 // ************************************************************
 // Assembler(a)                                                // 'a' is assembler error type; "assembler" = "source assembler"
@@ -30,7 +30,7 @@ import dirtree_v2.{type DirTreeV2} as dt
 // ************************************************************
 
 pub type Assembler(a) =
-  fn(String) -> Result(#(List(InputLine), Option(DirTreeV2)), a)    // the 'List(String)' is a feedback/success message on assembly
+  fn(String) -> Result(#(List(InputLine), Option(DirTree)), a)    // the 'List(String)' is a feedback/success message on assembly
 
 pub type AssemblerDebugOptions {
   AssemblerDebugOptions(echo_: Bool)
