@@ -3,6 +3,7 @@ import gleam/string.{inspect as ins}
 import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as infra
 import nodemaps_2_desugarer_transforms as n2t
 import vxml.{type VXML, V}
+import either_or as eo
 
 fn nodemap(
   node: VXML,
@@ -11,9 +12,9 @@ fn nodemap(
   case node {
     V(blame, tag, attrs, children) if tag == inner.1 -> {
       children
-      |> infra.either_or_misceginator(infra.is_v_and_tag_equals(_, inner.0))
-      |> infra.regroup_ors
-      |> infra.map_either_ors(
+      |> eo.discriminate(infra.is_v_and_tag_equals(_, inner.0))
+      |> eo.group_ors
+      |> eo.map_resolve(
         fn(either: VXML) -> VXML { either },
         fn(or: List(VXML)) -> VXML { V(blame, tag, attrs, or) },
       )

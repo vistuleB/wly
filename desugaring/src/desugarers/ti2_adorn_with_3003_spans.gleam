@@ -90,7 +90,7 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
                               <> span
                                 class=t-3003 sum_class
                                 <>
-                                  './wly/tst.source:2:3'
+                                  './wly/tst.source:2:3 ->'
                 ",
     ),
   ]

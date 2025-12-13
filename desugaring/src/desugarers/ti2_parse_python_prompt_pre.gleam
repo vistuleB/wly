@@ -5,6 +5,7 @@ import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type 
 import nodemaps_2_desugarer_transforms as n2t
 import vxml.{type Line, type VXML, Attr, Line, T, V}
 import blame as bl
+import either_or as eo
 
 const newline_t =
   T(
@@ -117,19 +118,19 @@ fn python_prompt_chunk_to_vxmls(
 
 fn process_python_prompt_lines(lines: List(Line)) -> List(PythonPromptChunk) {
   lines
-  |> infra.either_or_misceginator(fn(line) {
+  |> eo.discriminate(fn(line) {
     string.starts_with(line.content, ">>>") || string.starts_with(line.content, terminal_prompt)
   })
-  |> infra.regroup_ors_no_empty_lists
+  |> eo.group_ors_no_empty_lists
   |> list.map(fn(either_bc_or_list_bc) {
     case either_bc_or_list_bc {
-      infra.Either(line) -> {
+      eo.Either(line) -> {
         case string.starts_with(line.content, ">>>") {
           True -> PromptLine(line)
           False -> TerminalPrompt(line)
         }
       }
-      infra.Or(list_bc) -> case infra.lines_contain(list_bc, "SyntaxError:") {
+      eo.Or(list_bc) -> case infra.lines_contain(list_bc, "SyntaxError:") {
         True -> ErrorResponseLines(list_bc)
         False -> OkResponseLines(list_bc)
       }

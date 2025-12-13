@@ -3,6 +3,7 @@ import gleam/option
 import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as infra
 import nodemaps_2_desugarer_transforms as n2t
 import vxml.{type VXML, T, V}
+import either_or as eo
 
 fn child_must_escape(child: VXML, parent_tag: String, inner: InnerParam) -> Bool {
   case child {
@@ -18,9 +19,9 @@ fn nodemap(
   case node {
     V(blame, tag, attrs, children) -> {
       children
-      |> infra.either_or_misceginator(child_must_escape(_, tag, inner))
-      |> infra.regroup_ors
-      |> infra.map_either_ors(
+      |> eo.discriminate(child_must_escape(_, tag, inner))
+      |> eo.group_ors
+      |> eo.map_resolve(
         fn(either: VXML) -> VXML { either },
         fn(or: List(VXML)) -> VXML { V(blame, tag, attrs, or) },
       )

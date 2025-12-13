@@ -23,6 +23,7 @@ import vxml.{
 }
 import splitter
 import on
+import either_or.{type EitherOr, Either, Or} as eo
 
 type Return(a, b) {
   Return(a)
@@ -683,155 +684,155 @@ pub fn triples_to_aggregated_dict(l: List(#(a, b, c))) -> Dict(a, List(#(b, c)))
 //* EitherOr
 //**************************************************************
 
-pub type EitherOr(a, b) {
-  Either(a)
-  Or(b)
-}
+// pub type EitherOr(a, b) {
+//   Either(a)
+//   Or(b)
+// }
 
-fn regroup_eithers_accumulator(
-  already_packaged: List(EitherOr(List(a), b)),
-  under_construction: List(a),
-  upcoming: List(EitherOr(a, b)),
-) -> List(EitherOr(List(a), b)) {
-  case upcoming {
-    [] ->
-      [under_construction |> list.reverse |> Either, ..already_packaged]
-      |> list.reverse
-    [Either(a), ..rest] ->
-      regroup_eithers_accumulator(
-        already_packaged,
-        [a, ..under_construction],
-        rest,
-      )
-    [Or(b), ..rest] ->
-      regroup_eithers_accumulator(
-        [
-          Or(b),
-          under_construction |> list.reverse |> Either,
-          ..already_packaged
-        ],
-        [],
-        rest,
-      )
-  }
-}
+// fn regroup_eithers_accumulator(
+//   already_packaged: List(EitherOr(List(a), b)),
+//   under_construction: List(a),
+//   upcoming: List(EitherOr(a, b)),
+// ) -> List(EitherOr(List(a), b)) {
+//   case upcoming {
+//     [] ->
+//       [under_construction |> list.reverse |> Either, ..already_packaged]
+//       |> list.reverse
+//     [Either(a), ..rest] ->
+//       regroup_eithers_accumulator(
+//         already_packaged,
+//         [a, ..under_construction],
+//         rest,
+//       )
+//     [Or(b), ..rest] ->
+//       regroup_eithers_accumulator(
+//         [
+//           Or(b),
+//           under_construction |> list.reverse |> Either,
+//           ..already_packaged
+//         ],
+//         [],
+//         rest,
+//       )
+//   }
+// }
 
-fn regroup_ors_accumulator(
-  already_packaged: List(EitherOr(a, List(b))),
-  under_construction: List(b),
-  upcoming: List(EitherOr(a, b)),
-) -> List(EitherOr(a, List(b))) {
-  case upcoming {
-    [] ->
-      [under_construction |> list.reverse |> Or, ..already_packaged]
-      |> list.reverse
-    [Or(b), ..rest] ->
-      regroup_ors_accumulator(already_packaged, [b, ..under_construction], rest)
-    [Either(a), ..rest] ->
-      regroup_ors_accumulator(
-        [
-          Either(a),
-          under_construction |> list.reverse |> Or,
-          ..already_packaged
-        ],
-        [],
-        rest,
-      )
-  }
-}
+// fn regroup_ors_accumulator(
+//   already_packaged: List(EitherOr(a, List(b))),
+//   under_construction: List(b),
+//   upcoming: List(EitherOr(a, b)),
+// ) -> List(EitherOr(a, List(b))) {
+//   case upcoming {
+//     [] ->
+//       [under_construction |> list.reverse |> Or, ..already_packaged]
+//       |> list.reverse
+//     [Or(b), ..rest] ->
+//       regroup_ors_accumulator(already_packaged, [b, ..under_construction], rest)
+//     [Either(a), ..rest] ->
+//       regroup_ors_accumulator(
+//         [
+//           Either(a),
+//           under_construction |> list.reverse |> Or,
+//           ..already_packaged
+//         ],
+//         [],
+//         rest,
+//       )
+//   }
+// }
 
-pub fn remove_ors_unwrap_eithers(ze_list: List(EitherOr(a, b))) -> List(a) {
-  list.filter_map(ze_list, fn(either_or) {
-    case either_or {
-      Either(sth) -> Ok(sth)
-      Or(_) -> Error(Nil)
-    }
-  })
-}
+// pub fn remove_ors_unwrap_eithers(ze_list: List(EitherOr(a, b))) -> List(a) {
+//   list.filter_map(ze_list, fn(either_or) {
+//     case either_or {
+//       Either(sth) -> Ok(sth)
+//       Or(_) -> Error(Nil)
+//     }
+//   })
+// }
 
-pub fn remove_eithers_unwrap_ors(ze_list: List(EitherOr(a, b))) -> List(b) {
-  list.filter_map(ze_list, fn(either_or) {
-    case either_or {
-      Either(_) -> Error(Nil)
-      Or(sth) -> Ok(sth)
-    }
-  })
-}
+// pub fn remove_eithers_unwrap_ors(ze_list: List(EitherOr(a, b))) -> List(b) {
+//   list.filter_map(ze_list, fn(either_or) {
+//     case either_or {
+//       Either(_) -> Error(Nil)
+//       Or(sth) -> Ok(sth)
+//     }
+//   })
+// }
 
-pub fn regroup_eithers(
-  ze_list: List(EitherOr(a, b)),
-) -> List(EitherOr(List(a), b)) {
-  regroup_eithers_accumulator([], [], ze_list)
-}
+// pub fn regroup_eithers(
+//   ze_list: List(EitherOr(a, b)),
+// ) -> List(EitherOr(List(a), b)) {
+//   regroup_eithers_accumulator([], [], ze_list)
+// }
 
-pub fn regroup_ors(ze_list: List(EitherOr(a, b))) -> List(EitherOr(a, List(b))) {
-  regroup_ors_accumulator([], [], ze_list)
-}
+// pub fn regroup_ors(ze_list: List(EitherOr(a, b))) -> List(EitherOr(a, List(b))) {
+//   regroup_ors_accumulator([], [], ze_list)
+// }
 
-pub fn regroup_eithers_no_empty_lists(
-  ze_list: List(EitherOr(a, b)),
-) -> List(EitherOr(List(a), b)) {
-  regroup_eithers(ze_list)
-  |> list.filter(fn(thing) {
-    case thing {
-      Either(a_list) -> !{ list.is_empty(a_list) }
-      Or(_) -> True
-    }
-  })
-}
+// pub fn regroup_eithers_no_empty_lists(
+//   ze_list: List(EitherOr(a, b)),
+// ) -> List(EitherOr(List(a), b)) {
+//   regroup_eithers(ze_list)
+//   |> list.filter(fn(thing) {
+//     case thing {
+//       Either(a_list) -> !{ list.is_empty(a_list) }
+//       Or(_) -> True
+//     }
+//   })
+// }
 
-pub fn regroup_ors_no_empty_lists(
-  ze_list: List(EitherOr(a, b)),
-) -> List(EitherOr(a, List(b))) {
-  regroup_ors(ze_list)
-  |> list.filter(fn(thing) {
-    case thing {
-      Either(_) -> True
-      Or(a_list) -> !{ list.is_empty(a_list) }
-    }
-  })
-}
+// pub fn regroup_ors_no_empty_lists(
+//   ze_list: List(EitherOr(a, b)),
+// ) -> List(EitherOr(a, List(b))) {
+//   regroup_ors(ze_list)
+//   |> list.filter(fn(thing) {
+//     case thing {
+//       Either(_) -> True
+//       Or(a_list) -> !{ list.is_empty(a_list) }
+//     }
+//   })
+// }
 
-pub fn on_either_on_or(t: EitherOr(a, b), fn1: fn(a) -> c, fn2: fn(b) -> c) -> c {
-  case t {
-    Either(a) -> fn1(a)
-    Or(b) -> fn2(b)
-  }
-}
+// pub fn on_either_on_or(t: EitherOr(a, b), fn1: fn(a) -> c, fn2: fn(b) -> c) -> c {
+//   case t {
+//     Either(a) -> fn1(a)
+//     Or(b) -> fn2(b)
+//   }
+// }
 
-pub fn map_ors(
-  ze_list: List(EitherOr(a, b)),
-  f: fn(b) -> c,
-) -> List(EitherOr(a, c)) {
-  ze_list
-  |> list.map(fn(thing) {
-    case thing {
-      Either(load) -> Either(load)
-      Or(b) -> Or(f(b))
-    }
-  })
-}
+// pub fn map_ors(
+//   ze_list: List(EitherOr(a, b)),
+//   f: fn(b) -> c,
+// ) -> List(EitherOr(a, c)) {
+//   ze_list
+//   |> list.map(fn(thing) {
+//     case thing {
+//       Either(load) -> Either(load)
+//       Or(b) -> Or(f(b))
+//     }
+//   })
+// }
 
-pub fn map_either_ors(
-  ze_list: List(EitherOr(a, b)),
-  fn1: fn(a) -> c,
-  fn2: fn(b) -> c,
-) -> List(c) {
-  ze_list
-  |> list.map(on_either_on_or(_, fn1, fn2))
-}
+// pub fn map_either_ors(
+//   ze_list: List(EitherOr(a, b)),
+//   fn1: fn(a) -> c,
+//   fn2: fn(b) -> c,
+// ) -> List(c) {
+//   ze_list
+//   |> list.map(on_either_on_or(_, fn1, fn2))
+// }
 
-pub fn either_or_misceginator(
-  list: List(a),
-  condition: fn(a) -> Bool,
-) -> List(EitherOr(a, a)) {
-  list.map(list, fn(thing) {
-    case condition(thing) {
-      True -> Either(thing)
-      False -> Or(thing)
-    }
-  })
-}
+// pub fn either_or_misceginator(
+//   list: List(a),
+//   condition: fn(a) -> Bool,
+// ) -> List(EitherOr(a, a)) {
+//   list.map(list, fn(thing) {
+//     case condition(thing) {
+//       True -> Either(thing)
+//       False -> Or(thing)
+//     }
+//   })
+// }
 
 //**************************************************************
 //* find replace
@@ -1460,9 +1461,9 @@ fn nonempty_list_t_plain_concatenation(nodes: List(VXML)) -> VXML {
 
 pub fn plain_concatenation_in_list(nodes: List(VXML)) -> List(VXML) {
   nodes
-  |> either_or_misceginator(is_text_node)
-  |> regroup_eithers_no_empty_lists
-  |> map_either_ors(
+  |> eo.map_classify(is_text_node)
+  |> eo.group_eithers_no_empty_lists
+  |> eo.map_resolve(
     fn(either: List(VXML)) -> VXML { nonempty_list_t_plain_concatenation(either) },
     fn(or: VXML) -> VXML { or },
   )

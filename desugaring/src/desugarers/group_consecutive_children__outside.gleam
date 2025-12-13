@@ -5,6 +5,7 @@ import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type 
 import nodemaps_2_desugarer_transforms as n2t
 import vxml.{type VXML, T, V}
 import blame.{type Blame} as bl
+import either_or as eo
 
 fn is_forbidden(elem: VXML, forbidden: List(String)) {
   case elem {
@@ -22,9 +23,9 @@ fn nodemap(
     V(_, _, _, children) -> {
       let children =
         children
-        |> infra.either_or_misceginator(is_forbidden(_, inner.1))
-        |> infra.regroup_ors_no_empty_lists
-        |> infra.map_either_ors(
+        |> eo.discriminate(is_forbidden(_, inner.1))
+        |> eo.group_ors_no_empty_lists
+        |> eo.map_resolve(
           fn(x){x},
           fn(consecutive_siblings) {
             V(

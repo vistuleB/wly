@@ -4,6 +4,7 @@ version = "1.0.0"
 [dependencies]
 vxml = { "path" = "../vxml" }
 writerly = { "path" = "../writerly" }
+either_or = { "path" = "../../either_or" }
 
 gleam_stdlib = ">= 0.34.0 and < 2.0.0"
 gleam_regexp = ">= 1.0.0 and < 2.0.0"

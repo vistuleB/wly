@@ -7,6 +7,7 @@ packages = [
   { name = "cc_precompiler", version = "0.1.11", build_tools = ["mix"], requirements = ["elixir_make"], otp_app = "cc_precompiler", source = "hex", outer_checksum = "3427232CAF0835F94680E5BCF082408A70B48AD68A5F5C0B02A3BEA9F3A075B9" },
   { name = "colours", version = "0.3.0", build_tools = ["gleam"], requirements = ["gleam_stdlib"], otp_app = "colours", source = "hex", outer_checksum = "217E1F62013276D9D29192F97F136B5BA830129F2FD5B5D51DCC183B64223F3B" },
   { name = "dirtree", version = "1.0.2", build_tools = ["gleam"], requirements = ["gleam_stdlib"], otp_app = "dirtree", source = "hex", outer_checksum = "0AAB90969DE7ED502BA85DB06A1FFA1DB409F79FA8D8BC24DE076DA11C45B508" },
+  { name = "either_or", version = "1.0.0", build_tools = ["gleam"], requirements = ["gleam_stdlib"], source = "local", path = "../../either_or" },
   { name = "elixir_make", version = "0.9.0", build_tools = ["mix"], requirements = [], otp_app = "elixir_make", source = "hex", outer_checksum = "DB23D4FD8B757462AD02F8AA73431A426FE6671C80B200D9710CAF3D1DD0FFDB" },
   { name = "filepath", version = "1.1.2", build_tools = ["gleam"], requirements = ["gleam_stdlib"], otp_app = "filepath", source = "hex", outer_checksum = "B06A9AF0BF10E51401D64B98E4B627F1D2E48C154967DA7AF4D0914780A6D40A" },
   { name = "gleam_crypto", version = "1.5.1", build_tools = ["gleam"], requirements = ["gleam_stdlib"], otp_app = "gleam_crypto", source = "hex", outer_checksum = "50774BAFFF1144E7872814C566C5D653D83A3EBF23ACC3156B757A1B6819086E" },
@@ -33,6 +34,7 @@ ansel = { version = ">= 1.1.0 and < 2.0.0" }
 argv = { version = ">= 1.0.2 and < 2.0.0" }
 colours = { version = ">= 0.3.0 and < 1.0.0" }
 dirtree = { version = ">= 1.0.2 and < 2.0.0" }
+either_or = { path = "../../either_or" }
 filepath = { version = ">= 1.1.2 and < 2.0.0" }
 gleam_crypto = { version = ">= 1.5.1 and < 2.0.0" }
 gleam_erlang = { version = ">= 1.3.0 and < 2.0.0" }
