@@ -20,7 +20,7 @@ import table_and_co_printer as pr
 import vxml.{type VXML, V} as vp
 import on
 import input
-import writerly as wp
+import writerly as wl
 import gleam/erlang/process.{type Subject, spawn, send, receive}
 import dirtree.{type DirTree} as dt
 
@@ -42,10 +42,10 @@ pub type AssemblerDebugOptions {
 
 pub fn default_assembler(
   spotlight_paths: List(String),
-) -> Assembler(wp.AssemblyError) {
+) -> Assembler(wl.AssemblyError) {
   fn(input_dir) {
     use #(tree, assembled) <- on.ok(
-      wp.assemble_input_lines_advanced_mode(input_dir, spotlight_paths),
+      wl.assemble_input_lines(input_dir, spotlight_paths),
     )
     Ok(#(assembled, Some(tree)))
   }
@@ -87,12 +87,12 @@ pub fn default_writerly_parser(
 ) -> Parser(String) {
   fn(lines) {
     use writerlys <- on.error_ok(
-      wp.parse_input_lines(lines),
+      wl.parse_input_lines(lines),
       fn(e) { Error(#(e.blame, ins(e))) },
     )
 
     use vxml <- on.ok(
-      case writerlys |> wp.writerlys_to_vxmls {
+      case writerlys |> wl.writerlys_to_vxmls {
         [vxml] -> Ok(vxml)
         vxmls -> Error(#(bl.no_blame, "found " <> ins(list.length(vxmls)) <> " ≠ 1 top-level nodes in writerly source"))
       }
@@ -196,8 +196,8 @@ pub fn default_writerly_emitter(
 ) -> Result(OutputFragment(d, List(OutputLine)), b) {
   let lines =
     fragment.payload
-    |> wp.vxml_to_writerlys
-    |> list.map(wp.writerly_to_output_lines)
+    |> wl.vxml_to_writerlys
+    |> list.map(wl.writerly_to_output_lines)
     |> list.flatten
 
   Ok(OutputFragment(..fragment, payload: lines))

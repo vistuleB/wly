@@ -2151,6 +2151,116 @@ pub fn v_has_class(vxml: VXML, class: String) -> Bool {
   attrs_have_class(attrs, class)
 }
 
+// ************************************************************
+// THIS STUFF GRABBED FROM writerly.gleam UNCEREMONIOUSLY DUMPED HERE WITHOUT CARE:
+//
+// (until expand_clode_block_info_html_shorthand)
+// ************************************************************
+
+type InfoHTMLPiece {
+  Id(blame: Blame, payload: String)
+  Class(blame: Blame, payload: String)
+  Style(blame: Blame, payload: String)
+}
+
+fn split_while(
+  s: splitter.Splitter,
+  suffix: String,
+  blame: Blame,
+) -> #(String, List(#(Blame, String, String))) {
+  let #(before, sep, after) = splitter.split(s, suffix)
+  use _ <- on.continue(case sep {
+    "" -> on.Return(#(before, []))
+    _ -> on.Continue(Nil)
+  })
+  let b1 = bl.advance(blame, string.length(before))
+  let b2 = bl.advance(b1, string.length(sep))
+  let #(u, others) = split_while(s, after, b2)
+  #(before, [#(b1, sep, u), ..others])
+}
+
+fn info_html_pieces(
+  s: splitter.Splitter,
+  suffix: String,
+  blame: Blame,
+) -> #(String, List(InfoHTMLPiece)) {
+  let #(tag, pieces) = split_while(s, suffix, blame)
+  let pieces = list.map(pieces, fn(p) {
+    case p {
+      #(b, ".", payload) -> {
+        case string.contains(payload, ":") {
+          True -> Style(b, payload)
+          False -> Class(b, payload)
+        }
+      }
+      #(b, "#", payload) -> Id(b, payload)
+      _ -> panic
+    }
+  })
+  #(tag, pieces)
+}
+
+pub fn expand_clode_block_info_html_shorthand(
+  blame: Blame,
+  info: String,
+) -> Result(#(
+  Option(Attr), // language
+  Option(Attr), // id
+  Option(Attr), // class
+  Option(Attr), // style
+), String) {
+  assert info == string.trim(info)
+  assert info != ""
+  let s = splitter.new([".", "#"])
+  let #(language, pieces) = info_html_pieces(s, info, blame)
+  let #(ids, classes, styles) = list.fold(
+    pieces,
+    #([], [], []),
+    fn(acc, p) {
+      case p {
+        Id(..) -> #([p, ..acc.0], acc.1, acc.2)
+        Class(..) -> #(acc.0, [p, ..acc.1], acc.2)
+        Style(..) -> #(acc.0, acc.1, [p, ..acc.2])
+      }
+    }
+  )
+  let language = case language {
+    "" -> None
+    _ -> Some(Attr(blame, "language", language))
+  }
+  use id <- on.ok(case ids {
+    [] -> Ok(None)
+    [one] -> Ok(Some(Attr(one.blame, "id", one.payload)))
+    _ -> Error("duplicate HTML id (two '#' in 'info' string)")
+  })
+  let class = case classes {
+    [] -> None
+    [first, ..] -> {
+      let val = list.map(classes, fn(d) {
+        d.payload |> string.trim
+      }) |> list.reverse |> string.join(" ")
+      Some(Attr(first.blame, "class", val))
+    }
+  }
+  let style = case styles {
+    [] -> None
+    [first, ..] -> {
+      let val = list.map(styles, fn(d) {
+        d.payload |> string.trim
+      }) |> list.reverse |> string.join(";")
+      Some(Attr(first.blame, "style", val))
+    }
+  }
+  Ok(#(language, id, class, style))
+}
+
+// ************************************************************
+// constructors, including from_tag & expand_selector_shorthand
+//
+// NOTE: the `expand_selector_shorthand` might or might not be profitably simplified using above expand_clode_block_info_html_shorthand !!
+// TO BE SEEN! TODO!
+// ************************************************************
+
 pub type SelectorError {
   EmptyTag
   InvalidTag

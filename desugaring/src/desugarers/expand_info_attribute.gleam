@@ -9,7 +9,6 @@ import infrastructure.{
 } as infra
 import nodemaps_2_desugarer_transforms as n2t
 import vxml.{type VXML, V}
-import writerly
 import on
 
 fn nodemap(
@@ -24,7 +23,7 @@ fn nodemap(
           use #(info, attrs) <- on.ok(infra.attrs_extract_unique_key_or_none(attrs, "info"))
           use info <- on.none_some(info, Ok(vxml))
           use #(language, id, class, style) <- on.error_ok(
-            writerly.expand_clode_block_info_html_shorthand(info.blame, info.val),
+            infra.expand_clode_block_info_html_shorthand(info.blame, info.val),
             fn(msg) { Error(DesugaringError(blame, msg)) }
           )
           use attrs <- on.ok(case attrs {
