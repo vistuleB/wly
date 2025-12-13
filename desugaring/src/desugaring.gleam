@@ -138,7 +138,7 @@ const default_times_table_char_width = 90 // MacBook 16' can take 140
 
 pub type PipelineDebugOptions {
   PipelineDebugOptions(
-    times: Option(Int),
+    times: Option(Int), // the 'Int' gives width of timing table
     interactive_mode: Bool,
   )
 }
@@ -1857,7 +1857,7 @@ pub fn run_renderer(
         string.repeat(" ", string.length("  -> assembled "))
 
       list.index_map(
-        tree |> dt.pretty_printer,
+        tree |> dt.pretty_print,
         fn(line, i) {
           case i == 0 { True -> "  -> assembled " False -> spaces}
           <> line

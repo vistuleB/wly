@@ -6,6 +6,7 @@ import simplifile
 import vxml
 import writerly as wl
 import on
+import dirtree as dt
 
 fn contents_test() -> Result(Nil, String) {
   io.println("\n### CONTENTS_TEST ###")
@@ -18,7 +19,7 @@ fn contents_test() -> Result(Nil, String) {
   )
 
   io.println("\nassembled:\n")
-  tree |> list.map(fn(x) { "" <> x }) |> string.join("\n") |> io.println()
+  tree |> dt.pretty_print |> string.join("\n") |> io.println()
   io.println("")
 
   use writerlys <- on.error_ok(
@@ -154,9 +155,9 @@ pub fn other() {
 
 pub fn main() {
   let errors = [
-    // sample_test(),
+    sample_test(),
     contents_test(),
-    // html_test(),
+    html_test(),
   ] |> list.filter(result.is_error)
   
   io.println("\n[end all]\n")

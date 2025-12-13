@@ -1105,6 +1105,7 @@ fn input_lines_for_dirtree_v2_at_depth(
         depth,
       )
     }
+
     dt.Dirpath(path, contents) -> {
       let assert [first, ..rest] = contents
       use first_lines <- on.ok({
@@ -1162,7 +1163,7 @@ pub fn assemble_input_lines_advanced_mode(
     )
 
   let tree =
-    dt.from_paths(dirname, paths)
+    dt.from_terminals(dirname, paths)
     |> dt.sort(fn(t1, t2) {
       case t1, t2 {
         dt.Filepath("__parent.wly"), _ -> order.Lt
