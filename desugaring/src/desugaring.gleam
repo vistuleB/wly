@@ -40,7 +40,7 @@ pub type AssemblerDebugOptions {
 // 🌅 default assembler~~ 🌅
 // 🌅🌅🌅🌅🌅🌅🌅🌅🌅🌅🌅🌅🌅🌅🌅
 
-pub fn default_assembler(
+pub fn default_writerly_assembler(
   spotlight_paths: List(String),
 ) -> Assembler(wl.AssemblyError) {
   fn(input_dir) {
@@ -51,18 +51,12 @@ pub fn default_assembler(
   }
 }
 
-// unfinished: we also wanted 1 that chooses the shortname4u:
-pub fn custom_shortname_assembler(
-  shortname: String,
-) -> Assembler(simplifile.FileError) {
-  fn(path) {
-    use string <- on.ok(
-      simplifile.read(path)
-    )
-    Ok(#(
-      io_l.string_to_input_lines(string, shortname, 0),
-      None,
-    ))
+pub fn default_other_files_assembler(
+  path: String
+) -> Result(#(List(InputLine), Option(DirTree)), simplifile.FileError) {
+  case io_l.read(path, 0) {
+    Ok(lines) -> Ok(#(lines, None))
+    Error(e) -> Error(e)
   }
 }
 
