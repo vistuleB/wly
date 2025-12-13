@@ -1857,7 +1857,7 @@ pub fn run_renderer(
         string.repeat(" ", string.length("  -> assembled "))
 
       list.index_map(
-        tree |> dt.pretty_print,
+        tree |> dt.pretty_print(1),
         fn(line, i) {
           case i == 0 { True -> "  -> assembled " False -> spaces}
           <> line

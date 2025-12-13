@@ -1090,7 +1090,7 @@ fn get_dirname_and_relative_paths_of_uncommented_wly_in_dir(
   Ok(#(dirname, relative_filepaths))
 }
 
-fn input_lines_for_dirtree_v2_at_depth(
+fn input_lines_for_dirtree_at_depth(
   original_dirname: String,
   acc: String,
   tree: DirTree,
@@ -1109,7 +1109,7 @@ fn input_lines_for_dirtree_v2_at_depth(
     dt.Dirpath(path, contents) -> {
       let assert [first, ..rest] = contents
       use first_lines <- on.ok({
-        input_lines_for_dirtree_v2_at_depth(
+        input_lines_for_dirtree_at_depth(
           original_dirname,
           dir_and_filename_2_path(acc, path),
           first,
@@ -1124,7 +1124,7 @@ fn input_lines_for_dirtree_v2_at_depth(
         list.try_map(
           rest,
           fn(subtree) {
-            input_lines_for_dirtree_v2_at_depth(
+            input_lines_for_dirtree_at_depth(
               original_dirname,
               dir_and_filename_2_path(acc, path),
               subtree,
@@ -1173,7 +1173,7 @@ pub fn assemble_input_lines_advanced_mode(
     })
 
   use lines <- on.ok(
-    input_lines_for_dirtree_v2_at_depth(dirname, "", tree, 0)
+    input_lines_for_dirtree_at_depth(dirname, "", tree, 0)
   )
 
   Ok(#(tree, lines))

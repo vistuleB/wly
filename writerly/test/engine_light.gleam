@@ -19,7 +19,7 @@ fn contents_test() -> Result(Nil, String) {
   )
 
   io.println("\nassembled:\n")
-  tree |> dt.pretty_print |> string.join("\n") |> io.println()
+  tree |> dt.pretty_print(2) |> string.join("\n") |> io.println()
   io.println("")
 
   use writerlys <- on.error_ok(

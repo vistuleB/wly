@@ -2,7 +2,7 @@
 # You typically do not need to edit this file
 
 packages = [
-  { name = "dirtree", version = "1.0.0", build_tools = ["gleam"], requirements = ["gleam_stdlib"], otp_app = "dirtree", source = "hex", outer_checksum = "246095528BD04A820DBEEBAE8BEF10F1D33463FF5AFDE1978B283BD147434E54" },
+  { name = "dirtree", version = "1.0.2", build_tools = ["gleam"], requirements = ["gleam_stdlib"], otp_app = "dirtree", source = "hex", outer_checksum = "0AAB90969DE7ED502BA85DB06A1FFA1DB409F79FA8D8BC24DE076DA11C45B508" },
   { name = "filepath", version = "1.1.2", build_tools = ["gleam"], requirements = ["gleam_stdlib"], otp_app = "filepath", source = "hex", outer_checksum = "B06A9AF0BF10E51401D64B98E4B627F1D2E48C154967DA7AF4D0914780A6D40A" },
   { name = "gleam_regexp", version = "1.1.1", build_tools = ["gleam"], requirements = ["gleam_stdlib"], otp_app = "gleam_regexp", source = "hex", outer_checksum = "9C215C6CA84A5B35BB934A9B61A9A306EC743153BE2B0425A0D032E477B062A9" },
   { name = "gleam_stdlib", version = "0.67.1", build_tools = ["gleam"], requirements = [], otp_app = "gleam_stdlib", source = "hex", outer_checksum = "6CE3E4189A8B8EC2F73AB61A2FBDE49F159D6C9C61C49E3B3082E439F260D3D0" },
@@ -16,7 +16,7 @@ packages = [
 ]
 
 [requirements]
-dirtree = { version = ">= 1.0.0 and < 2.0.0" }
+dirtree = { version = ">= 1.0.2 and < 2.0.0" }
 filepath = { version = ">= 1.1.2 and < 2.0.0" }
 gleam_regexp = { version = ">= 1.1.1 and < 2.0.0" }
 gleam_stdlib = { version = ">= 0.34.0 and < 2.0.0" }
