@@ -1,7 +1,7 @@
 import blame.{type Blame, prepend_comment as pc} as bl
 import io_lines.{type InputLine, InputLine, type OutputLine, OutputLine} as io_l
 import gleam/list
-import gleam/option.{type Option, None, Some}
+import gleam/option.{None, Some}
 import gleam/order
 import gleam/pair
 import gleam/result
@@ -10,7 +10,6 @@ import gleam/string.{inspect as ins}
 import simplifile
 import vxml.{type Attr, type Line, type VXML, Attr, Line, T, V}
 import dirtree.{type DirTree} as dt
-import splitter
 import on.{Return, Continue as Stay}
 
 // ************************************************************
@@ -66,8 +65,256 @@ pub type AssemblyOrParseError {
   AssemblyError(AssemblyError)
 }
 
+// The API covers five areas of responsibility:
+//
+//    1. assembling List(InputLine) from a filepath or dirpath
+//    2. List(InputLine) -> Writerly (parsing)
+//    3. Writerly -> VXML
+//    4. VXML -> Writerly
+//    5. Writerly -> List(OutputLine) / String / String (debug table)
+//
+// See 'PART 1', 'PART 2', 'PART 3', 'PART 4', 'PART 5' below.
+
 // ************************************************************
-// local types
+// PART 1
+//
+// directory or filepath -> List(InputLine)   // Result
+// 
+// pub fn assemble_input_lines
+// pub fn assemble_and_parse
+// ************************************************************
+
+fn file_is_not_commented(path: String) -> Bool {
+  !{ string.contains(path, "/#") || string.starts_with(path, "#") }
+}
+
+fn is_parent(path: String) -> Bool {
+  path == "__parent.wly" || string.ends_with(path, "/__parent.wly")
+}
+
+fn file_is_selected_or_has_selected_descendant(
+  path_selectors: List(String),
+  path: String,
+  all_paths: List(String),
+) -> Bool {
+  path_selectors == []
+  || list.any(path_selectors, string.contains(path, _))
+  || {
+    is_parent(path) && {
+      let prefix = path |> string.drop_end(string.length("__parent.wly"))
+      list.any(
+        all_paths,
+        fn (x) {
+          string.starts_with(x, prefix) &&
+          list.any(path_selectors, string.contains(x, _))
+        }
+      )
+    }
+  }
+}
+
+fn shortname_for_blame(path: String, dirname: String) -> String {
+  assert string.starts_with(path, dirname)
+  let length_to_drop = case string.ends_with(dirname, "/") || dirname == "" {
+    True -> string.length(dirname)
+    False -> string.length(dirname) + 1
+  }
+  string.drop_start(path, length_to_drop)
+}
+
+fn input_lines_for_file_at_depth(
+  dirname: String,
+  path: String,
+  depth: Int,
+) -> Result(List(InputLine), AssemblyError) {
+  let shortname = shortname_for_blame(path, dirname)
+  case shortname == "" {
+    True ->
+      panic as {
+        "no shortname left after removing dirname '"
+        <> dirname
+        <> "' from path '"
+        <> path
+        <> "'"
+      }
+    False -> shortname
+  }
+
+  case simplifile.read(path) {
+    Ok(string) -> {
+      Ok(io_l.string_to_input_lines(string, shortname, 4 * depth))
+    }
+    Error(_) -> {
+      Error(ReadFileError(path))
+    }
+  }
+}
+
+fn path_2_dir_and_filename(path: String) -> #(String, String) {
+  let reversed_path = path |> string.reverse
+  let #(reversed_filename, reversed_dir) =
+    reversed_path
+    |> string.split_once("/")
+    |> result.unwrap(#(reversed_path, ""))
+  #(reversed_dir |> string.reverse, reversed_filename |> string.reverse)
+}
+
+fn dir_and_filename_2_path(dir: String, path: String) -> String {
+  case dir {
+    "" -> path
+    _ -> dir <> "/" <> path
+  }
+}
+
+fn drop_slash(s: String) {
+  case string.ends_with(s, "/") {
+    True -> string.drop_end(s, 1)
+    False -> string.drop_end(s, 0)
+  }
+}
+
+fn get_dirname_and_relative_paths_of_uncommented_wly_in_dir(
+  dirpath_or_filepath: String,
+) -> Result(#(String, List(String)), AssemblyError) {
+  use #(dirname, fullpaths_including_dirname) <- on.ok(
+    case simplifile.get_files(dirpath_or_filepath) {
+      Ok(files) -> {
+        Ok(#(dirpath_or_filepath |> drop_slash, files))
+      }
+      Error(simplifile.Enotdir) -> {
+        let #(dirname, filepath) = dirpath_or_filepath |> path_2_dir_and_filename
+        Ok(#(dirname, [dir_and_filename_2_path(dirname, filepath)]))
+      }
+      Error(error) -> Error(
+        ReadFileOrDirectoryError("error accessing dirpath_or_filepath:"  <> dirpath_or_filepath  <> ", " <> ins(error))
+      )
+    }
+  )
+
+  assert !string.ends_with(dirname, "/")
+  let dirname_length = string.length(dirname)
+  let relative_filepaths =
+    fullpaths_including_dirname
+    |> list.filter(string.ends_with(_, ".wly"))
+    |> list.filter(file_is_not_commented)
+    |> list.map(fn(path) {
+      let path = string.drop_start(path, dirname_length)
+      assert string.starts_with(path, "/")
+      string.drop_start(path, 1)
+    })
+
+  Ok(#(dirname, relative_filepaths))
+}
+
+fn input_lines_for_dirtree_at_depth(
+  original_dirname: String,
+  acc: String,
+  tree: DirTree,
+  depth: Int,
+) -> Result(List(InputLine), AssemblyError) {
+  case tree {
+    dt.Filepath(path) -> {
+      assert string.ends_with(path, ".wly")
+      input_lines_for_file_at_depth(
+        original_dirname,
+        dir_and_filename_2_path(acc, path),
+        depth,
+      )
+    }
+
+    dt.Dirpath(path, contents) -> {
+      let assert [first, ..rest] = contents
+      use first_lines <- on.ok({
+        input_lines_for_dirtree_at_depth(
+          original_dirname,
+          dir_and_filename_2_path(acc, path),
+          first,
+          depth,
+        )
+      })
+      let depth = case first {
+        dt.Filepath("__parent.wly") -> depth + 1
+        _ -> depth
+      }
+      use lines_of_rest <- on.ok(
+        list.try_map(
+          rest,
+          fn(subtree) {
+            input_lines_for_dirtree_at_depth(
+              original_dirname,
+              dir_and_filename_2_path(acc, path),
+              subtree,
+              depth,
+            )
+          }
+        )
+      )
+      Ok(list.flatten([first_lines, ..lines_of_rest]))
+    }
+  }
+}
+
+pub fn assemble_input_lines(
+  dirpath_or_filepath: String,
+  path_selectors: List(String),
+) -> Result(#(DirTree, List(InputLine)), AssemblyError) {
+  use #(dirname, paths) <- on.ok(
+    get_dirname_and_relative_paths_of_uncommented_wly_in_dir(dirpath_or_filepath)
+  )
+
+  use _, _ <- on.empty_nonempty(
+    paths,
+    Error(NoFilesFound("no files found in: " <> dirpath_or_filepath)),
+  )
+
+  let paths =
+    paths
+    |> list.filter(
+      file_is_selected_or_has_selected_descendant(path_selectors, _, paths),
+    )
+
+  let tree =
+    dt.from_terminals(dirname, paths)
+    |> dt.sort(fn(t1, t2) {
+      case t1, t2 {
+        dt.Filepath("__parent.wly"), _ -> order.Lt
+        _, dt.Filepath("__parent.wly") -> order.Gt
+        _, _ -> string.compare(t1.name, t2.name)
+      }
+    })
+
+  use lines <- on.ok(
+    input_lines_for_dirtree_at_depth(dirname, "", tree, 0)
+  )
+
+  Ok(#(tree, lines))
+}
+
+pub fn assemble_and_parse(
+  dirpath_or_filepath: String,
+  path_selectors: List(String),
+) -> Result(List(Writerly), AssemblyOrParseError) {
+  use #(_, assembled) <- on.error_ok(
+    assemble_input_lines(dirpath_or_filepath, path_selectors),
+    fn(e) { Error(AssemblyError(e)) },
+  )
+
+  use writerlys <- on.error_ok(
+    parse_input_lines(assembled),
+    fn(e) { Error(ParseError(e)) },
+  )
+
+  Ok(writerlys)
+}
+
+// ************************************************************
+// PART 2
+//
+// List(InputLine) -> List(Writerly)      // Result
+// String -> Writerly                     // Result
+// 
+// pub fn parse_input_lines
+// pub fn parse_string
 // ************************************************************
 
 type FileHead =
@@ -519,111 +766,6 @@ fn parse_writerlys_at_indent(
   parse_writerlys_at_indent_from_encounter(indent, rest, rgxs, encounter)
 }
 
-// ************************************************************
-// 'info' string HTML processing
-// ************************************************************
-
-type InfoHTMLPiece {
-  Id(blame: Blame, payload: String)
-  Class(blame: Blame, payload: String)
-  Style(blame: Blame, payload: String)
-}
-
-fn split_while(
-  s: splitter.Splitter,
-  suffix: String,
-  blame: Blame,
-) -> #(String, List(#(Blame, String, String))) {
-  let #(before, sep, after) = splitter.split(s, suffix)
-  use _ <- on.continue(case sep {
-    "" -> Return(#(before, []))
-    _ -> Stay(Nil)
-  })
-  let b1 = bl.advance(blame, string.length(before))
-  let b2 = bl.advance(b1, string.length(sep))
-  let #(u, others) = split_while(s, after, b2)
-  #(before, [#(b1, sep, u), ..others])
-}
-
-fn info_html_pieces(
-  s: splitter.Splitter,
-  suffix: String,
-  blame: Blame,
-) -> #(String, List(InfoHTMLPiece)) {
-  let #(tag, pieces) = split_while(s, suffix, blame)
-  let pieces = list.map(pieces, fn(p) {
-    case p {
-      #(b, ".", payload) -> {
-        case string.contains(payload, ":") {
-          True -> Style(b, payload)
-          False -> Class(b, payload)
-        }
-      }
-      #(b, "#", payload) -> Id(b, payload)
-      _ -> panic
-    }
-  })
-  #(tag, pieces)
-}
-
-pub fn expand_clode_block_info_html_shorthand(
-  blame: Blame,
-  info: String,
-) -> Result(#(
-  Option(Attr), // language
-  Option(Attr), // id
-  Option(Attr), // class
-  Option(Attr), // style
-), String) {
-  assert info == string.trim(info)
-  assert info != ""
-  let s = splitter.new([".", "#"])
-  let #(language, pieces) = info_html_pieces(s, info, blame)
-  let #(ids, classes, styles) = list.fold(
-    pieces,
-    #([], [], []),
-    fn(acc, p) {
-      case p {
-        Id(..) -> #([p, ..acc.0], acc.1, acc.2)
-        Class(..) -> #(acc.0, [p, ..acc.1], acc.2)
-        Style(..) -> #(acc.0, acc.1, [p, ..acc.2])
-      }
-    }
-  )
-  let language = case language {
-    "" -> None
-    _ -> Some(Attr(blame, "language", language))
-  }
-  use id <- on.ok(case ids {
-    [] -> Ok(None)
-    [one] -> Ok(Some(Attr(one.blame, "id", one.payload)))
-    _ -> Error("duplicate HTML id (two '#' in 'info' string)")
-  })
-  let class = case classes {
-    [] -> None
-    [first, ..] -> {
-      let val = list.map(classes, fn(d) {
-        d.payload |> string.trim
-      }) |> list.reverse |> string.join(" ")
-      Some(Attr(first.blame, "class", val))
-    }
-  }
-  let style = case styles {
-    [] -> None
-    [first, ..] -> {
-      let val = list.map(styles, fn(d) {
-        d.payload |> string.trim
-      }) |> list.reverse |> string.join(";")
-      Some(Attr(first.blame, "style", val))
-    }
-  }
-  Ok(#(language, id, class, style))
-}
-
-// ************************************************************
-// writerly parsing api (input lines)
-// ************************************************************
-
 type OurRegexes {
   OurRegexes(
     is_valid_tag: Regexp,
@@ -668,10 +810,6 @@ pub fn parse_input_lines(
   Ok(writerlys)
 }
 
-// ************************************************************
-// writerly parsing api (string)
-// ************************************************************
-
 pub fn parse_string(
   source: String,
   filename: String,
@@ -682,233 +820,11 @@ pub fn parse_string(
 }
 
 // ************************************************************
-// printing Tentative
-// ************************************************************
-
-fn line_to_output_line(
-  line: Line,
-  indentation: Int,
-) -> OutputLine {
-  OutputLine(line.blame, indentation, line.content)
-}
-
-fn lines_to_output_lines(
-  lines: List(Line),
-  indentation: Int,
-) -> List(OutputLine) {
-  lines
-  |> list.map(line_to_output_line(_, indentation))
-}
-
-// ************************************************************
-// Writerly -> blamed lines internals
-// ************************************************************
-
-pub fn writerly_annotate_blames(writerly: Writerly) -> Writerly {
-  case writerly {
-    BlankLine(blame) -> BlankLine(blame |> pc("BlankLine"))
-    Paragraph(blame, lines) ->
-      Paragraph(
-        blame |> pc("Blurb"),
-        list.index_map(lines, fn(line, i) {
-          Line(
-            line.blame
-              |> pc("Blurb > Line(" <> ins(i + 1) <> ")"),
-            line.content,
-          )
-        }),
-      )
-    Comment(blame, lines) ->
-      Comment(
-        blame |> pc("Comment"),
-        list.index_map(lines, fn(line, i) {
-          Line(
-            line.blame
-              |> pc("Comment > Line(" <> ins(i + 1) <> ")"),
-            line.content,
-          )
-        }),
-      )
-    CodeBlock(blame, attrs, lines) -> {
-      let info = reassemble_code_block_info(attrs)
-      CodeBlock(
-        blame |> pc("CodeBlock:" <> info),
-        attrs,
-        list.index_map(lines, fn(line, i) {
-          Line(
-            line.blame
-              |> pc("CodeBlock > Line(" <> ins(i + 1) <> ")"),
-            line.content,
-          )
-        }),
-      )
-    }
-    Tag(blame, tag, attrs, children) ->
-      Tag(
-        blame |> pc("Tag"),
-        tag,
-        list.index_map(attrs, fn(attr, i) {
-          Attr(
-            attr.blame |> pc("Tag > Attr(" <> ins(i + 1) <> ")"),
-            attr.key,
-            attr.val,
-          )
-        }),
-        children
-          |> list.map(writerly_annotate_blames),
-      )
-  }
-}
-
-fn attr_to_output_line(
-  attr: Attr,
-  indentation: Int,
-) -> OutputLine {
-  OutputLine(
-    attr.blame,
-    indentation,
-    attr.key <> "=" <> attr.val,
-  )
-}
-
-fn attrs_to_output_lines(
-  attrs: List(Attr),
-  indentation: Int,
-) -> List(OutputLine) {
-  attrs |> list.map(attr_to_output_line(_, indentation))
-}
-
-fn first_child_is_blurb_and_first_line_of_blurb_could_be_read_as_attr_value_pair(nodes: List(Writerly)) -> Bool {
-  case nodes {
-    [Paragraph(_, lines), ..] -> {
-      let assert [first, ..] = lines
-      case string.split_once(first.content, "=") {
-        Error(_) -> False
-        Ok(#(before, _)) -> {
-          let before = string.trim(before)
-          !string.contains(before, " ") && before != ""
-        }
-      }
-    }
-    _ -> False
-  }
-}
-
-fn writerly_to_output_lines_internal(
-  t: Writerly,
-  indentation: Int,
-  annotate_blames: Bool,
-  rgxs: OurRegexes,
-) -> List(OutputLine) {
-  case t {
-    BlankLine(blame) -> [OutputLine(blame, 0, "")]
-
-    Paragraph(_, lines) ->
-      lines
-      |> add_escapes_in_lines(rgxs.requires_bol_te_escape)
-      |> lines_to_output_lines(indentation)
-
-    Comment(_, lines) ->
-      lines
-      |> list.map(fn(l) {Line(..l, content: "!!" <> l.content)})
-      |> lines_to_output_lines(indentation)
-
-    CodeBlock(blame, attrs, lines) -> {
-      list.flatten([
-        [
-          OutputLine(blame, indentation, "```" <> reassemble_code_block_info(attrs)),
-        ],
-        lines
-        |> add_escapes_in_lines(rgxs.requires_bol_cb_escape)
-        |> lines_to_output_lines(indentation),
-        [
-          OutputLine(
-            case annotate_blames {
-              False -> blame
-              True -> blame |> pc("CodeBlock end")
-            },
-            indentation,
-            "```",
-          ),
-        ],
-      ])
-    }
-
-    Tag(blame, tag, attrs, children) -> {
-      let tag_line = OutputLine(blame, indentation, "|> " <> tag)
-      let attr_lines =
-        attrs_to_output_lines(attrs, indentation + 4)
-      let children_lines =
-        children
-        |> list.map(writerly_to_output_lines_internal(_, indentation + 4, annotate_blames, rgxs))
-        |> list.flatten
-      let buffer_lines = case first_child_is_blurb_and_first_line_of_blurb_could_be_read_as_attr_value_pair(children) {
-        True -> {
-          let blame = case annotate_blames {
-            False -> blame |> bl.clear_comments
-            True -> blame |> bl.clear_comments |> pc("(a-b separation line)")
-          }
-          [OutputLine(blame, 0, "")]
-        }
-        False -> []
-      }
-      list.flatten([[tag_line], attr_lines, buffer_lines, children_lines])
-    }
-  }
-}
-
-// ************************************************************
-// Writerly -> output lines api
-// ************************************************************
-
-pub fn writerly_to_output_lines(
-  writerly: Writerly,
-) -> List(OutputLine) {
-  let rgxs = our_regexes()
-  writerly
-  |> writerly_to_output_lines_internal(0, False, rgxs)
-}
-
-pub fn writerlys_to_output_lines(
-  writerlys: List(Writerly),
-) -> List(OutputLine) {
-  writerlys
-  |> list.map(writerly_to_output_lines)
-  |> list.flatten
-}
-
-// ************************************************************
-// Writerly -> String api
-// ************************************************************
-
-pub fn writerly_to_string(writerly: Writerly) -> String {
-  writerly
-  |> writerly_to_output_lines()
-  |> io_l.output_lines_to_string
-}
-
-pub fn writerlys_to_string(
-  writerlys: List(Writerly),
-) -> String {
-  writerlys
-  |> writerlys_to_output_lines()
-  |> io_l.output_lines_to_string
-}
-
-// ************************************************************
-// echo_writerly api
-// ************************************************************
-
-pub fn writerly_table(writerly: Writerly, banner: String, indent: Int) -> String {
-  let rgxs = our_regexes()
-  writerly
-  |> writerly_annotate_blames
-  |> writerly_to_output_lines_internal(0, True, rgxs)
-  |> io_l.output_lines_table(banner, indent)
-}
-
-// ************************************************************
+// PART 3
+//
 // Writerly -> VXML
+//
+// pub fn writerly_to_vxml
 // ************************************************************
 
 const writerly_blank_line_vxml_tag = "WriterlyBlankLine"
@@ -965,252 +881,13 @@ pub fn writerlys_to_vxmls(
 }
 
 // ************************************************************
-// assemble_input_lines internals
-// ************************************************************
-
-fn file_is_not_commented(path: String) -> Bool {
-  !{ string.contains(path, "/#") || string.starts_with(path, "#") }
-}
-
-fn is_parent(path: String) -> Bool {
-  path == "__parent.wly" || string.ends_with(path, "/__parent.wly")
-}
-
-fn file_is_selected_or_has_selected_descendant(
-  path_selectors: List(String),
-  path: String,
-  all_paths: List(String),
-) -> Bool {
-  path_selectors == []
-  || list.any(path_selectors, string.contains(path, _))
-  || {
-    is_parent(path) && {
-      let prefix = path |> string.drop_end(string.length("__parent.wly"))
-      list.any(
-        all_paths,
-        fn (x) {
-          string.starts_with(x, prefix) &&
-          list.any(path_selectors, string.contains(x, _))
-        }
-      )
-    }
-  }
-}
-
-fn shortname_for_blame(path: String, dirname: String) -> String {
-  assert string.starts_with(path, dirname)
-  let length_to_drop = case string.ends_with(dirname, "/") || dirname == "" {
-    True -> string.length(dirname)
-    False -> string.length(dirname) + 1
-  }
-  string.drop_start(path, length_to_drop)
-}
-
-fn input_lines_for_file_at_depth(
-  dirname: String,
-  path: String,
-  depth: Int,
-) -> Result(List(InputLine), AssemblyError) {
-  let shortname = shortname_for_blame(path, dirname)
-  case shortname == "" {
-    True ->
-      panic as {
-        "no shortname left after removing dirname '"
-        <> dirname
-        <> "' from path '"
-        <> path
-        <> "'"
-      }
-    False -> shortname
-  }
-
-  case simplifile.read(path) {
-    Ok(string) -> {
-      Ok(io_l.string_to_input_lines(string, shortname, 4 * depth))
-    }
-    Error(_) -> {
-      Error(ReadFileError(path))
-    }
-  }
-}
-
-fn path_2_dir_and_filename(path: String) -> #(String, String) {
-  let reversed_path = path |> string.reverse
-  let #(reversed_filename, reversed_dir) =
-    reversed_path
-    |> string.split_once("/")
-    |> result.unwrap(#(reversed_path, ""))
-  #(reversed_dir |> string.reverse, reversed_filename |> string.reverse)
-}
-
-fn dir_and_filename_2_path(dir: String, path: String) -> String {
-  case dir {
-    "" -> path
-    _ -> dir <> "/" <> path
-  }
-}
-
-fn drop_slash(s: String) {
-  case string.ends_with(s, "/") {
-    True -> string.drop_end(s, 1)
-    False -> string.drop_end(s, 0)
-  }
-}
-
-fn get_dirname_and_relative_paths_of_uncommented_wly_in_dir(
-  dirpath_or_filepath: String,
-) -> Result(#(String, List(String)), AssemblyError) {
-  use #(dirname, fullpaths_including_dirname) <- on.ok(
-    case simplifile.get_files(dirpath_or_filepath) {
-      Ok(files) -> {
-        Ok(#(dirpath_or_filepath |> drop_slash, files))
-      }
-      Error(simplifile.Enotdir) -> {
-        let #(dirname, filepath) = dirpath_or_filepath |> path_2_dir_and_filename
-        Ok(#(dirname, [dir_and_filename_2_path(dirname, filepath)]))
-      }
-      Error(error) -> Error(
-        ReadFileOrDirectoryError("error accessing dirpath_or_filepath:"  <> dirpath_or_filepath  <> ", " <> ins(error))
-      )
-    }
-  )
-
-  assert !string.ends_with(dirname, "/")
-  let dirname_length = string.length(dirname)
-  let relative_filepaths =
-    fullpaths_including_dirname
-    |> list.filter(string.ends_with(_, ".wly"))
-    |> list.filter(file_is_not_commented)
-    |> list.map(fn(path) {
-      let path = string.drop_start(path, dirname_length)
-      assert string.starts_with(path, "/")
-      string.drop_start(path, 1)
-    })
-
-  Ok(#(dirname, relative_filepaths))
-}
-
-fn input_lines_for_dirtree_at_depth(
-  original_dirname: String,
-  acc: String,
-  tree: DirTree,
-  depth: Int,
-) -> Result(List(InputLine), AssemblyError) {
-  case tree {
-    dt.Filepath(path) -> {
-      assert string.ends_with(path, ".wly")
-      input_lines_for_file_at_depth(
-        original_dirname,
-        dir_and_filename_2_path(acc, path),
-        depth,
-      )
-    }
-
-    dt.Dirpath(path, contents) -> {
-      let assert [first, ..rest] = contents
-      use first_lines <- on.ok({
-        input_lines_for_dirtree_at_depth(
-          original_dirname,
-          dir_and_filename_2_path(acc, path),
-          first,
-          depth,
-        )
-      })
-      let depth = case first {
-        dt.Filepath("__parent.wly") -> depth + 1
-        _ -> depth
-      }
-      use lines_of_rest <- on.ok(
-        list.try_map(
-          rest,
-          fn(subtree) {
-            input_lines_for_dirtree_at_depth(
-              original_dirname,
-              dir_and_filename_2_path(acc, path),
-              subtree,
-              depth,
-            )
-          }
-        )
-      )
-      [
-        first_lines,
-        ..lines_of_rest,
-      ]
-      |> list.flatten
-      |> Ok
-    }
-  }
-}
-
-pub fn assemble_input_lines_advanced_mode(
-  dirpath_or_filepath: String,
-  path_selectors: List(String),
-) -> Result(#(DirTree, List(InputLine)), AssemblyError) {
-  use #(dirname, paths) <- on.ok(
-    get_dirname_and_relative_paths_of_uncommented_wly_in_dir(dirpath_or_filepath)
-  )
-
-  use _, _ <- on.empty_nonempty(
-    paths,
-    Error(NoFilesFound("no files found in: " <> dirpath_or_filepath)),
-  )
-
-  let paths =
-    paths
-    |> list.filter(
-      file_is_selected_or_has_selected_descendant(path_selectors, _, paths),
-    )
-
-  let tree =
-    dt.from_terminals(dirname, paths)
-    |> dt.sort(fn(t1, t2) {
-      case t1, t2 {
-        dt.Filepath("__parent.wly"), _ -> order.Lt
-        _, dt.Filepath("__parent.wly") -> order.Gt
-        _, _ -> string.compare(t1.name, t2.name)
-      }
-    })
-
-  use lines <- on.ok(
-    input_lines_for_dirtree_at_depth(dirname, "", tree, 0)
-  )
-
-  Ok(#(tree, lines))
-}
-
-// ************************************************************
-// assemble_input_lines
-// ************************************************************
-
-pub fn assemble_input_lines(
-  dirpath_or_filepath: String,
-) -> Result(#(DirTree, List(InputLine)), AssemblyError) {
-  assemble_input_lines_advanced_mode(dirpath_or_filepath, [])
-}
-
-// ************************************************************
-// assemble_and_parse
-// ************************************************************
-
-pub fn assemble_and_parse(
-  dirpath_or_filepath: String,
-) -> Result(List(Writerly), AssemblyOrParseError) {
-  use #(_, assembled) <- on.error_ok(
-    assemble_input_lines(dirpath_or_filepath),
-    fn(e) { Error(AssemblyError(e)) },
-  )
-
-  use writerlys <- on.error_ok(
-    parse_input_lines(assembled),
-    fn(e) { Error(ParseError(e)) },
-  )
-
-  Ok(writerlys)
-}
-
-// ************************************************************
-// vxml to writerly (canonical transformation) (?)
+// PART 4
+//
+// VXML -> Writerly
+//
+// pub fn vxml_to_writerlys
+// pub fn vxmls_to_writerlys
+// pub fn vxml_to_writerly
 // ************************************************************
 
 fn is_whitespace(s: String) -> Bool {
@@ -1312,4 +989,233 @@ pub fn vxml_to_writerly(vxml: VXML) -> Result(Writerly, Nil) {
     [] -> Error(Nil)
     _ -> panic as "expecting 0 or 1 writerlys"
   }
+}
+
+// ************************************************************
+// PART 5-minus (annotating blames)
+//
+// Writerly -> Writerly
+//
+// pub fn annotawriterly_annotate_blames
+// ************************************************************
+
+pub fn writerly_annotate_blames(writerly: Writerly) -> Writerly {
+  case writerly {
+    BlankLine(blame) -> BlankLine(blame |> pc("BlankLine"))
+    Paragraph(blame, lines) ->
+      Paragraph(
+        blame |> pc("Blurb"),
+        list.index_map(lines, fn(line, i) {
+          Line(
+            line.blame
+              |> pc("Blurb > Line(" <> ins(i + 1) <> ")"),
+            line.content,
+          )
+        }),
+      )
+    Comment(blame, lines) ->
+      Comment(
+        blame |> pc("Comment"),
+        list.index_map(lines, fn(line, i) {
+          Line(
+            line.blame
+              |> pc("Comment > Line(" <> ins(i + 1) <> ")"),
+            line.content,
+          )
+        }),
+      )
+    CodeBlock(blame, attrs, lines) -> {
+      let info = reassemble_code_block_info(attrs)
+      CodeBlock(
+        blame |> pc("CodeBlock:" <> info),
+        attrs,
+        list.index_map(lines, fn(line, i) {
+          Line(
+            line.blame
+              |> pc("CodeBlock > Line(" <> ins(i + 1) <> ")"),
+            line.content,
+          )
+        }),
+      )
+    }
+    Tag(blame, tag, attrs, children) ->
+      Tag(
+        blame |> pc("Tag"),
+        tag,
+        list.index_map(attrs, fn(attr, i) {
+          Attr(
+            attr.blame |> pc("Tag > Attr(" <> ins(i + 1) <> ")"),
+            attr.key,
+            attr.val,
+          )
+        }),
+        children
+          |> list.map(writerly_annotate_blames),
+      )
+  }
+}
+
+// ************************************************************
+// API PART 5 (emitting to OutputLine & String)
+//
+// Writerly -> List(OutputLine)
+// List(Writerly) -> List(OutputLine)
+// Writerly -> String
+// List(Writerly) -> String
+//
+// pub fn writerly_to_output_lines
+// pub fn writerlys_to_output_lines
+// pub fn writerly_to_string
+// pub fn writerlys_to_string
+// pub fn writerly_table
+// ************************************************************
+
+fn line_to_output_line(
+  line: Line,
+  indentation: Int,
+) -> OutputLine {
+  OutputLine(line.blame, indentation, line.content)
+}
+
+fn lines_to_output_lines(
+  lines: List(Line),
+  indentation: Int,
+) -> List(OutputLine) {
+  lines
+  |> list.map(line_to_output_line(_, indentation))
+}
+
+fn attr_to_output_line(
+  attr: Attr,
+  indentation: Int,
+) -> OutputLine {
+  OutputLine(
+    attr.blame,
+    indentation,
+    attr.key <> "=" <> attr.val,
+  )
+}
+
+fn attrs_to_output_lines(
+  attrs: List(Attr),
+  indentation: Int,
+) -> List(OutputLine) {
+  attrs |> list.map(attr_to_output_line(_, indentation))
+}
+
+fn first_child_is_blurb_and_first_line_of_blurb_could_be_read_as_attr_value_pair(nodes: List(Writerly)) -> Bool {
+  case nodes {
+    [Paragraph(_, lines), ..] -> {
+      let assert [first, ..] = lines
+      case string.split_once(first.content, "=") {
+        Error(_) -> False
+        Ok(#(before, _)) -> {
+          let before = string.trim(before)
+          !string.contains(before, " ") && before != ""
+        }
+      }
+    }
+    _ -> False
+  }
+}
+
+fn writerly_to_output_lines_internal(
+  t: Writerly,
+  indentation: Int,
+  annotate_blames: Bool,
+  rgxs: OurRegexes,
+) -> List(OutputLine) {
+  case t {
+    BlankLine(blame) -> [OutputLine(blame, 0, "")]
+
+    Paragraph(_, lines) ->
+      lines
+      |> add_escapes_in_lines(rgxs.requires_bol_te_escape)
+      |> lines_to_output_lines(indentation)
+
+    Comment(_, lines) ->
+      lines
+      |> list.map(fn(l) {Line(..l, content: "!!" <> l.content)})
+      |> lines_to_output_lines(indentation)
+
+    CodeBlock(blame, attrs, lines) -> {
+      list.flatten([
+        [
+          OutputLine(blame, indentation, "```" <> reassemble_code_block_info(attrs)),
+        ],
+        lines
+        |> add_escapes_in_lines(rgxs.requires_bol_cb_escape)
+        |> lines_to_output_lines(indentation),
+        [
+          OutputLine(
+            case annotate_blames {
+              False -> blame
+              True -> blame |> pc("CodeBlock end")
+            },
+            indentation,
+            "```",
+          ),
+        ],
+      ])
+    }
+
+    Tag(blame, tag, attrs, children) -> {
+      let tag_line = OutputLine(blame, indentation, "|> " <> tag)
+      let attr_lines =
+        attrs_to_output_lines(attrs, indentation + 4)
+      let children_lines =
+        children
+        |> list.map(writerly_to_output_lines_internal(_, indentation + 4, annotate_blames, rgxs))
+        |> list.flatten
+      let buffer_lines = case first_child_is_blurb_and_first_line_of_blurb_could_be_read_as_attr_value_pair(children) {
+        True -> {
+          let blame = case annotate_blames {
+            False -> blame |> bl.clear_comments
+            True -> blame |> bl.clear_comments |> pc("(a-b separation line)")
+          }
+          [OutputLine(blame, 0, "")]
+        }
+        False -> []
+      }
+      list.flatten([[tag_line], attr_lines, buffer_lines, children_lines])
+    }
+  }
+}
+
+pub fn writerly_to_output_lines(
+  writerly: Writerly,
+) -> List(OutputLine) {
+  let rgxs = our_regexes()
+  writerly
+  |> writerly_to_output_lines_internal(0, False, rgxs)
+}
+
+pub fn writerlys_to_output_lines(
+  writerlys: List(Writerly),
+) -> List(OutputLine) {
+  writerlys
+  |> list.map(writerly_to_output_lines)
+  |> list.flatten
+}
+
+pub fn writerly_to_string(writerly: Writerly) -> String {
+  writerly
+  |> writerly_to_output_lines()
+  |> io_l.output_lines_to_string
+}
+
+pub fn writerlys_to_string(
+  writerlys: List(Writerly),
+) -> String {
+  writerlys
+  |> writerlys_to_output_lines()
+  |> io_l.output_lines_to_string
+}
+
+pub fn writerly_table(writerly: Writerly, banner: String, indent: Int) -> String {
+  let rgxs = our_regexes()
+  writerly
+  |> writerly_annotate_blames
+  |> writerly_to_output_lines_internal(0, True, rgxs)
+  |> io_l.output_lines_table(banner, indent)
 }

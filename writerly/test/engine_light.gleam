@@ -14,7 +14,7 @@ fn contents_test() -> Result(Nil, String) {
   let dirname = "samples/contents/ch5_ch.wly"
 
   use #(tree, lines) <- on.error_ok(
-    wl.assemble_input_lines(dirname),
+    wl.assemble_input_lines(dirname, []),
     fn(e) { Error("CONTENTS_TEST ERROR: AssemblyError: " <> ins(e)) }
   )
 
