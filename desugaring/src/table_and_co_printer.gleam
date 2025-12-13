@@ -100,11 +100,25 @@ pub fn three_column_table(
 ) -> List(String) {
   let maxes = three_column_maxes(lines)
   let padding = #(1, 2, 1)
+  let total_width = maxes.0 + maxes.1 + maxes.2 + padding.0 + padding.1 + padding.2 + 7
   let one_line = fn(cols: #(String, String, String)) -> String {
-    "│ " <> cols.0 <> spaces(maxes.0 - string.length(cols.0) + padding.0) <>
-    "│ " <> cols.1 <> spaces(maxes.1 - string.length(cols.1) + padding.1) <>
-    "│ " <> cols.2 <> spaces(maxes.2 - string.length(cols.2) + padding.2) <>
-    "│"
+    case string.starts_with(cols.1, "table_marker") {
+      True -> {
+        let block = "er%%%%%%%%%%%%%%%%%dl.table_mark"
+        // let block = "████dl.tmable_marker█████████"
+        let block_length = block |> string.length
+        let num_blocks = { total_width + block_length - 1 } / block_length
+        block
+        |> string.repeat(num_blocks)
+        |> string.drop_end(num_blocks * block_length - total_width)
+      }
+      False -> {
+        "│ " <> cols.0 <> spaces(maxes.0 - string.length(cols.0) + padding.0) <>
+        "│ " <> cols.1 <> spaces(maxes.1 - string.length(cols.1) + padding.1) <>
+        "│ " <> cols.2 <> spaces(maxes.2 - string.length(cols.2) + padding.2) <>
+        "│"
+      }
+    }
   }
   let sds = #(
     solid_dashes(maxes.0 + padding.0),
@@ -156,9 +170,12 @@ pub fn four_column_table(
   let one_line = fn(tuple: #(String, String, String, String), index: Int) -> String {
     case string.starts_with(tuple.1, "table_marker") {
       True -> {
-        let starter = string.repeat("er█████████████dl.table_mark", total_width / 10)
-        let starter_length = string.length(starter)
-        starter |> string.drop_start(starter_length - total_width)
+        let block = "er%%%%%%%%%%%%%%%%%dl.table_mark"
+        let block_length = block |> string.length
+        let num_blocks = { total_width + block_length - 1 } / block_length
+        block
+        |> string.repeat(num_blocks)
+        |> string.drop_end(num_blocks * block_length - total_width)
       }
       False -> {
         "│ " <> tuple.0 <> spaces(maxes.0 - string.length(tuple.0) + padding.0) <>
