@@ -120,9 +120,9 @@ fn process_string(
   counters: CounterDict,
   inner: InnerParam,
 ) -> Result(#(String, CounterDict), DesugaringError) {
-  use <- on.false_true(
-    string.contains(content, "::") || string.contains(content, ".."),
-    Ok(#(content, counters)),
+  use <- on.lazy_true_false(
+    content == "",
+    fn() { Ok(#("", counters)) },
   )
   let splits = regexp.split(inner, content)
   use #(strings, counters) <- on.ok(
