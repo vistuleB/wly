@@ -180,7 +180,7 @@ fn parse_attributes_at_indent(
   Ok(#(attrs, after))
 }
 
-pub fn parse_nodes_at_indent(
+fn parse_nodes_at_indent(
   indent: Int,
   head: FileHead,
 ) -> Result(#(List(VXML), FileHead), VXMLParseError) {
@@ -216,8 +216,8 @@ pub fn parse_nodes_at_indent(
 
   let tag = suffix |> string.drop_start(2) |> string.trim
 
-  // text node
   case tag {
+    // text node
     "" -> {
       use #(lines, after) <- on.ok(parse_text_lines_at_indent(indent + vxml_indent, rest))
       case lines {
@@ -229,6 +229,7 @@ pub fn parse_nodes_at_indent(
         }
       }
     }
+    // tag
     _ -> {
       use _ <- on.error_ok(
         validate_tag(tag),
@@ -236,7 +237,7 @@ pub fn parse_nodes_at_indent(
       )
       use #(attrs, after) <- on.ok(parse_attributes_at_indent(indent + vxml_indent, rest))
       use #(children, after) <- on.ok(parse_nodes_at_indent(indent + vxml_indent, after))
-      let node = V(blame, tag, attrs, children)
+      let node = V(blame |> bl.set_proxy, tag, attrs, children)
       use #(nodes, after) <- on.ok(parse_nodes_at_indent(indent, after))
       Ok(#([node, ..nodes], after))
     }

@@ -42,7 +42,6 @@ pub type Writerly {
 }
 
 pub type ParseError {
-  TagEmpty(blame: Blame)
   BadTag(blame: Blame, bad_name: String)
   BadKey(blame: Blame, bad_key: String)
   IndentationTooLarge(blame: Blame, line: String)
@@ -337,7 +336,7 @@ fn nonempty_suffix_encounter(
   suffix: String,
 ) -> Encounter {
   case suffix {
-    "|>" <> _ -> EncounteredTagLine(blame, suffix)
+    "|>" <> _ -> EncounteredTagLine(blame |> bl.set_proxy, suffix)
     "!!" <> _ -> EncounteredCommentLine(blame, suffix)
     "```" <> _ -> EncounteredCodeFence(blame, suffix)
     _ -> EncounteredTextLine(blame, suffix)
@@ -876,8 +875,7 @@ pub fn writerly_to_vxml(t: Writerly) -> VXML {
 pub fn writerlys_to_vxmls(
   writerlys: List(Writerly)
 ) -> List(VXML) {
-  writerlys
-  |> list.map(writerly_to_vxml)
+  writerlys |> list.map(writerly_to_vxml)
 }
 
 // ************************************************************

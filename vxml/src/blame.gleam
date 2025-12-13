@@ -75,6 +75,13 @@ pub fn advance(blame: Blame, by: Int) -> Blame {
   }
 }
 
+pub fn set_proxy(blame: Blame) -> Blame {
+  case blame {
+    Src(..) -> Src(..blame, proxy: True)
+    _ -> blame
+  }
+}
+
 pub fn blame_digest(blame: Blame) -> String {
   case blame {
     Src(_, path, line_no, char_no, proxy) -> {
