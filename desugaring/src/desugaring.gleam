@@ -32,10 +32,6 @@ import dirtree.{type DirTree} as dt
 pub type Assembler(a) =
   fn(String) -> Result(#(List(InputLine), Option(DirTree)), a)    // the 'List(String)' is a feedback/success message on assembly
 
-pub type AssemblerDebugOptions {
-  AssemblerDebugOptions(echo_: Bool)
-}
-
 // 🌅🌅🌅🌅🌅🌅🌅🌅🌅🌅🌅🌅🌅🌅🌅
 // 🌅 default assembler~~ 🌅
 // 🌅🌅🌅🌅🌅🌅🌅🌅🌅🌅🌅🌅🌅🌅🌅
@@ -67,10 +63,6 @@ pub fn default_other_files_assembler(
 
 pub type Parser(c) =
   fn(List(InputLine)) -> Result(VXML, #(Blame, c))
-
-pub type ParserDebugOptions {
-  ParserDebugOptions(echo_: Bool)
-}
 
 // 🌅🌅🌅🌅🌅🌅🌅🌅🌅🌅🌅🌅🌅🌅🌅🌅🌅🌅🌅🌅
 // 🌅 default Writerly parser~~~~ 🌅
@@ -130,12 +122,12 @@ pub const default_html_parser = default_xml_parser
 
 const default_times_table_char_width = 90 // MacBook 16' can take 140
 
-pub type PipelineDebugOptions {
-  PipelineDebugOptions(
-    times: Option(Int), // the 'Int' gives width of timing table
-    interactive_mode: Bool,
-  )
-}
+// pub type PipelineDebugOptions {
+//   PipelineDebugOptions(
+//     times: Option(Int), // the 'Int' gives width of timing table
+//     interactive_mode: Bool,
+//   )
+// }
 
 // ************************************************************
 // Splitter(d, e)                                              // 'd' is fragment classifier type, 'e' is splitter error type
@@ -148,10 +140,6 @@ pub type OutputFragment(d, z) {                  // 'd' is fragment classifier t
 
 pub type Splitter(d, e) =
   fn(VXML) -> Result(List(OutputFragment(d, VXML)), e)
-
-pub type SplitterDebugOptions(d) {
-  SplitterDebugOptions(echo_: fn(OutputFragment(d, VXML)) -> Bool)
-}
 
 // 🌅🌅🌅🌅🌅🌅🌅🌅🌅🌅🌅🌅🌅🌅🌅
 // 🌅 stub splitter~~~~~~ 🌅
@@ -174,12 +162,6 @@ pub fn stub_splitter(suffix: String) -> Splitter(Nil, Nil) {
 
 pub type Emitter(d, f) =
   fn(OutputFragment(d, VXML)) -> Result(OutputFragment(d, List(OutputLine)), f)
-
-pub type EmitterDebugOptions(d) {
-  EmitterDebugOptions(
-    echo_: fn(OutputFragment(d, List(OutputLine))) -> Bool,
-  )
-}
 
 // 🌅🌅🌅🌅🌅🌅🌅🌅🌅🌅🌅🌅🌅🌅🌅🌅🌅🌅🌅🌅
 // 🌅 default Writerly emitter~~~ 🌅
@@ -266,10 +248,6 @@ pub fn stub_jsx_emitter(
 pub type Writer(d, g) =
   fn(String, OutputFragment(d, String)) -> Result(GhostOfOutputFragment(d), g)
 
-pub type WriterDebugOptions(d) {
-  WriterDebugOptions(echo_: fn(OutputFragment(d, String)) -> Bool)
-}
-
 // 🌅🌅🌅🌅🌅🌅🌅🌅🌅🌅🌅🌅🌅🌅🌅
 // 🌅 default writer~~~~~ 🌅
 // 🌅🌅🌅🌅🌅🌅🌅🌅🌅🌅🌅🌅🌅🌅🌅
@@ -315,10 +293,6 @@ pub type GhostOfOutputFragment(d) {
 
 pub type Prettifier(d, h) =
   fn(String, GhostOfOutputFragment(d), Option(String)) -> Result(String, h)
-
-pub type PrettifierDebugOptions(d) {
-  PrettifierDebugOptions(echo_: fn(GhostOfOutputFragment(d)) -> Bool)
-}
 
 // 🌅🌅🌅🌅🌅🌅🌅🌅🌅🌅🌅🌅🌅🌅🌅
 // 🌅 default prettifier~ 🌅
@@ -397,13 +371,13 @@ pub type Renderer(
   h, // Prettifier error type
 ) {
   Renderer(
-    assembler: Assembler(a),             // file/directory -> List(InputLine)                                    Result w/ error type a
-    parser: Parser(c),                   // List(InputLine) -> VXML                                              Result w/ error type c
-    pipeline: Pipeline,                  // VXML -> ... -> VXML                                                  Result w/ error type InSituDesugaringError
-    splitter: Splitter(d, e),            // VXML -> List(OutputFragment(d, VXML))                                Result w/ error type e
-    emitter: Emitter(d, f),              // OutputFragment(d, VXML) -> OutputFragment(d, String)                 Result w/ error type f
-    writer: Writer(d, g),                // output_dir, OutputFragment(d, String) -> GhostOfOutputFragment(d)    Result w/ error type g
-    prettifier: Prettifier(d, h),        // output_dir, GhostOfOutputFragment(d), Option(prettifier_dir) -> Nil  Result w/ error type h
+    assembler: Assembler(a),          // file/directory -> List(InputLine)                                    Result w/ error type a
+    parser: Parser(c),                // List(InputLine) -> VXML                                              Result w/ error type c
+    pipeline: Pipeline,               // VXML -> ... -> VXML                                                  Result w/ error type InSituDesugaringError
+    splitter: Splitter(d, e),         // VXML -> List(OutputFragment(d, VXML))                                Result w/ error type e
+    emitter: Emitter(d, f),           // OutputFragment(d, VXML) -> OutputFragment(d, String)                 Result w/ error type f
+    writer: Writer(d, g),             // output_dir, OutputFragment(d, String) -> GhostOfOutputFragment(d)    Result w/ error type g
+    prettifier: Prettifier(d, h),     // output_dir, GhostOfOutputFragment(d), Option(prettifier_dir) -> Nil  Result w/ error type h
   )
 }
 
@@ -419,72 +393,101 @@ pub type PrettifierMode {
 
 pub type RendererParameters {
   RendererParameters(
-    table: Bool,
     input_dir: String,
     output_dir: String,
     prettifier_behavior: PrettifierMode,
+  )
+}
+
+pub type RendererOptions(d) {
+  RendererOptions(
     verbose: Bool,
-    warnings: Bool,
+    steps_table: Bool,
+    profiling_table: Option(Int),
+    interactive_mode: Bool,
+    suppress_warnings: Bool,
+    echo_assembled_lines: Bool,
+    echo_parsed_vxml: Bool,
+    echo_vxml_fragments: fn(OutputFragment(d, VXML)) -> Bool,
+    echo_output_lines_fragments: fn(OutputFragment(d, List(OutputLine))) -> Bool,
+    echo_string_fragments: fn(OutputFragment(d, String)) -> Bool,
+    echo_prettified_fragments: fn(GhostOfOutputFragment(d)) -> Bool,
   )
 }
 
-// ************************************************************
-// RendererDebugOptions(d)                                     // 'd' is fragment classifier type
-// ************************************************************
+// // ************************************************************
+// // RendererDebugOptions(d)                                     // 'd' is fragment classifier type
+// // ************************************************************
 
-pub type RendererDebugOptions(d) {
-  RendererDebugOptions(
-    assembler_debug_options: AssemblerDebugOptions,
-    parser_debug_options: ParserDebugOptions,
-    pipeline_debug_options: PipelineDebugOptions,
-    splitter_debug_options: SplitterDebugOptions(d),
-    emitter_debug_options: EmitterDebugOptions(d),
-    writer_debug_options: WriterDebugOptions(d),
-    prettifier_debug_options: PrettifierDebugOptions(d),
-  )
-}
+// pub type RendererDebugOptions(d) {
+//   RendererDebugOptions(
+//     assembler_debug_options: AssemblerDebugOptions,
+//     parser_debug_options: ParserDebugOptions,
+//     pipeline_debug_options: PipelineDebugOptions,
+//     splitter_debug_options: SplitterDebugOptions(d),
+//     emitter_debug_options: EmitterDebugOptions(d),
+//     writer_debug_options: WriterDebugOptions(d),
+//     prettifier_debug_options: PrettifierDebugOptions(d),
+//   )
+// }
 
 // ************************************************************
 // empty (default) RendererDebugOptions
 // ************************************************************
 
-pub fn empty_assembler_debug_options() -> AssemblerDebugOptions {
-  AssemblerDebugOptions(echo_: False)
-}
+// pub fn empty_assembler_debug_options() -> AssemblerDebugOptions {
+//   AssemblerDebugOptions(echo_: False)
+// }
 
-pub fn empty_parser_debug_options() -> ParserDebugOptions {
-  ParserDebugOptions(echo_: False)
-}
+// pub fn empty_parser_debug_options() -> ParserDebugOptions {
+//   ParserDebugOptions(echo_: False)
+// }
 
-pub fn empty_pipeline_debug_options() -> PipelineDebugOptions {
-  PipelineDebugOptions(times: None, interactive_mode: False)
-}
+// pub fn empty_pipeline_debug_options() -> PipelineDebugOptions {
+//   PipelineDebugOptions(times: None, interactive_mode: False)
+// }
 
-pub fn empty_splitter_debug_options() -> SplitterDebugOptions(d) {
-  SplitterDebugOptions(echo_: fn(_fr) { False })
-}
+// pub fn empty_splitter_debug_options() -> SplitterDebugOptions(d) {
+//   SplitterDebugOptions(echo_: fn(_fr) { False })
+// }
 
-pub fn empty_emitter_debug_options() -> EmitterDebugOptions(d) {
-  EmitterDebugOptions(echo_: fn(_fr) { False })
-}
+// pub fn empty_emitter_debug_options() -> EmitterDebugOptions(d) {
+//   EmitterDebugOptions(echo_: fn(_fr) { False })
+// }
 
-pub fn empty_writer_debug_options() -> WriterDebugOptions(d) {
-  WriterDebugOptions(echo_: fn(_fr) { False })
-}
+// pub fn empty_writer_debug_options() -> WriterDebugOptions(d) {
+//   WriterDebugOptions(echo_: fn(_fr) { False })
+// }
 
-pub fn empty_prettifier_debug_options() -> PrettifierDebugOptions(d) {
-  PrettifierDebugOptions(echo_: fn(_fr) { False })
-}
+// pub fn empty_prettifier_debug_options() -> PrettifierDebugOptions(d) {
+//   PrettifierDebugOptions(echo_: fn(_fr) { False })
+// }
 
-pub fn default_renderer_debug_options() -> RendererDebugOptions(d) {
-  RendererDebugOptions(
-    assembler_debug_options: empty_assembler_debug_options(),
-    parser_debug_options: empty_parser_debug_options(),
-    pipeline_debug_options: empty_pipeline_debug_options(),
-    splitter_debug_options: empty_splitter_debug_options(),
-    emitter_debug_options: empty_emitter_debug_options(),
-    writer_debug_options: empty_writer_debug_options(),
-    prettifier_debug_options: empty_prettifier_debug_options(),
+// pub fn default_renderer_debug_options() -> RendererDebugOptions(d) {
+//   RendererDebugOptions(
+//     assembler_debug_options: empty_assembler_debug_options(),
+//     parser_debug_options: empty_parser_debug_options(),
+//     pipeline_debug_options: empty_pipeline_debug_options(),
+//     splitter_debug_options: empty_splitter_debug_options(),
+//     emitter_debug_options: empty_emitter_debug_options(),
+//     writer_debug_options: empty_writer_debug_options(),
+//     prettifier_debug_options: empty_prettifier_debug_options(),
+//   )
+// }
+
+pub fn vanilla_options() -> RendererOptions(d) {
+  RendererOptions(
+    verbose: False,
+    steps_table: False,
+    profiling_table: None,
+    interactive_mode: False,
+    suppress_warnings: False,
+    echo_assembled_lines: False,
+    echo_parsed_vxml: False,
+    echo_vxml_fragments: fn (_) { False },
+    echo_output_lines_fragments: fn(_: OutputFragment(d, List(OutputLine))) { False },
+    echo_string_fragments: fn(_: OutputFragment(d, String)) { False },
+    echo_prettified_fragments: fn(_: GhostOfOutputFragment(d)) { False },
   )
 }
 
@@ -519,8 +522,8 @@ pub type CommandLineAmendments {
     echo_assembled: Bool,
     vxml_fragments_local_paths_to_echo: Option(List(String)),
     output_lines_fragments_local_paths_to_echo: Option(List(String)),
-    printed_string_fragments_local_paths_to_echo: Option(List(String)),
-    prettified_string_fragments_local_paths_to_echo: Option(List(String)),
+    string_fragments_local_paths_to_echo: Option(List(String)),
+    prettified_fragments_local_paths_to_echo: Option(List(String)),
     user_args: Dict(String, List(String)),
   )
 }
@@ -529,7 +532,7 @@ pub type CommandLineAmendments {
 // empty (default) CommandLineAmendments
 // ************************************************************
 
-pub fn empty_command_line_amendments() -> CommandLineAmendments {
+fn empty_command_line_amendments() -> CommandLineAmendments {
   CommandLineAmendments(
     help: False,
     input_dir: None,
@@ -547,8 +550,8 @@ pub fn empty_command_line_amendments() -> CommandLineAmendments {
     echo_assembled: False,
     vxml_fragments_local_paths_to_echo: None,
     output_lines_fragments_local_paths_to_echo: None,
-    printed_string_fragments_local_paths_to_echo: None,
-    prettified_string_fragments_local_paths_to_echo: None,
+    string_fragments_local_paths_to_echo: None,
+    prettified_fragments_local_paths_to_echo: None,
     user_args: dict.from_list([]),
   )
 }
@@ -1143,11 +1146,13 @@ fn parse_track_steps_args(
     parse_step_numbers(values)
   )
 
+  let #(with_enter, _) = infra.delete(values, "-i")
+
   Ok(PipelineTrackingModifier(
     selector: None,
     steps_with_tracking_on_change: restrict,
     steps_with_tracking_forced: force,
-    interactive_mode: False,
+    interactive_mode: with_enter,
   ))
 }
 
@@ -1219,17 +1224,14 @@ pub fn amend_renderer_paramaters_by_command_line_amendments(
   amendments: CommandLineAmendments,
 ) -> RendererParameters {
   RendererParameters(
-    table: option.unwrap(amendments.table, parameters.table),
     input_dir: option.unwrap(amendments.input_dir, parameters.input_dir),
     output_dir: option.unwrap(amendments.output_dir, parameters.output_dir),
     prettifier_behavior: option.unwrap(amendments.prettier, parameters.prettifier_behavior),
-    verbose: option.unwrap(amendments.verbose, parameters.verbose),
-    warnings: option.unwrap(amendments.warnings, parameters.warnings),
   )
 }
 
 // ************************************************************
-// RendererDebugOptions + CommandLineAmendments -> RendererDebugOptions
+// RendererOptions + CommandLineAmendments -> RendererOptions
 // ************************************************************
 
 fn exists_match(
@@ -1243,79 +1245,79 @@ fn exists_match(
   }
 }
 
-pub fn db_amend_assembler_debug_options(
-  _options: AssemblerDebugOptions,
-  amendments: CommandLineAmendments,
-) -> AssemblerDebugOptions {
-  AssemblerDebugOptions(
-    echo_: amendments.echo_assembled,
-  )
-}
+// pub fn db_amend_assembler_debug_options(
+//   _options: AssemblerDebugOptions,
+//   amendments: CommandLineAmendments,
+// ) -> AssemblerDebugOptions {
+//   AssemblerDebugOptions(
+//     echo_: amendments.echo_assembled,
+//   )
+// }
 
-pub fn db_amend_pipeline_debug_options(
-  options: PipelineDebugOptions,
-  amendments: CommandLineAmendments,
-) -> PipelineDebugOptions {
-  PipelineDebugOptions(
-    times: amendments.times,
-    interactive_mode: case amendments.track {
-      None -> options.interactive_mode
-      Some(track) -> track.interactive_mode
-    },
-  )
-}
+// pub fn db_amend_pipeline_debug_options(
+//   options: PipelineDebugOptions,
+//   amendments: CommandLineAmendments,
+// ) -> PipelineDebugOptions {
+//   PipelineDebugOptions(
+//     times: amendments.times,
+//     interactive_mode: case amendments.track {
+//       None -> options.interactive_mode
+//       Some(track) -> track.interactive_mode
+//     },
+//   )
+// }
 
-pub fn db_amend_splitter_debug_options(
-  previous: SplitterDebugOptions(d),
-  amendments: CommandLineAmendments,
-) -> SplitterDebugOptions(d) {
-  SplitterDebugOptions(echo_: fn(fr: OutputFragment(d, VXML)) {
-    previous.echo_(fr) ||
-    exists_match(
-      amendments.vxml_fragments_local_paths_to_echo,
-      string.contains(fr.path, _),
-    )
-  })
-}
+// pub fn db_amend_splitter_debug_options(
+//   previous: SplitterDebugOptions(d),
+//   amendments: CommandLineAmendments,
+// ) -> SplitterDebugOptions(d) {
+//   SplitterDebugOptions(echo_: fn(fr: OutputFragment(d, VXML)) {
+//     previous.echo_(fr) ||
+//     exists_match(
+//       amendments.vxml_fragments_local_paths_to_echo,
+//       string.contains(fr.path, _),
+//     )
+//   })
+// }
 
-pub fn db_amend_emitter_debug_options(
-  previous: EmitterDebugOptions(d),
-  amendments: CommandLineAmendments,
-) -> EmitterDebugOptions(d) {
-  EmitterDebugOptions(echo_: fn(fr: OutputFragment(d, List(OutputLine))) {
-    previous.echo_(fr) ||
-    exists_match(
-      amendments.output_lines_fragments_local_paths_to_echo,
-      string.contains(fr.path, _),
-    )
-  })
-}
+// pub fn db_amend_emitter_debug_options(
+//   previous: EmitterDebugOptions(d),
+//   amendments: CommandLineAmendments,
+// ) -> EmitterDebugOptions(d) {
+//   EmitterDebugOptions(echo_: fn(fr: OutputFragment(d, List(OutputLine))) {
+//     previous.echo_(fr) ||
+//     exists_match(
+//       amendments.output_lines_fragments_local_paths_to_echo,
+//       string.contains(fr.path, _),
+//     )
+//   })
+// }
 
-pub fn db_amend_printed_debug_options(
-  previous: WriterDebugOptions(d),
-  amendments: CommandLineAmendments,
-) -> WriterDebugOptions(d) {
-  WriterDebugOptions(fn(fr: OutputFragment(d, String)) {
-    previous.echo_(fr) ||
-    exists_match(
-      amendments.printed_string_fragments_local_paths_to_echo,
-      string.contains(fr.path, _),
-    )
-  })
-}
+// pub fn db_amend_printed_debug_options(
+//   previous: WriterDebugOptions(d),
+//   amendments: CommandLineAmendments,
+// ) -> WriterDebugOptions(d) {
+//   WriterDebugOptions(fn(fr: OutputFragment(d, String)) {
+//     previous.echo_(fr) ||
+//     exists_match(
+//       amendments.string_fragments_local_paths_to_echo,
+//       string.contains(fr.path, _),
+//     )
+//   })
+// }
 
-pub fn db_amend_prettifier_debug_options(
-  previous: PrettifierDebugOptions(d),
-  amendments: CommandLineAmendments,
-) -> PrettifierDebugOptions(d) {
-  PrettifierDebugOptions(fn(fr: GhostOfOutputFragment(d)) {
-    previous.echo_(fr) ||
-    exists_match(
-      amendments.prettified_string_fragments_local_paths_to_echo,
-      string.contains(fr.path, _),
-    )
-  })
-}
+// pub fn db_amend_prettifier_debug_options(
+//   previous: PrettifierDebugOptions(d),
+//   amendments: CommandLineAmendments,
+// ) -> PrettifierDebugOptions(d) {
+//   PrettifierDebugOptions(fn(fr: GhostOfOutputFragment(d)) {
+//     previous.echo_(fr) ||
+//     exists_match(
+//       amendments.prettified_fragments_local_paths_to_echo,
+//       string.contains(fr.path, _),
+//     )
+//   })
+// }
 
 pub fn amend_renderer_by_command_line_amendments(
   renderer: Renderer(a, c, d, e, f, g, h),
@@ -1332,36 +1334,71 @@ pub fn amend_renderer_by_command_line_amendments(
   )
 }
 
-pub fn amend_renderer_debug_options_by_command_line_amendments(
-  debug_options: RendererDebugOptions(d),
+  // CommandLineAmendments(
+  //   help: Bool,
+  //   input_dir: Option(String),
+  //   output_dir: Option(String),
+  //   only_paths: List(String),
+  //   only_key_values: List(#(String, String, String)),
+  //   prettier: Option(PrettifierMode),
+  //   track: Option(PipelineTrackingModifier),
+  //   peek: Option(List(Int)),
+  //   table: Option(Bool),
+  //   times: Option(Int),
+  //   verbose: Option(Bool),
+  //   warnings: Option(Bool),
+  //   timing: Option(Bool),
+  //   echo_assembled: Bool,
+  //   vxml_fragments_local_paths_to_echo: Option(List(String)),
+  //   output_lines_fragments_local_paths_to_echo: Option(List(String)),
+  //   string_fragments_local_paths_to_echo: Option(List(String)),
+  //   prettified_fragments_local_paths_to_echo: Option(List(String)),
+  //   user_args: Dict(String, List(String)),
+  // )
+
+pub fn amend_renderer_options_by_command_line_amendments(
+  options: RendererOptions(d),
   amendments: CommandLineAmendments,
-) -> RendererDebugOptions(d) {
-  RendererDebugOptions(
-    db_amend_assembler_debug_options(
-      debug_options.assembler_debug_options,
-      amendments,
-    ),
-    debug_options.parser_debug_options,
-    db_amend_pipeline_debug_options(
-      debug_options.pipeline_debug_options,
-      amendments,
-    ),
-    db_amend_splitter_debug_options(
-      debug_options.splitter_debug_options,
-      amendments,
-    ),
-    db_amend_emitter_debug_options(
-      debug_options.emitter_debug_options,
-      amendments,
-    ),
-    db_amend_printed_debug_options(
-      debug_options.writer_debug_options,
-      amendments,
-    ),
-    db_amend_prettifier_debug_options(
-      debug_options.prettifier_debug_options,
-      amendments,
-    ),
+) -> RendererOptions(d) {
+  RendererOptions(
+    verbose: option.unwrap(amendments.verbose, options.verbose),
+    steps_table: option.unwrap(amendments.table, options.steps_table),
+    profiling_table: option.or(amendments.times, options.profiling_table),
+    interactive_mode: {
+      options.interactive_mode ||
+      option.map(amendments.track, fn(x){x.interactive_mode}) |> option.unwrap(False)
+    },
+    suppress_warnings: !option.unwrap(amendments.warnings, !options.suppress_warnings),
+    echo_assembled_lines: amendments.echo_assembled || options.echo_assembled_lines,
+    echo_parsed_vxml: options.echo_parsed_vxml || { option.unwrap(amendments.peek, []) |> list.contains(0) },
+    echo_vxml_fragments: fn(fr: OutputFragment(d, VXML)) {
+      options.echo_vxml_fragments(fr) ||
+      exists_match(
+        amendments.vxml_fragments_local_paths_to_echo,
+        string.contains(fr.path, _),
+      )
+    },
+    echo_output_lines_fragments: fn(fr: OutputFragment(d, List(OutputLine))) {
+      options.echo_output_lines_fragments(fr) ||
+      exists_match(
+        amendments.output_lines_fragments_local_paths_to_echo,
+        string.contains(fr.path, _),
+      )
+    },
+    echo_string_fragments: fn(fr: OutputFragment(d, String)) {
+      options.echo_string_fragments(fr) ||
+      exists_match(
+        amendments.string_fragments_local_paths_to_echo,
+        string.contains(fr.path, _),
+      )
+    },
+    echo_prettified_fragments: fn(fr: GhostOfOutputFragment(d)) {
+      options.echo_prettified_fragments(fr) ||
+      exists_match(
+        amendments.prettified_fragments_local_paths_to_echo,
+        string.contains(fr.path, _),
+      )
+    },
   )
 }
 
@@ -1807,20 +1844,19 @@ fn durations(
 pub fn run_renderer(
   renderer: Renderer(a, c, d, e, f, g, h),
   parameters: RendererParameters,
-  debug_options: RendererDebugOptions(d),
+  options: RendererOptions(d),
 ) -> Result(Nil, RendererError(a, c, e, f, g, h)) {
   let parameters = sanitize_output_dir(parameters)
 
   let RendererParameters(
-    table,
     input_dir,
     output_dir,
     prettifier_mode,
-    verbose,
-    show_warnings,
+    // verbose,
+    // show_warnings,
   ) = parameters
 
-  case table {
+  case options.steps_table {
     True -> pr.print_pipeline(renderer.pipeline |> infra.pipeline_desugarers)
     False -> Nil
   }
@@ -1845,7 +1881,7 @@ pub fn run_renderer(
     },
   )
 
-  case verbose, tree {
+  case options.verbose, tree {
     True, Some(tree) -> {
       let spaces = 
         string.repeat(" ", string.length("  -> assembled "))
@@ -1862,7 +1898,7 @@ pub fn run_renderer(
     _, _ -> Nil
   }
 
-  case debug_options.assembler_debug_options.echo_ {
+  case options.echo_assembled_lines {
     False -> Nil
     True -> {
       assembled
@@ -1913,7 +1949,7 @@ pub fn run_renderer(
     run_pipeline(
       parsed,
       renderer.pipeline,
-      debug_options.pipeline_debug_options.interactive_mode,
+      options.interactive_mode,
     ),
     on_error: fn(e) {
       case e {
@@ -1951,7 +1987,7 @@ pub fn run_renderer(
   let seconds =
     timestamp.difference(t0, t1) |> duration.to_seconds |> float.to_precision(3)
 
-  case debug_options.pipeline_debug_options.times {
+  case options.profiling_table {
     None -> {
       io.println("  ..ended pipeline (" <> ins(seconds) <> "s)")
     }
@@ -2032,7 +2068,7 @@ pub fn run_renderer(
   let fragments_types_and_paths_4_table =
     list.map(fragments, fn(fr) { #(ins(fr.classifier), prefix <> fr.path) })
 
-  case verbose {
+  case options.verbose {
     False -> {
       io.println("  -> obtained " <> pr.how_many("fragment", "fragments", list.length(fragments)))
     }
@@ -2046,7 +2082,7 @@ pub fn run_renderer(
 
   fragments
   |> list.each(fn(fr) {
-    case debug_options.splitter_debug_options.echo_(fr) {
+    case options.echo_vxml_fragments(fr) {
       False -> Nil
       True -> {
         fr.payload
@@ -2074,7 +2110,7 @@ pub fn run_renderer(
     case result {
       Error(_) -> Nil
       Ok(fr) -> {
-        case debug_options.emitter_debug_options.echo_(fr) {
+        case options.echo_output_lines_fragments(fr) {
           False -> Nil
           True -> {
             fr.payload
@@ -2144,7 +2180,7 @@ pub fn run_renderer(
     case result {
       Error(_) -> Nil
       Ok(fr) -> {
-        case debug_options.writer_debug_options.echo_(fr) {
+        case options.echo_string_fragments(fr) {
           False -> Nil
           True -> {
             let header = "────────────────── writer echo: " <> fr.path <> " ──────────────────"
@@ -2170,7 +2206,7 @@ pub fn run_renderer(
         case renderer.writer(output_dir, fr) {
           Error(e) -> #(acc, Error(P2(e)))
           Ok(z) -> {
-            case verbose {
+            case options.verbose {
               False -> Nil
               True -> io.println("  wrote [" <> output_dir <> "/]" <> fr.path)
             }
@@ -2180,7 +2216,7 @@ pub fn run_renderer(
       }
     )
 
-  case verbose {
+  case options.verbose {
     False -> io.println("  -> wrote " <> ins(count) <> " files")
     True -> Nil
   }
@@ -2218,7 +2254,7 @@ pub fn run_renderer(
   fragments
   |> list.each(fn(result) {
     use fr <- on.error_ok(result, fn(_) { Nil })
-    case debug_options.prettifier_debug_options.echo_(fr) {
+    case options.echo_prettified_fragments(fr) {
       False -> Nil
       True -> {
         let path = output_dir <> "/" <> fr.path
@@ -2248,17 +2284,17 @@ pub fn run_renderer(
   case list.length(warnings) {
     0 -> Nil
     _ -> {
-      case show_warnings {
-        True ->
-          io.println("\n👉 " <> pr.how_many("warning", "warnings", list.length(warnings)) <> ":")
+      case options.suppress_warnings{
         False ->
+          io.println("\n👉 " <> pr.how_many("warning", "warnings", list.length(warnings)) <> ":")
+        True ->
           io.println("\n[" <> pr.how_many("suppressed warning", "suppressed warnings", list.length(warnings)) <> " (use '--warnings' option to see)]")
       }
     }
   }
 
-  case show_warnings {
-    True -> 
+  case options.suppress_warnings {
+    False -> 
       list.each(
         warnings,
         fn (w) {
@@ -2273,8 +2309,7 @@ pub fn run_renderer(
           |> pr.boxed_error_announcer("🚨", 2, #(1, 0))
         }
       )
-    False ->
-      Nil
+    True -> Nil
   }
 
   let #(_, errors) = result.partition(fragments)

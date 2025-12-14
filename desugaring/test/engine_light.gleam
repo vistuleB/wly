@@ -46,18 +46,15 @@ pub fn run_renderer_test() {
       input_dir: "samples/sample.wly",
       output_dir: "samples/output",
       prettifier_behavior: ds.PrettifierOff,
-      table: False,
-      verbose: False,
-      warnings: False,
     )
     |> ds.amend_renderer_paramaters_by_command_line_amendments(amendments)
 
 
-  let debug_options =
-    ds.default_renderer_debug_options()
-    |> ds.amend_renderer_debug_options_by_command_line_amendments(amendments)
+  let options =
+    ds.vanilla_options()
+    |> ds.amend_renderer_options_by_command_line_amendments(amendments)
 
-  let _ = ds.run_renderer(renderer, parameters, debug_options)
+  let _ = ds.run_renderer(renderer, parameters, options)
 
   Nil
 }
