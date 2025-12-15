@@ -325,7 +325,7 @@ pub fn turn_into_paragraph(
   )
   case string.split_once(current_end |> string.reverse, " ") {
     Ok(#(before, after)) -> [
-      current_start <> {after |> string.reverse},
+      current_start <> { after |> string.reverse },
       ..turn_into_paragraph(
         { before |> string.reverse } <> remaining,
         max_line_length
@@ -336,23 +336,6 @@ pub fn turn_into_paragraph(
       ..turn_into_paragraph(remaining, max_line_length)
     ]
   }
-}
-
-pub fn padded_error_paragraph(
-  message: String,
-  max_line_length: Int,
-  pad: String,
-) -> List(String) {
-  message
-  |> turn_into_paragraph(max_line_length)
-  |> list.index_map(
-    fn(s, i) {
-      case i > 0 {
-        False -> s
-        True -> pad <> s
-      }
-    }
-  )
 }
 
 pub fn strip_quotes(
@@ -387,19 +370,6 @@ fn desugarer_to_list_lines(
 ) -> List(#(String, String, String, String)) {
   let number = ins(index + 1) <> "."
   let name = desugarer.name
-  // use <- on.lazy_true_false(
-  //   name == "table_marker",
-  //   on_true: fn() {
-  //     [
-  //       #(
-  //         number,
-  //         "table_marker██████████████",
-  //         "██████████████████████████",
-  //         "██████████████████████████",
-  //       )
-  //     ]
-  //   }
-  // )
   let param_lines = case desugarer.stringified_param {
     None -> [none_string]
     Some(thing) ->
@@ -452,49 +422,129 @@ pub fn our_blame_digest(blame: Blame) -> String {
   }
 }
 
-fn boxed_error_lines(
-  lines: List(String),
-  emoji: String,
-) -> List(String) {
-  let lengths = list.map(lines, string.length)
-  let max = list.fold(lengths, 0, fn(acc, n) { int.max(acc, n) }) + 2
-  let max = case max % 2 == 0 {
-    True -> max
-    False -> max + 1
-  }
-  [
-    [
-      string.repeat(emoji, 4 + max / 2),
-      string.repeat(emoji, 4 + max / 2),
-    ],
-    list.map(
-      list.zip(lines, lengths),
-      fn (pair) {
-        let #(line, line_length) = pair
-        emoji <> emoji <> line <> spaces(max - line_length) <> emoji <> emoji
-      }
-    ),
-    [
-      string.repeat(emoji, 4 + max / 2),
-      string.repeat(emoji, 4 + max / 2),
-    ],
-  ]
-  |> list.flatten
+// pub fn padded_error_paragraph(
+//   message: String,
+//   max_line_length: Int,
+//   pad: String,
+// ) -> List(String) {
+//   message
+//   |> turn_into_paragraph(max_line_length)
+//   |> list.index_map(
+//     fn(s, i) {
+//       case i > 0 {
+//         False -> s
+//         True -> pad <> s
+//       }
+//     }
+//   )
+// }
+
+// fn boxed_error_lines(
+//   lines: List(String),
+//   emoji: String,
+// ) -> List(String) {
+//   let lengths = list.map(lines, string.length)
+//   let max = list.fold(lengths, 0, fn(acc, n) { int.max(acc, n) }) + 2
+//   let max = case max % 2 == 0 {
+//     True -> max
+//     False -> max + 1
+//   }
+//   [
+//     [
+//       string.repeat(emoji, 4 + max / 2),
+//       string.repeat(emoji, 4 + max / 2),
+//     ],
+//     list.map(
+//       list.zip(lines, lengths),
+//       fn (pair) {
+//         let #(line, line_length) = pair
+//         emoji <> emoji <> line <> spaces(max - line_length) <> emoji <> emoji
+//       }
+//     ),
+//     [
+//       string.repeat(emoji, 4 + max / 2),
+//       string.repeat(emoji, 4 + max / 2),
+//     ],
+//   ]
+//   |> list.flatten
+// }
+
+// pub fn boxed_error_announcer(
+//   lines: List(String),
+//   emoji: String,
+//   indent: Int,
+//   lines_before_after: #(Int, Int)
+// ) -> Nil {
+//   let margin = spaces(indent)
+//   let lines =
+//     lines
+//     |> boxed_error_lines(emoji)
+//     |> list.map(fn(l){margin <> l})
+//     |> string.join("\n")
+//   io.print(string.repeat("\n", lines_before_after.0))
+//   io.println(lines)
+//   io.print(string.repeat("\n", lines_before_after.1))
+// }
+
+fn dash_banner(
+  title: String,
+  width: Int,
+) -> String {
+  let side = { width - string.length(title) } / 2
+  let s1 = string.repeat("-", side)
+  let s2 = string.repeat("-", width - string.length(title) - side)
+  s1 <> title <> s2
 }
 
-pub fn boxed_error_announcer(
-  lines: List(String),
+pub fn two_column_error_announcer(
+  announces: List(#(String, String)),
+  col1_min: Int,
+  col2_min: Int,
   emoji: String,
-  indent: Int,
-  lines_before_after: #(Int, Int)
-) -> Nil {
-  let margin = spaces(indent)
-  let lines =
-    lines
-    |> boxed_error_lines(emoji)
-    |> list.map(fn(l){margin <> l})
-    |> string.join("\n")
-  io.print(string.repeat("\n", lines_before_after.0))
-  io.println(lines)
-  io.print(string.repeat("\n", lines_before_after.1))
+  margin: Int,
+  banner: String,
+) -> String {
+  let #(col1_max, _col2_max) = two_column_maxes(announces)
+  let col1 = int.max(col1_min, col1_max + 1)
+  let firsts = list.map(
+    announces,
+    fn (pair) { string.pad_end(pair.0, col1, " ") },
+  )
+  let #(max, seconds) = list.map_fold(
+    announces,
+    0,
+    fn (acc, pair) {
+      let lines = turn_into_paragraph(pair.1, col2_min)
+      let assert Ok(max) = list.map(lines, string.length) |> list.max(int.compare)
+      #(int.max(max, acc), lines)
+    }
+  )
+  let col2 = int.max(max + 1, col2_min + 1)
+  let spaces = string.repeat(" ", margin)
+  let emojis = string.repeat(emoji, 2)
+  let t = margin + 2 + col1 + col2
+  let dashes1 = dash_banner(banner, col1 + col2 - 2)
+  let dashes2 = string.repeat("-", col1 + col2 - 2)
+  let opening_line = spaces <> emojis <> " " <> dashes1 <> " " <> emojis
+  let closing_line = spaces <> emojis <> " " <> dashes2 <> " " <> emojis
+  let other_spaces = string.repeat(" ", col1)
+  let q =
+    list.map2(
+      firsts,
+      seconds,
+      fn(f, s) {
+        let assert [s0, ..rest] = s
+        let l0 = string.pad_end(spaces <> emojis <> f <> s0, t, " ") <> emojis
+        let rest = list.map(
+          rest,
+          fn(r) {
+            spaces <> emojis <> other_spaces <> string.pad_end(r, col2, " ") <> emojis
+          }
+        )
+        [l0, ..rest]
+      }
+    )
+    |> list.flatten
+  [opening_line, ..q] |> list.append([closing_line])
+  |> string.join("\n")
 }
