@@ -71,6 +71,16 @@ pub fn read(
 // List(InputLine) -> List(OutputLine)
 // **************************************************
 
+pub fn input_line_to_string(line: InputLine) -> String {
+  spaces(line.indent) <> line.suffix
+}
+
+pub fn input_lines_to_string(lines: List(InputLine)) -> String {
+  lines
+  |> list.map(input_line_to_string)
+  |> string.join("\n")
+}
+
 pub fn input_lines_to_output_lines(
   lines: List(InputLine)
 ) -> List(OutputLine) {

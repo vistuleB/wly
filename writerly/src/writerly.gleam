@@ -780,9 +780,9 @@ type OurRegexes {
 fn our_regexes() -> OurRegexes {
   let assert Ok(is_valid_tag) = regexp.from_string("^[a-zA-Z_\\:][-a-zA-Z0-9\\._\\:]*$")
   let assert Ok(is_valid_key) = regexp.from_string("^[a-zA-Z_][-a-zA-Z0-9\\._\\:]*$")
-  let assert Ok(includes_bol_te_escape) = regexp.from_string("^\\\\+(\\s|\\t|!!|```)")
+  let assert Ok(includes_bol_te_escape) = regexp.from_string("^\\\\+(\\s|!!|```)")
   let assert Ok(includes_bol_cb_escape) = regexp.from_string("^\\\\+(```)")
-  let assert Ok(requires_bol_te_escape) = regexp.from_string("^\\\\*(\\s|\\t|!!|```)")
+  let assert Ok(requires_bol_te_escape) = regexp.from_string("^\\\\*(\\s|!!|```)")
   let assert Ok(requires_bol_cb_escape) = regexp.from_string("^\\\\*(```)")
   let assert Ok(unescaped_ampersand) = regexp.from_string("(?<!\\\\)(\\\\\\\\)*(&)")
 
@@ -1090,7 +1090,13 @@ fn attr_to_output_line(
   OutputLine(
     attr.blame,
     indentation,
-    attr.key <> "=" <> attr.val,
+    case string.starts_with(attr.key, "!!") {
+      True -> {
+        assert attr.val == ""
+        attr.key
+      }
+      False -> attr.key <> "=" <> attr.val
+    }
   )
 }
 
