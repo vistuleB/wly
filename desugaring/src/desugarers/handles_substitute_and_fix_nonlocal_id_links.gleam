@@ -437,7 +437,7 @@ fn transform_factory(inner: InnerParam) -> DesugarerTransform {
 }
 
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
-  let assert Ok(handles_regexp) = regexp.from_string("(>>)([\\w\\^-+%]+(?:\\:page)?)")
+  let assert Ok(handles_regexp) = regexp.from_string("(>>)([\\w\\^+%-]+(?:\\:page)?)")
   #(
     param.0,
     param.1,
