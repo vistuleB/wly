@@ -2,7 +2,6 @@ import blame.{type Blame, prepend_comment as pc} as bl
 import io_lines.{type InputLine, InputLine, type OutputLine, OutputLine} as io_l
 import gleam/list
 import gleam/option.{None, Some}
-import gleam/order
 import gleam/pair
 import gleam/result
 import gleam/regexp.{type Regexp}
@@ -87,10 +86,6 @@ fn file_is_not_commented(path: String) -> Bool {
   !{ string.contains(path, "/#") || string.starts_with(path, "#") }
 }
 
-fn is_parent(path: String) -> Bool {
-  path == "__parent.wly" || string.ends_with(path, "/__parent.wly")
-}
-
 fn file_is_selected_or_has_selected_descendant(
   path_selectors: List(String),
   path: String,
@@ -99,8 +94,8 @@ fn file_is_selected_or_has_selected_descendant(
   path_selectors == []
   || list.any(path_selectors, string.contains(path, _))
   || {
-    is_parent(path) && {
-      let prefix = path |> string.drop_end(string.length("__parent.wly"))
+    string.ends_with(path, "__parent.wly") && {
+      let prefix = path |> string.drop_end(12)
       list.any(
         all_paths,
         fn (x) {
@@ -211,6 +206,29 @@ fn input_lines_for_dirtree_at_depth(
   tree: DirTree,
   depth: Int,
 ) -> Result(List(InputLine), AssemblyError) {
+  let added_depth = fn(prefixes: List(String), path: String) {
+    list.fold(prefixes, 0, fn(acc, prefix) {
+      case string.starts_with(path, prefix) && path != prefix <> "__parent.wly" {
+        True -> acc + 1
+        False -> acc
+      }
+    })
+  }
+
+  let parent_prefixes = fn(contents: List(DirTree)) -> List(String) {
+    list.fold(contents, [], fn(acc, tree) {
+      case string.ends_with(tree.name, "__parent.wly") {
+        True -> {
+          let assert dt.Filepath(_) = tree
+          let prefix = string.drop_end(tree.name, 12)
+          assert !list.contains(acc, prefix)
+          [prefix, ..acc]
+        }
+        False -> acc
+      }
+    })
+  }
+
   case tree {
     dt.Filepath(path) -> {
       assert string.ends_with(path, ".wly")
@@ -222,23 +240,12 @@ fn input_lines_for_dirtree_at_depth(
     }
 
     dt.Dirpath(path, contents) -> {
-      let assert [first, ..rest] = contents
-      use first_lines <- on.ok({
-        input_lines_for_dirtree_at_depth(
-          original_dirname,
-          dir_and_filename_2_path(acc, path),
-          first,
-          depth,
-        )
-      })
-      let depth = case first {
-        dt.Filepath("__parent.wly") -> depth + 1
-        _ -> depth
-      }
-      use lines_of_rest <- on.ok(
+      let prefixes = parent_prefixes(contents)
+      use list_of_lists <- on.ok(
         list.try_map(
-          rest,
+          contents,
           fn(subtree) {
+            let depth = depth + added_depth(prefixes, subtree.name)
             input_lines_for_dirtree_at_depth(
               original_dirname,
               dir_and_filename_2_path(acc, path),
@@ -248,7 +255,9 @@ fn input_lines_for_dirtree_at_depth(
           }
         )
       )
-      Ok(list.flatten([first_lines, ..lines_of_rest]))
+      list_of_lists
+      |> list.flatten
+      |> Ok
     }
   }
 }
@@ -272,14 +281,17 @@ pub fn assemble_input_lines(
       file_is_selected_or_has_selected_descendant(path_selectors, _, paths),
     )
 
+  let drop_suffix = fn(name) {
+    case string.ends_with(name, "__parent.wly") {
+      True -> string.drop_end(name, 12)
+      False -> name
+    }
+  }
+
   let tree =
     dt.from_terminals(dirname, paths)
     |> dt.sort(fn(t1, t2) {
-      case t1, t2 {
-        dt.Filepath("__parent.wly"), _ -> order.Lt
-        _, dt.Filepath("__parent.wly") -> order.Gt
-        _, _ -> string.compare(t1.name, t2.name)
-      }
+      string.compare(t1.name |> drop_suffix, t2.name |> drop_suffix)
     })
 
   use lines <- on.ok(
