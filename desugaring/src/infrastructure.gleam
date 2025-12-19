@@ -197,6 +197,19 @@ pub fn on_t_on_v(
 // descendant_ text_contains/!text_contains
 // ************************************************************
 
+pub fn descendant_lines(
+  v: VXML,
+) -> List(Line) {
+  case v {
+    T(_, lines) -> lines
+    V(_, _, _, children) -> {
+      children
+      |> list.map(descendant_lines)
+      |> list.flatten
+    }
+  }
+}
+
 pub fn descendant_text_contains(
   v: VXML,
   s: String,

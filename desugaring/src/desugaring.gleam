@@ -1705,7 +1705,7 @@ pub fn run_renderer(
         #(" blame:", pr.our_blame_digest(blame)),
         #(" error: ", ins(c) |> pr.strip_quotes),
       ]
-      |> pr.two_column_error_announcer(0, 70, "👾", 2, "/ parser error /")
+      |> pr.two_column_error_announcer(0, 70, "💥", 2, "/ parser error /")
       |> io.println
       Error(SourceParserError(blame, c))
     },
@@ -1761,15 +1761,23 @@ pub fn run_renderer(
       let num_hundreth_seconds = float.round(float.ceiling(max_secs *. 100.0))
       let one_hundreth_seconds_num_bars = int.max(1, total_chars / num_hundreth_seconds)
       let scale =
-        list.repeat(Nil, num_hundreth_seconds)
+        list.repeat(Nil, num_hundreth_seconds + 1)
         |> list.map_fold(0.0, fn(x, _) { #(x +. 0.01, x) })
         |> pair.second
-        |> list.map(fn(x) {
-          let x = ins(x |> float.to_precision(2)) <> "s"
-          let num_spaces = one_hundreth_seconds_num_bars - string.length(x)
-          x <> string.repeat(" ", num_spaces)
-        })
-        |> string.join("")
+        |> list.index_fold(
+          "",
+          fn(acc, seconds, i) {
+            let start_char = i * one_hundreth_seconds_num_bars
+            let num_spaces = start_char - string.length(acc)
+            case num_spaces > 0 || acc == "" {
+              False -> acc
+              True -> {
+                let label = ins(seconds |> float.to_precision(2)) <> "s"
+                acc <> string.repeat(" ", num_spaces) <> label
+              }
+            }
+          }
+        )
       assert list.length(all_seconds) == list.length(renderer.pipeline)
       let bars = list.index_map(
         list.zip(renderer.pipeline, all_seconds),
@@ -2024,7 +2032,7 @@ pub fn run_renderer(
     }
   })
 
-  // 🚨 warnings 🚨
+  // 👾 warnings 👾
 
   case list.length(warnings) {
     0 -> Nil
@@ -2050,7 +2058,7 @@ pub fn run_renderer(
             #(" blame:", bl.blame_digest(w.blame)),
             #(" message:", w.message),
           ]
-          |> pr.two_column_error_announcer(0, 60, "🚨", 2, "/ WARNING /")
+          |> pr.two_column_error_announcer(0, 60, "👾", 2, "")
           |> io.println
         }
       )

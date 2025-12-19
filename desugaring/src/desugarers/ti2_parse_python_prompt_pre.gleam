@@ -34,9 +34,9 @@ fn python_prompt_chunk_to_vxmls(
       let z = terminal_prompt_length
       [
         V(
-          desugarer_blame(36),
+          desugarer_blame(37),
           "span",
-          [Attr(desugarer_blame(38), "class", "terminal-prompt")],
+          [Attr(desugarer_blame(39), "class", "terminal-prompt")],
           [
             T(
               line.blame,
@@ -45,9 +45,9 @@ fn python_prompt_chunk_to_vxmls(
           ]
         ),
         V(
-          desugarer_blame(47),
+          desugarer_blame(48),
           "span",
-          [Attr(desugarer_blame(49), "class", "terminal-prompt-content")],
+          [Attr(desugarer_blame(50), "class", "terminal-prompt-content")],
           [
             T(
               bl.advance(line.blame, z),
@@ -60,9 +60,9 @@ fn python_prompt_chunk_to_vxmls(
     PromptLine(line) -> {
       [
         V(
-          desugarer_blame(62),
+          desugarer_blame(63),
           "span",
-          [Attr(desugarer_blame(64), "class", "python-prompt-carets")],
+          [Attr(desugarer_blame(65), "class", "python-prompt-carets")],
           [
             T(
               line.blame,
@@ -71,9 +71,9 @@ fn python_prompt_chunk_to_vxmls(
           ]
         ),
         V(
-          desugarer_blame(73),
+          desugarer_blame(74),
           "span",
-          [Attr(desugarer_blame(75), "class", "python-prompt-content")],
+          [Attr(desugarer_blame(76), "class", "python-prompt-content")],
           [
             T(
               bl.advance(line.blame, 3),
@@ -86,9 +86,9 @@ fn python_prompt_chunk_to_vxmls(
     OkResponseLines(lines) -> {
       [
         V(
-          desugarer_blame(88),
+          desugarer_blame(89),
           "span",
-          [Attr(desugarer_blame(90), "class", "python-prompt-ok-response")],
+          [Attr(desugarer_blame(91), "class", "python-prompt-ok-response")],
           [
             T(
               lines |> infra.lines_first_blame,
@@ -101,9 +101,9 @@ fn python_prompt_chunk_to_vxmls(
     ErrorResponseLines(lines) -> {
       [
         V(
-          desugarer_blame(103),
+          desugarer_blame(104),
           "span",
-          [Attr(desugarer_blame(105), "class", "python-prompt-error-response")],
+          [Attr(desugarer_blame(106), "class", "python-prompt-error-response")],
           [
             T(
               lines |> infra.lines_first_blame,
@@ -157,7 +157,7 @@ fn nodemap(
             "pre",
             attrs
             |> infra.attrs_delete("language")
-            |> infra.attrs_append_classes(desugarer_blame(159), "python-prompt"),
+            |> infra.attrs_append_classes(desugarer_blame(160), "python-prompt"),
             children,
           )
         }

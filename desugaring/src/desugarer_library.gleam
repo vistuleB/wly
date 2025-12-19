@@ -117,6 +117,7 @@ import desugarers/insert_text_start_end_if_unique_attr
 import desugarers/keep_only_subtrees_and_ancestors_of_nodes_matching_a_key_value_pair
 import desugarers/last_to_first_concatenate_text_nodes
 import desugarers/lbp_img_build
+import desugarers/lbp_select_content
 import desugarers/line_rewrap_no1__outside
 import desugarers/line_rewrap_no2__outside
 import desugarers/markdown_link_closing_handrolled_splitter
@@ -354,6 +355,7 @@ pub const insert_text_start_end_if_unique_attr = insert_text_start_end_if_unique
 pub const keep_only_subtrees_and_ancestors_of_nodes_matching_a_key_value_pair = keep_only_subtrees_and_ancestors_of_nodes_matching_a_key_value_pair.constructor
 pub const last_to_first_concatenate_text_nodes = last_to_first_concatenate_text_nodes.constructor
 pub const lbp_img_build = lbp_img_build.constructor
+pub const lbp_select_content = lbp_select_content.constructor
 pub const line_rewrap_no1__outside = line_rewrap_no1__outside.constructor
 pub const line_rewrap_no2__outside = line_rewrap_no2__outside.constructor
 pub const markdown_link_closing_handrolled_splitter = markdown_link_closing_handrolled_splitter.constructor
@@ -592,6 +594,7 @@ pub const assertive_tests : List(fn() -> infra.AssertiveTestCollection) = [
   keep_only_subtrees_and_ancestors_of_nodes_matching_a_key_value_pair.assertive_tests,
   last_to_first_concatenate_text_nodes.assertive_tests,
   lbp_img_build.assertive_tests,
+  lbp_select_content.assertive_tests,
   line_rewrap_no1__outside.assertive_tests,
   line_rewrap_no2__outside.assertive_tests,
   markdown_link_closing_handrolled_splitter.assertive_tests,

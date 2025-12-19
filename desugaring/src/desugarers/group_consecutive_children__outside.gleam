@@ -52,7 +52,7 @@ fn transform_factory(inner: InnerParam, outside: List(String)) -> DesugarerTrans
 
 fn param_to_inner_param(param: Param, outside: List(String)) -> Result(InnerParam, DesugaringError) {
   case list.contains(outside, param.0) {
-    True -> Ok(#(param.0, param.1, desugarer_blame(54)))
+    True -> Ok(#(param.0, param.1, desugarer_blame(55)))
     False -> Error(DesugaringError(
       bl.no_blame,
       "the wrapper must be included either in the list of things not to be contained in in order to avoid infinite recursion")

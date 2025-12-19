@@ -25,6 +25,10 @@ pub fn at_root_2_desugarer_transform(at_root: fn(VXML) -> Result(VXML, Desugarin
   }
 }
 
+pub fn at_root_with_warnings_2_desugarer_transform(at_root: fn(VXML) -> Result(#(VXML, List(DesugaringWarning)), DesugaringError)) {
+  at_root
+}
+
 pub fn at_root_no_errors_2_desugarer_transform(at_root: fn(VXML) -> VXML) {
   fn(vxml) {
     Ok(#(at_root(vxml), []))
