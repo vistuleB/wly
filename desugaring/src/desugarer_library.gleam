@@ -117,8 +117,12 @@ import desugarers/insert_text_start_end_if_else
 import desugarers/insert_text_start_end_if_unique_attr
 import desugarers/keep_only_subtrees_and_ancestors_of_nodes_matching_a_key_value_pair
 import desugarers/last_to_first_concatenate_text_nodes
+import desugarers/lbp_adorn_img_with_3003_spans
+import desugarers/lbp_adorn_with_3003_spans
 import desugarers/lbp_img_build
 import desugarers/lbp_select_content
+import desugarers/lbp_turn_lines_into_3003_spans
+import desugarers/lbp_wrap_with_3003_spans
 import desugarers/line_rewrap_no1__outside
 import desugarers/line_rewrap_no2__outside
 import desugarers/markdown_link_closing_handrolled_splitter
@@ -144,9 +148,9 @@ import desugarers/prepend_text_node__batch
 import desugarers/prepend_text_node__outside
 import desugarers/prepend_text_node_if_has_ancestor_else__batch
 import desugarers/rearrange_links
-import desugarers/rearrange_links__batch
 import desugarers/rearrange_links_4_pre_tokenized_src
 import desugarers/rearrange_links_4_pre_tokenized_src__batch
+import desugarers/rearrange_links__batch
 import desugarers/reassign_text_node_blame_to_blame_of_first_nonempty_line_in_text_node
 import desugarers/regex_split_and_replace__batch__outside
 import desugarers/regex_split_and_replace__outside
@@ -356,8 +360,12 @@ pub const insert_text_start_end_if_else = insert_text_start_end_if_else.construc
 pub const insert_text_start_end_if_unique_attr = insert_text_start_end_if_unique_attr.constructor
 pub const keep_only_subtrees_and_ancestors_of_nodes_matching_a_key_value_pair = keep_only_subtrees_and_ancestors_of_nodes_matching_a_key_value_pair.constructor
 pub const last_to_first_concatenate_text_nodes = last_to_first_concatenate_text_nodes.constructor
+pub const lbp_adorn_img_with_3003_spans = lbp_adorn_img_with_3003_spans.constructor
+pub const lbp_adorn_with_3003_spans = lbp_adorn_with_3003_spans.constructor
 pub const lbp_img_build = lbp_img_build.constructor
 pub const lbp_select_content = lbp_select_content.constructor
+pub const lbp_turn_lines_into_3003_spans = lbp_turn_lines_into_3003_spans.constructor
+pub const lbp_wrap_with_3003_spans = lbp_wrap_with_3003_spans.constructor
 pub const line_rewrap_no1__outside = line_rewrap_no1__outside.constructor
 pub const line_rewrap_no2__outside = line_rewrap_no2__outside.constructor
 pub const markdown_link_closing_handrolled_splitter = markdown_link_closing_handrolled_splitter.constructor
@@ -383,9 +391,9 @@ pub const prepend_text_node__batch = prepend_text_node__batch.constructor
 pub const prepend_text_node__outside = prepend_text_node__outside.constructor
 pub const prepend_text_node_if_has_ancestor_else__batch = prepend_text_node_if_has_ancestor_else__batch.constructor
 pub const rearrange_links = rearrange_links.constructor
-pub const rearrange_links__batch = rearrange_links__batch.constructor
 pub const rearrange_links_4_pre_tokenized_src = rearrange_links_4_pre_tokenized_src.constructor
 pub const rearrange_links_4_pre_tokenized_src__batch = rearrange_links_4_pre_tokenized_src__batch.constructor
+pub const rearrange_links__batch = rearrange_links__batch.constructor
 pub const reassign_text_node_blame_to_blame_of_first_nonempty_line_in_text_node = reassign_text_node_blame_to_blame_of_first_nonempty_line_in_text_node.constructor
 pub const regex_split_and_replace__batch__outside = regex_split_and_replace__batch__outside.constructor
 pub const regex_split_and_replace__outside = regex_split_and_replace__outside.constructor
@@ -596,8 +604,12 @@ pub const assertive_tests : List(fn() -> infra.AssertiveTestCollection) = [
   insert_text_start_end_if_unique_attr.assertive_tests,
   keep_only_subtrees_and_ancestors_of_nodes_matching_a_key_value_pair.assertive_tests,
   last_to_first_concatenate_text_nodes.assertive_tests,
+  lbp_adorn_img_with_3003_spans.assertive_tests,
+  lbp_adorn_with_3003_spans.assertive_tests,
   lbp_img_build.assertive_tests,
   lbp_select_content.assertive_tests,
+  lbp_turn_lines_into_3003_spans.assertive_tests,
+  lbp_wrap_with_3003_spans.assertive_tests,
   line_rewrap_no1__outside.assertive_tests,
   line_rewrap_no2__outside.assertive_tests,
   markdown_link_closing_handrolled_splitter.assertive_tests,
@@ -623,9 +635,9 @@ pub const assertive_tests : List(fn() -> infra.AssertiveTestCollection) = [
   prepend_text_node__outside.assertive_tests,
   prepend_text_node_if_has_ancestor_else__batch.assertive_tests,
   rearrange_links.assertive_tests,
-  rearrange_links__batch.assertive_tests,
   rearrange_links_4_pre_tokenized_src.assertive_tests,
   rearrange_links_4_pre_tokenized_src__batch.assertive_tests,
+  rearrange_links__batch.assertive_tests,
   reassign_text_node_blame_to_blame_of_first_nonempty_line_in_text_node.assertive_tests,
   regex_split_and_replace__batch__outside.assertive_tests,
   regex_split_and_replace__outside.assertive_tests,

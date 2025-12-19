@@ -1,0 +1,266 @@
+import blame as bl
+import gleam/list
+import gleam/option.{type Option, Some, None}
+import gleam/string.{inspect as ins}
+import infrastructure.{
+  type Desugarer,
+  type DesugaringError,
+  type DesugarerTransform,
+  type TrafficLight,
+  Desugarer,
+  Continue,
+  GoBack
+} as infra
+import nodemaps_2_desugarer_transforms as n2t
+import on.{Return, Select as Stay}
+import vxml.{ type Line, type VXML, Attr, Line, T, V }
+
+// remember to replace these names in tests,
+// as well:
+const container_classname = "t-3003-c"
+const tooltip_classname = "t-3003"
+const b = bl.Des([], name, 14)
+const newline_t = T(b, [Line(b, ""), Line(b, "")])
+
+fn get_location(blame: bl.Blame, prefix: String) -> String {
+  case blame {
+    bl.Src(_, path, line_no, char_no, _) ->
+      prefix <> path <> ":" <> ins(line_no) <> ":" <> ins(char_no)
+    _ -> prefix
+  }
+}
+
+fn wrap_with_tooltip(
+  blame: bl.Blame,
+  location: String,
+  inner_param: InnerParam,
+  content: VXML,
+) -> VXML {
+  use _ <- on.select(case location == inner_param {
+    True -> Return(content)
+    False -> Stay(Nil)
+  })
+
+  V(
+    blame,
+    "span",
+    [Attr(blame, "class", container_classname)],
+    [
+      content,
+      V(
+        blame,
+        "span",
+        [Attr(blame, "class", tooltip_classname)],
+        [T(blame, [Line(blame, location)])],
+      ),
+    ],
+  )
+}
+
+fn line_to_tooltip_span(line: Line, inner: InnerParam) -> VXML {
+  let location = get_location(line.blame, inner)
+  let content = T(line.blame, [Line(line.blame, line.content)])
+  
+  wrap_with_tooltip(line.blame, location, inner, content)
+}
+
+fn bold_line_to_tooltip_span(vxml: VXML, inner: InnerParam) -> VXML {
+  case vxml {
+    V(b1, "b", attr, [T(b2, [line, ..rest_lines]), ..children]) -> {
+      let location = get_location(line.blame, inner)
+      
+      let content = V(
+        b1, 
+        "b", 
+        attr, 
+        [
+          T(line.blame, [Line(line.blame, line.content)]), 
+          newline_t, 
+          T(b2, rest_lines), 
+          ..children
+        ]
+      )
+
+      wrap_with_tooltip(vxml.blame, location, inner, content)
+    }
+    _ -> vxml
+  }
+}
+
+fn wrap_title_with_tooltip(
+  blame: bl.Blame,
+  location: String,
+  inner_param: InnerParam,
+  content: List(VXML),
+) -> List(VXML) {
+  // guard: if content is already a tooltip span, don't wrap it again
+  case content {
+    [V(_, "span", [Attr(_, "class", class), ..], _)] if class == container_classname -> content
+    _ -> {
+      use _ <- on.select(case location == inner_param {
+        True -> Return(content)
+        False -> Stay(Nil)
+      })
+
+      [V(
+        blame,
+        "span",
+        [Attr(blame, "class", container_classname)],
+        list.append(content, [
+          V(blame, "span", [Attr(blame, "class", tooltip_classname)], [
+            T(blame, [Line(blame, location)])
+          ])
+        ])
+      )]
+    }
+  }
+}
+
+fn find_blame_of_first_line(vxmls: List(VXML)) -> Option(bl.Blame) {
+  case vxmls {
+    [] -> None
+    [first, ..rest] -> {
+      case infra.descendant_lines(first) {
+        [] -> find_blame_of_first_line(rest)
+        lines -> Some(infra.lines_first_blame(lines))
+      }
+    }
+  }
+}
+
+fn nodemap(
+  vxml: VXML,
+  inner: InnerParam,
+) -> #(List(VXML), TrafficLight) {
+  case vxml {
+    V(_, "ArticleTitle", _, title) -> {
+      use blame_first_line <- on.none_some(
+        find_blame_of_first_line(title),
+        on_none: fn() { #([vxml], GoBack) }
+      )
+      
+      let location = get_location(blame_first_line, inner)
+      
+      #([ infra.v_replace_children_with(vxml, 
+        wrap_title_with_tooltip(blame_first_line, location, inner, title)
+        )
+      ], GoBack)
+    }
+    V(bl_outp, "OuterP", attr_outp, children) -> {
+      case children {
+        [V(_, "b", _,_) as v_bold, ..rest_children] -> {
+          #([V(
+            bl_outp, 
+            "OuterP", 
+            attr_outp, 
+            [bold_line_to_tooltip_span(v_bold, inner), ..rest_children])
+          ]
+          , GoBack
+          )
+        }
+        [T(b3, [first_line, ..rest_lines]), ..rest_children] -> {
+          #([V(bl_outp, "OuterP", attr_outp,
+          [line_to_tooltip_span(first_line, inner), newline_t, T(b3, rest_lines), ..rest_children])],
+          GoBack
+          )
+        }
+        _ -> #([vxml], Continue)
+      }
+    }
+    T(_, lines) -> {
+          #(lines
+            |> list.map(line_to_tooltip_span(_, inner))
+            |> list.intersperse(newline_t),
+            GoBack
+          )
+    }
+    _ -> #([vxml], Continue)
+  }
+}
+
+fn nodemap_factory(inner: InnerParam) -> n2t.EarlyReturnOneToManyNoErrorNodemap {
+   nodemap(_, inner)
+}
+
+fn transform_factory(inner: InnerParam, outside: List(String)) -> DesugarerTransform {
+  nodemap_factory(inner)
+  |> n2t.early_return_one_to_many_no_error_nodemap_2_desugarer_transform_with_forbidden(outside)
+}
+
+fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
+  Ok(param)
+}
+
+type Param = String
+//           ↖
+//           local path
+//           of source
+type InnerParam = Param
+
+pub const name = "lbp_turn_lines_into_3003_spans"
+
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
+// 🏖️🏖️ Desugarer 🏖️🏖️
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
+//------------------------------------------------53
+
+/// breaks lines into span tooltips with location
+/// information
+pub fn constructor(param: Param, outside: List(String)) -> Desugarer {
+  Desugarer(
+    name: name,
+    stringified_param: option.Some(ins(param)),
+    stringified_outside: option.None,
+    transform: case param_to_inner_param(param) {
+      Error(error) -> fn(_) { Error(error) }
+      Ok(inner) -> transform_factory(inner, outside)
+    },
+  )
+}
+
+// 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
+// 🌊🌊🌊 tests 🌊🌊🌊🌊🌊
+// 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
+fn assertive_tests_data() -> List(infra.AssertiveTestDataWithOutside(Param)) {
+  [
+    // note 1: not sure if following test is correct
+    // it was reverse-engineered from the desugarer's
+    // output long after this desugarer had already
+    // stopped being used (but it might be correct)
+    //
+    // note 2: 'test' is the filename assigned by the
+    // infrastructure.gleam test runner, which is why 
+    // '../path/to/content/test' shows up in the expected 
+    // output
+    infra.AssertiveTestDataWithOutside(
+      param: "../path/to/content/",
+      outside: ["TOC"],
+      source:   "
+                <> ArticleTitle
+                  <>
+                    'some text'
+                  <> i
+                    <>
+                      'more text'
+                ",
+      expected: "
+                <> ArticleTitle
+                  <> span
+                    class=t-3003-c
+                    <>
+                      'some text'
+                    <> i
+                      <>
+                        'more text'
+                    <> span
+                      class=t-3003
+                      <>
+                        '../path/to/content/tst.source:3:5'
+                "
+    ),
+  ]
+}
+
+pub fn assertive_tests() {
+  infra.assertive_test_collection_from_data_with_outside(name, assertive_tests_data(), constructor)
+}
