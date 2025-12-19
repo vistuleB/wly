@@ -119,6 +119,7 @@ import desugarers/last_to_first_concatenate_text_nodes
 import desugarers/lbp_adorn_img_with_3003_spans
 import desugarers/lbp_adorn_with_3003_spans
 import desugarers/lbp_img_build
+import desugarers/lbp_turn_lines_into_3003_spans
 import desugarers/lbp_wrap_with_3003_spans
 import desugarers/line_rewrap_no1__outside
 import desugarers/line_rewrap_no2__outside
@@ -359,6 +360,7 @@ pub const last_to_first_concatenate_text_nodes = last_to_first_concatenate_text_
 pub const lbp_adorn_img_with_3003_spans = lbp_adorn_img_with_3003_spans.constructor
 pub const lbp_adorn_with_3003_spans = lbp_adorn_with_3003_spans.constructor
 pub const lbp_img_build = lbp_img_build.constructor
+pub const lbp_turn_lines_into_3003_spans = lbp_turn_lines_into_3003_spans.constructor
 pub const lbp_wrap_with_3003_spans = lbp_wrap_with_3003_spans.constructor
 pub const line_rewrap_no1__outside = line_rewrap_no1__outside.constructor
 pub const line_rewrap_no2__outside = line_rewrap_no2__outside.constructor
@@ -600,6 +602,7 @@ pub const assertive_tests : List(fn() -> infra.AssertiveTestCollection) = [
   lbp_adorn_img_with_3003_spans.assertive_tests,
   lbp_adorn_with_3003_spans.assertive_tests,
   lbp_img_build.assertive_tests,
+  lbp_turn_lines_into_3003_spans.assertive_tests,
   lbp_wrap_with_3003_spans.assertive_tests,
   line_rewrap_no1__outside.assertive_tests,
   line_rewrap_no2__outside.assertive_tests,
