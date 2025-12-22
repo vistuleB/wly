@@ -8,7 +8,7 @@ import gleam/option.{type Option, None, Some}
 import gleam/result
 import gleam/string.{inspect as ins}
 import gleam/time/duration.{type Duration}
-import gleam/time/timestamp.{type Timestamp}
+import gleam/time/timestamp
 import blame.{Ext, type Blame} as bl
 import io_lines.{type InputLine, type OutputLine, OutputLine} as io_l
 import desugarer_library as dl
@@ -1312,8 +1312,7 @@ type Message {
       #(
         VXML,
         List(InSituDesugaringWarning),
-        List(Timestamp),
-        List(#(Int, Timestamp)),
+        List(Duration),
         List(String),
       ),
       InSituDesugaringError,
@@ -1332,27 +1331,19 @@ fn producer(
   let final =
     pipeline
     |> list.try_fold(
-      #(vxml, [], [], [], 1, "", False, []),
+      #(vxml, [], [], [], 1, "", False),
       fn(acc, pipe) {
         let #(
           vxml,
           warnings,
-          all_times,
-          requested_times,
+          durations,
+          lines,
           step_no,
           last_tracking_output,
           got_arrow,
-          lines,
         ) = acc
 
         let Pipe(desugarer, selector, mode, peek) = pipe
-        let now = timestamp.system_time()
-        let all_times = [now, ..all_times]
-
-        let requested_times = case desugarer.name == "timer" {
-          True -> [#(step_no, now), ..requested_times]
-          False -> requested_times
-        }
 
         let #(printed_arrow, lines) = case track_any && !got_arrow {
           True -> {
@@ -1360,6 +1351,8 @@ fn producer(
           }
           False -> #(False, lines)
         }
+
+        let now = timestamp.system_time()
 
         use #(vxml, new_warnings) <- on.error_ok(
           desugarer.transform(vxml),
@@ -1372,6 +1365,10 @@ fn producer(
             ))
           }
         )
+
+        let then = timestamp.system_time()
+        let duration = timestamp.difference(now, then)
+        let durations = [duration, ..durations]
 
         let new_warnings = list.map(
           new_warnings,
@@ -1436,17 +1433,16 @@ fn producer(
         #(
           vxml,
           list.append(warnings, new_warnings),
-          all_times,
-          requested_times,
+          durations,
+          lines,
           step_no + 1,
           next_tracking_output,
           got_arrow,
-          lines,
         )
         |> Ok
       }
     )
-    |> result.map(fn(acc) { #(acc.0, acc.1, acc.2, acc.3, acc.7) })
+    |> result.map(fn(acc) { #(acc.0, acc.1, acc.2, acc.3) })
 
   send(main_process_subject, ProducerFinished(final))
 }
@@ -1457,8 +1453,7 @@ fn loop(
 ) -> Result(#(
     VXML,
     List(InSituDesugaringWarning),
-    List(Timestamp),
-    List(#(Int, Timestamp)),
+    List(Duration),
   ),
   Result(
     UserExit,
@@ -1501,8 +1496,7 @@ fn loop(
         Ok(#(
           vxml,
           in_situ_warnings,
-          timestamps,
-          indexed_timestamps,
+          durations,
           last_lines,
         )) -> {
           case last_lines != [] {
@@ -1515,8 +1509,7 @@ fn loop(
           Ok(#(
             vxml,
             in_situ_warnings,
-            timestamps,
-            indexed_timestamps,
+            durations,
           ))
         }
         Error(error) -> Error(Error(error))
@@ -1537,8 +1530,7 @@ fn run_pipeline(
 ) -> Result(#(
     VXML,
     List(InSituDesugaringWarning),
-    List(Timestamp),
-    List(#(Int, Timestamp)),
+    List(Duration),
   ),
   Result(
     UserExit,
@@ -1616,18 +1608,18 @@ pub type RendererError(a, c, e, f, g, h) {
 // run_renderer
 // ************************************************************
 
-fn durations(
-  times: List(Timestamp)
-) -> List(Duration) {
-  case times {
-    [] -> panic
-    [_] -> []
-    [t_later, t_earlier, ..rest] -> [
-      timestamp.difference(t_earlier, t_later),
-      ..durations([t_earlier, ..rest]),
-    ]
-  }
-}
+// fn durations(
+//   times: List(Timestamp)
+// ) -> List(Duration) {
+//   case times {
+//     [] -> panic
+//     [_] -> []
+//     [t_later, t_earlier, ..rest] -> [
+//       timestamp.difference(t_earlier, t_later),
+//       ..durations([t_earlier, ..rest]),
+//     ]
+//   }
+// }
 
 pub fn run_renderer(
   renderer: Renderer(a, c, d, e, f, g, h),
@@ -1716,7 +1708,7 @@ pub fn run_renderer(
   io.println("• starting pipeline...")
   let t0 = timestamp.system_time()
 
-  use #(desugared, warnings, all_times, requested_times) <- on.error_ok(
+  use #(desugared, warnings, durations) <- on.error_ok(
     run_pipeline(
       parsed,
       renderer.pipeline,
@@ -1754,9 +1746,9 @@ pub fn run_renderer(
     None -> {
       io.println("  ..ended pipeline (" <> ins(seconds) <> "s)")
     }
+
     Some(total_chars) -> {
-      let all_times = [t1, ..all_times]
-      let all_seconds = durations(all_times) |> list.map(duration.to_seconds) |> list.reverse
+      let all_seconds = durations |> list.map(duration.to_seconds) |> list.reverse
       let assert Ok(max_secs) = list.max(all_seconds, float.compare)
       let num_hundreth_seconds = float.round(float.ceiling(max_secs *. 100.0))
       let one_hundreth_seconds_num_bars = int.max(1, total_chars / num_hundreth_seconds)
@@ -1793,23 +1785,23 @@ pub fn run_renderer(
     }
   }
 
-  case requested_times {
-    [] -> Nil
-    _ -> {
-      let requested_times = [#(list.length(renderer.pipeline), t1), ..requested_times]
-      list.fold(requested_times |> list.reverse, #(0, t0), fn(acc, next) {
-        let #(step0, t0) = acc
-        let #(step1, t1) = next
-        let seconds =
-          timestamp.difference(t0, t1)
-          |> duration.to_seconds
-          |> float.to_precision(3)
-        io.println("  steps " <> ins(step0) <> " to " <> ins(step1) <> ": " <> ins(seconds) <> "s")
-        next
-      })
-      Nil
-    }
-  }
+  // case requested_times {
+  //   [] -> Nil
+  //   _ -> {
+  //     let requested_times = [#(list.length(renderer.pipeline), t1), ..requested_times]
+  //     list.fold(requested_times |> list.reverse, #(0, t0), fn(acc, next) {
+  //       let #(step0, t0) = acc
+  //       let #(step1, t1) = next
+  //       let seconds =
+  //         timestamp.difference(t0, t1)
+  //         |> duration.to_seconds
+  //         |> float.to_precision(3)
+  //       io.println("  steps " <> ins(step0) <> " to " <> ins(step1) <> ": " <> ins(seconds) <> "s")
+  //       next
+  //     })
+  //     Nil
+  //   }
+  // }
 
   // 🌸 splitting 🌸
 

@@ -139,10 +139,10 @@ fn mid_truncation_or_pad(
     True -> {
       let amt_to_drop = 1 + l - {desired_length - string.length(mid_truncation_dots)}
       let inner_content = string.drop_start(content, 2)
-      let slice_start = { string.length(inner_content) / 2 } - {amt_to_drop / 2} - 3
+      let slice_start = { string.length(inner_content) / 2 } - {amt_to_drop / 2} - 10
       let start = string.slice(inner_content, 0, slice_start)
       let end = string.slice(inner_content, slice_start + amt_to_drop, 1000)
-      "| " <> start <> mid_truncation_dots <> end <> " "
+      "│ " <> start <> mid_truncation_dots <> end <> " "
     }
     False -> content <> spaces(desired_length - l)
   }
