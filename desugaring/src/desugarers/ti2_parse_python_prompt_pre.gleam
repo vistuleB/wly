@@ -121,7 +121,7 @@ fn process_python_prompt_lines(lines: List(Line)) -> List(PythonPromptChunk) {
   |> eo.discriminate(fn(line) {
     string.starts_with(line.content, ">>>") || string.starts_with(line.content, terminal_prompt)
   })
-  |> eo.group_ors_no_empty_lists
+  |> eo.group_ors
   |> list.map(fn(either_bc_or_list_bc) {
     case either_bc_or_list_bc {
       eo.Either(line) -> {

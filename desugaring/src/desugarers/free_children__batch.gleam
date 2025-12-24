@@ -19,7 +19,7 @@ fn nodemap(
   case node {
     V(blame, tag, attrs, children) -> {
       children
-      |> eo.discriminate(child_must_escape(_, tag, inner))
+      |> eo.map_from_condition(child_must_escape(_, tag, inner))
       |> eo.group_ors
       |> eo.map_resolve(
         fn(either: VXML) -> VXML { either },

@@ -24,7 +24,7 @@ fn nodemap(
       let children =
         children
         |> eo.discriminate(is_forbidden(_, inner.1))
-        |> eo.group_ors_no_empty_lists
+        |> eo.group_ors
         |> eo.map_resolve(
           fn(x){x},
           fn(consecutive_siblings) {
