@@ -117,6 +117,7 @@ import desugarers/insert_text_start_end_if_unique_attr
 import desugarers/keep_only_subtrees_and_ancestors_of_nodes_matching_a_key_value_pair
 import desugarers/last_to_first_concatenate_text_nodes
 import desugarers/lbp_adorn_img_with_3003_spans
+import desugarers/lbp_adorn_img_with_3003_spans_
 import desugarers/lbp_adorn_with_3003_spans
 import desugarers/lbp_img_build
 import desugarers/lbp_turn_lines_into_3003_spans
@@ -358,6 +359,7 @@ pub const insert_text_start_end_if_unique_attr = insert_text_start_end_if_unique
 pub const keep_only_subtrees_and_ancestors_of_nodes_matching_a_key_value_pair = keep_only_subtrees_and_ancestors_of_nodes_matching_a_key_value_pair.constructor
 pub const last_to_first_concatenate_text_nodes = last_to_first_concatenate_text_nodes.constructor
 pub const lbp_adorn_img_with_3003_spans = lbp_adorn_img_with_3003_spans.constructor
+pub const lbp_adorn_img_with_3003_spans_ = lbp_adorn_img_with_3003_spans_.constructor
 pub const lbp_adorn_with_3003_spans = lbp_adorn_with_3003_spans.constructor
 pub const lbp_img_build = lbp_img_build.constructor
 pub const lbp_turn_lines_into_3003_spans = lbp_turn_lines_into_3003_spans.constructor
@@ -600,6 +602,7 @@ pub const assertive_tests : List(fn() -> infra.AssertiveTestCollection) = [
   keep_only_subtrees_and_ancestors_of_nodes_matching_a_key_value_pair.assertive_tests,
   last_to_first_concatenate_text_nodes.assertive_tests,
   lbp_adorn_img_with_3003_spans.assertive_tests,
+  lbp_adorn_img_with_3003_spans_.assertive_tests,
   lbp_adorn_with_3003_spans.assertive_tests,
   lbp_img_build.assertive_tests,
   lbp_turn_lines_into_3003_spans.assertive_tests,
