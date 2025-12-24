@@ -19,85 +19,68 @@ const tooltip_classname = "t-3003"
 const b = bl.Des([], name, 14)
 const newline_t = T(b, [Line(b, ""), Line(b, "")])
 
-fn line_to_tooltip_span(
-  line: Line,
-  inner: InnerParam,
-) -> VXML {
-  let location =
-    inner <> case line.blame {
-      bl.Src(..) -> {
-        let assert bl.Src(_, path, line_no, char_no, _) = line.blame
-        path <> ":" <> ins(line_no) <> ":" <> ins(char_no)
-      }
-      _ -> ""
-    }
+fn get_location(blame: bl.Blame, prefix: String) -> String {
+  case blame {
+    bl.Src(_, path, line_no, char_no, _) ->
+      prefix <> path <> ":" <> ins(line_no) <> ":" <> ins(char_no)
+    _ -> prefix
+  }
+}
 
-  use _ <- on.continue(case location == inner {
-    True -> Return(T(line.blame, [line]))
+fn wrap_with_tooltip(
+  blame: bl.Blame,
+  location: String,
+  inner_param: InnerParam,
+  content: VXML,
+) -> VXML {
+  use _ <- on.continue(case location == inner_param {
+    True -> Return(content)
     False -> Stay(Nil)
   })
 
   V(
-    line.blame,
+    blame,
     "span",
-    [Attr(line.blame, "class", container_classname)],
+    [Attr(blame, "class", container_classname)],
     [
-      T(line.blame, [Line(line.blame, line.content)]),
+      content,
       V(
-        line.blame,
+        blame,
         "span",
-        [
-          Attr(line.blame, "class", tooltip_classname),
-        ],
-        [
-          T(line.blame, [Line(line.blame, location)])
-        ],
+        [Attr(blame, "class", tooltip_classname)],
+        [T(blame, [Line(blame, location)])],
       ),
     ],
   )
 }
 
-fn bold_line_to_tooltip_span(
-  vxml:VXML,
-  inner: InnerParam
-) -> VXML {
+fn line_to_tooltip_span(line: Line, inner: InnerParam) -> VXML {
+  let location = get_location(line.blame, inner)
+  let content = T(line.blame, [Line(line.blame, line.content)])
+  
+  wrap_with_tooltip(line.blame, location, inner, content)
+}
+
+fn bold_line_to_tooltip_span(vxml: VXML, inner: InnerParam) -> VXML {
   case vxml {
     V(b1, "b", attr, [T(b2, [line, ..rest_lines]), ..children]) -> {
-      let location =
-        inner <> case line.blame {
-          bl.Src(..) -> {
-            let assert bl.Src(_, path, line_no, char_no, _) = line.blame
-            path <> ":" <> ins(line_no) <> ":" <> ins(char_no)
-          }
-          _ -> ""
-        }
-    
-      use _ <- on.continue(case location == inner {
-        True -> Return(T(line.blame, [line]))
-        False -> Stay(Nil)
-      })
+      let location = get_location(line.blame, inner)
       
-      V(
-        vxml.blame,
-        "span",
-        [Attr(line.blame, "class", container_classname)],
+      let content = V(
+        b1, 
+        "b", 
+        attr, 
         [
-          V(b1, "b", attr, [T(line.blame, [Line(line.blame, line.content)]), newline_t, T(b2, rest_lines), ..children]),
-          V(
-            vxml.blame,
-            "span",
-            [
-              Attr(line.blame, "class", tooltip_classname),
-            ],
-            [
-              T(line.blame, [Line(line.blame, location)])
-            ],
-          ),
-        ],
+          T(line.blame, [Line(line.blame, line.content)]), 
+          newline_t, 
+          T(b2, rest_lines), 
+          ..children
+        ]
       )
+
+      wrap_with_tooltip(vxml.blame, location, inner, content)
     }
     _ -> vxml
-    
   }
 }
 
