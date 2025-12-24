@@ -450,11 +450,11 @@ fn empty_command_line_amendments() -> CommandLineAmendments {
 // ************************************************************
 
 pub fn basic_cli_usage(header: String) {
-  let margin = "   "
   case header {
     "" -> Nil
     _ -> io.println(header <> "\n")
   }
+  let margin = "   "
   io.println(margin <> "--help")
   io.println(margin <> "  -> print the basic command line options (this message)")
   io.println("")
@@ -1750,16 +1750,16 @@ pub fn run_renderer(
     Some(total_chars) -> {
       let all_seconds = durations |> list.map(duration.to_seconds) |> list.reverse
       let assert Ok(max_secs) = list.max(all_seconds, float.compare)
-      let num_hundreth_seconds = float.round(float.ceiling(max_secs *. 100.0))
-      let one_hundreth_seconds_num_bars = int.max(1, total_chars / num_hundreth_seconds)
+      let num_hundreth_seconds = float.ceiling(max_secs *. 100.0)
+      let one_hundreth_seconds_num_bars = int.to_float(total_chars) /. num_hundreth_seconds
       let scale =
-        list.repeat(Nil, num_hundreth_seconds + 1)
+        list.repeat(Nil, float.round(num_hundreth_seconds) + 1)
         |> list.map_fold(0.0, fn(x, _) { #(x +. 0.01, x) })
         |> pair.second
         |> list.index_fold(
           "",
           fn(acc, seconds, i) {
-            let start_char = i * one_hundreth_seconds_num_bars
+            let start_char = float.round(int.to_float(i) *. one_hundreth_seconds_num_bars)
             let num_spaces = start_char - string.length(acc)
             case num_spaces > 0 || acc == "" {
               False -> acc
@@ -1775,7 +1775,7 @@ pub fn run_renderer(
         list.zip(renderer.pipeline, all_seconds),
         fn (pair, i) {
           let #(pipe, seconds) = pair
-          let num_bars = float.round(seconds *. 100.0 *. int.to_float(one_hundreth_seconds_num_bars))
+          let num_bars = float.round(seconds *. 100.0 *. one_hundreth_seconds_num_bars)
           #(ins(i + 1) <> ".", pipe.desugarer.name, pr.blocks(num_bars))
         }
       )
@@ -1784,24 +1784,6 @@ pub fn run_renderer(
       io.println("  ...ended pipeline in " <> ins(seconds) <> "s")
     }
   }
-
-  // case requested_times {
-  //   [] -> Nil
-  //   _ -> {
-  //     let requested_times = [#(list.length(renderer.pipeline), t1), ..requested_times]
-  //     list.fold(requested_times |> list.reverse, #(0, t0), fn(acc, next) {
-  //       let #(step0, t0) = acc
-  //       let #(step1, t1) = next
-  //       let seconds =
-  //         timestamp.difference(t0, t1)
-  //         |> duration.to_seconds
-  //         |> float.to_precision(3)
-  //       io.println("  steps " <> ins(step0) <> " to " <> ins(step1) <> ": " <> ins(seconds) <> "s")
-  //       next
-  //     })
-  //     Nil
-  //   }
-  // }
 
   // 🌸 splitting 🌸
 
