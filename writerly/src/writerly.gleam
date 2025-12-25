@@ -9,7 +9,7 @@ import gleam/string.{inspect as ins}
 import simplifile
 import vxml.{type Attr, type Line, type VXML, Attr, Line, T, V}
 import dirtree.{type DirTree} as dt
-import on.{Return, Continue as Stay}
+import on
 
 // ************************************************************
 // public types
@@ -272,7 +272,7 @@ pub fn assemble_input_lines(
 
   use _, _ <- on.empty_nonempty(
     paths,
-    Error(NoFilesFound("no files found in: " <> dirpath_or_filepath)),
+    fn() { Error(NoFilesFound("no files found in: " <> dirpath_or_filepath)) },
   )
 
   let paths =
@@ -359,29 +359,29 @@ fn filehead_encounter(
   indent: Int,
   head: FileHead,
 ) -> #(Encounter, FileHead) {
-  use first, rest <- on.lazy_empty_nonempty(
+  use first, rest <- on.empty_nonempty(
     head,
     fn() { #(EncounteredFileEnd, []) },
   )
 
   let InputLine(blame, first_indent, suffix) = first
 
-  use <- on.lazy_true_false(
+  use <- on.true_false(
     suffix == "",
     fn() { #(EncounteredBlankLine(blame, first_indent), rest) },
   )
 
-  use <- on.lazy_true_false(
+  use <- on.true_false(
     first_indent % 4 != 0,
     fn() { #(EncounteredNonMod4Indent(blame, first_indent, suffix), rest) },
   )
 
-  use <- on.lazy_true_false(
+  use <- on.true_false(
     first_indent < indent,
     fn() { #(EncounteredLowerIndent(blame, first_indent, suffix), rest) },
   )
 
-  use <- on.lazy_true_false(
+  use <- on.true_false(
     first_indent > indent,
     fn() { #(EncounteredHigherIndent(blame, first_indent, suffix), rest) },
   )
@@ -442,18 +442,21 @@ fn parse_attrs_at_indent(
 ) -> Result(#(List(Attr), Encounter, FileHead), ParseError) {
   let #(encounter, rest) = filehead_encounter(indent, head)
 
-  use #(blame, suffix) <- on.continue(
+  use #(blame, suffix) <- on.select(
     case encounter {
-      EncounteredTextLine(blame, suffix) -> Stay(#(blame, suffix))
+      EncounteredTextLine(blame, suffix) ->
+        on.Select(#(blame, suffix))
+
       EncounteredCommentLine(blame, suffix) -> {
         let attr = Attr(blame, suffix, "")
         use #(attrs, encounter, rest) <- on.error_ok(
           parse_attrs_at_indent(indent, rest, rgxs),
-          fn(e) { Return(Error(e)) },
+          fn(e) { on.Return(Error(e)) },
         )
-        Return(Ok(#([attr, ..attrs], encounter, rest)))
+        on.Return(Ok(#([attr, ..attrs], encounter, rest)))
       }
-      _ -> Return(Ok(#([], encounter, rest)))
+
+      _ -> on.Return(Ok(#([], encounter, rest)))
     }
   )
 
@@ -466,7 +469,7 @@ fn parse_attrs_at_indent(
     fn(_) { Ok(#([], encounter, rest)) },
   )
 
-  use <- on.lazy_true_false(
+  use <- on.true_false(
     key == "" || string.contains(key, " ") || !regexp.check(rgxs.is_valid_key, key),
     fn() { Ok(#([], encounter, rest)) },
   )
@@ -541,7 +544,7 @@ fn parse_writerlys_at_indent_from_encounter(
 
     EncounteredTagLine(blame, suffix) -> {
       let tag = suffix |> string.drop_start(2) |> string.trim
-      use <- on.lazy_false_true(
+      use <- on.false_true(
         regexp.check(rgxs.is_valid_tag, tag),
         fn() { Error(BadTag(blame, tag)) }
       )
@@ -577,14 +580,14 @@ fn parse_code_block_at_indent(
   initial_blame: Blame,
   rgxs: OurRegexes,
 ) -> Result(#(List(Line), FileHead), ParseError) {
-  use first, rest <- on.lazy_empty_nonempty(
+  use first, rest <- on.empty_nonempty(
     head,
     fn() { Error(CodeBlockNotClosed(initial_blame)) }
   )
 
   let InputLine(blame, first_indent, suffix) = first
 
-  use <- on.lazy_true_false(
+  use <- on.true_false(
     first_indent > indent,
     fn() {
       let spaces = string.repeat(" ", first_indent - indent)
@@ -595,7 +598,7 @@ fn parse_code_block_at_indent(
     }
   )
 
-  use <- on.lazy_true_false(
+  use <- on.true_false(
     suffix == "",
     fn() {
       let line = Line(blame, "")
@@ -604,12 +607,12 @@ fn parse_code_block_at_indent(
     },
   )
 
-  use <- on.lazy_true_false(
+  use <- on.true_false(
     first_indent < indent,
     fn() { Error(CodeBlockNotClosed(initial_blame)) }
   )
 
-  use <- on.lazy_true_false(
+  use <- on.true_false(
     suffix |> string.starts_with("```"),
     fn() {
       let suffix = suffix |> string.drop_start(3) |> string.trim_end()
@@ -670,17 +673,17 @@ fn parse_code_block_info(
 ) -> Result(List(Attr), ParseError) {
   let info = info |> string.trim_end()
 
-  use <- on.lazy_true_false(
+  use <- on.true_false(
     info == "",
     fn() { Ok([]) },
   )
 
-  use <- on.lazy_true_false(
+  use <- on.true_false(
     info |> string.starts_with(" "),
     fn() { Error(CodeBlockInfoStartsWithSpace(blame, info)) },
   )
 
-  use <- on.lazy_false_true(
+  use <- on.false_true(
     info |> string.contains("&"),
     fn() { Ok([Attr(blame, "info", info)]) },
   )
