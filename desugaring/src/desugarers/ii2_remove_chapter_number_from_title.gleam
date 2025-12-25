@@ -20,7 +20,7 @@ fn nodemap(
       use <- on.false_true(
         infra.v_has_key_val(vxml, "class", "chapterTitle") ||
         infra.v_has_key_val(vxml, "class", "subChapterTitle"),
-        on_false: Ok(vxml),
+        on_false: fn() { Ok(vxml) },
       )
 
       case children {
@@ -34,7 +34,7 @@ fn nodemap(
           let assert Ok(re) = regexp.from_string("^(\\d+)(\\.(\\d+)?)?\\s")
           use <- on.false_true(
             regexp.check(re, first_text_node_line),
-            on_false: Ok(vxml),
+            on_false: fn() { Ok(vxml) },
           )
           let new_line = regexp.replace(re, first_text_node_line, "")
           let contents = T(t_blame, [Line(l_blame, new_line), ..list.drop(rest_contents, 1)])

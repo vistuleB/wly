@@ -48,7 +48,7 @@ fn v_before(
   let assert V(blame, tag, _, _) = vxml
   use <- on.false_true(
     list.contains(tags, tag),
-    Ok(#(vxml, state)),
+    fn() { Ok(#(vxml, state)) },
   )
   case infra.v_first_attr_with_key(vxml, original_key), state {
     None, _ -> Ok(#(vxml, state))
@@ -78,7 +78,7 @@ fn v_after(
   let assert V(_, tag, attrs, _) = vxml
   use <- on.false_true(
     tag == "img",
-    Ok(#([vxml], original_state)),
+    fn() { Ok(#([vxml], original_state)) },
   )
   let assert Some(attr) = infra.attrs_first_with_key(attrs, "src")
   use src <- on.ok(compose_and_simplify_path(attr.blame, attr.val, inner))

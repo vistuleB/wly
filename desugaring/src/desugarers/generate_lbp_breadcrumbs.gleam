@@ -15,14 +15,14 @@ import nodemaps_2_desugarer_transforms as n2t
 import on
 
 fn remove_period(nodes: List(VXML)) -> List(VXML) {
-  use last, head <- on.empty_nonempty(
+  use last, head <- on.eager_empty_nonempty(
     nodes |> list.reverse,
     [],
   )
 
   let head = head |> list.reverse
 
-  use <- on.lazy_false_true(
+  use <- on.false_true(
     infra.is_text_node(last),
     fn() {
       let assert V(_, _, _, children) = last
@@ -30,7 +30,7 @@ fn remove_period(nodes: List(VXML)) -> List(VXML) {
     }
   )
 
-  use last <- on.none_some(
+  use last <- on.eager_none_some(
     infra.t_super_trim_end_and_remove_ending_period(last),
     head,
   )

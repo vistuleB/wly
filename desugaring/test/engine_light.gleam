@@ -24,7 +24,7 @@ pub fn run_renderer_test() {
     },
   )
 
-  use <- on.lazy_true_false(
+  use <- on.true_false(
     amendments.help,
     fn() { io.println("test_renderer exiting on '--help' option") },
   )

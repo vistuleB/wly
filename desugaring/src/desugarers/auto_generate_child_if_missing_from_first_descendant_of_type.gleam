@@ -21,7 +21,7 @@ fn nodemap(
       // return early if we don't have a descendant of tag descendant_tag:
       use descendant, _ <- on.empty_nonempty(
         infra.descendants_with_tag(node, descendant_tag),
-        Ok(node),
+        fn() { Ok(node) },
       )
 
       let assert V(_, _, _, _) = descendant

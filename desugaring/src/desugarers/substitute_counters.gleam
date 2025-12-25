@@ -120,7 +120,7 @@ fn process_string(
   counters: CounterDict,
   inner: InnerParam,
 ) -> Result(#(String, CounterDict), DesugaringError) {
-  use <- on.lazy_true_false(
+  use <- on.true_false(
     content == "",
     fn() { Ok(#("", counters)) },
   )
@@ -171,12 +171,12 @@ fn handle_non_unary_att_value(
 ) -> Result(#(String, Int, Int), DesugaringError) {
   let splits = string.split(attr.val, " ")
 
-  use counter_name, rest <- on.lazy_empty_nonempty(
+  use counter_name, rest <- on.empty_nonempty(
     splits,
     fn() { Error(DesugaringError(attr.blame, "counter must have a name")) },
   )
 
-  use starting_value, rest <- on.lazy_empty_nonempty(
+  use starting_value, rest <- on.empty_nonempty(
     rest,
     fn() { Ok(#(counter_name, 0, 1)) },
   )
@@ -186,7 +186,7 @@ fn handle_non_unary_att_value(
     fn(_) { Error(DesugaringError(attr.blame, "counter starting value must be a number")) },
   )
 
-  use step, rest <- on.lazy_empty_nonempty(
+  use step, rest <- on.empty_nonempty(
     rest,
     fn() { Ok(#(counter_name, starting_value, 1)) },
   )
@@ -268,10 +268,10 @@ fn fancy_one_attr_processor(
 
   use <- on.true_false(
     key == "",
-    Error(DesugaringError(
+    fn() { Error(DesugaringError(
       blame,
       "empty key after processing counters; original key: '" <> original_key <> "'",
-    )),
+    )) },
   )
 
   use #(val, counters) <- on.ok(
@@ -295,7 +295,7 @@ fn fancy_attr_processor(
   counters: CounterDict,
   inner: InnerParam,
 ) -> Result(#(List(Attr), CounterDict), DesugaringError) {
-  use next, rest <- on.lazy_empty_nonempty(
+  use next, rest <- on.empty_nonempty(
     yet_to_be_processed,
     fn() { Ok(#(already_processed |> list.reverse, counters)) },
   )

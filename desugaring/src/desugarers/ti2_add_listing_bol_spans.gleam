@@ -34,7 +34,7 @@ fn nodemap(
 ) -> VXML {
   case vxml {
     V(_, "pre", attrs, children) -> {
-      use <- on.false_true(
+      use <- on.eager_false_true(
         infra.attrs_have_class(attrs, "listing"),
         vxml,
       )

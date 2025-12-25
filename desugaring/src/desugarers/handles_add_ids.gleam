@@ -38,7 +38,7 @@ fn nodemap(
 
       use _, _ <- on.empty_nonempty(
         handle_attrs,
-        Ok(#(node, counter)),
+        fn() { Ok(#(node, counter)) },
       )
 
       let assert #(

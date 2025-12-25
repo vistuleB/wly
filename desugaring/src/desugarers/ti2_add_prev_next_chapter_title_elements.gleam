@@ -140,7 +140,7 @@ fn deposit_next(
   next: Option(Page),
 ) -> VXML {
   let assert V(_, _, _, children) = vxml
-  use next <- on.none_some(next, vxml)
+  use next <- on.eager_none_some(next, vxml)
   let title = V(
     desugarer_blame(145),
     "NextChapterOrSubTitle",
@@ -155,7 +155,7 @@ fn deposit_prev(
   prev: Option(Page),
 ) -> VXML {
   let assert V(_, _, _, children) = vxml
-  use prev <- on.none_some(prev, vxml)
+  use prev <- on.eager_none_some(prev, vxml)
   let title = V(
     desugarer_blame(160),
     "PrevChapterOrSubTitle",

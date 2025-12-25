@@ -23,13 +23,14 @@ fn nodemap(
         infra.attrs_unique_key_or_none(attrs, inner.1)
       )
 
-      use attr <- on.lazy_none_some(
+      use attr <- on.none_some(
         attr,
         fn() { Ok(#(vxml, Continue)) },
       )
 
       use first, rest <- on.empty_nonempty(
-        children, Error(DesugaringError(vxml.blame, "first child missing"))
+        children,
+        fn() { Error(DesugaringError(vxml.blame, "first child missing")) },
       )
 
       case first {

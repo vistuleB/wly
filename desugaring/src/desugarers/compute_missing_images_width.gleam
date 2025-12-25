@@ -19,7 +19,7 @@ fn get_svg_width(blame: Blame, path: String) -> Result(Float, DesugaringError) {
   
   use match, _ <- on.empty_nonempty(
     regexp.scan(width_pattern, file),
-    Error(DesugaringError(blame, "Could not find width attr in SVG file\n file: " <> path))
+    fn() { Error(DesugaringError(blame, "Could not find width attr in SVG file\n file: " <> path)) },
   )
 
   case match.submatches {
@@ -88,7 +88,7 @@ fn nodemap(
         // if the image doesn't have a src attr, we need to error
         use attr <- on.none_some(
           infra.v_first_attr_with_key(node, "src"),
-          on_none: Error(DesugaringError(blame, "Image tag must have a src attr")),
+          on_none: fn() { Error(DesugaringError(blame, "Image tag must have a src attr")) },
         )
        
         use width <- on.ok(get_image_width(attr.blame, "../../../MrChaker/little-bo-peep-solid/public" <> attr.val))

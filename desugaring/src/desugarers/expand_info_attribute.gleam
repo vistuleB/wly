@@ -21,7 +21,7 @@ fn nodemap(
         False -> Ok(vxml)
         True -> {
           use #(info, attrs) <- on.ok(infra.attrs_extract_unique_key_or_none(attrs, "info"))
-          use info <- on.none_some(info, Ok(vxml))
+          use info <- on.none_some(info, fn() { Ok(vxml) })
           use #(language, id, class, style) <- on.error_ok(
             infra.expand_clode_block_info_html_shorthand(info.blame, info.val),
             fn(msg) { Error(DesugaringError(blame, msg)) }

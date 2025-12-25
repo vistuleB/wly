@@ -2,6 +2,7 @@ name = "desugaring"
 version = "1.0.0"
 
 [dependencies]
+on = { "path" = "../../on" }
 vxml = { "path" = "../vxml" }
 writerly = { "path" = "../writerly" }
 
@@ -13,7 +14,6 @@ xmlm = ">= 1.0.0 and < 2.0.0"
 argv = ">= 1.0.2 and < 2.0.0"
 gleam_time = ">= 1.2.0 and < 2.0.0"
 ansel = ">= 1.1.0 and < 2.0.0"
-on = ">= 1.1.0 and < 2.0.0"
 splitter = ">= 1.1.0 and < 2.0.0"
 colours = ">= 0.3.0 and < 1.0.0"
 input = ">= 1.0.1 and < 2.0.0"

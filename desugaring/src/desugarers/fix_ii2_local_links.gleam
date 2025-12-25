@@ -13,11 +13,11 @@ fn nodemap(
     V(blame, tag, atts, children) -> {
       use href <- on.none_some(
         infra.v_first_attr_with_key(vxml, "href"),
-        Ok(vxml),
+        fn() { Ok(vxml) },
       )
       use <- on.false_true(
         string.starts_with(href.val, "../../demo"),
-        Ok(vxml),
+        fn() { Ok(vxml) },
       )
       let atts =
         atts

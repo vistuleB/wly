@@ -10,7 +10,7 @@ import infrastructure.{
 import nodemaps_2_desugarer_transforms as n2t
 import vxml.{ type Line, type VXML, Attr, Line, T, V }
 import blame as bl
-import on.{Return, Continue as Stay}
+import on
 
 // remember to replace these names in tests,
 // as well:
@@ -32,9 +32,9 @@ fn line_to_tooltip_span(
       _ -> ""
     }
 
-  use _ <- on.continue(case location == inner {
-    True -> Return(T(line.blame, [line]))
-    False -> Stay(Nil)
+  use _ <- on.select(case location == inner {
+    True -> on.Return(T(line.blame, [line]))
+    False -> on.Select(Nil)
   })
 
   V(

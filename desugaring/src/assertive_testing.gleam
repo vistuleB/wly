@@ -39,7 +39,7 @@ pub fn run_assertive_test(name: String, tst: AssertiveTest) -> Result(Nil, Asser
   let desugarer = tst.constructor()
   use <- on.true_false(
     name != desugarer.name,
-    Error(NonMatchingDesugarerName(desugarer.name)),
+    fn() { Error(NonMatchingDesugarerName(desugarer.name)) },
   )
   use vxmls <- on.ok(vxml.parse_string(tst.source, "tst.source") |> result.map_error(fn(e) { VXMLParseError(e) }))
   let assert [input] = vxmls
@@ -118,10 +118,7 @@ fn indicator(b: Bool) -> Int {
 fn run_assertive_test_collection(test_group: AssertiveTestCollection) -> Bool {
   let tests = test_group.tests()
   let total = list.length(tests)
-  use <- on.false_true(
-    total > 0,
-    False,
-  )
+  use <- on.true(total > 0)
   io.print(test_group.desugarer_name <> " ")
   let #(_, num_failures, _) = list.fold(
     tests,

@@ -21,7 +21,7 @@ fn nodemap(
       // return early if we don't have a attr_key == inner.2:
       use attr, _ <- on.empty_nonempty(
         infra.v_attrs_with_key(node, inner.2),
-        #(node, GoBack),
+        fn() { #(node, GoBack) },
       )
 
       #(

@@ -16,7 +16,7 @@ fn nodemap(
     fn(_, _) {vxml}
   )
 
-  use parent, _ <- on.lazy_empty_nonempty(ancestors, fn() { vxml })
+  use parent, _ <- on.empty_nonempty(ancestors, fn() { vxml })
 
   let assert V(_, parent_tag, _, _) = parent
 

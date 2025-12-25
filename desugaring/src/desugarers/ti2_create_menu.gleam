@@ -341,7 +341,7 @@ fn page_from_title(
     Prev -> "PrevChapterOrSubTitle"
     Next -> "NextChapterOrSubTitle"
   }
-  use title <- on.none_some(
+  use title <- on.eager_none_some(
     infra.v_first_child_with_tag(vxml, title_tag),
     Ok(None),
   )

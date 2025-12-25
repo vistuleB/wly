@@ -76,12 +76,12 @@ fn try_insert_id(
 
   let id = attr.val
 
-  use <- on.lazy_true_false(
+  use <- on.true_false(
     id == "",
     fn() { Error(DesugaringError(attr.blame, "empty string id")) }
   )
 
-  use <- on.lazy_true_false(
+  use <- on.true_false(
     string.contains(id, " "),
     fn() { Error(DesugaringError(attr.blame, "id attr contains space: '" <> id <> "'")) }
   )
@@ -108,7 +108,7 @@ fn attrs_fold(
 ) -> Result(#(HandlesDict, Ids, List(Attr)), DesugaringError) {
   use first, rest <- on.empty_nonempty(
     remaining,
-    Ok(#(handles, ids, not_handles_acc |> list.reverse))
+    fn() { Ok(#(handles, ids, not_handles_acc |> list.reverse)) },
   )
 
   case first.key {

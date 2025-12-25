@@ -27,7 +27,7 @@ fn hyperlink_constructor(
     state: State,
     inner: InnerParam,
 ) -> Result(VXML, DesugaringError) {
-  use our_path <- on.lazy_none_some(
+  use our_path <- on.none_some(
     state.path,
     fn(){ Error(DesugaringError(blame, "handle occurrence when local path is not defined")) },
   )
@@ -292,7 +292,7 @@ fn substitute_id_in_href(
   }
   use path <- on.none_some(
     state.path,
-    Error(DesugaringError(attr.blame, "id appearing outside outside of path context")),
+    fn() { Error(DesugaringError(attr.blame, "id appearing outside outside of path context")) },
   )
   use paths <- on.error_ok(
     dict.get(state.ids, id),
@@ -328,7 +328,7 @@ fn substitute_in_href(
 ) -> Result(#(Attr, Option(DesugaringWarning)), DesugaringError) {
   use <- on.false_true(
     attr.key == "href",
-    Ok(#(attr, None)),
+    fn() { Ok(#(attr, None)) },
   )
 
   let #(attr, warning) = case attr.val |> string.starts_with(">>") {
@@ -339,7 +339,7 @@ fn substitute_in_href(
     }
   }
 
-  use <- on.lazy_false_true(
+  use <- on.false_true(
     attr.val |> string.starts_with("#"),
     fn() { Ok(#(attr, warning)) }
   )

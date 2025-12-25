@@ -65,7 +65,7 @@ fn at_root(root: VXML) -> Result(VXML, DesugaringError) {
   let bootcamps = infra.v_children_with_tag(root, "Bootcamp")
   use toc <- on.empty_gt1_singleton(
     infra.v_children_with_tag(root, "TOC"),
-    on_empty: Error(DesugaringError(root.blame, "TOC missing")),
+    on_empty: fn() { Error(DesugaringError(root.blame, "TOC missing")) },
     on_gt1: fn(_, _, _) {Error(DesugaringError(root.blame, "> 1 TOC"))},
   )
   let num_chapters = list.length(chapters)

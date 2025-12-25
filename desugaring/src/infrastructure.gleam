@@ -25,21 +25,6 @@ import splitter
 import on
 import either_or.{type EitherOr, Either, Or} as eo
 
-type Return(a, b) {
-  Return(a)
-  Keep(b)
-}
-
-fn on_keep(
-  thing: Return(a, b),
-  on_keep f2: fn(b) -> a,
-) -> a {
-  case thing {
-    Return(a) -> a
-    Keep(b) -> f2(b)
-  }
-}
-
 // ************************************************************
 // Traffic Light for early returns
 // ************************************************************
@@ -70,17 +55,17 @@ pub fn parse_to_float(s: String) -> Result(Float, Nil) {
 fn extract_css_unit(s: String) -> #(String, Option(CSSUnit)) {
   use <- on.true_false(
     string.ends_with(s, "rem"),
-    #(string.drop_end(s, 3), Some(REM)),
+    fn() { #(string.drop_end(s, 3), Some(REM)) },
   )
 
   use <- on.true_false(
     string.ends_with(s, "em"),
-    #(string.drop_end(s, 2), Some(EM)),
+    fn() { #(string.drop_end(s, 2), Some(EM)) },
   )
 
   use <- on.true_false(
     string.ends_with(s, "px"),
-    #(string.drop_end(s, 2), Some(PX)),
+    fn() { #(string.drop_end(s, 2), Some(PX)) },
   )
 
   #(s, None)
@@ -398,7 +383,7 @@ fn index_try_map_acc(
   rest: List(a),
   f: fn(a, Int) -> Result(b, c)
 ) -> Result(List(b), c) {
-  use first, rest <- on.empty_nonempty(rest, Ok([]))
+  use first, rest <- on.eager_empty_nonempty(rest, Ok([]))
   use b <- on.ok(f(first, i))
   use bs <- on.ok(index_try_map_acc(i + 1, rest, f))
   Ok([b, ..bs])
@@ -2029,9 +2014,9 @@ fn split_while(
   blame: Blame,
 ) -> #(String, List(#(Blame, String, String))) {
   let #(before, sep, after) = splitter.split(s, suffix)
-  use _ <- on.continue(case sep {
+  use _ <- on.select(case sep {
     "" -> on.Return(#(before, []))
-    _ -> on.Continue(Nil)
+    _ -> on.Select(Nil)
   })
   let b1 = bl.advance(blame, string.length(before))
   let b2 = bl.advance(b1, string.length(sep))
@@ -2132,9 +2117,9 @@ fn expand_selector_split_while(
   suffix: String,
 ) -> #(String, List(#(String, String))) {
   let #(before, q, after) = splitter.split(s, suffix)
-  use _ <- on_keep(case q {
-    "" -> Return(#(before, []))
-    _ -> Keep(Nil)
+  use _ <- on.select(case q {
+    "" -> on.Return(#(before, []))
+    _ -> on.Select(Nil)
   })
   let #(u, others) = expand_selector_split_while(s, after)
   #(before, [#(q, u), ..others])
@@ -2145,12 +2130,12 @@ pub fn expand_selector_shorthand(shorthand: String) -> Result(VXML, SelectorErro
   let #(tag, addenda) = expand_selector_split_while(s, shorthand)
   let blame = bl.Ext([], "expand_selector_shorthand")
 
-  use _ <- on_keep(case tag == "" {
-    True -> Return(Error(EmptyTag))
-    False -> Keep(Nil)
+  use _ <- on.select(case tag == "" {
+    True -> on.Return(Error(EmptyTag))
+    False -> on.Select(Nil)
   })
 
-  use <- on.lazy_false_true(
+  use <- on.false_true(
     valid_tag(tag),
     fn() { Error(InvalidTag) },
   )

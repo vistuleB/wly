@@ -191,9 +191,9 @@ fn get_hashed_filename(original_name: String, image_map: ImageMap) -> String {
     |> crypto.hash(crypto.Md5, _)
     |> bit_array.base64_url_encode(False)
   let s1 = string.slice(big_string, 0, 4)
-  use <- on.false_true(dict.has_key(image_map, s1), s1)
+  use <- on.eager_false_true(dict.has_key(image_map, s1), s1)
   let s2 = string.slice(big_string, 4, 8)
-  use <- on.false_true(dict.has_key(image_map, s1 <> s2), s1 <> s2)
+  use <- on.false_true(dict.has_key(image_map, s1 <> s2), fn() { s1 <> s2 })
   let s3 = string.slice(big_string, 8, 12)
   s1 <> s2 <> s3 // 64^(-12) = 2^{-72} seems pretty unlucky! let us know!
 }
@@ -350,7 +350,7 @@ fn v_before(
   let assert V(_, tag, attrs, _) = vxml
 
   // escape #1: no 'src' expected:
-  use <- on.lazy_false_true(
+  use <- on.false_true(
     list.contains(img_tags, tag),
     fn() { Ok(#(vxml, image_map, [])) },
   )
@@ -362,7 +362,7 @@ fn v_before(
   let vxml = V(..vxml, attrs: attrs)
 
   // escape #2: 'src' missing:
-  use src_attr <- on.lazy_none_some(
+  use src_attr <- on.none_some(
     infra.attrs_first_with_key(attrs, "src"),
     fn() { Ok(#(vxml, image_map, [])) },
   )
@@ -370,7 +370,7 @@ fn v_before(
   let src = src_attr.val |> infra.drop_prefix("./") |> infra.drop_prefix("/")
 
   // escape #3: src does not start with the expected src_2_src_img prefix
-  use <- on.lazy_false_true(
+  use <- on.false_true(
     string.starts_with(src, inner.src_2_src_img),
     fn() { Ok(#(vxml, image_map, [])) },
   )
@@ -407,17 +407,17 @@ fn v_before(
       dict.get(image_map, src_img_2_src_version),
       fn(_) { None },
     )
-    use <- on.true_false(
+    use <- on.eager_true_false(
       last_modified > img_info.build_version_created_on,
       None,
     )
-    use <- on.true_false(
+    use <- on.eager_true_false(
       cmd == SVGO && img_info.build_method != cmd && !inner.quick_mode,
       None,
     )
     use <- on.true_false(
       simplifile.is_file(inner.exec_2_build_img <> img_info.build_version) == Ok(True),
-      Some(img_info),
+      fn() { Some(img_info) },
     )
     io.println(whoami <> ": " <> img_info.build_version <> " missing from " <> inner.exec_2_build_img <> " (!!)")
     None

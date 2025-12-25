@@ -1498,7 +1498,7 @@ fn early_return_one_to_one_no_error_nodemap_walk_with_forbidden(
   nodemap: EarlyReturnOneToOneNoErrorNodeMap,
   forbidden: List(String),
 ) -> VXML {
-  use <- on.true_false(
+  use <- on.eager_true_false(
     infra.is_v_and_tag_is_one_of(node, forbidden),
     node,
   )
@@ -1618,7 +1618,7 @@ fn early_return_one_to_many_no_error_nodemap_walk_with_forbidden(
 ) -> List(VXML) {
   use <- on.true_false(
     infra.is_v_and_tag_is_one_of(node, forbidden),
-    [node],
+    fn() { [node] },
   )
   let #(nodes, signal) = nodemap(node)
   case nodes, signal {

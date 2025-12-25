@@ -13,17 +13,17 @@ fn wrap_second_element_if_its_math_and_recurse(
 ) -> List(VXML) {
   let #(to_be_wrapped, wrapper_tag) = inner
 
-  use first, after_first <- on.empty_nonempty(
+  use first, after_first <- on.eager_empty_nonempty(
     children,
     [],
   )
 
-  use second, after_second <- on.empty_nonempty(
+  use second, after_second <- on.eager_empty_nonempty(
     after_first,
     children,
   )
 
-  use <- on.lazy_false_true(
+  use <- on.false_true(
     infra.is_v_and_tag_is_one_of(second, to_be_wrapped),
     fn() {[
       first,
@@ -34,7 +34,7 @@ fn wrap_second_element_if_its_math_and_recurse(
   let #(first, last_word_of_first) =
     infra.extract_last_word_from_t_node_if_t(first)
 
-  use third, after_third <- on.lazy_empty_nonempty(
+  use third, after_third <- on.empty_nonempty(
     after_second,
     fn() {
       case last_word_of_first {

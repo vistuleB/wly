@@ -118,7 +118,7 @@ fn serialize_counter_bundles(
 ) -> Result(#(LeftMostSplitChar, TwoValues, CounterDict), DesugaringError) {
   use first, rest <- on.empty_nonempty(
     bundles,
-    Ok(#("", empty_values, counters))
+    fn() { Ok(#("", empty_values, counters)) },
   )
   let CounterBundle(our_split_char, insert_or_not, mutation, counter_name) = first
   use info <- on.error_ok(
@@ -150,7 +150,7 @@ fn handle_matches(
   counters: CounterDict,
   regexes: #(Regexp, Regexp),
 ) -> Result(#(String, CounterDict, List(HandleAssignment)), DesugaringError) {
-  use first, rest <- on.lazy_empty_nonempty(
+  use first, rest <- on.empty_nonempty(
     matches,
     fn() {
       let assert[split] = splits
@@ -242,7 +242,7 @@ fn substitute_counters_and_generate_handle_assignments(
 
   use <- on.false_true(
     string.contains(content, "::") || string.contains(content, ".."),
-    Ok(#(content, counters, [])),
+    fn() { Ok(#(content, counters, [])) },
   )
 
   let #(_, re) = regexes
@@ -326,12 +326,12 @@ fn handle_non_unary_att_value(
 ) -> Result(#(String, Int, Int), DesugaringError) {
   let splits = string.split(attr.val, " ")
 
-  use counter_name, rest <- on.lazy_empty_nonempty(
+  use counter_name, rest <- on.empty_nonempty(
     splits,
     fn() { Error(DesugaringError(attr.blame, "counter must have a name")) },
   )
 
-  use starting_value, rest <- on.lazy_empty_nonempty(
+  use starting_value, rest <- on.empty_nonempty(
     rest,
     fn() { Ok(#(counter_name, 0, 1)) },
   )
@@ -341,7 +341,7 @@ fn handle_non_unary_att_value(
     fn(_) { Error(DesugaringError(attr.blame, "counter starting value must be a number")) },
   )
 
-  use step, rest <- on.lazy_empty_nonempty(
+  use step, rest <- on.empty_nonempty(
     rest,
     fn() { Ok(#(counter_name, starting_value, 1)) },
   )
@@ -423,10 +423,10 @@ fn fancy_one_attr_processor(
 
   use <- on.true_false(
     key == "",
-    Error(DesugaringError(
+    fn() { Error(DesugaringError(
       blame,
       "empty key after processing counters; original key: '" <> original_key <> "'",
-    )),
+    )) },
   )
 
   use #(val, counters, assignments2) <- on.ok(

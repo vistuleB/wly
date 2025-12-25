@@ -24,12 +24,12 @@ fn collector(
   state: State,
   inner: InnerParam,
 ) -> State {
-  use #(tag, attrs) <- on.continue(case vxml {
-    V(_, tag, attrs, _) -> on.Continue(#(tag, attrs))
+  use #(tag, attrs) <- on.select(case vxml {
+    V(_, tag, attrs, _) -> on.Select(#(tag, attrs))
     _ -> on.Return(state)
   })
 
-  use <- on.false_true(
+  use <- on.eager_false_true(
     list.contains(inner.3, tag),
     state,
   )

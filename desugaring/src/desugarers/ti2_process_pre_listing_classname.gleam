@@ -24,7 +24,7 @@ fn nodemap(
       )
       use class_attr <- on.none_some(
         class_attr,
-        Ok(vxml),
+        fn() { Ok(vxml) },
       )
       let classes = string.split(class_attr.val, " ")
       use #(classes, line_no) <- on.ok(list.try_fold(

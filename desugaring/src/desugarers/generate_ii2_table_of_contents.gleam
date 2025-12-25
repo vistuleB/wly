@@ -32,26 +32,26 @@ fn chapter_link(
 
   use label_attr <- on.none_some(
     infra.v_first_attr_with_key(item, "title_gr"),
-    on_none: Error(DesugaringError(
+    on_none: fn() { Error(DesugaringError(
       item_blame,
       tp <> " missing title_gr attr",
-    )),
+    )) },
   )
 
   use href_attr <- on.none_some(
     infra.v_first_attr_with_key(item, "title_en"),
-    on_none: Error(DesugaringError(
+    on_none: fn() { Error(DesugaringError(
       item_blame,
       tp <> " missing title_en attr",
-    )),
+    )) },
   )
 
   use number_attr <- on.none_some(
     infra.v_first_attr_with_key(item, "number"),
-    on_none: Error(DesugaringError(
+    on_none: fn() { Error(DesugaringError(
       item_blame,
       tp <> " missing number attr",
-    )),
+    )) },
   )
 
   let on_mobile_attr = case infra.v_first_attr_with_key(item, "on_mobile") {

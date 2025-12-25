@@ -956,7 +956,7 @@ fn parse_track_args(
 ) -> Result(PipelineTrackingModifier, CommandLineError) {
   use first_payload, values <- on.empty_nonempty(
     values,
-    Error(SelectorValues("missing 1st argument")),
+    fn() { Error(SelectorValues("missing 1st argument")) },
   )
 
   let assert True = first_payload != ""
@@ -992,14 +992,14 @@ fn parse_track_args(
 
   use second_payload, values <- on.empty_nonempty(
     values,
-    Ok(
+    fn() { Ok(
       PipelineTrackingModifier(
         selector: Some(selector),
         steps_with_tracking_on_change: [],
         steps_with_tracking_forced: [],
         interactive_mode: with_enter,
       ),
-    ),
+    ) },
   )
 
   use plus_minus <- on.error_ok(
@@ -1049,7 +1049,7 @@ fn join_pipeline_modifiers(
   pm1: Option(PipelineTrackingModifier),
   pm2: PipelineTrackingModifier,
 ) -> PipelineTrackingModifier {
-  use pm1 <- on.none_some(pm1, pm2)
+  use pm1 <- on.eager_none_some(pm1, pm2)
   let #(restrict, force) =
     cleanup_step_numbers(
       list.append(pm1.steps_with_tracking_forced, pm2.steps_with_tracking_forced),
@@ -1199,7 +1199,7 @@ fn apply_peeking(
   pipeline: Pipeline,
   mod: Option(List(Int)),
 ) -> Pipeline {
-  use mod <- on.none_some(mod, pipeline)
+  use mod <- on.eager_none_some(mod, pipeline)
   let num_steps = list.length(pipeline)
   let wraparound = fn(x: Int) {
     case x < 0 {
@@ -1232,7 +1232,7 @@ fn apply_pipeline_tracking_modifier(
   pipeline: Pipeline,
   mod: Option(PipelineTrackingModifier),
 ) -> Pipeline {
-  use mod <- on.none_some(mod, pipeline)
+  use mod <- on.eager_none_some(mod, pipeline)
   let num_steps = list.length(pipeline)
   let wraparound = fn(x: Int) {
     case x < 0 {
@@ -1962,7 +1962,7 @@ pub fn run_renderer(
     fragments
     |> list.map(fn(result) {
       use fr <- on.ok(result)
-      use <- on.true_false(prettifier_mode == PrettifierOff, result)
+      use <- on.eager_true_false(prettifier_mode == PrettifierOff, result)
       let dest_dir = case prettifier_mode {
         PrettifierOff -> panic as "bug"
         PrettifierOverwriteOutputDir -> Some(output_dir)

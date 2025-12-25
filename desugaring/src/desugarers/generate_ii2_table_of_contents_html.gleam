@@ -34,26 +34,26 @@ fn chapter_link(
 
   use label_attr <- on.none_some(
     infra.v_first_attr_with_key(item, "title_gr"),
-    on_none: Error(DesugaringError(
+    on_none: fn() { Error(DesugaringError(
       item_blame,
       tp <> " missing title_gr attr",
-    )),
+    )) },
   )
 
   use href_attr <- on.none_some(
     infra.v_first_attr_with_key(item, "title_en"),
-    on_none: Error(DesugaringError(
+    on_none: fn() { Error(DesugaringError(
       item_blame,
       tp <> " missing title_en attr",
-    )),
+    )) },
   )
 
   use number_attr <- on.none_some(
     infra.v_first_attr_with_key(item, "number"),
-    on_none: Error(DesugaringError(
+    on_none: fn() { Error(DesugaringError(
       item_blame,
       tp <> " missing number attr",
-    )),
+    )) },
   )
 
   let link =
@@ -95,8 +95,10 @@ fn chapter_link(
     )
 
   let sub_chapter_number = ins(section_index)
-  let margin_left =
-    on.true_false(sub_chapter_number == "0", "0", fn() { "40px" })
+  let margin_left = case sub_chapter_number {
+    "0" -> "0"
+    _ -> "40px"
+  } 
 
   let style_attr =
     Attr(desugarer_blame(102), "style", "margin-left: " <> margin_left)
@@ -109,10 +111,10 @@ fn get_section_index(item: VXML, count: Int) -> Result(Int, DesugaringError) {
 
   use number_attr <- on.none_some(
     infra.v_first_attr_with_key(item, "number"),
-    on_none: Error(DesugaringError(
+    on_none: fn() { Error(DesugaringError(
       item.blame,
       tp <> " missing number attr (b)",
-    )),
+    )) },
   )
 
   let assert [section_number, ..] =

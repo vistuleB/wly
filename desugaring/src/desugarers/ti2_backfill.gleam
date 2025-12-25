@@ -48,7 +48,7 @@ fn backfill_elements(
       fn(acc, child) {
         case child {
           V(blame, t, _, _) if t == stub_tag -> {
-            use number <- on.lazy_none_some(
+            use number <- on.none_some(
               infra.v_val_of_first_attr_with_key(child, "should-be-number"),
               fn() { Error(DesugaringError(blame, "expecting 'should-be-number' attr on each " <> stub_tag <> " element")) },
             )
@@ -56,7 +56,7 @@ fn backfill_elements(
               int.parse(number),
               fn(_) { Error(DesugaringError(blame, "could not parse should-be-number attr as integer")) }
             )
-            use <- on.lazy_true_false(
+            use <- on.true_false(
               number <= acc.0,
               fn() { Error(DesugaringError(blame, "expecting monotone subchapter numbers (" <> ins(number) <> " <= " <> ins(acc.0) <> ")")) }
             )

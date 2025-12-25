@@ -13,20 +13,20 @@ fn nodemap(
       // remove carousel buttons
       use <- on.true_false(
         infra.v_has_key_val(vxml, "data-slide", "prev"),
-        on_true: Ok(T(blame, [])),
+        on_true: fn() { Ok(T(blame, [])) },
       )
       use <- on.true_false(
         infra.v_has_key_val(vxml, "data-slide", "next"),
-        on_true: Ok(T(blame, [])),
+        on_true: fn() { Ok(T(blame, [])) },
       )
       use <- on.true_false(
         infra.v_first_attr_with_key(vxml, "data-slide-to") |> option.is_some,
-        on_true: Ok(T(blame, [])),
+        on_true: fn() { Ok(T(blame, [])) },
       )
       // carousel
       use <- on.true_false(
         !{ infra.v_has_key_val(vxml, "class", "carousel") },
-        on_true: Ok(vxml),
+        on_true: fn() { Ok(vxml) },
       )
       // vxml is node with carousel class
       // get only images from children

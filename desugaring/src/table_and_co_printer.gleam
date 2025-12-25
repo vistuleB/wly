@@ -315,7 +315,7 @@ pub fn turn_into_paragraph(
   let len = string.length(message)
   use <- on.true_false(
     len < max_line_length,
-    on_true: [message],
+    on_true: fn() { [message] },
   )
   let shortest = max_line_length * 3 / 5
   let #(current_start, current_end, remaining) = #(

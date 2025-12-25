@@ -22,7 +22,7 @@ fn get_to_zero(
 ) -> Result(#(String, String), Nil) {
   use <- on.true_false(
     current == 0,
-    Ok(#(cumulated, remaining))
+    fn() { Ok(#(cumulated, remaining)) },
   )
   assert current > 0
   let splitter = sp.new([")", "("])
@@ -70,7 +70,7 @@ fn line_map(
   )
 
   // try for cheap success:
-  use <- on.lazy_false_true(
+  use <- on.false_true(
     string.contains(maybe_href, "("),
     fn() {
       [ 

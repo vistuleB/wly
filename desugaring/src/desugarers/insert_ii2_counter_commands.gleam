@@ -16,14 +16,14 @@ fn updated_node(
   let assert V(blame, tag, attrs, children) = vxml
   let assert [T(t_blame, lines), ..] = children
 
-  let prefix = on.none_some(prefix, [], fn(p) { [p] })
+  let prefix = on.eager_none_some(prefix, [], fn(p) { [p] })
 
   let #(counter_command, wrapper) = cc
 
   let new_children =
     on.none_some(
       wrapper,
-      [
+      fn() { [
         T(
           t_blame,
           list.flatten([
@@ -34,7 +34,7 @@ fn updated_node(
           ]),
         ),
         ..list.drop(children, 1)
-      ],
+      ] },
       fn(wrapper) {
         let wrapper_node =
           V(t_blame, wrapper, [], [T(t_blame, [counter_command])])
@@ -61,7 +61,7 @@ fn nodemap(
     V(_, _, _, children) -> {
       use <- on.false_true(
         infra.v_has_key_val(vxml, key, value),
-        on_false: Ok(vxml),
+        on_false: fn() { Ok(vxml) },
       )
 
       // get first text node

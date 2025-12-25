@@ -11,7 +11,7 @@ import on
 /// - modified children (with removed attr)
 fn check_first_child(children: List(VXML), key: String)
 -> Option(#(Attr, List(VXML))) {
-  use first, rest <- on.empty_nonempty(children, None)
+  use first, rest <- on.eager_empty_nonempty(children, None)
   use _, _, _, _ <- infra.on_t_on_v(first, fn(_, _){None})
   let assert V(_, _, attrs, _) = first
   use attr <- on.error_ok(

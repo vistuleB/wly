@@ -498,10 +498,10 @@ fn pseudoword_to_pattern_tokens(word: String, re: regexp.Regexp) -> List(Pattern
   assert word == " " || {!string.contains(word, " ") && word != ""}
 
   // case 1: a space
-  use <- on.lazy_true_false(word == " ", fn(){[Space]})
+  use <- on.true_false(word == " ", fn(){[Space]})
 
   // case 2: an ordinary word
-  use <- on.lazy_false_true(regexp.check(re, word), fn(){[Word(word)]})
+  use <- on.false_true(regexp.check(re, word), fn(){[Word(word)]})
 
   // case 3: a word containing 'ContentVar' patterns
   regexp.split(re, word)
@@ -554,12 +554,12 @@ fn vxml_to_link_pattern(
 
       use <- on.true_false(
         tag == "root",
-        Ok(children),
+        fn() { Ok(children) },
       )
 
       assert tag == "a"
 
-      use href_attr <- on.lazy_empty_gt1_singleton(
+      use href_attr <- on.empty_gt1_singleton(
         infra.attrs_with_key(attrs, "href"),
         fn() { Error(DesugaringError(bl.no_blame, "<a>-tag missing 'href' attr")) },
         fn(_, _, _) { Error(DesugaringError(bl.no_blame, "<a>-tag with >1 'href' attr")) },

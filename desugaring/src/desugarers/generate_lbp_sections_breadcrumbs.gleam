@@ -20,7 +20,7 @@ fn remove_period(nodes: List(VXML)) -> List(VXML) {
     fn(_) { nodes }
   )
 
-  use <- on.lazy_false_true(
+  use <- on.false_true(
     infra.is_text_node(last),
     fn(){
       // in case last node is a V node . call remove period recursvaly on it's children
@@ -40,8 +40,10 @@ fn remove_period(nodes: List(VXML)) -> List(VXML) {
   // some Text nodes ends with "" . so it should be ignored and remove_period on nodes without last one
   use <- on.false_true(
     last_line.content != "",
-    list.take(nodes, list.length(nodes) - 1)
-    |> remove_period()
+    fn() {
+      list.take(nodes, list.length(nodes) - 1)
+      |> remove_period()
+    },
   )
 
   let new_last_line = case string.ends_with(last_line.content, ".") {
