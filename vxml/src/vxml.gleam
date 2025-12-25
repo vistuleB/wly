@@ -82,25 +82,25 @@ fn parse_text_lines_at_indent(
   head: FileHead,
 ) -> Result(#(List(Line), FileHead), VXMLParseError) {
   // no lines left
-  use InputLine(blame, suffix_indent, suffix), rest <- on.lazy_empty_nonempty(
+  use InputLine(blame, suffix_indent, suffix), rest <- on.empty_nonempty(
     head,
     fn() { Ok(#([], head)) },
   )
 
   // empty suffix
-  use <- on.lazy_true_false(
+  use <- on.true_false(
     suffix == "",
     fn() { parse_text_lines_at_indent(indent, rest) },
   )
 
   // indent too large
-  use <- on.lazy_true_false(
+  use <- on.true_false(
     suffix_indent > indent,
     fn() { Error(VXMLParseErrorIndentationTooLarge(blame, suffix)) },
   )
 
   // indent too small
-  use <- on.lazy_true_false(
+  use <- on.true_false(
     suffix_indent < indent,
     fn() { Ok(#([], head)) },
   )
@@ -108,7 +108,7 @@ fn parse_text_lines_at_indent(
   let suffix = string.trim_end(suffix)
 
   // missing opening quote
-  use <- on.lazy_false_true(
+  use <- on.false_true(
     suffix |> string.starts_with(vxml_line_delimiter),
     fn() { Error(VXMLParseErrorTextNoOpeningQuote(blame, suffix)) }
   )
@@ -116,7 +116,7 @@ fn parse_text_lines_at_indent(
   let content = suffix |> string.drop_start(1)
 
   // missing closing quote
-  use <- on.lazy_false_true(
+  use <- on.false_true(
     content |> string.ends_with(vxml_line_delimiter),
     fn() { Error(VXMLParseErrorTextNoClosingQuote(blame, suffix)) }
   )
@@ -132,31 +132,31 @@ fn parse_attributes_at_indent(
   head: FileHead,
 ) -> Result(#(List(Attr), FileHead), VXMLParseError) {
   // no lines left
-  use InputLine(blame, suffix_indent, suffix), rest <- on.lazy_empty_nonempty(
+  use InputLine(blame, suffix_indent, suffix), rest <- on.empty_nonempty(
     head,
     fn() { Ok(#([], head)) },
   )
 
   // empty suffix
-  use <- on.lazy_true_false(
+  use <- on.true_false(
     suffix == "",
     fn() { parse_attributes_at_indent(indent, rest) },
   )
 
   // indent too large
-  use <- on.lazy_true_false(
+  use <- on.true_false(
     suffix_indent > indent,
     fn() { Error(VXMLParseErrorIndentationTooLarge(blame, suffix)) },
   )
 
   // indent too small
-  use <- on.lazy_true_false(
+  use <- on.true_false(
     suffix_indent < indent,
     fn() { Ok(#([], head)) },
   )
 
   // tag
-  use <- on.lazy_true_false(
+  use <- on.true_false(
     suffix |> string.starts_with("<>"),
     fn() { Ok(#([], head)) },
   )
@@ -185,31 +185,31 @@ fn parse_nodes_at_indent(
   head: FileHead,
 ) -> Result(#(List(VXML), FileHead), VXMLParseError) {
   // no lines left
-  use InputLine(blame, suffix_indent, suffix), rest <- on.lazy_empty_nonempty(
+  use InputLine(blame, suffix_indent, suffix), rest <- on.empty_nonempty(
     head,
     fn() { Ok(#([], head)) },
   )
 
   // empty suffix
-  use <- on.lazy_true_false(
+  use <- on.true_false(
     suffix == "",
     fn() { parse_nodes_at_indent(indent, rest) },
   )
 
   // indent too large
-  use <- on.lazy_true_false(
+  use <- on.true_false(
     suffix_indent > indent,
     fn() { Error(VXMLParseErrorIndentationTooLarge(blame, suffix)) },
   )
 
   // indent too small
-  use <- on.lazy_true_false(
+  use <- on.true_false(
     suffix_indent < indent,
     fn() { Ok(#([], head)) },
   )
 
   // not a tag
-  use <- on.lazy_false_true(
+  use <- on.false_true(
     suffix |> string.starts_with("<>"),
     fn() { Error(VXMLParseErrorCaretExpected(blame, suffix)) },
   )

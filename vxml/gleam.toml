@@ -2,11 +2,12 @@ name = "vxml"
 version = "1.0.0"
 
 [dependencies]
+on = { "path" = "../../on" }
+
 gleam_stdlib = ">= 0.34.0 and < 2.0.0"
 simplifile = ">= 2.3.0 and < 3.0.0"
 xmlm = ">= 1.0.0 and < 2.0.0"
 gleam_regexp = ">= 1.0.0 and < 2.0.0"
-on = ">= 1.1.0 and < 2.0.0"
 splitter = ">= 1.1.0 and < 2.0.0"
 
 [dev-dependencies]

@@ -135,15 +135,15 @@ fn check_for_tag_after_lt(
   let #(before, _, _) = sp.split(s, after)
   use <- on.true_false(
     before == "?xml" || before == "?XML",
-    XMLDoc(before |> string.drop_start(1)),
+    fn() { XMLDoc(before |> string.drop_start(1)) },
   )
   use <- on.true_false(
     before == "!DOCTYPE" || before == "!Doctype" || before == "!doctype",
-    Doctype(before |> string.drop_start(1)),
+    fn() { Doctype(before |> string.drop_start(1)) },
   )
   use <- on.true_false(
     is_ordinary_tag(before),
-    Ordinary(before),
+    fn() { Ordinary(before) },
   )
   NoTag
 }
@@ -155,7 +155,7 @@ fn check_for_tag_after_lt_closing(
   let #(before, _, _) = sp.split(s, after)
   use <- on.true_false(
     is_ordinary_tag(before),
-    OrdinaryClosing(before),
+    fn() { OrdinaryClosing(before) },
   )
   NoTag
 }
@@ -168,7 +168,7 @@ fn take_text_up_to_next_tag(
     fn(_) { #(text, NoTag) },
   )
 
-  use <- on.lazy_true_false(
+  use <- on.true_false(
     string.starts_with(after, "/"),
     fn() {
       let after = string.drop_start(after, 1)
@@ -185,7 +185,7 @@ fn take_text_up_to_next_tag(
     }
   )
 
-  use <- on.lazy_true_false(
+  use <- on.true_false(
     string.starts_with(after, "!--"),
     fn() {
       #(text, CommentStart)
@@ -209,13 +209,13 @@ fn event_stream_internal(
   remaining: FileHead,
 ) -> List(Event) {
   // no lines left
-  use first, rest <- on.lazy_empty_nonempty(
+  use first, rest <- on.empty_nonempty(
     remaining,
     fn() { previous |> list.reverse },
   )
 
   // no content left on line
-  use <- on.lazy_true_false(
+  use <- on.true_false(
     first.content == "" || first.content == "\r",
     fn() {
       case rest {
@@ -230,7 +230,7 @@ fn event_stream_internal(
   )
 
   // true_false
-  use <- on.lazy_true_false(
+  use <- on.true_false(
     state == OutsideTag,
     fn() {
       let #(text, tag_or_not) = take_text_up_to_next_tag(first.content)
@@ -239,7 +239,7 @@ fn event_stream_internal(
         False -> previous
       }
       let end_of_text_blame = bl.advance(first.blame, text |> string.length)
-      use <- on.lazy_true_false(
+      use <- on.true_false(
         tag_or_not == NoTag,
         fn() {
           assert text == first.content
@@ -277,7 +277,7 @@ fn event_stream_internal(
     }
   )
 
-  use <- on.lazy_true_false(
+  use <- on.true_false(
     state == InsideComment,
     fn() {
       case string.split_once(first.content, "-->") {
@@ -322,7 +322,7 @@ fn event_stream_internal(
 
   // ...get rid of leading spaces
   let num_whitespace = string.length(first.content) - string.length(string.trim_start(first.content))
-  use <- on.lazy_true_false(
+  use <- on.true_false(
     num_whitespace > 0,
     fn() {
       let whitespace = string.slice(first.content, 0, num_whitespace)
@@ -335,7 +335,7 @@ fn event_stream_internal(
   )
 
   // ...get rid of '=' sign
-  use <- on.lazy_true_false(
+  use <- on.true_false(
     string.starts_with(first.content, "="),
     fn() {
       event_stream_internal(
@@ -347,7 +347,7 @@ fn event_stream_internal(
   )
 
   // ...get rid of '"' quoted value
-  use <- on.lazy_true_false(
+  use <- on.true_false(
     string.starts_with(first.content, "\""),
     fn() {
       let s = sp.new(["\"", "?>", "/>", ">"])
@@ -371,7 +371,7 @@ fn event_stream_internal(
   )
 
   // ...get rid of "'" quoted value
-  use <- on.lazy_true_false(
+  use <- on.true_false(
     string.starts_with(first.content, "'"),
     fn() {
       let s = sp.new(["'",  "?>", "/>", ">"])
@@ -399,7 +399,7 @@ fn event_stream_internal(
   let #(before, thing, _) = sp.split(s, first.content)
       
   // got something before closing:
-  use <- on.lazy_true_false(
+  use <- on.true_false(
     before != "",
     fn() {
       let event = case is_valid_key(before) {
