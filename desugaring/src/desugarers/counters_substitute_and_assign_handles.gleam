@@ -596,9 +596,9 @@ fn our_two_regexes() -> #(Regexp, Regexp) {
   #(small, big)
 }
 
-fn nodemap_factory(_: InnerParam) -> n2t.OneToOneBeforeAndAfterStatefulNodeMap(State) {
+fn nodemap_factory(_: InnerParam) -> n2t.OneToOneBeforeAndAfterStatefulNodemap(State) {
   let regexes = our_two_regexes()
-  n2t.OneToOneBeforeAndAfterStatefulNodeMap(
+  n2t.OneToOneBeforeAndAfterStatefulNodemap(
     v_before_transforming_children: fn(vxml, state) { v_before_transforming_children(vxml, state, regexes) },
     v_after_transforming_children: v_after_transforming_children,
     t_nodemap: fn(vxml, state) { t_nodemap(vxml, state, regexes) },

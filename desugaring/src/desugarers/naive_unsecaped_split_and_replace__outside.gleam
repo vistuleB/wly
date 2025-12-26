@@ -4,7 +4,7 @@ import group_replacement_splitting as grs
 import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as infra
 import nodemaps_2_desugarer_transforms as n2t
 
-fn nodemap_factory(inner: InnerParam) -> n2t.OneToManyNoErrorNodeMap {
+fn nodemap_factory(inner: InnerParam) -> n2t.OneToManyNoErrorNodemap {
   grs.naive_unescaped_split_node(_, inner.0, inner.1, inner.2)
 }
 

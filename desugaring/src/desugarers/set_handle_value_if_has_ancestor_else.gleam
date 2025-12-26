@@ -41,8 +41,8 @@ fn v_before_nodemap(
   }
 }
 
-fn nodemap_factory(inner: InnerParam) -> n2t.OneToOneBeforeAndAfterStatefulNoErrorNodeMap(State){
-  n2t.OneToOneBeforeAndAfterStatefulNoErrorNodeMap(
+fn nodemap_factory(inner: InnerParam) -> n2t.OneToOneBeforeAndAfterStatefulNoErrorNodemap(State){
+  n2t.OneToOneBeforeAndAfterStatefulNoErrorNodemap(
       v_before_transforming_children: fn (vxml, state) { v_before_nodemap(vxml, state, inner) },
       v_after_transforming_children: fn(vxml, original_state, _latest_state) { #(vxml, original_state) },
       t_nodemap: fn(vxml, state) { #(vxml, state) }

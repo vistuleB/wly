@@ -106,7 +106,7 @@ fn nodemap(
   }
 }
 
-fn nodemap_factory() -> n2t.OneToOneNodeMap {
+fn nodemap_factory() -> n2t.OneToOneNodemap {
   nodemap
 }
 

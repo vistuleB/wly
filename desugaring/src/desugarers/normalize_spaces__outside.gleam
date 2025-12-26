@@ -12,7 +12,7 @@ fn nodemap(
   }
 }
 
-fn nodemap_factory() -> n2t.OneToOneNoErrorNodeMap {
+fn nodemap_factory() -> n2t.OneToOneNoErrorNodemap {
   nodemap
 }
 

@@ -169,7 +169,7 @@ fn nodemap(
   }
 }
 
-fn nodemap_factory(_inner: InnerParam) -> n2t.OneToOneNoErrorNodeMap {
+fn nodemap_factory(_inner: InnerParam) -> n2t.OneToOneNoErrorNodemap {
   nodemap
 }
 

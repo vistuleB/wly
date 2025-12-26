@@ -121,7 +121,7 @@ fn rrs_split_line(
 }
 
 // *****************
-// nodemap API
+// Nodemap API
 // *****************
 
 pub fn rrs_split_node(
@@ -272,7 +272,7 @@ fn naive_unescaped_split_line(
   }
 }
 // *****************
-// naive_unescaped nodemap API
+// naive_unescaped Nodemap API
 // *****************
 
 pub fn naive_unescaped_split_node(

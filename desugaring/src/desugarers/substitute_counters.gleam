@@ -382,8 +382,8 @@ fn counter_regex() -> Regexp {
   re
 }
 
-fn nodemap_factory(inner: InnerParam) -> n2t.OneToOneBeforeAndAfterStatefulNodeMap(State) {
-  n2t.OneToOneBeforeAndAfterStatefulNodeMap(
+fn nodemap_factory(inner: InnerParam) -> n2t.OneToOneBeforeAndAfterStatefulNodemap(State) {
+  n2t.OneToOneBeforeAndAfterStatefulNodemap(
     v_before_transforming_children: fn(vxml, state) { v_before_transforming_children(vxml, state, inner) },
     v_after_transforming_children: v_after_transforming_children,
     t_nodemap: fn(vxml, state) { t_nodemap(vxml, state, inner) },

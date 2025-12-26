@@ -14,7 +14,7 @@ fn nodemap(
   }
 }
 
-fn nodemap_factory(inner: InnerParam) -> n2t.EarlyReturnOneToManyNoErrorNodeMap {
+fn nodemap_factory(inner: InnerParam) -> n2t.EarlyReturnOneToManyNoErrorNodemap {
   nodemap(_, inner)
 }
 

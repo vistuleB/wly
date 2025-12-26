@@ -5,7 +5,7 @@ import nodemaps_2_desugarer_transforms as n2t
 
 fn nodemap_factory(
   inner: InnerParam
-) -> n2t.OneToOneNoErrorNodeMap {
+) -> n2t.OneToOneNoErrorNodemap {
   infra.find_replace_if_t(_, inner.0, inner.1)
 }
 

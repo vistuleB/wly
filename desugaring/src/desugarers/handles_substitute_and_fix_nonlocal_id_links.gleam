@@ -423,8 +423,8 @@ fn t_transform(
   Ok(#(updated_lines, state, warnings))
 }
 
-fn nodemap_factory(inner: InnerParam) -> n2t.OneToManyBeforeAndAfterStatefulNodeMapWithWarnings(State) {
-  n2t.OneToManyBeforeAndAfterStatefulNodeMapWithWarnings(
+fn nodemap_factory(inner: InnerParam) -> n2t.OneToManyBeforeAndAfterStatefulNodemapWithWarnings(State) {
+  n2t.OneToManyBeforeAndAfterStatefulNodemapWithWarnings(
     v_before_transforming_children: fn(vxml, state) {v_before_transform(vxml, state, inner)},
     v_after_transforming_children: fn(vxml, _, new) {v_after_transform(vxml, new)},
     t_nodemap: fn(vxml, state) { t_transform(vxml, state, inner) },

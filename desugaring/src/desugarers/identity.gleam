@@ -9,7 +9,7 @@ fn nodemap(
   vxml
 }
 
-fn nodemap_factory(_: InnerParam) -> n2t.OneToOneNoErrorNodeMap {
+fn nodemap_factory(_: InnerParam) -> n2t.OneToOneNoErrorNodemap {
   nodemap
 }
 

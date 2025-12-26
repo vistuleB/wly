@@ -96,8 +96,8 @@ fn v_after(
   Ok(#([vxml, outer_span], original_state))
 }
 
-fn nodemap_factory(inner: InnerParam) -> n2t.OneToManyBeforeAndAfterStatefulNodeMap(State) {
-  n2t.OneToManyBeforeAndAfterStatefulNodeMap(
+fn nodemap_factory(inner: InnerParam) -> n2t.OneToManyBeforeAndAfterStatefulNodemap(State) {
+  n2t.OneToManyBeforeAndAfterStatefulNodemap(
     v_before_transforming_children: fn(vxml, state) { v_before(vxml, state, inner) },
     v_after_transforming_children: fn(vxml, original_state, latest_state) { v_after(vxml, inner, original_state, latest_state) },
     t_nodemap: fn(vxml, _) { Ok(#([vxml], None)) }

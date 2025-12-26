@@ -220,8 +220,8 @@ fn page_depositor_v_before(
   }
 }
 
-fn page_depositor_nodemap() -> n2t.EarlyReturnOneToOneBeforeAndAfterStatefulNodeMap(PageDepositorState) {
-  n2t.EarlyReturnOneToOneBeforeAndAfterStatefulNodeMap(
+fn page_depositor_nodemap() -> n2t.EarlyReturnOneToOneBeforeAndAfterStatefulNodemap(PageDepositorState) {
+  n2t.EarlyReturnOneToOneBeforeAndAfterStatefulNodemap(
     v_before_transforming_children: page_depositor_v_before,
     v_after_transforming_children: n2t.before_and_after_keep_latest_state,
     t_nodemap: n2t.before_and_after_identity,

@@ -80,7 +80,7 @@ fn nodemap(
   }
 }
 
-fn nodemap_factory(_: InnerParam) -> n2t.OneToOneStatefulNodeMap(Int) {
+fn nodemap_factory(_: InnerParam) -> n2t.OneToOneStatefulNodemap(Int) {
   nodemap
 }
 

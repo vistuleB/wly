@@ -30,7 +30,7 @@ fn nodemap(
   }
 }
 
-fn nodemap_factory(inner: InnerParam) -> n2t.FancyOneToManyNoErrorNodeMap {
+fn nodemap_factory(inner: InnerParam) -> n2t.FancyOneToManyNoErrorNodemap {
   fn(vxml, a, s1, s2, s3) { nodemap(vxml, a, s1, s2, s3, inner) }
 }
 

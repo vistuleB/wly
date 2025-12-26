@@ -101,8 +101,8 @@ fn v_after(
 
 fn nodemap_factory(
   inner: InnerParam
-) -> n2t.OneToOneBeforeAndAfterStatefulNoErrorNodeMap(State) {
-  n2t.OneToOneBeforeAndAfterStatefulNoErrorNodeMap(
+) -> n2t.OneToOneBeforeAndAfterStatefulNoErrorNodemap(State) {
+  n2t.OneToOneBeforeAndAfterStatefulNoErrorNodemap(
     v_before_transforming_children: fn(v: VXML, s: State) {
       v_before(v, s, inner)
     },

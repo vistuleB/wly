@@ -33,7 +33,7 @@ fn nodemap(
   }
 }
 
-fn nodemap_factory(inner: InnerParam) -> n2t.EarlyReturnOneToOneNodeMap {
+fn nodemap_factory(inner: InnerParam) -> n2t.EarlyReturnOneToOneNodemap {
   nodemap(_, inner)
 }
 

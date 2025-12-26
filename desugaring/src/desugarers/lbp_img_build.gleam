@@ -520,8 +520,8 @@ fn v_after(
 
 fn nodemap_factory(
   inner: InnerParam,
-) -> n2t.FancyOneToOneBeforeAndAfterStatefulNodeMapWithWarnings(State) {
-   n2t.FancyOneToOneBeforeAndAfterStatefulNodeMapWithWarnings(
+) -> n2t.FancyOneToOneBeforeAndAfterStatefulNodemapWithWarnings(State) {
+   n2t.FancyOneToOneBeforeAndAfterStatefulNodemapWithWarnings(
     v_before_transforming_children: fn(vxml, _, _, _, _, state) {
       v_before(vxml, state, inner)
     },

@@ -19,7 +19,7 @@ fn nodemap(
   }
 }
 
-fn nodemap_factory(inner: InnerParam) -> n2t.OneToManyNodeMap {
+fn nodemap_factory(inner: InnerParam) -> n2t.OneToManyNodemap {
   nodemap(_, inner)
 }
 

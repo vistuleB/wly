@@ -42,7 +42,7 @@ fn nodemap(
   }
 }
 
-fn nodemap_factory(inner: InnerParam) -> n2t.FancyOneToManyNodeMap {
+fn nodemap_factory(inner: InnerParam) -> n2t.FancyOneToManyNodemap {
   fn(node, ancestors, _, _, _) {
     nodemap(node, ancestors, inner)
   }

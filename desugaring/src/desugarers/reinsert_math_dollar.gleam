@@ -82,7 +82,7 @@ fn nodemap(
   }
 }
 
-fn nodemap_factory(_: InnerParam) -> n2t.OneToOneNodeMap {
+fn nodemap_factory(_: InnerParam) -> n2t.OneToOneNodemap {
   nodemap
 }
 

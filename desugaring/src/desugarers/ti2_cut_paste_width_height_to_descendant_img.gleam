@@ -144,8 +144,8 @@ fn v_before_transforming_children(
   }
 }
 
-fn nodemap_factory(inner: InnerParam) -> n2t.OneToOneBeforeAndAfterStatefulNodeMap(State) {
-   n2t.OneToOneBeforeAndAfterStatefulNodeMap(
+fn nodemap_factory(inner: InnerParam) -> n2t.OneToOneBeforeAndAfterStatefulNodemap(State) {
+   n2t.OneToOneBeforeAndAfterStatefulNodemap(
     v_before_transforming_children: fn(node, state) {
       v_before_transforming_children(node, state, inner)
     },

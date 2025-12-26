@@ -206,8 +206,8 @@ fn v_after_transforming_children(
   }
 }
 
-fn nodemap_factory(inner: InnerParam) -> n2t.FancyOneToOneBeforeAndAfterStatefulNodeMap(State) {
-   n2t.FancyOneToOneBeforeAndAfterStatefulNodeMap(
+fn nodemap_factory(inner: InnerParam) -> n2t.FancyOneToOneBeforeAndAfterStatefulNodemap(State) {
+   n2t.FancyOneToOneBeforeAndAfterStatefulNodemap(
     v_before_transforming_children: fn(vxml, _, _, _, _, state) {
       v_before_transforming_children(vxml, state, inner)
     },
