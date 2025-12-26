@@ -151,7 +151,7 @@ fn chapter_info_information_collector(
 }
 
 fn gather_chapter_infos(root: VXML) -> Result(List(ChapterInfo), DesugaringError) {
-  n2t.early_return_information_collector_walk(
+  n2t.early_return_identity_stateful_walk(
     root,
     [],
     chapter_info_information_collector,

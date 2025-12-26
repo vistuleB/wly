@@ -19,7 +19,7 @@ import vxml.{type VXML, V}
 
 const whoami = "  " <> name
 
-fn collector(
+fn nodemap (
   vxml: VXML,
   state: State,
   inner: InnerParam,
@@ -44,10 +44,10 @@ fn at_root(
   root: VXML,
   inner: InnerParam,
 ) -> Result(Nil, DesugaringError) {
-  let srcs = n2t.no_error_information_collector_walk(
+  let srcs = n2t.identity_no_error_stateful_walk(
     root,
     [],
-    fn(a, b) { collector(a, b, inner) },
+    fn(a, b) { nodemap(a, b, inner) },
   )
   |> list.map(infra.drop_prefix(_, "/"))
 

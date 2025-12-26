@@ -101,8 +101,8 @@ fn v_after(
 
 fn nodemap_factory(
   inner: InnerParam
-) -> n2t.OneToOneBeforeAndAfterNoErrorStatefulNodeMap(State) {
-  n2t.OneToOneBeforeAndAfterNoErrorStatefulNodeMap(
+) -> n2t.OneToOneBeforeAndAfterStatefulNoErrorNodeMap(State) {
+  n2t.OneToOneBeforeAndAfterStatefulNoErrorNodeMap(
     v_before_transforming_children: fn(v: VXML, s: State) {
       v_before(v, s, inner)
     },
@@ -115,7 +115,7 @@ fn nodemap_factory(
 
 fn transform_factory(inner: InnerParam, outside: List(String)) -> DesugarerTransform {
   nodemap_factory(inner)
-  |> n2t.one_to_one_before_and_after_no_error_stateful_nodemap_2_desugarer_transform_with_forbidden(0, outside)
+  |> n2t.one_to_one_before_and_after_stateful_no_error_nodemap_2_desugarer_transform_with_forbidden(0, outside)
 }
 
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {

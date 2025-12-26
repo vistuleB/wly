@@ -828,21 +828,21 @@ pub fn fancy_one_to_one_stateful_nodemap_2_desugarer_transform(
 }
 
 // ************************************************************
-// OneToOneBeforeAndAfterNoErrorStatefulNodeMap
+// OneToOneBeforeAndAfterStatefulNoErrorNodeMap
 // ************************************************************
 
-pub type OneToOneBeforeAndAfterNoErrorStatefulNodeMap(a) {
-  OneToOneBeforeAndAfterNoErrorStatefulNodeMap(
+pub type OneToOneBeforeAndAfterStatefulNoErrorNodeMap(a) {
+  OneToOneBeforeAndAfterStatefulNoErrorNodeMap(
     v_before_transforming_children: fn(VXML, a) -> #(VXML, a),
     v_after_transforming_children: fn(VXML, a, a) -> #(VXML, a),
     t_nodemap: fn(VXML, a) -> #(VXML, a),
   )
 }
 
-fn one_to_one_before_and_after_no_error_stateful_nodemap_walk(
+fn one_to_one_before_and_after_stateful_no_error_nodemap_walk(
   original_state: a,
   node: VXML,
-  nodemap: OneToOneBeforeAndAfterNoErrorStatefulNodeMap(a),
+  nodemap: OneToOneBeforeAndAfterStatefulNoErrorNodeMap(a),
 ) -> #(VXML, a) {
   case node {
     T(_, _) -> nodemap.t_nodemap(node, original_state)
@@ -857,7 +857,7 @@ fn one_to_one_before_and_after_no_error_stateful_nodemap_walk(
           children,
           latest_state,
           fn (acc, child) {
-            let #(vxml, state) = one_to_one_before_and_after_no_error_stateful_nodemap_walk(acc, child, nodemap)
+            let #(vxml, state) = one_to_one_before_and_after_stateful_no_error_nodemap_walk(acc, child, nodemap)
             #(state, vxml)
           }
         )
@@ -870,13 +870,13 @@ fn one_to_one_before_and_after_no_error_stateful_nodemap_walk(
   }
 }
 
-pub fn one_to_one_before_and_after_no_error_stateful_nodemap_2_desugarer_transform(
-  nodemap: OneToOneBeforeAndAfterNoErrorStatefulNodeMap(a),
+pub fn one_to_one_before_and_after_stateful_no_error_nodemap_2_desugarer_transform(
+  nodemap: OneToOneBeforeAndAfterStatefulNoErrorNodeMap(a),
   initial_state: a,
 ) -> DesugarerTransform {
   fn(vxml) {
     let #(vxml, _) =
-      one_to_one_before_and_after_no_error_stateful_nodemap_walk(
+      one_to_one_before_and_after_stateful_no_error_nodemap_walk(
         initial_state,
         vxml,
         nodemap,
@@ -904,10 +904,10 @@ fn custom_map_folder(
   }
 }
 
-fn one_to_one_before_and_after_no_error_stateful_nodemap_walk_with_forbidden(
+fn one_to_one_before_and_after_stateful_no_error_nodemap_walk_with_forbidden(
   original_state: a,
   node: VXML,
-  nodemap: OneToOneBeforeAndAfterNoErrorStatefulNodeMap(a),
+  nodemap: OneToOneBeforeAndAfterStatefulNoErrorNodeMap(a),
   forbidden: List(String),
 ) -> #(VXML, a) {
   case node {
@@ -925,7 +925,7 @@ fn one_to_one_before_and_after_no_error_stateful_nodemap_walk_with_forbidden(
             custom_map_folder(
               children,
               latest_state,
-              fn(child, state) { one_to_one_before_and_after_no_error_stateful_nodemap_walk_with_forbidden(state, child, nodemap, forbidden) },
+              fn(child, state) { one_to_one_before_and_after_stateful_no_error_nodemap_walk_with_forbidden(state, child, nodemap, forbidden) },
               [],
             )
           nodemap.v_after_transforming_children(
@@ -939,14 +939,14 @@ fn one_to_one_before_and_after_no_error_stateful_nodemap_walk_with_forbidden(
   }
 }
 
-pub fn one_to_one_before_and_after_no_error_stateful_nodemap_2_desugarer_transform_with_forbidden(
-  nodemap: OneToOneBeforeAndAfterNoErrorStatefulNodeMap(a),
+pub fn one_to_one_before_and_after_stateful_no_error_nodemap_2_desugarer_transform_with_forbidden(
+  nodemap: OneToOneBeforeAndAfterStatefulNoErrorNodeMap(a),
   initial_state: a,
   forbidden: List(String),
 ) -> DesugarerTransform {
   fn(vxml) {
     let #(vxml, _) =
-      one_to_one_before_and_after_no_error_stateful_nodemap_walk_with_forbidden(
+      one_to_one_before_and_after_stateful_no_error_nodemap_walk_with_forbidden(
         initial_state,
         vxml,
         nodemap,
@@ -1655,16 +1655,16 @@ pub fn early_return_one_to_many_no_error_nodemap_2_desugarer_transform_with_forb
 }
 
 // ************************************************************
-// NoErrorInformationCollector
+// IdentityNoErrorStatefulNodemap
 // ************************************************************
 
-pub type NoErrorInformationCollector(a) =
+pub type IdentityNoErrorStatefulNodemap(a) =
   fn(VXML, a) -> a
 
-pub fn no_error_information_collector_walk(
+pub fn identity_no_error_stateful_walk(
   vxml: VXML,
   state: state,
-  collector:  NoErrorInformationCollector(state),
+  collector:  IdentityNoErrorStatefulNodemap(state),
 ) -> state {
   case vxml {
     T(..) -> collector(vxml, state)
@@ -1672,7 +1672,7 @@ pub fn no_error_information_collector_walk(
       list.fold(
         children,
         state,
-        fn(state, c) { no_error_information_collector_walk(c, state, collector) }
+        fn(state, c) { identity_no_error_stateful_walk(c, state, collector) }
       )
       |> collector(vxml, _)
     }
@@ -1680,16 +1680,16 @@ pub fn no_error_information_collector_walk(
 }
 
 // ************************************************************
-// EarlyReturnInformationCollector
+// EarlyReturnIdentityStatefulNodemap
 // ************************************************************
 
-pub type EarlyReturnInformationCollector(a) =
+pub type EarlyReturnIdentityStatefulNodemap(a) =
   fn(VXML, a) -> Result(#(a, TrafficLight), DesugaringError)
 
-pub fn early_return_information_collector_walk(
+pub fn early_return_identity_stateful_walk(
   vxml: VXML,
   state: state,
-  gatherer:  EarlyReturnInformationCollector(state),
+  gatherer:  EarlyReturnIdentityStatefulNodemap(state),
 ) -> Result(state, DesugaringError) {
   use #(state, traffic_light) <- on.ok(gatherer(vxml, state))
   case traffic_light, vxml {
@@ -1698,7 +1698,7 @@ pub fn early_return_information_collector_walk(
         children,
         state,
         fn (state, child) {
-          early_return_information_collector_walk(child, state, gatherer)
+          early_return_identity_stateful_walk(child, state, gatherer)
         }
       )
     }

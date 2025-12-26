@@ -101,7 +101,7 @@ fn chapter_link(
   } 
 
   let style_attr =
-    Attr(desugarer_blame(102), "style", "margin-left: " <> margin_left)
+    Attr(desugarer_blame(104), "style", "margin-left: " <> margin_left)
 
   Ok(V(item_blame, chapter_link_component_name, [style_attr], [number_span, a]))
 }
@@ -128,11 +128,11 @@ fn get_section_index(item: VXML, count: Int) -> Result(Int, DesugaringError) {
 }
 
 fn div_with_id_title_and_menu_items(id: String, menu_items: List(VXML)) -> VXML {
-  V(desugarer_blame(129), "div", [Attr(desugarer_blame(129), "id", id)], [
+  V(desugarer_blame(131), "div", [Attr(desugarer_blame(131), "id", id)], [
     V(
-      desugarer_blame(131),
+      desugarer_blame(133),
       "ul",
-      [Attr(desugarer_blame(133), "style", "list-style: none")],
+      [Attr(desugarer_blame(135), "style", "list-style: none")],
       menu_items,
     ),
   ])
@@ -167,7 +167,7 @@ fn at_root(
     div_with_id_title_and_menu_items("Chapters", chapter_menu_items)
 
   let toc =
-    V(desugarer_blame(168), toc_tag, [], [chapters_div])
+    V(desugarer_blame(170), toc_tag, [], [chapters_div])
 
   infra.v_prepend_child(root, toc)
   |> Ok
