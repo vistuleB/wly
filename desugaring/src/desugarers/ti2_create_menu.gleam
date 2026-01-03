@@ -71,7 +71,7 @@ fn homepage_link(homepage_url: String) -> VXML {
     desugarer_blame(71),
     "a",
     an_attr("href", homepage_url) |> into_list,
-    string_2_text_node("zür Kursübersicht") |> into_list,
+    string_2_text_node("zur Kursübersicht") |> into_list,
   )
 }
 
