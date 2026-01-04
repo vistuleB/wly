@@ -9,7 +9,7 @@ import infrastructure.{
   type TrafficLight,
   Desugarer,
   Continue,
-  GoBack
+  GoBack,
 } as infra
 import nodemaps_2_desugarer_transforms as n2t
 import on
@@ -19,6 +19,8 @@ const container_classname = "t-3003-c"
 const tooltip_classname = "t-3003"
 const b = bl.Des([], name, 14)
 const newline_t = T(b, [Line(b, ""), Line(b, "")])
+const container_attrs = [Attr(b, "class", container_classname)]
+const tooltip_attrs = [Attr(b, "class", tooltip_classname)]
 
 fn get_location(blame: bl.Blame, prefix: String) -> Result(String, Nil) {
   case blame {
@@ -29,25 +31,28 @@ fn get_location(blame: bl.Blame, prefix: String) -> Result(String, Nil) {
 }
 
 fn wrap_with_tooltip(
-  blame: bl.Blame,
   location: String,
   content: VXML,
 ) -> VXML {
-  V(blame, "span", [Attr(blame, "class", container_classname)], [
+  V(b, "span", container_attrs, [
     content,
-    V(blame, "span", [Attr(blame, "class", tooltip_classname)], [
-      T(blame, [Line(blame, location)]),
+    V(b, "span", tooltip_attrs, [
+      T(b, [Line(b, location)]),
     ]),
   ])
 }
 
 fn line_to_tooltip_span(line: Line, inner: InnerParam) -> #(Bool, VXML) {
-  let content = T(line.blame, [Line(line.blame, line.content)])
+  let t = T(line.blame, [Line(line.blame, line.content)])
+  use <- on.eager_true_false(
+    line.content == "",
+    #(False, t),
+  ) 
   use location <- on.eager_error_ok(
     get_location(line.blame, inner),
-    #(False, content),
+    #(False, t),
   )
-  #(True, wrap_with_tooltip(line.blame, location, content))
+  #(True, wrap_with_tooltip(location, t))
 }
 
 fn edit_lines(lines: List(Line), inner: InnerParam) -> #(Bool, List(VXML)) {
@@ -62,7 +67,12 @@ fn edit_lines(lines: List(Line), inner: InnerParam) -> #(Bool, List(VXML)) {
     }
   )
   case acc {
-    True -> #(True, vxmls |> infra.plain_concatenation_in_list |> list.intersperse(newline_t))
+    True -> #(
+      True,
+      vxmls
+      |> infra.plain_concatenation_in_list
+      |> list.intersperse(newline_t),
+    )
     False -> #(False, [])
   }
 }
@@ -157,14 +167,9 @@ pub fn constructor(param: Param, outside: List(String)) -> Desugarer {
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
 fn assertive_tests_data() -> List(infra.AssertiveTestDataWithOutside(Param)) {
   [
-    // note 1: not sure if following test is correct
-    // it was reverse-engineered from the desugarer's
-    // output long after this desugarer had already
-    // stopped being used (but it might be correct)
-    //
-    // note 2: 'test' is the filename assigned by the
+    // note: 'tst.source' is the filename assigned by the
     // infrastructure.gleam test runner, which is why 
-    // '../path/to/content/test' shows up in the expected 
+    // '../path/to/content/tst.source' shows up in the expected 
     // output
     infra.AssertiveTestDataWithOutside(
       param: "../path/to/content/",
