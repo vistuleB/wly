@@ -36,6 +36,24 @@ fn nodemap(
         None -> [vxml]
       }
     }
+    
+    V(bl.Src(..) as blame, "ImageRight", _, _) -> {
+      case infra.v_val_of_first_attr_with_key(vxml, "src") {
+        Some(url) -> {
+          [infra.v_set_attr(vxml, blame, "local_url", normalize_root_path(inner.0) <> "/" <> normalize_src_path(url))]
+        }
+        None -> [vxml]
+      }
+    }
+    
+    V(bl.Src(..) as blame, "ImageLeft", _, _) -> {
+      case infra.v_val_of_first_attr_with_key(vxml, "src") {
+        Some(url) -> {
+          [infra.v_set_attr(vxml, blame, "local_url", normalize_root_path(inner.0) <> "/" <> normalize_src_path(url))]
+        }
+        None -> [vxml]
+      }
+    }
     _ -> [vxml]
   }
 }
