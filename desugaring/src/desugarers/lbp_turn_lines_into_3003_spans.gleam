@@ -1,6 +1,6 @@
 import blame as bl
 import gleam/list
-import gleam/option.{type Option, Some, None}
+import gleam/option
 import gleam/string.{inspect as ins}
 import infrastructure.{
   type Desugarer,
@@ -55,47 +55,6 @@ fn line_to_tooltip_span(line: Line, inner: InnerParam) -> VXML {
   wrap_with_tooltip(line.blame, location, inner, content)
 }
 
-fn wrap_title_with_tooltip(
-  blame: bl.Blame,
-  location: String,
-  inner_param: InnerParam,
-  content: List(VXML),
-) -> List(VXML) {
-  // guard: if content is already a tooltip span, don't wrap it again
-  case content {
-    [V(_, "span", [Attr(_, "class", class), ..], _)] if class == container_classname -> content
-    _ -> {
-      use _ <- on.select(case location == inner_param {
-        True -> on.Return(content)
-        False -> on.Select(Nil)
-      })
-
-      [V(
-        blame,
-        "span",
-        [Attr(blame, "class", container_classname)],
-        list.append(content, [
-          V(blame, "span", [Attr(blame, "class", tooltip_classname)], [
-            T(blame, [Line(blame, location)])
-          ])
-        ])
-      )]
-    }
-  }
-}
-
-fn find_blame_of_first_line(vxmls: List(VXML)) -> Option(bl.Blame) {
-  case vxmls {
-    [] -> None
-    [first, ..rest] -> {
-      case infra.descendant_lines(first) {
-        [] -> find_blame_of_first_line(rest)
-        lines -> Some(infra.lines_first_blame(lines))
-      }
-    }
-  }
-}
-
 fn edit_lines(lines: List(Line), inner: InnerParam) -> List(VXML) {
   lines
   |> list.map(line_to_tooltip_span(_, inner))
@@ -126,19 +85,6 @@ fn edit_first_t_descendant(
 
 fn nodemap(vxml: VXML, inner: InnerParam) -> #(List(VXML), TrafficLight) {
   case vxml {
-    V(_, "ArticleTitle", _, title) -> {
-      use blame_first_line <- on.none_some(
-        find_blame_of_first_line(title),
-        on_none: fn() { #([vxml], GoBack) }
-      )
-      
-      let location = get_location(blame_first_line, inner)
-      
-      #([ infra.v_replace_children_with(vxml, 
-        wrap_title_with_tooltip(blame_first_line, location, inner, title)
-        )
-      ], GoBack)
-    }
     V(_, "OuterP", _, children) -> {
       let #(_, children) = edit_first_t_descendant(children, inner)
       #([V(..vxml, children: children)], GoBack)
