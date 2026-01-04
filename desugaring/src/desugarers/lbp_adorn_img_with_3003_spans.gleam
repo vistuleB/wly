@@ -20,7 +20,7 @@ fn nodemap(
     V(bl.Src(..), "img", _, _) -> {
       case infra.v_val_of_first_attr_with_key(vxml, "src") {
         Some(url) -> {
-          let inner_span = V(b, "span", inner.2, [ T(b, [ Line(b, normalize_root_path(inner.0) <> "/" <> normalize_src_path(url)) ]) ])
+          let inner_span = V(b, "span", inner.2, [ T(b, [ Line(b, inner.0 <> normalize_src_path(url)) ]) ])
           let outer_span = V(b, "span", inner.3, [ inner_span ])
           [vxml, outer_span]
         }
@@ -31,7 +31,7 @@ fn nodemap(
     V(bl.Src(..) as blame, "Image", _, _) -> {
       case infra.v_val_of_first_attr_with_key(vxml, "src") {
         Some(url) -> {
-          [infra.v_set_attr(vxml, blame, "local_url", normalize_root_path(inner.0) <> "/" <> normalize_src_path(url))]
+          [infra.v_set_attr(vxml, blame, "local_url", inner.0 <> normalize_src_path(url))]
         }
         None -> [vxml]
       }
@@ -40,7 +40,7 @@ fn nodemap(
     V(bl.Src(..) as blame, "ImageRight", _, _) -> {
       case infra.v_val_of_first_attr_with_key(vxml, "src") {
         Some(url) -> {
-          [infra.v_set_attr(vxml, blame, "local_url", normalize_root_path(inner.0) <> "/" <> normalize_src_path(url))]
+          [infra.v_set_attr(vxml, blame, "local_url", inner.0 <> normalize_src_path(url))]
         }
         None -> [vxml]
       }
@@ -49,7 +49,7 @@ fn nodemap(
     V(bl.Src(..) as blame, "ImageLeft", _, _) -> {
       case infra.v_val_of_first_attr_with_key(vxml, "src") {
         Some(url) -> {
-          [infra.v_set_attr(vxml, blame, "local_url", normalize_root_path(inner.0) <> "/" <> normalize_src_path(url))]
+          [infra.v_set_attr(vxml, blame, "local_url", inner.0 <> normalize_src_path(url))]
         }
         None -> [vxml]
       }
@@ -67,8 +67,8 @@ fn normalize_root_path(path: String) -> String {
 
 fn normalize_src_path(path: String) -> String {
   case path {
-    "./" <> _rest -> string.drop_start(path, 2)
-    "/" <> _rest -> string.drop_start(path, 1)
+    "./" <> rest -> rest
+    "/" <> rest -> rest
     _ -> path
   }
 }
@@ -86,7 +86,7 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
   let inner_span_class = case param.1 { "" -> "t-3003-i-url" _ -> "t-3003-i-url " <> param.1 }
   let inner_span_attrs = [Attr(b, "class", inner_span_class)]
   let outer_span_attrs = [Attr(b, "class", "t-3003 t-3003-i")]
-  Ok(#(param.0, param.1, inner_span_attrs, outer_span_attrs))
+  Ok(#(normalize_root_path(param.0) <> "/", param.1, inner_span_attrs, outer_span_attrs))
 }
 
 type Param = #(String,      String)
