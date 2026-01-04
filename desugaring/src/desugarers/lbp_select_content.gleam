@@ -90,42 +90,50 @@ fn at_root(root: VXML) -> Result(#(VXML, List(DesugaringWarning)), DesugaringErr
     |> result.map(dict.from_list)
   )
 
-  let selected_chapter_handles = case others {
-    [
-      V(_, "ChapterSelection", _, children),
-      ..,
-    ] -> {
-      children
-      |> list.map(infra.descendant_lines)
-      |> list.flatten
-      |> list.map(fn(line) {
-        assert string.starts_with(line.content, ">>")
-        string.drop_start(line.content, 2)
-      })
-    }
-    _ -> panic
+  use chapter_selection_node <- on.error_ok(
+    case others {
+      [
+        V(_, "ChapterSelection", _, _) as first,
+        ..,
+      ] -> Ok(first)
+      _ -> Error(Nil)
+    },
+    fn(_) { Ok(#(V(..root, children: chapters), [])) }
+  )
+
+  let selected_chapter_handles = {
+    let assert V(_, _, _, children) = chapter_selection_node
+    children
+    |> list.map(infra.descendant_lines)
+    |> list.flatten
+    |> list.map(fn(line) {
+      assert string.starts_with(line.content, ">>")
+      string.drop_start(line.content, 2)
+    })
   }
 
   use chapters <- on.ok(list.try_map(
     selected_chapter_handles,
     fn(handle) {
-      use exercise_handles <- on.ok(case dict.get(handle_2_in_elts_dict, handle) {
-        Ok(in_elt) -> {
-          let assert V(_, "In", _, children) = in_elt
-          children
-          |> list.map(infra.descendant_lines)
-          |> list.flatten
-          |> list.map(fn(line) {
-            assert string.starts_with(line.content, ">>")
-            string.drop_start(line.content, 2)
-          })
-          |> Ok
+      use exercise_handles <- on.ok(
+        case dict.get(handle_2_in_elts_dict, handle) {
+          Ok(in_elt) -> {
+            let assert V(_, "In", _, children) = in_elt
+            children
+            |> list.map(infra.descendant_lines)
+            |> list.flatten
+            |> list.map(fn(line) {
+              assert string.starts_with(line.content, ">>")
+              string.drop_start(line.content, 2)
+            })
+            |> Ok
+          }
+          Error(Nil) -> {
+            Ok([])
+            // Error(DesugaringError(desugarer_blame(126), "no 'In' element with handle '" <> handle <> "'"))
+          }
         }
-        Error(Nil) -> {
-          Ok([])
-          // Error(DesugaringError(desugarer_blame(126), "no 'In' element with handle '" <> handle <> "'"))
-        }
-      })
+      )
       use chapter <- on.error_ok(
         dict.get(handle_2_chapter_dict, handle),
         fn(_) { Error(DesugaringError(desugarer_blame(131), "no chapter with handle '" <> handle <> "'")) }
