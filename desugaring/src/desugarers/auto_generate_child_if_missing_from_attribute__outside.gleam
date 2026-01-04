@@ -24,6 +24,8 @@ fn nodemap(
         fn() { #(node, GoBack) },
       )
 
+      let b = bl.advance(attr.blame, inner.3)
+
       #(
         V(
           ..node,
@@ -32,7 +34,7 @@ fn nodemap(
               desugarer_blame(32),
               inner.1,
               [],
-              [T(attr.blame, [Line(attr.blame, attr.val)])],
+              [T(b, [Line(b, attr.val)])],
             ),
             ..node.children,
           ]
@@ -54,14 +56,19 @@ fn transform_factory(inner: InnerParam, outside: List(String)) -> DesugarerTrans
 }
 
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
-  Ok(param)
+  Ok(#(
+    param.0,
+    param.1,
+    param.2,
+    string.length(param.2) + 1,
+  ))
 }
 
 type Param = #(String, String, String)
 //             ↖       ↖       ↖        
 //             parent  child   attr
 //             tag     tag              
-type InnerParam = Param
+type InnerParam = #(String, String, String, Int)
 
 pub const name = "auto_generate_child_if_missing_from_attribute__outside"
 fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
