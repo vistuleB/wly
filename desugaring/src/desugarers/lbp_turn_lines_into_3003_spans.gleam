@@ -173,6 +173,7 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataWithOutside(Param)) {
                 <> ArticleTitle
                   <>
                     'some text'
+                    'more text'
                   <> i
                     <>
                       'more text'
@@ -183,13 +184,24 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataWithOutside(Param)) {
                     class=t-3003-c
                     <>
                       'some text'
-                    <> i
-                      <>
-                        'more text'
                     <> span
                       class=t-3003
                       <>
                         '../path/to/content/tst.source:3:5'
+                  <>
+                    ''
+                    ''
+                  <>
+                    'more text'
+                  <> i
+                    <> span
+                      class=t-3003-c
+                      <>
+                        'more text'
+                      <> span
+                        class=t-3003
+                        <>
+                          '../path/to/content/tst.source:7:7'
                 "
     ),
   ]
