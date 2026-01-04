@@ -130,13 +130,13 @@ fn at_root(root: VXML) -> Result(#(VXML, List(DesugaringWarning)), DesugaringErr
           }
           Error(Nil) -> {
             Ok([])
-            // Error(DesugaringError(desugarer_blame(126), "no 'In' element with handle '" <> handle <> "'"))
+            // Error(DesugaringError(desugarer_blame(133), "no 'In' element with handle '" <> handle <> "'"))
           }
         }
       )
       use chapter <- on.error_ok(
         dict.get(handle_2_chapter_dict, handle),
-        fn(_) { Error(DesugaringError(desugarer_blame(131), "no chapter with handle '" <> handle <> "'")) }
+        fn(_) { Error(DesugaringError(desugarer_blame(139), "no chapter with handle '" <> handle <> "'")) }
       )
       set_exercises_to(chapter, exercise_handles)
     }

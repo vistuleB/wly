@@ -31,7 +31,7 @@ fn nodemap(
           ..node,
           children: [
             V(
-              desugarer_blame(32),
+              desugarer_blame(34),
               inner.1,
               [],
               [T(b, [Line(b, attr.val)])],
