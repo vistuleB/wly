@@ -12,7 +12,7 @@ import infrastructure.{
   GoBack
 } as infra
 import nodemaps_2_desugarer_transforms as n2t
-import on.{Return, Select as Stay}
+import on
 import vxml.{ type Line, type VXML, Attr, Line, T, V }
 
 // remember to replace these names in tests,
@@ -37,8 +37,8 @@ fn wrap_with_tooltip(
   content: VXML,
 ) -> VXML {
   use _ <- on.select(case location == inner_param {
-    True -> Return(content)
-    False -> Stay(Nil)
+    True -> on.Return(content)
+    False -> on.Select(Nil)
   })
 
   V(
@@ -98,8 +98,8 @@ fn wrap_title_with_tooltip(
     [V(_, "span", [Attr(_, "class", class), ..], _)] if class == container_classname -> content
     _ -> {
       use _ <- on.select(case location == inner_param {
-        True -> Return(content)
-        False -> Stay(Nil)
+        True -> on.Return(content)
+        False -> on.Select(Nil)
       })
 
       [V(
