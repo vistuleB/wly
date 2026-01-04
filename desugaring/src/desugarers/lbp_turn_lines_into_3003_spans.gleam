@@ -40,21 +40,12 @@ fn wrap_with_tooltip(
     True -> on.Return(content)
     False -> on.Select(Nil)
   })
-
-  V(
-    blame,
-    "span",
-    [Attr(blame, "class", container_classname)],
-    [
-      content,
-      V(
-        blame,
-        "span",
-        [Attr(blame, "class", tooltip_classname)],
-        [T(blame, [Line(blame, location)])],
-      ),
-    ],
-  )
+  V(blame, "span", [Attr(blame, "class", container_classname)], [
+    content,
+    V(blame, "span", [Attr(blame, "class", tooltip_classname)], [
+      T(blame, [Line(blame, location)]),
+    ]),
+  ])
 }
 
 fn line_to_tooltip_span(line: Line, inner: InnerParam) -> VXML {
@@ -62,29 +53,6 @@ fn line_to_tooltip_span(line: Line, inner: InnerParam) -> VXML {
   let content = T(line.blame, [Line(line.blame, line.content)])
   
   wrap_with_tooltip(line.blame, location, inner, content)
-}
-
-fn bold_line_to_tooltip_span(vxml: VXML, inner: InnerParam) -> VXML {
-  case vxml {
-    V(b1, "b", attr, [T(b2, [line, ..rest_lines]), ..children]) -> {
-      let location = get_location(line.blame, inner)
-      
-      let content = V(
-        b1, 
-        "b", 
-        attr, 
-        [
-          T(line.blame, [Line(line.blame, line.content)]), 
-          newline_t, 
-          T(b2, rest_lines), 
-          ..children
-        ]
-      )
-
-      wrap_with_tooltip(vxml.blame, location, inner, content)
-    }
-    _ -> vxml
-  }
 }
 
 fn wrap_title_with_tooltip(
@@ -128,10 +96,35 @@ fn find_blame_of_first_line(vxmls: List(VXML)) -> Option(bl.Blame) {
   }
 }
 
-fn nodemap(
-  vxml: VXML,
+fn edit_lines(lines: List(Line), inner: InnerParam) -> List(VXML) {
+  lines
+  |> list.map(line_to_tooltip_span(_, inner))
+  |> list.intersperse(newline_t)
+}
+
+fn edit_first_t_descendant(
+  children: List(VXML),
   inner: InnerParam,
-) -> #(List(VXML), TrafficLight) {
+) -> #(Bool, List(VXML)) {
+  case children {
+    [] -> #(False, [])
+    [T(_, lines), ..rest] -> {
+      let replacements = edit_lines(lines, inner)
+      #(True, list.append(replacements, rest))
+    }
+    [V(_, _, _, children) as first, ..rest] -> {
+      case edit_first_t_descendant(children, inner) {
+        #(True, stuff) -> #(True, [V(..first, children: stuff), ..rest])
+        #(False, _) -> {
+          let #(z, q) = edit_first_t_descendant(rest, inner)
+          #(z, [first, ..q])
+        }
+      }
+    }
+  }
+}
+
+fn nodemap(vxml: VXML, inner: InnerParam) -> #(List(VXML), TrafficLight) {
   case vxml {
     V(_, "ArticleTitle", _, title) -> {
       use blame_first_line <- on.none_some(
@@ -146,34 +139,11 @@ fn nodemap(
         )
       ], GoBack)
     }
-    V(bl_outp, "OuterP", attr_outp, children) -> {
-      case children {
-        [V(_, "b", _,_) as v_bold, ..rest_children] -> {
-          #([V(
-            bl_outp, 
-            "OuterP", 
-            attr_outp, 
-            [bold_line_to_tooltip_span(v_bold, inner), ..rest_children])
-          ]
-          , GoBack
-          )
-        }
-        [T(b3, [first_line, ..rest_lines]), ..rest_children] -> {
-          #([V(bl_outp, "OuterP", attr_outp,
-          [line_to_tooltip_span(first_line, inner), newline_t, T(b3, rest_lines), ..rest_children])],
-          GoBack
-          )
-        }
-        _ -> #([vxml], Continue)
-      }
+    V(_, "OuterP", _, children) -> {
+      let #(_, children) = edit_first_t_descendant(children, inner)
+      #([V(..vxml, children: children)], GoBack)
     }
-    T(_, lines) -> {
-          #(lines
-            |> list.map(line_to_tooltip_span(_, inner))
-            |> list.intersperse(newline_t),
-            GoBack
-          )
-    }
+    T(_, lines) -> #(edit_lines(lines, inner), GoBack)
     _ -> #([vxml], Continue)
   }
 }
