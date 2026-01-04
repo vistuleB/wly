@@ -165,13 +165,19 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataWithOutside(Param)) {
                     class=t-3003-c
                     <>
                       'some text'
-                    <> i
-                      <>
-                        'more text'
                     <> span
                       class=t-3003
                       <>
                         '../path/to/content/tst.source:3:5'
+                  <> i
+                    <> span
+                      class=t-3003-c
+                      <>
+                        'more text'
+                      <> span
+                        class=t-3003
+                        <>
+                          '../path/to/content/tst.source:6:7'
                 "
     ),
   ]
