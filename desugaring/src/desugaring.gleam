@@ -352,7 +352,7 @@ pub type RendererOptions(d) {
   RendererOptions(
     verbose: Bool,
     steps_table: Bool,
-    profiling_table: Option(Int),
+    profiling_table: List(ProfileTable),
     interactive_mode: Bool,
     suppress_warnings: Bool,
     echo_assembled_lines: Bool,
@@ -364,11 +364,16 @@ pub type RendererOptions(d) {
   )
 }
 
+pub type ProfileTable {
+  Pipeline(Option(Int))
+  ImageCompression(Option(Int), Option(Int), Option(Int))
+}
+
 pub fn vanilla_options() -> RendererOptions(d) {
   RendererOptions(
     verbose: False,
     steps_table: False,
-    profiling_table: None,
+    profiling_table: [Pipeline(None)],
     interactive_mode: False,
     suppress_warnings: False,
     echo_assembled_lines: False,
@@ -404,7 +409,7 @@ pub type CommandLineAmendments {
     track: Option(PipelineTrackingModifier),
     peek: Option(List(Int)),
     table: Option(Bool),
-    times: Option(Int),
+    times: Option(ProfileTable),
     verbose: Option(Bool),
     warnings: Option(Bool),
     timing: Option(Bool),
@@ -607,7 +612,8 @@ pub fn process_command_line_arguments(
           use arg <- on.ok(
             parse_times_args(values)
           )
-          Ok(CommandLineAmendments(..amendments, times: arg |> infra.with_default(default_times_table_char_width)))
+          let t = arg |> infra.with_default(default_times_table_char_width)
+          Ok(CommandLineAmendments(..amendments, times: Some(Pipeline(t))))
         }
 
         "--input-dir" -> {
@@ -712,25 +718,25 @@ pub fn process_command_line_arguments(
             True -> Ok(CommandLineAmendments(..amendments, verbose: Some(False)))
             False -> Error(UnexpectedArgumentsToOption(option))
           }
-        
+
         "--verbose" ->
           case list.is_empty(values) {
             True -> Ok(CommandLineAmendments(..amendments, verbose: Some(True)))
             False -> Error(UnexpectedArgumentsToOption(option))
           }
-        
+
         "--warnings" ->
           case list.is_empty(values) {
             True -> Ok(CommandLineAmendments(..amendments, warnings: Some(True)))
             False -> Error(UnexpectedArgumentsToOption(option))
           }
-        
+
         "--no-warnings" ->
           case list.is_empty(values) {
             True -> Ok(CommandLineAmendments(..amendments, warnings: Some(False)))
             False -> Error(UnexpectedArgumentsToOption(option))
           }
-        
+
         _ -> {
           case list.contains(user_keys, option) {
             True -> Ok(CommandLineAmendments(..amendments, user_args: dict.insert(amendments.user_args, option, values)))
@@ -1156,7 +1162,10 @@ pub fn amend_renderer_options_by_command_line_amendments(
   RendererOptions(
     verbose: option.unwrap(amendments.verbose, options.verbose),
     steps_table: option.unwrap(amendments.table, options.steps_table),
-    profiling_table: option.or(amendments.times, options.profiling_table),
+    profiling_table: case amendments.times {
+      Some(pt) -> [pt]
+      None -> options.profiling_table
+    },
     interactive_mode: {
       options.interactive_mode ||
       option.map(amendments.track, fn(x){x.interactive_mode}) |> option.unwrap(False)
@@ -1401,7 +1410,7 @@ fn producer(
           }
         }
 
-        let must_print = 
+        let must_print =
           peek ||
           mode == TrackingForced ||
           { mode == TrackingOnChange && next_tracking_output != last_tracking_output }
@@ -1412,8 +1421,8 @@ fn producer(
               pr.name_and_param_string_lines(desugarer, step_no, 4),
               lines,
             )
-            let lines = ["    💠", ..lines] 
-            let lines = 
+            let lines = ["    💠", ..lines]
+            let lines =
               selected_2_print
               |> infra.s_lines_table_lines("", False, 2)
               |> infra.pour(lines)
@@ -1621,6 +1630,137 @@ pub type RendererError(a, c, e, f, g, h) {
 //   }
 // }
 
+fn print_pipeline(
+  total_chars_opt: Option(Int),
+  durations: List(Duration),
+  pipeline: Pipeline,
+  total_seconds: String,
+) {
+  case total_chars_opt {
+    None -> {
+      io.println("  ..ended pipeline (" <> total_seconds <> "s)")
+    }
+
+    Some(total_chars) -> {
+      let all_seconds = durations |> list.map(duration.to_seconds) |> list.reverse
+      let assert Ok(max_secs) = list.max(all_seconds, float.compare)
+      let num_hundreth_seconds = float.ceiling(max_secs *. 100.0)
+      let one_hundreth_seconds_num_bars =
+        int.to_float(total_chars) /. num_hundreth_seconds
+      let scale =
+        list.repeat(Nil, float.round(num_hundreth_seconds) + 1)
+        |> list.map_fold(0.0, fn(x, _) { #(x +. 0.01, x) })
+        |> pair.second
+        |> list.index_fold(
+          "",
+          fn(acc, seconds, i) {
+            let start_char =
+              float.round(int.to_float(i) *. one_hundreth_seconds_num_bars)
+            let num_spaces = start_char - string.length(acc)
+            case num_spaces > 0 || acc == "" {
+              False -> acc
+              True -> {
+                let label = ins(seconds |> float.to_precision(2)) <> "s"
+                acc <> string.repeat(" ", num_spaces) <> label
+              }
+            }
+          },
+        )
+      assert list.length(all_seconds) == list.length(pipeline)
+      let bars =
+        list.index_map(list.zip(pipeline, all_seconds), fn(pair, i) {
+          let #(pipe, seconds) = pair
+          let num_bars =
+            float.round(seconds *. 100.0 *. one_hundreth_seconds_num_bars)
+          #(ins(i + 1) <> ".", pipe.desugarer.name, pr.blocks(num_bars))
+        })
+      pr.three_column_table([#("#.", "name", scale), ..bars])
+      |> pr.print_lines_at_indent(2)
+      io.println("  ...ended pipeline in " <> total_seconds <> "s")
+    }
+  }
+}
+
+fn print_compressed_image_sizes(
+  col_filename: Option(Int),
+  col_filesize: Option(Int),
+  rows: Option(Int),
+) -> Nil {
+  io.println("• compressed image sizes")
+  let path = "../public/build-img"
+
+  use files <- on.error_ok(
+    get_files_with_size(path),
+    on_error: fn (_) { io.println("Error: Could not read path " <> path) },
+  )
+
+  let sorted_files = files |> list.sort(by: fn(a, b) { int.compare(b.1, a.1) }) // sort by size descending
+
+  let formatted_list = {
+    case col_filename, col_filesize, rows {
+      None, None, Some(rows) -> {
+        sorted_files
+        |> list.take(rows)
+      }
+      _, _, _ -> {
+        sorted_files
+      }
+    }
+  }
+
+  formatted_list
+  |> list.map(fn(file) { #(file.0, format_size(file.1)) })
+  |> fn(files) { [#("path", "size"), ..files] }
+  |> pr.two_column_table
+  |> pr.print_lines_at_indent(2)
+}
+
+pub fn get_files_with_size(
+  path: String,
+) -> Result(List(#(String, Int)), simplifile.FileError) {
+  use is_dir <- result.try(simplifile.is_directory(path))
+
+  case is_dir {
+    True -> {
+      use contents <- result.try(simplifile.read_directory(path))
+
+      list.try_fold(contents, [], fn(acc, name) {
+        let full_path = path <> "/" <> name
+        use nested_files <- result.try(get_files_with_size(full_path))
+        Ok(list.append(acc, nested_files))
+      })
+    }
+
+    False -> {
+      use info <- result.try(simplifile.file_info(path))
+      Ok([#(path, info.size)])
+    }
+  }
+}
+
+fn format_size(bytes: Int) -> String {
+  case bytes {
+    b if b < 1024 -> int.to_string(b) <> " B"
+    b if b < 1_048_576 -> {
+      let kb = int.to_float(b) /. 1024.0
+      round_to_2dp(kb) <> " KB"
+    }
+    b if b < 1_073_741_824 -> {
+      let mb = int.to_float(b) /. 1_048_576.0
+      round_to_2dp(mb) <> " MB"
+    }
+    b -> {
+      let gb = int.to_float(b) /. 1_073_741_824.0
+      round_to_2dp(gb) <> " GB"
+    }
+  }
+}
+
+fn round_to_2dp(value: Float) -> String {
+  let rounded = int.to_float(float.round(value *. 100.0)) /. 100.0
+  float.to_string(rounded)
+}
+
 pub fn run_renderer(
   renderer: Renderer(a, c, d, e, f, g, h),
   parameters: RendererParameters,
@@ -1659,7 +1799,7 @@ pub fn run_renderer(
 
   case options.verbose, tree {
     True, Some(tree) -> {
-      let spaces = 
+      let spaces =
         string.repeat(" ", string.length("  -> assembled "))
 
       list.index_map(
@@ -1733,57 +1873,26 @@ pub fn run_renderer(
           |> pr.two_column_error_announcer(0, 68, "🍄", 2, "/ DesugaringError /")
           |> io.println
           Error(PipelineError(e))
-        } 
+        }
       }
     }
   )
 
   let t1 = timestamp.system_time()
   let seconds =
-    timestamp.difference(t0, t1) |> duration.to_seconds |> float.to_precision(3)
+    timestamp.difference(t0, t1)
+    |> duration.to_seconds
+    |> float.to_precision(3)
+    |> ins
 
-  case options.profiling_table {
-    None -> {
-      io.println("  ..ended pipeline (" <> ins(seconds) <> "s)")
+  options.profiling_table
+  |> list.each(fn(pt) {
+    case pt {
+      Pipeline(total_chars_opt) ->
+        print_pipeline(total_chars_opt, durations, renderer.pipeline, seconds)
+      ImageCompression(col_filename, col_filesize, rows) -> print_compressed_image_sizes(col_filename, col_filesize, rows)
     }
-
-    Some(total_chars) -> {
-      let all_seconds = durations |> list.map(duration.to_seconds) |> list.reverse
-      let assert Ok(max_secs) = list.max(all_seconds, float.compare)
-      let num_hundreth_seconds = float.ceiling(max_secs *. 100.0)
-      let one_hundreth_seconds_num_bars = int.to_float(total_chars) /. num_hundreth_seconds
-      let scale =
-        list.repeat(Nil, float.round(num_hundreth_seconds) + 1)
-        |> list.map_fold(0.0, fn(x, _) { #(x +. 0.01, x) })
-        |> pair.second
-        |> list.index_fold(
-          "",
-          fn(acc, seconds, i) {
-            let start_char = float.round(int.to_float(i) *. one_hundreth_seconds_num_bars)
-            let num_spaces = start_char - string.length(acc)
-            case num_spaces > 0 || acc == "" {
-              False -> acc
-              True -> {
-                let label = ins(seconds |> float.to_precision(2)) <> "s"
-                acc <> string.repeat(" ", num_spaces) <> label
-              }
-            }
-          }
-        )
-      assert list.length(all_seconds) == list.length(renderer.pipeline)
-      let bars = list.index_map(
-        list.zip(renderer.pipeline, all_seconds),
-        fn (pair, i) {
-          let #(pipe, seconds) = pair
-          let num_bars = float.round(seconds *. 100.0 *. one_hundreth_seconds_num_bars)
-          #(ins(i + 1) <> ".", pipe.desugarer.name, pr.blocks(num_bars))
-        }
-      )
-      pr.three_column_table([#("#.", "name", scale), ..bars])
-      |> pr.print_lines_at_indent(2)
-      io.println("  ...ended pipeline in " <> ins(seconds) <> "s")
-    }
-  }
+  })
 
   // 🌸 splitting 🌸
 
@@ -2021,7 +2130,7 @@ pub fn run_renderer(
   }
 
   case options.suppress_warnings {
-    False -> 
+    False ->
       list.each(
         warnings,
         fn (w) {
