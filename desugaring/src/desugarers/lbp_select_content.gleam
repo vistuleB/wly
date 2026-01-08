@@ -1,5 +1,5 @@
 import gleam/dict
-import gleam/option
+import gleam/option.{None, Some}
 import gleam/list
 import gleam/result
 import gleam/string
@@ -19,7 +19,10 @@ import on
 fn with_handle_value(thing: VXML) -> Result(#(String, VXML), DesugaringError) {
   let assert V(blame, tag, attrs, _) = thing
   case infra.attrs_val_of_unique_key(attrs, "handle", blame) {
-    Error(_) -> Error(DesugaringError(blame, "'" <> tag <> "' tag missing handle attribute"))
+    Error(_) -> {
+      Ok(#("", thing))
+      // Error(DesugaringError(blame, "'" <> tag <> "' tag missing handle attribute"))
+    }
     Ok(x) -> Ok(#(x, thing))
   }
 }
@@ -47,6 +50,7 @@ fn set_exercises_to(chapter: VXML, handles: List(String)) -> Result(VXML, Desuga
     exercises
     |> list.filter(infra.is_v_and_tag_equals(_, "Exercise"))
     |> list.try_map(with_handle_value)
+    |> result.map(fn(pairs) { list.filter(pairs, fn(pair) {pair.0 != ""})})
     |> result.map(dict.from_list)
   )
   use exercises <- on.ok(list.try_map(
@@ -134,15 +138,19 @@ fn at_root(root: VXML) -> Result(#(VXML, List(DesugaringWarning)), DesugaringErr
           }
         }
       )
-      use chapter <- on.error_ok(
+      use chapter <- on.eager_error_ok(
         dict.get(handle_2_chapter_dict, handle),
-        fn(_) { Error(DesugaringError(desugarer_blame(139), "no chapter with handle '" <> handle <> "'")) }
+        // fn(_) { Error(DesugaringError(desugarer_blame(139), "no chapter with handle '" <> handle <> "'")) }
+        Ok(None)
       )
-      set_exercises_to(chapter, exercise_handles)
+      use chapter <- on.ok(
+        set_exercises_to(chapter, exercise_handles)
+      )
+      Ok(Some(chapter))
     }
   ))
 
-  Ok(#(V(..root, children: chapters), []))
+  Ok(#(V(..root, children: chapters |> option.values), []))
 }
 
 fn desugarer_factory(_inner: InnerParam) -> infra.DesugarerTransform {

@@ -65,8 +65,9 @@ fn warning_element(
 ) -> VXML {
   V(
     desugarer_blame(67),
-    "span",
-    [Attr(desugarer_blame(69), "style", "color:red;background-color:yellow;")],
+    "InTextWarning",
+    // [Attr(desugarer_blame(69), "style", "color:red;background-color:yellow;")],
+    [],
     [T(desugarer_blame(70), [Line(desugarer_blame(70), "undefined handle at " <> bl.blame_digest(blame) <> ": " <> handle_name)])],
   )
 }

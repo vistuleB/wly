@@ -66,10 +66,14 @@ fn normalize_root_path(path: String) -> String {
 }
 
 fn normalize_src_path(path: String) -> String {
-  case path {
+  let path = case path {
     "./" <> rest -> rest
     "/" <> rest -> rest
     _ -> path
+  }
+  case string.starts_with(path, "tmp-images") {
+    True -> "public/" <> path
+    False -> path
   }
 }
 
