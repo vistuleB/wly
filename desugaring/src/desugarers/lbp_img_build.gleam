@@ -80,29 +80,13 @@ fn build_img_info_decoder() -> decode.Decoder(BuildImgInfo) {
   use compression <- decode.field("compression", decode.string)
   use _used_last_build <- decode.field("used-last-build", decode.bool)
 
-  use build_method <- on.error_ok(
-    case build_method {
-      "cp" -> Ok(CP)
-      "svgo" -> Ok(SVGO)
-      _ -> Error(Nil)
-    },
-    fn(_) {
-      decode.failure(
-        BuildImgInfo(
-          build_version: build_version,
-          build_version_created_on: build_version_created_on,
-          build_method: SVGO,
-          build_version_size: build_version_size,
-          original_size: original_size,
-          compression: compression,
-          used_last_build: False,
-        ),
-        "build-method"
-      )
-    },
-  )
+  let #(success, build_method) = case build_method {
+    "cp" -> #(True, CP)
+    "svgo" -> #(True, SVGO)
+    _ -> #(False, SVGO)
+  }
 
-  decode.success(BuildImgInfo(
+  let decoded = BuildImgInfo(
     build_version: build_version,
     build_version_created_on: build_version_created_on,
     build_method: build_method,
@@ -110,7 +94,12 @@ fn build_img_info_decoder() -> decode.Decoder(BuildImgInfo) {
     original_size: original_size,
     compression: compression,
     used_last_build: False,
-  ))
+  )
+
+  case success {
+    True -> decode.success(decoded)
+    False -> decode.failure(decoded, "build-method")
+  }
 }
 
 fn image_map_decoder() -> decode.Decoder(ImageMap) {
@@ -148,7 +137,39 @@ fn load_image_map(image_map_path: String) -> ImageMap {
   }
 }
 
+fn size_format(bytes: Int) -> String {
+  case bytes > 500000 {
+    False -> ins(bytes / 1000) <> "Kb"
+    True -> {
+      let mb = int.to_float(bytes) /. 1000000.0
+      ins(mb |> float.to_precision(1)) <> "Mb"
+    }
+  }
+}
+
+fn sum_sizes(entries: List(BuildImgInfo)) -> #(Int, Int) {
+  case entries {
+    [] -> #(0, 0)
+    [first, ..rest] -> {
+      let #(a, b) = sum_sizes(rest)
+      case first.used_last_build {
+        True -> #(a + first.original_size, b + first.build_version_size)
+        False -> #(a, b)
+      }
+    }
+  }
+}
+
+fn image_map_stats(image_map: ImageMap) -> Nil {
+  let #(original_sizes, compressed_sizes) =
+    image_map
+    |> dict.values
+    |> sum_sizes
+  io.println("  lbp_img_build: original sizes: " <> size_format(original_sizes) <> ", compressed sizes: " <> size_format(compressed_sizes))
+}
+
 fn save_image_map(image_map: ImageMap, exec_to_image_map_path: String) -> Result(Nil, DesugaringError) {
+  image_map_stats(image_map)
   let content = image_map_prettified_json_string(image_map, 2)
   use error <- on.error(simplifile.write(exec_to_image_map_path, content))
   Error(DesugaringError(bl.no_blame, "failed to save image map to '" <> exec_to_image_map_path <> "' (" <> simplifile.describe_error(error) <> ")"))

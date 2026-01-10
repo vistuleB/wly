@@ -1608,19 +1608,6 @@ pub type RendererError(a, c, e, f, g, h) {
 // run_renderer
 // ************************************************************
 
-// fn durations(
-//   times: List(Timestamp)
-// ) -> List(Duration) {
-//   case times {
-//     [] -> panic
-//     [_] -> []
-//     [t_later, t_earlier, ..rest] -> [
-//       timestamp.difference(t_earlier, t_later),
-//       ..durations([t_earlier, ..rest]),
-//     ]
-//   }
-// }
-
 pub fn run_renderer(
   renderer: Renderer(a, c, d, e, f, g, h),
   parameters: RendererParameters,
