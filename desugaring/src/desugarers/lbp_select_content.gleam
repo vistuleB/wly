@@ -84,9 +84,11 @@ fn set_exercises_to(chapter: VXML, handles: List(String)) -> Result(#(VXML, List
 
 fn at_root(root: VXML) -> Result(#(VXML, List(DesugaringWarning)), DesugaringError) {
   let assert V(_, "Book", _, children) = root
+
   // need to construct two dictionaries
   // - handles-to-chapters
   // - handles-to-exercises
+
   let #(chapters, others) = list.partition(
     children,
     infra.is_v_and_tag_is_one_of(_, ["Chapter", "Bootcamp"]),
@@ -110,16 +112,12 @@ fn at_root(root: VXML) -> Result(#(VXML, List(DesugaringWarning)), DesugaringErr
     |> result.map(dict.from_list)
   )
 
-  use chapter_selection_node <- on.select(
-    case others {
-      [
-        V(_, "ChapterSelection", _, _) as first,
-        ..,
-      ] -> on.Select(first)
-      _ -> {
-        on.Return(Ok(#(V(..root, children: chapters), [])))
-      }
-    }
+  use chapter_selection_node <- on.error_ok(
+    list.find(
+      others,
+      infra.is_v_and_tag_equals(_, "ChapterSelection"),
+    ),
+    fn(_) { Ok(#(V(..root, children: chapters), [])) },
   )
 
   let selected_chapter_handles = {

@@ -28,7 +28,7 @@ fn matches_a_selector(vxml: VXML, inner: InnerParam) -> Bool {
 }
 
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
-  list.each(param, fn(p) { assert p.0 == "" })
+  list.each(param, fn(p) { assert p.0 == "" } )
   Ok(param)
 }
 
