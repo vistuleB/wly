@@ -24,6 +24,7 @@ import nodemaps_2_desugarer_transforms as n2t
 import on
 import shellout
 import simplifile
+import table_and_co_printer as pr
 import vxml.{
   type VXML,
   type Attr,
@@ -54,6 +55,7 @@ fn build_img_info_prettified_json_string(
   <> margin2 <> "\"build-method\": " <> { json.string(info.build_method |> build_method_to_string) |> json.to_string } <> ",\n"
   <> margin2 <> "\"build-version-size\": " <> { json.int(info.build_version_size) |> json.to_string } <> ",\n"
   <> margin2 <> "\"original-size\": " <> { json.int(info.original_size) |> json.to_string } <> ",\n"
+  <> margin2 <> "\"compressed-size\": " <> { json.int(info.compressed_size) |> json.to_string } <> ",\n"
   <> margin2 <> "\"compression\": " <> { json.string(info.compression) |> json.to_string } <> ",\n"
   <> margin2 <> "\"used-last-build\": " <> { json.bool(info.used_last_build) |> json.to_string } <> "\n"
   <> margin1 <> "}"
@@ -68,7 +70,7 @@ fn image_map_prettified_json_string(
     |> dict.to_list()
     |> list.map(fn(kv) { build_img_info_prettified_json_string(kv.0, kv.1, indentation, indentation) })
     |> string.join(",\n")
-  "{\n" <> entries <> "\n}\n" 
+  "{\n" <> entries <> "\n}\n"
 }
 
 fn build_img_info_decoder() -> decode.Decoder(BuildImgInfo) {
@@ -77,6 +79,7 @@ fn build_img_info_decoder() -> decode.Decoder(BuildImgInfo) {
   use build_method <- decode.field("build-method", decode.string)
   use build_version_size <- decode.field("build-version-size", decode.int)
   use original_size <- decode.field("original-size", decode.int)
+  use compressed_size <- decode.field("compressed-size", decode.int)
   use compression <- decode.field("compression", decode.string)
   use _used_last_build <- decode.field("used-last-build", decode.bool)
 
@@ -92,6 +95,7 @@ fn build_img_info_decoder() -> decode.Decoder(BuildImgInfo) {
     build_method: build_method,
     build_version_size: build_version_size,
     original_size: original_size,
+    compressed_size: compressed_size,
     compression: compression,
     used_last_build: False,
   )
@@ -153,7 +157,7 @@ fn sum_sizes(entries: List(BuildImgInfo)) -> #(Int, Int) {
     [first, ..rest] -> {
       let #(a, b) = sum_sizes(rest)
       case first.used_last_build {
-        True -> #(a + first.original_size, b + first.build_version_size)
+        True -> #(a + first.original_size, b + first.compressed_size)
         False -> #(a, b)
       }
     }
@@ -353,6 +357,7 @@ fn build_or_miraculously_retrieve_existing_build_image(
     build_method: via,
     build_version_size: new_size,
     original_size: original_size,
+    compressed_size: new_size,
     compression: compression,
     used_last_build: True,
   )
@@ -533,6 +538,29 @@ fn v_after(
         True -> remove_files_from_build_img_that_have_no_image_map_preimage(state, inner)
       })
       use _ <- on.ok(save_image_map(state, inner.image_map_path))
+
+      let table_rows =
+        state
+        |> dict.to_list()
+        |> list.filter(fn(kv) { kv.1.used_last_build })
+        |> list.sort(fn(a, b) { int.compare(b.1.compressed_size, a.1.compressed_size) })
+        |> list.map(fn(kv) {
+          let #(path, info) = kv
+          #(path, size_format(info.original_size), size_format(info.compressed_size))
+        })
+
+      case table_rows {
+        [] -> Nil
+        _ -> {
+          io.println("  lbp_img_build image report:")
+          pr.three_column_table([
+            #("Original path", "Original size", "Compressed size"),
+            ..table_rows
+          ])
+          |> pr.print_lines_at_indent(2)
+        }
+      }
+
       Ok(#(vxml, state, []))
     }
     _ -> Ok(#(vxml, state, []))
@@ -615,6 +643,7 @@ type BuildImgInfo {
     build_method: BuildMethod,
     build_version_size: Int,
     original_size: Int,
+    compressed_size: Int,
     compression: String, // e.g. "38.85%"
     used_last_build: Bool,
   )
