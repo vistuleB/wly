@@ -542,7 +542,9 @@ fn v_after(
       let table_rows =
         state
         |> dict.to_list()
-        |> list.filter(fn(kv) { kv.1.used_last_build })
+        |> list.filter(fn(kv) {
+          kv.1.used_last_build && kv.1.compressed_size >= 200_000
+        })
         |> list.sort(fn(a, b) { int.compare(b.1.compressed_size, a.1.compressed_size) })
         |> list.map(fn(kv) {
           let #(path, info) = kv
