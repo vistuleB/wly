@@ -92,10 +92,6 @@ import desugarers/free_children
 import desugarers/free_children__batch
 import desugarers/generate_ii2_table_of_contents
 import desugarers/generate_ii2_table_of_contents_html
-import desugarers/generate_lbp_breadcrumbs
-import desugarers/generate_lbp_prev_next_attributes
-import desugarers/generate_lbp_sections_breadcrumbs
-import desugarers/generate_lbp_table_of_contents
 import desugarers/group_consecutive_children__outside
 import desugarers/handles_add_ids
 import desugarers/handles_generate_dictionary_and_id_list
@@ -120,6 +116,10 @@ import desugarers/keep_only_subtrees_and_ancestors_of_nodes_matching_a_key_value
 import desugarers/last_to_first_concatenate_text_nodes
 import desugarers/lbp_adorn_img_with_3003_spans
 import desugarers/lbp_adorn_with_3003_spans
+import desugarers/lbp_generate_breadcrumbs
+import desugarers/lbp_generate_prev_next_attributes
+import desugarers/lbp_generate_sections_breadcrumbs
+import desugarers/lbp_generate_table_of_contents
 import desugarers/lbp_img_build
 import desugarers/lbp_select_content
 import desugarers/lbp_turn_lines_into_3003_spans
@@ -336,10 +336,6 @@ pub const free_children = free_children.constructor
 pub const free_children__batch = free_children__batch.constructor
 pub const generate_ii2_table_of_contents = generate_ii2_table_of_contents.constructor
 pub const generate_ii2_table_of_contents_html = generate_ii2_table_of_contents_html.constructor
-pub const generate_lbp_breadcrumbs = generate_lbp_breadcrumbs.constructor
-pub const generate_lbp_prev_next_attributes = generate_lbp_prev_next_attributes.constructor
-pub const generate_lbp_sections_breadcrumbs = generate_lbp_sections_breadcrumbs.constructor
-pub const generate_lbp_table_of_contents = generate_lbp_table_of_contents.constructor
 pub const group_consecutive_children__outside = group_consecutive_children__outside.constructor
 pub const handles_add_ids = handles_add_ids.constructor
 pub const handles_generate_dictionary_and_id_list = handles_generate_dictionary_and_id_list.constructor
@@ -364,6 +360,10 @@ pub const keep_only_subtrees_and_ancestors_of_nodes_matching_a_key_value_pair = 
 pub const last_to_first_concatenate_text_nodes = last_to_first_concatenate_text_nodes.constructor
 pub const lbp_adorn_img_with_3003_spans = lbp_adorn_img_with_3003_spans.constructor
 pub const lbp_adorn_with_3003_spans = lbp_adorn_with_3003_spans.constructor
+pub const lbp_generate_breadcrumbs = lbp_generate_breadcrumbs.constructor
+pub const lbp_generate_prev_next_attributes = lbp_generate_prev_next_attributes.constructor
+pub const lbp_generate_sections_breadcrumbs = lbp_generate_sections_breadcrumbs.constructor
+pub const lbp_generate_table_of_contents = lbp_generate_table_of_contents.constructor
 pub const lbp_img_build = lbp_img_build.constructor
 pub const lbp_select_content = lbp_select_content.constructor
 pub const lbp_turn_lines_into_3003_spans = lbp_turn_lines_into_3003_spans.constructor
@@ -581,10 +581,6 @@ pub const assertive_tests : List(fn() -> infra.AssertiveTestCollection) = [
   free_children__batch.assertive_tests,
   generate_ii2_table_of_contents.assertive_tests,
   generate_ii2_table_of_contents_html.assertive_tests,
-  generate_lbp_breadcrumbs.assertive_tests,
-  generate_lbp_prev_next_attributes.assertive_tests,
-  generate_lbp_sections_breadcrumbs.assertive_tests,
-  generate_lbp_table_of_contents.assertive_tests,
   group_consecutive_children__outside.assertive_tests,
   handles_add_ids.assertive_tests,
   handles_generate_dictionary_and_id_list.assertive_tests,
@@ -609,6 +605,10 @@ pub const assertive_tests : List(fn() -> infra.AssertiveTestCollection) = [
   last_to_first_concatenate_text_nodes.assertive_tests,
   lbp_adorn_img_with_3003_spans.assertive_tests,
   lbp_adorn_with_3003_spans.assertive_tests,
+  lbp_generate_breadcrumbs.assertive_tests,
+  lbp_generate_prev_next_attributes.assertive_tests,
+  lbp_generate_sections_breadcrumbs.assertive_tests,
+  lbp_generate_table_of_contents.assertive_tests,
   lbp_img_build.assertive_tests,
   lbp_select_content.assertive_tests,
   lbp_turn_lines_into_3003_spans.assertive_tests,
