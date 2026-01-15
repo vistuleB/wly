@@ -1,3 +1,4 @@
+import gleam/function
 import gleam/string.{inspect as ins}
 import gleam/result
 import gleam/list
@@ -8,7 +9,7 @@ import infrastructure.{
   Desugarer,
   DesugaringError,
 } as infra
-import gleam/option
+import gleam/option.{type Option, None}
 import vxml.{type VXML, V, T, Line, Attr}
 import blame as bl
 import nodemaps_2_desugarer_transforms as n2t
@@ -63,7 +64,12 @@ fn cleanup_children(children: List(VXML)) -> List(VXML){
   |> remove_period
 }
 
-fn construct_breadcrumb(children: List(VXML), target_id: String, index: Int) -> VXML {
+fn construct_breadcrumb(children: List(VXML), existing_id: Option(String), target_id: String, index: Int) -> VXML {
+  let target_id = on.none_some(
+    existing_id,
+    fn() { target_id },
+    function.identity
+  )
   V(
     desugarer_blame(68),
     "BreadcrumbItem",
@@ -81,7 +87,10 @@ fn construct_breadcrumb(children: List(VXML), target_id: String, index: Int) -> 
 
 fn map_section(section: VXML, index: Int) -> Result(VXML, DesugaringError) {
   case infra.v_get_children(section) {
-    [V(_, "BreadcrumbTitle", _, children), ..] -> Ok(construct_breadcrumb(children, "section-" <> ins(index + 1), index))
+    [V(_, "BreadcrumbTitle", _, children), ..] -> Ok(construct_breadcrumb(children, 
+      infra.v_val_of_first_attr_with_key(section, "id"),
+      "section-" <> ins(index + 1), index))
+    
     _ -> Error(DesugaringError(section.blame, "Section must have a BreadcrumbTitle as first child"))
   }
 }
@@ -101,6 +110,7 @@ fn generate_sections_list(
       [
         construct_breadcrumb(
           [T(one.blame, [Line(one.blame, "exercises")])],
+          None,
           "exercises",
           list.length(sections_nodes)
         )
