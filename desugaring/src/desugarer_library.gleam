@@ -118,7 +118,6 @@ import desugarers/lbp_adorn_img_with_3003_spans
 import desugarers/lbp_adorn_with_3003_spans
 import desugarers/lbp_generate_breadcrumbs
 import desugarers/lbp_generate_prev_next_attributes
-import desugarers/lbp_generate_sections_breadcrumbs
 import desugarers/lbp_generate_table_of_contents
 import desugarers/lbp_img_build
 import desugarers/lbp_select_content
@@ -362,7 +361,6 @@ pub const lbp_adorn_img_with_3003_spans = lbp_adorn_img_with_3003_spans.construc
 pub const lbp_adorn_with_3003_spans = lbp_adorn_with_3003_spans.constructor
 pub const lbp_generate_breadcrumbs = lbp_generate_breadcrumbs.constructor
 pub const lbp_generate_prev_next_attributes = lbp_generate_prev_next_attributes.constructor
-pub const lbp_generate_sections_breadcrumbs = lbp_generate_sections_breadcrumbs.constructor
 pub const lbp_generate_table_of_contents = lbp_generate_table_of_contents.constructor
 pub const lbp_img_build = lbp_img_build.constructor
 pub const lbp_select_content = lbp_select_content.constructor
@@ -607,7 +605,6 @@ pub const assertive_tests : List(fn() -> infra.AssertiveTestCollection) = [
   lbp_adorn_with_3003_spans.assertive_tests,
   lbp_generate_breadcrumbs.assertive_tests,
   lbp_generate_prev_next_attributes.assertive_tests,
-  lbp_generate_sections_breadcrumbs.assertive_tests,
   lbp_generate_table_of_contents.assertive_tests,
   lbp_img_build.assertive_tests,
   lbp_select_content.assertive_tests,
