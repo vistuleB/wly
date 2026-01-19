@@ -32,9 +32,9 @@ fn line_to_tooltip_span(
       _ -> ""
     }
 
-  use _ <- on.select(case location == inner {
+  use _ <- on.stay(case location == inner {
     True -> on.Return(T(line.blame, [line]))
-    False -> on.Select(Nil)
+    False -> on.Stay(Nil)
   })
 
   V(

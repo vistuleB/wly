@@ -2014,9 +2014,9 @@ fn split_while(
   blame: Blame,
 ) -> #(String, List(#(Blame, String, String))) {
   let #(before, sep, after) = splitter.split(s, suffix)
-  use _ <- on.select(case sep {
+  use _ <- on.stay(case sep {
     "" -> on.Return(#(before, []))
-    _ -> on.Select(Nil)
+    _ -> on.Stay(Nil)
   })
   let b1 = bl.advance(blame, string.length(before))
   let b2 = bl.advance(b1, string.length(sep))
@@ -2117,9 +2117,9 @@ fn expand_selector_split_while(
   suffix: String,
 ) -> #(String, List(#(String, String))) {
   let #(before, q, after) = splitter.split(s, suffix)
-  use _ <- on.select(case q {
+  use _ <- on.stay(case q {
     "" -> on.Return(#(before, []))
-    _ -> on.Select(Nil)
+    _ -> on.Stay(Nil)
   })
   let #(u, others) = expand_selector_split_while(s, after)
   #(before, [#(q, u), ..others])
@@ -2130,9 +2130,9 @@ pub fn expand_selector_shorthand(shorthand: String) -> Result(VXML, SelectorErro
   let #(tag, addenda) = expand_selector_split_while(s, shorthand)
   let blame = bl.Ext([], "expand_selector_shorthand")
 
-  use _ <- on.select(case tag == "" {
+  use _ <- on.stay(case tag == "" {
     True -> on.Return(Error(EmptyTag))
-    False -> on.Select(Nil)
+    False -> on.Stay(Nil)
   })
 
   use <- on.false_true(

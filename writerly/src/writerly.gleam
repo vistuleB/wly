@@ -442,10 +442,10 @@ fn parse_attrs_at_indent(
 ) -> Result(#(List(Attr), Encounter, FileHead), ParseError) {
   let #(encounter, rest) = filehead_encounter(indent, head)
 
-  use #(blame, suffix) <- on.select(
+  use #(blame, suffix) <- on.stay(
     case encounter {
       EncounteredTextLine(blame, suffix) ->
-        on.Select(#(blame, suffix))
+        on.Stay(#(blame, suffix))
 
       EncounteredCommentLine(blame, suffix) -> {
         let attr = Attr(blame, suffix, "")

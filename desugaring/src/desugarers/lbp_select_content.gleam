@@ -140,7 +140,7 @@ fn at_root(root: VXML) -> Result(#(VXML, List(DesugaringWarning)), DesugaringErr
       selected_chapter_handles,
       #([], []),
       fn(acc, handle) {
-        use exercise_handles <- on.select(
+        use exercise_handles <- on.stay(
           case dict.get(
             handle_2_in_elts_dict,
             handle,
@@ -154,7 +154,7 @@ fn at_root(root: VXML) -> Result(#(VXML, List(DesugaringWarning)), DesugaringErr
                 assert string.starts_with(line.content, ">>")
                 string.drop_start(line.content, 2)
               })
-              |> on.Select
+              |> on.Stay
             }
             Error(Nil) -> {
               let warning = DesugaringWarning(desugarer_blame(178), "no '|> In' exercise list found for chapter '" <> handle <> "'")

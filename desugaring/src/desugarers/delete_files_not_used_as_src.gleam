@@ -24,8 +24,8 @@ fn nodemap (
   state: State,
   inner: InnerParam,
 ) -> State {
-  use #(tag, attrs) <- on.select(case vxml {
-    V(_, tag, attrs, _) -> on.Select(#(tag, attrs))
+  use #(tag, attrs) <- on.stay(case vxml {
+    V(_, tag, attrs, _) -> on.Stay(#(tag, attrs))
     _ -> on.Return(state)
   })
 
