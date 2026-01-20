@@ -1,4 +1,3 @@
-import gleam/function
 import gleam/string.{inspect as ins}
 import gleam/result
 import gleam/list
@@ -9,7 +8,7 @@ import infrastructure.{
   Desugarer,
   DesugaringError,
 } as infra
-import gleam/option.{type Option, None}
+import gleam/option
 import vxml.{type VXML, V, T, Line, Attr}
 import blame as bl
 import nodemaps_2_desugarer_transforms as n2t
@@ -85,7 +84,6 @@ fn map_section(section: VXML, index: Int) -> Result(VXML, DesugaringError) {
     [V(_, "BreadcrumbTitle", _, children), ..] -> {
       let section_id = infra.v_val_of_first_attr_with_key(section, "id")
       let target_id = option.unwrap(section_id, "section-" <> ins(index + 1))
-      
       Ok(construct_breadcrumb(children, target_id, index))
     }
     _ -> Error(DesugaringError(section.blame, "Section must have a BreadcrumbTitle as first child"))
