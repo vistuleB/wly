@@ -68,7 +68,7 @@ fn warning_element(
     "InTextWarning",
     // [Attr(desugarer_blame(69), "style", "color:red;background-color:yellow;")],
     [],
-    [T(desugarer_blame(70), [Line(desugarer_blame(70), "undefined handle at " <> bl.blame_digest(blame) <> ": " <> handle_name)])],
+    [T(desugarer_blame(71), [Line(desugarer_blame(71), "undefined handle at " <> bl.blame_digest(blame) <> ": " <> handle_name)])],
   )
 }
 
@@ -443,8 +443,8 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
     param.0,
     param.1,
     param.2,
-    param.3 |> infra.string_pairs_2_attrs(desugarer_blame(445)),
-    param.4 |> infra.string_pairs_2_attrs(desugarer_blame(446)),
+    param.3 |> infra.string_pairs_2_attrs(desugarer_blame(446)),
+    param.4 |> infra.string_pairs_2_attrs(desugarer_blame(447)),
     handles_regexp, // inner.5
   )
   |> Ok

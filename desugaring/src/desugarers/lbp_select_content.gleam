@@ -43,7 +43,7 @@ fn set_exercises_to(chapter: VXML, handles: List(String)) -> Result(#(VXML, List
   let assert V(_, _, _, children) = chapter
   let #(exercises_node, other_children) = case children |> list.reverse {
     [V(_, "Exercises", _, _) as first, ..rest] -> #(first, rest)
-    rest -> #(V(desugarer_blame(43), "Exercises", [], []), rest)
+    rest -> #(V(desugarer_blame(46), "Exercises", [], []), rest)
   }
   let assert V(_, "Exercises", _, exercises) = exercises_node
   use handle_2_exercise_dict <- on.ok(
@@ -61,7 +61,7 @@ fn set_exercises_to(chapter: VXML, handles: List(String)) -> Result(#(VXML, List
       case dict.get(handle_2_exercise_dict, handle) {
         Ok(x) -> #([x, ..exercises], warnings)
         _ -> {
-          let warning = DesugaringWarning(desugarer_blame(57), "no Exercise with handle '" <> handle <> "'")
+          let warning = DesugaringWarning(desugarer_blame(64), "no Exercise with handle '" <> handle <> "'")
           #(exercises, [warning, ..warnings])
         }
       }
@@ -157,7 +157,7 @@ fn at_root(root: VXML) -> Result(#(VXML, List(DesugaringWarning)), DesugaringErr
               |> on.Stay
             }
             Error(Nil) -> {
-              let warning = DesugaringWarning(desugarer_blame(178), "no '|> In' exercise list found for chapter '" <> handle <> "'")
+              let warning = DesugaringWarning(desugarer_blame(160), "no '|> In' exercise list found for chapter '" <> handle <> "'")
               on.Return(Ok(#(acc.0, [warning, ..acc.1])))
             }
           }
@@ -168,7 +168,7 @@ fn at_root(root: VXML) -> Result(#(VXML, List(DesugaringWarning)), DesugaringErr
           fn(_) {
             Ok(#(
               acc.0,
-              [DesugaringWarning(desugarer_blame(178), "no '|> In' exercise list found for chapter '" <> handle <> "'"), ..acc.1],
+              [DesugaringWarning(desugarer_blame(171), "no '|> In' exercise list found for chapter '" <> handle <> "'"), ..acc.1],
             ))
           }
         )

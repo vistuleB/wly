@@ -114,7 +114,7 @@ fn generate_sections_list(
   }
 
   Ok(V(
-    desugarer_blame(113),
+    desugarer_blame(117),
     "SectionsBreadcrumbs",
     [],
     list.flatten([sections_nodes, exercises_node])

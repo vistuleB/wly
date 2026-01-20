@@ -1,4 +1,3 @@
-import gleam/list
 import gleam/option
 import gleam/string.{inspect as ins}
 import infrastructure.{
@@ -25,7 +24,7 @@ fn nodemap(
   case vxml {
     V(_, tag, attrs, _) if tag == inner.0 -> {
       case inner.1(vxml) {
-        True -> #(V(..vxml, attrs: list.append(attrs, [inner.2])), inner.3)
+        True -> #(V(..vxml, attrs: [inner.2, ..attrs]), inner.3)
         False -> #(vxml, Continue)
       }
     }
@@ -46,7 +45,7 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
   #(
     param.0,
     param.1,
-    Attr(desugarer_blame(49), param.2, param.3),
+    Attr(desugarer_blame(48), param.2, param.3),
     param.4,
   )
   |> Ok
@@ -56,14 +55,14 @@ type Param = #(String, fn(VXML) -> Bool, String, String,   TrafficLight)
 //             ↖ tag   ↖ condition       ↖ attr  ↖ value   ↖ early return or not
 type InnerParam = #(String, fn(VXML) -> Bool, Attr, TrafficLight)
 
-pub const name = "append_attribute_if"
+pub const name = "prepend_attribute_if"
 fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
 
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 // 🏖️🏖️ Desugarer 🏖️🏖️
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 //------------------------------------------------53
-/// append an attribute to a given tag if the node
+/// prepend an attribute to a given tag if the node
 /// meets a condition
 pub fn constructor(param: Param) -> Desugarer {
   Desugarer(
