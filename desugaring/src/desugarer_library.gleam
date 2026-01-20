@@ -234,6 +234,7 @@ import desugarers/wrap_adjacent_non_whitespace_text_with
 import desugarers/wrap_and_custom_steal
 import desugarers/wrap_and_steal
 import desugarers/wrap_children
+import desugarers/wrap_children_avoiding
 import desugarers/wrap_children_custom
 import desugarers/wrap_children_up_to
 import desugarers/wrap_children_up_to_custom
@@ -479,6 +480,7 @@ pub const wrap_adjacent_non_whitespace_text_with = wrap_adjacent_non_whitespace_
 pub const wrap_and_custom_steal = wrap_and_custom_steal.constructor
 pub const wrap_and_steal = wrap_and_steal.constructor
 pub const wrap_children = wrap_children.constructor
+pub const wrap_children_avoiding = wrap_children_avoiding.constructor
 pub const wrap_children_custom = wrap_children_custom.constructor
 pub const wrap_children_up_to = wrap_children_up_to.constructor
 pub const wrap_children_up_to_custom = wrap_children_up_to_custom.constructor
@@ -725,6 +727,7 @@ pub const assertive_tests : List(fn() -> infra.AssertiveTestCollection) = [
   wrap_and_custom_steal.assertive_tests,
   wrap_and_steal.assertive_tests,
   wrap_children.assertive_tests,
+  wrap_children_avoiding.assertive_tests,
   wrap_children_custom.assertive_tests,
   wrap_children_up_to.assertive_tests,
   wrap_children_up_to_custom.assertive_tests,

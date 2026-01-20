@@ -13,8 +13,6 @@ import blame as bl
 import nodemaps_2_desugarer_transforms as n2t
 import on
 
-const toc_ul_attrs = [Attr(bl.Des([], name, 16), "class", "toc_ul")]
-
 fn chapter_link(
   chapter_link_component_name: String,
   item: VXML,
@@ -66,7 +64,7 @@ fn div_with_id_title_and_menu_items(
     ],
     [
       type_of_chapters_title(type_of_chapters_title_component_name, title_label),
-      V(desugarer_blame(0), "ul", toc_ul_attrs, menu_items),
+      V(desugarer_blame(67), "ul", [], menu_items),
     ],
   )
 }

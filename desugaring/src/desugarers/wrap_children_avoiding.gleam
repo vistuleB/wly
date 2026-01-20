@@ -1,3 +1,4 @@
+import gleam/list
 import gleam/option
 import gleam/string.{inspect as ins}
 import infrastructure.{
@@ -14,14 +15,39 @@ import nodemaps_2_desugarer_transforms as n2t
 import vxml.{type VXML, V}
 import blame as bl
 
+fn wrap_in_list(
+  already_wrapped: List(VXML),
+  currently_being_wrapped: List(VXML),
+  upcoming: List(VXML),
+  inner: InnerParam,
+) -> List(VXML) {
+  case upcoming {
+    [] -> case currently_being_wrapped {
+      [] -> already_wrapped |> list.reverse
+      _ -> {
+        let wrap = V(desugarer_blame(28), inner.1, [], currently_being_wrapped |> list.reverse)
+        [wrap, ..already_wrapped] |> list.reverse
+      }
+    }
+    [V(_, tag, _, _) as first, ..rest] if tag == inner.2 -> case currently_being_wrapped {
+      [] -> wrap_in_list([first, ..already_wrapped], [], rest, inner)
+      _ -> {
+        let wrap = V(desugarer_blame(35), inner.1, [], currently_being_wrapped |> list.reverse)
+        wrap_in_list([first, wrap, ..already_wrapped ], [], rest, inner)
+      }
+    }
+    [first, ..rest] -> wrap_in_list(already_wrapped, [first, ..currently_being_wrapped], rest, inner)
+  }
+}
+
 fn nodemap(
   node: VXML,
   inner: InnerParam,
 ) -> #(VXML, TrafficLight) {
   case node {
-    V(blame, tag, attrs, children) if tag == inner.0 -> {
-      let wrapped_children = [V(blame, inner.1, [], children)]
-      #(V(blame, tag, attrs, wrapped_children), inner.2)
+    V(_, tag, _, children) if tag == inner.0 -> {
+      let children = wrap_in_list([], [], children, inner)
+      #(V(..node, children: children), inner.3)
     }
     _ -> #(node, Continue)
   }
@@ -43,23 +69,24 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
   }
 }
 
-type Param = #(String,  String,     TrafficLight)
-//             ↖        ↖
-//             parent   wrapper
-//             tag      tag
+type Param = #(String,  String,   String,    TrafficLight)
+//             ↖        ↖         ↖
+//             parent   wrapper   avoiding
+//             tag      tag       tag
 type InnerParam = Param
 
-pub const name = "wrap_children"
+pub const name = "wrap_children_avoiding"
+fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
 
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 // 🏖️🏖️ Desugarer 🏖️🏖️
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 //------------------------------------------------53
-/// For a specified parent tag, wraps all children
+/// For a specified parent tag, wraps consecutive
+/// children that do not have the 'to avoid' tag
 /// in a given wrapper tag.
 ///
-/// Will create a wrapper with all existing children
-/// nested inside it.
+/// The 'to avoid' tag children remain  unwrapped.
 pub fn constructor(param: Param) -> Desugarer {
   Desugarer(
     name: name,
@@ -78,65 +105,48 @@ pub fn constructor(param: Param) -> Desugarer {
 fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
   [
     infra.AssertiveTestData(
-      param: #("div", "wrapper", GoBack),
+      param: #("parent", "wrapper", "avoid_me", GoBack),
       source:   "
                 <> root
-                  <> div
+                  <> parent
                     <> p
-                      <> div
-                        <>
-                          'Hello'
-                    <> span
-                      <>
-                        'World'
+                    <> q
+                    <> avoid_me
+                    <> avoid_me
+                    <> q
                 ",
       expected: "
                 <> root
-                  <> div
+                  <> parent
                     <> wrapper
                       <> p
-                        <> div
-                          <>
-                            'Hello'
-                      <> span
-                        <>
-                          'World'
+                      <> q
+                    <> avoid_me
+                    <> avoid_me
+                    <> wrapper
+                      <> q
                 ",
     ),
     infra.AssertiveTestData(
-      param: #("section", "content", GoBack),
+      param: #("parent", "wrapper", "avoid_me", GoBack),
       source:   "
                 <> root
-                  <> section
+                  <> parent
+                    <> avoid_me
+                    <> p1
+                    <> p2
+                    <> p3
+                    <> avoid_me
                 ",
       expected: "
                 <> root
-                  <> section
-                    <> content
-                ",
-    ),
-    infra.AssertiveTestData(
-      param: #("article", "body", GoBack),
-      source:   "
-                <> root
-                  <> article
-                    <> h1
-                      <>
-                        'Title'
-                    <> footer
-                      <>
-                        'Footer'
-                ",
-      expected: "
-                <> root
-                  <> article
-                    <> body
-                      <> h1
-                        <>
-                          'Title'
-                      <> footer
-                        <>
-                          'Footer'
+                  <> parent
+                    <> avoid_me
+                    <> wrapper
+                      <> p1
+                      <> p2
+                      <> p3
+                    <> avoid_me
                 ",
     ),
   ]
