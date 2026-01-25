@@ -57,7 +57,8 @@ fn build_img_info_prettified_json_string(
   <> margin2 <> "\"original-size\": " <> { json.int(info.original_size) |> json.to_string } <> ",\n"
   <> margin2 <> "\"compressed-size\": " <> { json.int(info.compressed_size) |> json.to_string } <> ",\n"
   <> margin2 <> "\"compression\": " <> { json.string(info.compression) |> json.to_string } <> ",\n"
-  <> margin2 <> "\"used-last-build\": " <> { json.bool(info.used_last_build) |> json.to_string } <> "\n"
+  <> margin2 <> "\"used-last-build\": " <> { json.bool(info.used_last_build) |> json.to_string } <> ",\n"
+  <> margin2 <> "\"3chars\": " <> { json.array(info.three_chars, json.string) |> json.to_string } <> "\n"
   <> margin1 <> "}"
 }
 
@@ -82,6 +83,7 @@ fn build_img_info_decoder() -> decode.Decoder(BuildImgInfo) {
   use compressed_size <- decode.field("compressed-size", decode.int)
   use compression <- decode.field("compression", decode.string)
   use _used_last_build <- decode.field("used-last-build", decode.bool)
+  use _three_chars <- decode.optional_field("3chars", [], decode.list(decode.string))
 
   let #(success, build_method) = case build_method {
     "cp" -> #(True, CP)
@@ -98,6 +100,7 @@ fn build_img_info_decoder() -> decode.Decoder(BuildImgInfo) {
     compressed_size: compressed_size,
     compression: compression,
     used_last_build: False,
+    three_chars: [],
   )
 
   case success {
@@ -360,6 +363,7 @@ fn build_or_miraculously_retrieve_existing_build_image(
     compressed_size: new_size,
     compression: compression,
     used_last_build: True,
+    three_chars: [],
   )
   |> Ok
 }
@@ -418,6 +422,11 @@ fn v_before(
 
   use extension <- on.ok(img_extension(src, src_attr.blame))
 
+  let three_chars_val = case src_attr.blame {
+    bl.Src(_, path, _, _, _) -> string.slice(path, 0, 3)
+    _ -> "---"
+  }
+
   let svgo_suppressed = case svgo_attr {
     Some(Attr(_, _, "false")) -> True
     _ -> False
@@ -454,7 +463,12 @@ fn v_before(
     up_to_date_img_info,
     fn (up_to_date_img_info) {
       let attrs = attrs |> update_src_attr("/" <> inner.build_2_build_img <> up_to_date_img_info.build_version)
-      let up_to_date_img_info = BuildImgInfo(..up_to_date_img_info, used_last_build: True)
+      let up_to_date_img_info =
+        BuildImgInfo(
+          ..up_to_date_img_info,
+          used_last_build: True,
+          three_chars: list.append(up_to_date_img_info.three_chars, [three_chars_val]),
+        )
       let image_map = dict.insert(image_map, src_img_2_src_version, up_to_date_img_info)
       Ok(#(V(..vxml, attrs: attrs), image_map, []))
     }
@@ -475,6 +489,8 @@ fn v_before(
 
   let attrs = attrs |> update_src_attr("/" <> inner.build_2_build_img <> img_info.build_version)
 
+  let img_info =
+    BuildImgInfo(..img_info, three_chars: list.append(img_info.three_chars, [three_chars_val]))
   let image_map = dict.insert(image_map, src_img_2_src_version, img_info)
 
   Ok(#(V(..vxml, attrs: attrs), image_map, []))
@@ -648,6 +664,7 @@ type BuildImgInfo {
     compressed_size: Int,
     compression: String, // e.g. "38.85%"
     used_last_build: Bool,
+    three_chars: List(String),
   )
 }
 
