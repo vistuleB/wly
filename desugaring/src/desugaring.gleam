@@ -1612,7 +1612,7 @@ pub fn run_renderer(
   renderer: Renderer(a, c, d, e, f, g, h),
   parameters: RendererParameters,
   options: RendererOptions(d),
-) -> Result(Nil, RendererError(a, c, e, f, g, h)) {
+) -> Result(List(String), RendererError(a, c, e, f, g, h)) {
   let parameters = sanitize_output_dir(parameters)
 
   let RendererParameters(
@@ -2026,10 +2026,10 @@ pub fn run_renderer(
     True -> Nil
   }
 
-  let #(_, errors) = result.partition(fragments)
+  let #(oks, errors) = result.partition(fragments)
 
   case errors {
-    [] -> Ok(Nil)
+    [] -> Ok(oks |> list.map(fn(ghost) { ghost.path }))
     _ -> {
       Error(EmittingOrWritingOrPrettifyingErrors(errors))
     }
