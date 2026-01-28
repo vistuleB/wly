@@ -16,7 +16,7 @@ fn nodemap(
   vxml: VXML,
 ) -> Result(VXML, DesugaringError) {
   case vxml {
-    V(blame, t, atts, children) -> {
+    V(blame, t, attrs, children) -> {
       use <- on.false_true(
         infra.v_has_key_val(vxml, "class", "chapterTitle") ||
         infra.v_has_key_val(vxml, "class", "subChapterTitle"),
@@ -39,7 +39,7 @@ fn nodemap(
           let new_line = regexp.replace(re, first_text_node_line, "")
           let contents = T(t_blame, [Line(l_blame, new_line), ..list.drop(rest_contents, 1)])
           let children = [contents, ..list.drop(rest_children, 1)]
-          Ok(V(blame, t, atts, children))
+          Ok(V(blame, t, attrs, children))
         }
         _ -> {
           Error(DesugaringError(blame, "could not find T(_,_) element"))

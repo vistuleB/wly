@@ -70,10 +70,10 @@ fn nodemap(
   let math_map = dict.from_list([#("Math", "$"), #("MathBlock", "$$")])
 
   case vxml {
-    V(blame, tag, atts, children) -> {
+    V(blame, tag, attrs, children) -> {
       case dict.get(math_map, tag) {
         Ok(delimiter) -> {
-          Ok(V(blame, tag, atts, update_children(children, delimiter)))
+          Ok(V(blame, tag, attrs, update_children(children, delimiter)))
         }
         Error(_) -> Ok(vxml)
       }

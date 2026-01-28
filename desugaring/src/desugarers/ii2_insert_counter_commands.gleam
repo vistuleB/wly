@@ -10,7 +10,6 @@ fn updated_node(
   vxml: VXML,
   prefix: Option(Line),
   cc: #(Line, Option(String)),
-  // string is for the wrapper tag
   rest: Line,
 ) -> VXML {
   let assert V(blame, tag, attrs, children) = vxml
@@ -64,7 +63,6 @@ fn nodemap(
         on_false: fn() { Ok(vxml) },
       )
 
-      // get first text node
       case children {
         [T(t_blame, lines), ..] -> {
           let assert [first_line, ..] = lines
@@ -117,18 +115,17 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
   Ok(param)
 }
 
-type Param =
-  #(String, #(String, String), List(String), Option(String))
-//  ↖       ↖                  ↖            ↖
-//  counter key-value pair     list of      wrapper
-//  command to insert         strings      tag to
-//  to      counter command   before       wrap the
-//  insert                    counter      counter
-//                           command      command
+type Param = #(String,   #(String, String),  List(String),  Option(String))
+//             ↖         ↖                   ↖              ↖
+//             counter   key-value pair      list of        wrapper
+//             command   to insert           strings        tag to
+//             to        counter command     before         wrap the
+//             insert                        counter        counter
+//                                           command        command
 
 type InnerParam = Param
 
-pub const name = "insert_ii2_counter_commands"
+pub const name = "ii2_insert_counter_commands"
 
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 // 🏖️🏖️ Desugarer 🏖️🏖️

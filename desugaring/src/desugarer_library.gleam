@@ -81,7 +81,6 @@ import desugarers/filter_nodes_by_attributes
 import desugarers/find_replace__batch__outside
 import desugarers/find_replace__outside
 import desugarers/find_replace_in_descendants_of__batch
-import desugarers/fix_ii2_local_links
 import desugarers/fold_children_into_text_if
 import desugarers/fold_contents_into_text
 import desugarers/fold_contents_into_text__batch
@@ -101,6 +100,8 @@ import desugarers/handles_substitute_and_fix_nonlocal_id_links
 import desugarers/identity
 import desugarers/ii2_carousel_component
 import desugarers/ii2_class_well_container_theorem_2_statement
+import desugarers/ii2_fix_local_links
+import desugarers/ii2_insert_counter_commands
 import desugarers/ii2_remove_chapter_number_from_title
 import desugarers/insert_attribute_as_text
 import desugarers/insert_attribute_value_at_first_child_start
@@ -108,7 +109,6 @@ import desugarers/insert_attribute_value_at_start
 import desugarers/insert_bookend_tags
 import desugarers/insert_bookend_text_if_no_attributes
 import desugarers/insert_custom_before_first
-import desugarers/insert_ii2_counter_commands
 import desugarers/insert_line_start_end
 import desugarers/insert_text_start_end
 import desugarers/insert_text_start_end_if_else
@@ -327,7 +327,6 @@ pub const filter_nodes_by_attributes = filter_nodes_by_attributes.constructor
 pub const find_replace__batch__outside = find_replace__batch__outside.constructor
 pub const find_replace__outside = find_replace__outside.constructor
 pub const find_replace_in_descendants_of__batch = find_replace_in_descendants_of__batch.constructor
-pub const fix_ii2_local_links = fix_ii2_local_links.constructor
 pub const fold_children_into_text_if = fold_children_into_text_if.constructor
 pub const fold_contents_into_text = fold_contents_into_text.constructor
 pub const fold_contents_into_text__batch = fold_contents_into_text__batch.constructor
@@ -347,6 +346,8 @@ pub const handles_substitute_and_fix_nonlocal_id_links = handles_substitute_and_
 pub const identity = identity.constructor
 pub const ii2_carousel_component = ii2_carousel_component.constructor
 pub const ii2_class_well_container_theorem_2_statement = ii2_class_well_container_theorem_2_statement.constructor
+pub const ii2_fix_local_links = ii2_fix_local_links.constructor
+pub const ii2_insert_counter_commands = ii2_insert_counter_commands.constructor
 pub const ii2_remove_chapter_number_from_title = ii2_remove_chapter_number_from_title.constructor
 pub const insert_attribute_as_text = insert_attribute_as_text.constructor
 pub const insert_attribute_value_at_first_child_start = insert_attribute_value_at_first_child_start.constructor
@@ -354,7 +355,6 @@ pub const insert_attribute_value_at_start = insert_attribute_value_at_start.cons
 pub const insert_bookend_tags = insert_bookend_tags.constructor
 pub const insert_bookend_text_if_no_attributes = insert_bookend_text_if_no_attributes.constructor
 pub const insert_custom_before_first = insert_custom_before_first.constructor
-pub const insert_ii2_counter_commands = insert_ii2_counter_commands.constructor
 pub const insert_line_start_end = insert_line_start_end.constructor
 pub const insert_text_start_end = insert_text_start_end.constructor
 pub const insert_text_start_end_if_else = insert_text_start_end_if_else.constructor
@@ -574,7 +574,6 @@ pub const assertive_tests : List(fn() -> infra.AssertiveTestCollection) = [
   find_replace__batch__outside.assertive_tests,
   find_replace__outside.assertive_tests,
   find_replace_in_descendants_of__batch.assertive_tests,
-  fix_ii2_local_links.assertive_tests,
   fold_children_into_text_if.assertive_tests,
   fold_contents_into_text.assertive_tests,
   fold_contents_into_text__batch.assertive_tests,
@@ -594,6 +593,8 @@ pub const assertive_tests : List(fn() -> infra.AssertiveTestCollection) = [
   identity.assertive_tests,
   ii2_carousel_component.assertive_tests,
   ii2_class_well_container_theorem_2_statement.assertive_tests,
+  ii2_fix_local_links.assertive_tests,
+  ii2_insert_counter_commands.assertive_tests,
   ii2_remove_chapter_number_from_title.assertive_tests,
   insert_attribute_as_text.assertive_tests,
   insert_attribute_value_at_first_child_start.assertive_tests,
@@ -601,7 +602,6 @@ pub const assertive_tests : List(fn() -> infra.AssertiveTestCollection) = [
   insert_bookend_tags.assertive_tests,
   insert_bookend_text_if_no_attributes.assertive_tests,
   insert_custom_before_first.assertive_tests,
-  insert_ii2_counter_commands.assertive_tests,
   insert_line_start_end.assertive_tests,
   insert_text_start_end.assertive_tests,
   insert_text_start_end_if_else.assertive_tests,

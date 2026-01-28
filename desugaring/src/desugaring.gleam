@@ -35,11 +35,11 @@ pub type Assembler(a) =
   fn(String) -> Result(#(List(InputLine), Option(DirTree)), a)    // the 'List(String)' is a feedback/success message on assembly
 
 pub fn default_writerly_assembler(
-  spotlight_paths: List(String),
+  path_selectors: List(String),
 ) -> Assembler(wl.AssemblyError) {
   fn(input_dir) {
     use #(tree, assembled) <- on.ok(
-      wl.assemble_input_lines(input_dir, spotlight_paths),
+      wl.assemble_input_lines(input_dir, path_selectors),
     )
     Ok(#(assembled, Some(tree)))
   }

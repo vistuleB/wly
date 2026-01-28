@@ -11,14 +11,14 @@ fn nodemap(
   inner: InnerParam,
 ) -> Result(VXML, DesugaringError) {
   case vxml {
-    V(blame, tag, atts, children) -> {
+    V(blame, tag, attrs, children) -> {
       case list.find(inner, fn(pair) { pair |> pair.first == tag }) {
         Error(Nil) -> Ok(vxml)
         Ok(#(_, #(start_tag, end_tag))) -> {
           Ok(V(
             blame,
             tag,
-            atts,
+            attrs,
             [
               [V(blame, start_tag, [], [])],
               children,

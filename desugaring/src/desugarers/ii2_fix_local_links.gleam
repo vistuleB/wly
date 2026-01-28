@@ -10,7 +10,7 @@ fn nodemap(
   vxml: VXML,
 ) -> Result(VXML, DesugaringError) {
   case vxml {
-    V(blame, tag, atts, children) -> {
+    V(blame, tag, attrs, children) -> {
       use href <- on.none_some(
         infra.v_first_attr_with_key(vxml, "href"),
         fn() { Ok(vxml) },
@@ -19,8 +19,8 @@ fn nodemap(
         string.starts_with(href.val, "../../demo"),
         fn() { Ok(vxml) },
       )
-      let atts =
-        atts
+      let attrs =
+        attrs
         |> list.map(fn(attr) {
           case attr.key {
             "href" ->
@@ -36,7 +36,7 @@ fn nodemap(
             _ -> attr
           }
         })
-      Ok(V(blame, tag, atts, children))
+      Ok(V(blame, tag, attrs, children))
     }
     T(_, _) -> Ok(vxml)
   }
@@ -57,7 +57,7 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
 type Param = Nil
 type InnerParam = Nil
 
-pub const name = "fix_ii2_local_links"
+pub const name = "ii2_fix_local_links"
 
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 // 🏖️🏖️ Desugarer 🏖️🏖️

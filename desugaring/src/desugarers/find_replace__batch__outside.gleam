@@ -4,38 +4,38 @@ import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type 
 import nodemaps_2_desugarer_transforms as n2t
 
 fn nodemap_factory(inner: InnerParam) -> n2t.OneToOneNoErrorNodemap {
-  infra.find_replace_if_t__batch(_, inner.0)
+  infra.find_replace_if_t__batch(_, inner)
 }
 
-fn transform_factory(inner: InnerParam) -> DesugarerTransform {
+fn transform_factory(inner: InnerParam, outside: List(String)) -> DesugarerTransform {
   nodemap_factory(inner)
-  |> n2t.one_to_one_no_error_nodemap_2_desugarer_transform_with_forbidden(inner.1)
+  |> n2t.one_to_one_no_error_nodemap_2_desugarer_transform_with_forbidden(outside)
 }
 
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
   Ok(param)
 }
 
-type Param = #(List(#(String, String)), List(String))
-//             ↖                        ↖
-//             from/to pairs            keep_out_of
+type Param = List(#(String, String))
+//           ↖            
+//           from/to pairs
 type InnerParam = Param
 
-pub const name = "find_replace_if_t__batch__outside"
+pub const name = "find_replace__batch__outside"
 
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 // 🏖️🏖️ Desugarer 🏖️🏖️
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 //------------------------------------------------53
 /// find and replace strings with other strings
-pub fn constructor(param: Param) -> Desugarer {
+pub fn constructor(param: Param, outside: List(String)) -> Desugarer {
   Desugarer(
     name: name,
     stringified_param: option.Some(ins(param)),
     stringified_outside: option.None,
     transform: case param_to_inner_param(param) {
       Error(error) -> fn(_) { Error(error) }
-      Ok(inner) -> transform_factory(inner)
+      Ok(inner) -> transform_factory(inner, outside)
     },
   )
 }
@@ -43,10 +43,11 @@ pub fn constructor(param: Param) -> Desugarer {
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
 // 🌊🌊🌊 tests 🌊🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
-fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
+fn assertive_tests_data() -> List(infra.AssertiveTestDataWithOutside(Param)) {
   [
-    infra.AssertiveTestData(
-      param: #([#("from", "to")], ["keep_out"]),
+    infra.AssertiveTestDataWithOutside(
+      param: [#("from", "to")],
+      outside: ["keep_out"],
       source:   "
                 <> root
                   <> A
@@ -86,5 +87,5 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
 }
 
 pub fn assertive_tests() {
-  infra.assertive_test_collection_from_data(name, assertive_tests_data(), constructor)
+  infra.assertive_test_collection_from_data_with_outside(name, assertive_tests_data(), constructor)
 }
