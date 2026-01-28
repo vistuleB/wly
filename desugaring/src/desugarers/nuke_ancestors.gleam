@@ -7,25 +7,26 @@ import vxml.{type VXML, V}
 fn nodemap(
   vxml: VXML,
   inner: InnerParam,
-) -> List(VXML) {
+) -> VXML {
   case vxml {
     V(_, _, _, children) -> {
       case list.filter(children, infra.is_v_and_tag_equals(_, inner)) {
-        [] -> [vxml]
-        subs -> subs
+        [] -> vxml
+        [sub] -> sub
+        _ -> vxml
       }
     }
-    _ -> [vxml]
+    _ -> vxml
   }
 }
 
-fn nodemap_factory(inner: InnerParam) -> n2t.OneToManyNoErrorNodemap {
+fn nodemap_factory(inner: InnerParam) -> n2t.OneToOneNoErrorNodemap {
   nodemap(_, inner)
 }
 
 fn transform_factory(inner: InnerParam) -> DesugarerTransform {
   nodemap_factory(inner)
-  |> n2t.one_to_many_no_error_nodemap_2_desugarer_transform()
+  |> n2t.one_to_one_no_error_nodemap_2_desugarer_transform()
 }
 
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
