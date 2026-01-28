@@ -90,8 +90,6 @@ import desugarers/fold_into_text
 import desugarers/fold_into_text__batch
 import desugarers/free_children
 import desugarers/free_children__batch
-import desugarers/generate_ii2_table_of_contents
-import desugarers/generate_ii2_table_of_contents_html
 import desugarers/group_consecutive_children__outside
 import desugarers/handles_add_ids
 import desugarers/handles_generate_dictionary_and_id_list
@@ -101,6 +99,8 @@ import desugarers/identity
 import desugarers/ii2_carousel_component
 import desugarers/ii2_class_well_container_theorem_2_statement
 import desugarers/ii2_fix_local_links
+import desugarers/ii2_generate_table_of_contents
+import desugarers/ii2_generate_table_of_contents_html
 import desugarers/ii2_insert_counter_commands
 import desugarers/ii2_remove_chapter_number_from_title
 import desugarers/insert_attribute_as_text
@@ -336,8 +336,6 @@ pub const fold_into_text = fold_into_text.constructor
 pub const fold_into_text__batch = fold_into_text__batch.constructor
 pub const free_children = free_children.constructor
 pub const free_children__batch = free_children__batch.constructor
-pub const generate_ii2_table_of_contents = generate_ii2_table_of_contents.constructor
-pub const generate_ii2_table_of_contents_html = generate_ii2_table_of_contents_html.constructor
 pub const group_consecutive_children__outside = group_consecutive_children__outside.constructor
 pub const handles_add_ids = handles_add_ids.constructor
 pub const handles_generate_dictionary_and_id_list = handles_generate_dictionary_and_id_list.constructor
@@ -347,6 +345,8 @@ pub const identity = identity.constructor
 pub const ii2_carousel_component = ii2_carousel_component.constructor
 pub const ii2_class_well_container_theorem_2_statement = ii2_class_well_container_theorem_2_statement.constructor
 pub const ii2_fix_local_links = ii2_fix_local_links.constructor
+pub const ii2_generate_table_of_contents = ii2_generate_table_of_contents.constructor
+pub const ii2_generate_table_of_contents_html = ii2_generate_table_of_contents_html.constructor
 pub const ii2_insert_counter_commands = ii2_insert_counter_commands.constructor
 pub const ii2_remove_chapter_number_from_title = ii2_remove_chapter_number_from_title.constructor
 pub const insert_attribute_as_text = insert_attribute_as_text.constructor
@@ -583,8 +583,6 @@ pub const assertive_tests : List(fn() -> infra.AssertiveTestCollection) = [
   fold_into_text__batch.assertive_tests,
   free_children.assertive_tests,
   free_children__batch.assertive_tests,
-  generate_ii2_table_of_contents.assertive_tests,
-  generate_ii2_table_of_contents_html.assertive_tests,
   group_consecutive_children__outside.assertive_tests,
   handles_add_ids.assertive_tests,
   handles_generate_dictionary_and_id_list.assertive_tests,
@@ -594,6 +592,8 @@ pub const assertive_tests : List(fn() -> infra.AssertiveTestCollection) = [
   ii2_carousel_component.assertive_tests,
   ii2_class_well_container_theorem_2_statement.assertive_tests,
   ii2_fix_local_links.assertive_tests,
+  ii2_generate_table_of_contents.assertive_tests,
+  ii2_generate_table_of_contents_html.assertive_tests,
   ii2_insert_counter_commands.assertive_tests,
   ii2_remove_chapter_number_from_title.assertive_tests,
   insert_attribute_as_text.assertive_tests,

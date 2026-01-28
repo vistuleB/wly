@@ -1,8 +1,5 @@
-import blame as bl
-import gleam/int
 import gleam/list
 import gleam/option
-import gleam/pair
 import gleam/result
 import gleam/string.{inspect as ins}
 import infrastructure.{
@@ -13,10 +10,11 @@ import infrastructure.{
   DesugaringError,
 } as infra
 import nodemaps_2_desugarer_transforms as n2t
-import vxml.{type VXML, Attr, Line, T, V}
+import vxml.{type VXML, Attr, V}
+import blame as bl
 import on
 
-fn prepend_0(number: String) {
+fn prepand_0(number: String) {
   case string.length(number) {
     1 -> "0" <> number
     _ -> number
@@ -26,7 +24,7 @@ fn prepend_0(number: String) {
 fn chapter_link(
   chapter_link_component_name: String,
   item: VXML,
-  section_index: Int,
+  _: Int,
 ) -> Result(VXML, DesugaringError) {
   let tp = "Chapter"
 
@@ -56,83 +54,44 @@ fn chapter_link(
     )) },
   )
 
+  let on_mobile_attr = case infra.v_first_attr_with_key(item, "on_mobile") {
+    option.Some(attr) -> attr
+    option.None -> label_attr
+  }
+
   let link =
-    "lecture-notes/"
-    <> number_attr.val
+    number_attr.val
     |> string.split(".")
-    |> list.map(prepend_0)
+    |> list.map(prepand_0)
     |> string.join("-")
     <> "-"
     <> href_attr.val |> string.replace(" ", "-")
-    <> ".html"
 
-  // number span should always increament . for example we have sub-chapters 05-05-a and 05-05-b . so number span should be 5.5 and 5.6 for each
-  let assert [chapter_number, ..] = number_attr.val |> string.split(".")
-
-  let number_span =
-    V(item_blame, "span", [], [
-      T(
-        desugarer_blame(75),
-        [
-          Line(
-            desugarer_blame(78),
-            chapter_number <> "." <> ins(section_index) <> " - ",
-          ),
-        ]
-      ),
-    ])
-
-  let a =
+  Ok(
     V(
       item_blame,
-      "a",
+      chapter_link_component_name,
       [
-        Attr(desugarer_blame(90), "href", link)
+        Attr(label_attr.blame, "label", label_attr.val),
+        Attr(on_mobile_attr.blame, "on_mobile", on_mobile_attr.val),
+        Attr(
+          number_attr.blame,
+          "number",
+          number_attr.val,
+        ),
+        Attr(desugarer_blame(82), "href", link),
       ],
-      [
-        T(item_blame, [Line(item_blame, label_attr.val)]),
-      ]
-    )
-
-  let sub_chapter_number = ins(section_index)
-  let margin_left = case sub_chapter_number {
-    "0" -> "0"
-    _ -> "40px"
-  } 
-
-  let style_attr =
-    Attr(desugarer_blame(104), "style", "margin-left: " <> margin_left)
-
-  Ok(V(item_blame, chapter_link_component_name, [style_attr], [number_span, a]))
-}
-
-fn get_section_index(item: VXML, count: Int) -> Result(Int, DesugaringError) {
-  let tp = "Chapter"
-
-  use number_attr <- on.none_some(
-    infra.v_first_attr_with_key(item, "number"),
-    on_none: fn() { Error(DesugaringError(
-      item.blame,
-      tp <> " missing number attr (b)",
-    )) },
+      [],
+    ),
   )
-
-  let assert [section_number, ..] =
-    number_attr.val |> string.split(".") |> list.reverse()
-  let assert Ok(section_number) = int.parse(section_number)
-
-  case section_number == 0 {
-    True -> Ok(0)
-    False -> Ok(count + 1)
-  }
 }
 
 fn div_with_id_title_and_menu_items(id: String, menu_items: List(VXML)) -> VXML {
-  V(desugarer_blame(131), "div", [Attr(desugarer_blame(131), "id", id)], [
+  V(desugarer_blame(90), "div", [Attr(desugarer_blame(90), "id", id)], [
     V(
-      desugarer_blame(133),
+      desugarer_blame(92),
       "ul",
-      [Attr(desugarer_blame(135), "style", "list-style: none")],
+      [Attr(desugarer_blame(94), "style", "list-style: none")],
       menu_items,
     ),
   ])
@@ -142,35 +101,21 @@ fn at_root(
   root: VXML,
   inner: InnerParam,
 ) -> Result(VXML, DesugaringError) {
-  let assert V(_, _, _, _) = root
-  let #(toc_tag, chapter_link_component_name) = inner
-  let sections = infra.descendants_with_tag(root, "section")
+  let assert V(_, _, _, children) = root
+  let #(table_of_contents_tag, chapter_link_component_name) = inner
+  let sections = infra.descendants_with_tag(root, "Section")
   use chapter_menu_items <- on.ok(
     sections
-    |> list.map_fold(
-      0, 
-      fn(acc, chapter: VXML) {
-        case get_section_index(chapter, acc) {
-          Ok(section_index) -> #(
-            section_index,
-            chapter_link(chapter_link_component_name, chapter, section_index),
-          )
-          Error(error) -> #(acc, Error(error))
-        }
-      }
-    )
-    |> pair.second
+    |> list.index_map(fn(chapter: VXML, index) {
+      chapter_link(chapter_link_component_name, chapter, index + 1)
+    })
     |> result.all
   )
-
   let chapters_div =
     div_with_id_title_and_menu_items("Chapters", chapter_menu_items)
-
   let toc =
-    V(desugarer_blame(170), toc_tag, [], [chapters_div])
-
-  infra.v_prepend_child(root, toc)
-  |> Ok
+    V(desugarer_blame(117), table_of_contents_tag, [], [chapters_div])
+  Ok(V(..root, children: [toc, ..children]))
 }
 
 fn transform_factory(inner: InnerParam) -> infra.DesugarerTransform {
@@ -182,21 +127,21 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
   Ok(param)
 }
 
-type Param = #(String,              String)
-//             ↖                    ↖
-//             tag name for         tag name for
-//             table of contents    individual chapter links
+type Param = #(String,         String)
+//             ↖               ↖
+//             table of        chapter
+//             contents tag    component name
 type InnerParam = Param
 
-pub const name = "generate_zi2_table_of_contents_html"
+pub const name = "ii2_generate_table_of_contents"
 fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
 
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 // 🏖️🏖️ Desugarer 🏖️🏖️
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 //------------------------------------------------53
-/// generates HTML table of contents for TI2 content
-/// with sections
+/// generates table of contents for TI2 content with
+/// sections
 pub fn constructor(param: Param) -> Desugarer {
   Desugarer(
     name: name,

@@ -1001,24 +1001,23 @@ fn xmlm_attr_to_vxml_attrs(
   Attr(blame, xmlm_attr.name.local, xmlm_attr.value)
 }
 
-pub fn xmlm_based_html_parser(
+pub fn bad_html_pre_processor(
   content: String,
-  filename: String,
-) -> Result(VXML, xmlm.InputError) {
-  // some preliminary cleanup that avoids complaints
-  // from the xmlm parser:
-  let content = string.replace(content, "\r\n", "\n")
-  let content = string.replace(content, "async ", "async=\"\"")
-  let content = string.replace(content, "async\n", "async=\"\"\n")
-  let content = string.replace(content, "& ", "&amp;")
-  let content = string.replace(content, "&\n", "&amp;\n")
-  let content = string.replace(content, " &", "&amp;")
-  let content = string.replace(content, "\\,<", "\\,&lt;")
-  let content = string.replace(content, " < ", " &lt; ")
-  let content = string.replace(content, "\\rt{0.1}<", "\\rt{0.1}&lt;")
+) -> String {
+  // self-explanatory
+  let content =
+    content
+    |> string.replace("\r\n", "\n")
+    |> string.replace("async ", "async=\"\"")
+    |> string.replace("async\n", "async=\"\"\n")
+    |> string.replace("& ", "&amp;")
+    |> string.replace("&\n", "&amp;\n")
+    |> string.replace(" &", "&amp;")
+    |> string.replace("\\,<", "\\,&lt;")
+    |> string.replace(" < ", " &lt; ")
+    |> string.replace("\\rt{0.1}<", "\\rt{0.1}&lt;")
 
   // close img tags
-  // let assert Ok(re) = regexp.from_string("(<img)(\\b(?![^>]*/\\s*>)[^>]*)(>)") // (old complicated regex... simplified Sep 2025)
   let assert Ok(re) = regexp.from_string("(<img)(\\b[^>]*[^\\/])(>)")
   let content =
     regexp.match_map(re, content, fn(match) {
@@ -1031,14 +1030,18 @@ pub fn xmlm_based_html_parser(
   let assert Ok(re) = regexp.from_string("(<\\/)(\\w+)(\\s+[^>]*)(>)")
   let matches = regexp.scan(re, content)
 
-  let content =
-    list.fold(matches, content, fn(content_str, match) {
-      let regexp.Match(_, sub) = match
-      let assert [_, Some(tag), _, _] = sub
-      regexp.replace(re, content_str, "</" <> tag <> ">")
-    })
+  list.fold(matches, content, fn(content_str, match) {
+    let regexp.Match(_, sub) = match
+    let assert [_, Some(tag), _, _] = sub
+    regexp.replace(re, content_str, "</" <> tag <> ">")
+  })
+}
 
-  let input = xmlm.from_string(content)
+pub fn xmlm_based_html_parser(
+  content: String,
+  filename: String,
+) -> Result(VXML, xmlm.InputError) {
+  let input = content |> bad_html_pre_processor |>  xmlm.from_string
 
   // **********
   // use this to debug if you get an input_error on a file, see
@@ -1733,6 +1736,7 @@ pub fn streaming_based_xml_parser_string_version(
   filename: String,
 ) -> Result(VXML, #(Blame, String)) {
   content
+  |> bad_html_pre_processor
   |> io_l.string_to_input_lines(filename, 0)
   |> streaming_based_xml_parser
 }

@@ -37,9 +37,9 @@ pub type Assembler(a) =
 pub fn default_writerly_assembler(
   path_selectors: List(String),
 ) -> Assembler(wl.AssemblyError) {
-  fn(input_dir) {
+  fn(dirpath_or_filepath) {
     use #(tree, assembled) <- on.ok(
-      wl.assemble_input_lines(input_dir, path_selectors),
+      wl.assemble_input_lines(dirpath_or_filepath, path_selectors),
     )
     Ok(#(assembled, Some(tree)))
   }
