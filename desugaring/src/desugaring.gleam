@@ -1912,6 +1912,11 @@ pub fn run_renderer(
     }
   })
 
+  let singleton_fragment = case fragments {
+    [_] -> True
+    _ -> False
+  }
+
   let #(count, fragments) =
     fragments
     |> list.map_fold(
@@ -1924,9 +1929,12 @@ pub fn run_renderer(
         case renderer.writer(output_dir, fr) {
           Error(e) -> #(acc, Error(P2(e)))
           Ok(z) -> {
-            case options.verbose {
-              False -> Nil
-              True -> io.println("  wrote [" <> output_dir <> "/]" <> fr.path)
+            case singleton_fragment {
+              True -> io.println("  -> wrote [" <> output_dir <> "/]" <> fr.path)
+              False -> case options.verbose {
+                True -> io.println("  wrote [" <> output_dir <> "/]" <> fr.path)
+                False -> Nil
+              }
             }
             #(acc + 1, Ok(z))
           }
@@ -1935,7 +1943,13 @@ pub fn run_renderer(
     )
 
   case options.verbose {
-    False -> io.println("  -> wrote " <> ins(count) <> " files")
+    False -> case count {
+      1 -> case singleton_fragment { 
+        True -> Nil // we already announced (see above)
+        False -> io.println("  -> wrote 1 file")
+      }
+      _ -> io.println("  -> wrote " <> ins(count) <> " files")
+    }
     True -> Nil
   }
 

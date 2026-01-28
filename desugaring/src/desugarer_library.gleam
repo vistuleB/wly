@@ -98,6 +98,7 @@ import desugarers/handles_substitute_and_fix_nonlocal_id_links
 import desugarers/identity
 import desugarers/ii2_carousel_component
 import desugarers/ii2_class_well_container_theorem_2_statement
+import desugarers/ii2_div_class_subchpater_2_sub
 import desugarers/ii2_fix_local_links
 import desugarers/ii2_generate_table_of_contents
 import desugarers/ii2_generate_table_of_contents_html
@@ -133,6 +134,7 @@ import desugarers/normalize_begin_end_align
 import desugarers/normalize_br_in_pre
 import desugarers/normalize_math_delimiters_inside
 import desugarers/normalize_spaces__outside
+import desugarers/nuke_ancestors
 import desugarers/pair
 import desugarers/pair_list_list
 import desugarers/pour_custom_before_first
@@ -344,6 +346,7 @@ pub const handles_substitute_and_fix_nonlocal_id_links = handles_substitute_and_
 pub const identity = identity.constructor
 pub const ii2_carousel_component = ii2_carousel_component.constructor
 pub const ii2_class_well_container_theorem_2_statement = ii2_class_well_container_theorem_2_statement.constructor
+pub const ii2_div_class_subchpater_2_sub = ii2_div_class_subchpater_2_sub.constructor
 pub const ii2_fix_local_links = ii2_fix_local_links.constructor
 pub const ii2_generate_table_of_contents = ii2_generate_table_of_contents.constructor
 pub const ii2_generate_table_of_contents_html = ii2_generate_table_of_contents_html.constructor
@@ -379,6 +382,7 @@ pub const normalize_begin_end_align = normalize_begin_end_align.constructor
 pub const normalize_br_in_pre = normalize_br_in_pre.constructor
 pub const normalize_math_delimiters_inside = normalize_math_delimiters_inside.constructor
 pub const normalize_spaces__outside = normalize_spaces__outside.constructor
+pub const nuke_ancestors = nuke_ancestors.constructor
 pub const pair = pair.constructor
 pub const pair_list_list = pair_list_list.constructor
 pub const pour_custom_before_first = pour_custom_before_first.constructor
@@ -591,6 +595,7 @@ pub const assertive_tests : List(fn() -> infra.AssertiveTestCollection) = [
   identity.assertive_tests,
   ii2_carousel_component.assertive_tests,
   ii2_class_well_container_theorem_2_statement.assertive_tests,
+  ii2_div_class_subchpater_2_sub.assertive_tests,
   ii2_fix_local_links.assertive_tests,
   ii2_generate_table_of_contents.assertive_tests,
   ii2_generate_table_of_contents_html.assertive_tests,
@@ -626,6 +631,7 @@ pub const assertive_tests : List(fn() -> infra.AssertiveTestCollection) = [
   normalize_br_in_pre.assertive_tests,
   normalize_math_delimiters_inside.assertive_tests,
   normalize_spaces__outside.assertive_tests,
+  nuke_ancestors.assertive_tests,
   pair.assertive_tests,
   pair_list_list.assertive_tests,
   pour_custom_before_first.assertive_tests,

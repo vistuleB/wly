@@ -2,7 +2,7 @@ import gleam/option
 import gleam/string
 import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as infra
 import nodemaps_2_desugarer_transforms as n2t
-import vxml.{type VXML, V, T}
+import vxml.{type VXML, V, T, Attr}
 import blame as bl
 
 fn nodemap(
@@ -11,42 +11,27 @@ fn nodemap(
   case vxml {
     V(_, "div", _, children) -> {
       case {
-        infra.v_has_class(vxml, "theorem") ||
-        infra.v_has_class(vxml, "numbered-exercise") ||
-        infra.v_has_class(vxml, "numbered-title")
+        infra.v_has_class(vxml, "subChapter")
       } {
         True -> {
           case children {
-            [V(_, "span", _, span_children) as span, ..rest] -> {
-              case infra.v_has_key_val(span, "class", "numbered-title") {
-                True -> {
+            [V(_, "h1", _, h1_children), ..rest] -> {
+              case h1_children {
+                [V(_, "span", _, span_children), ..] -> {
                   case span_children {
                     [T(_, [one_line]), ..] -> {
                       let title = one_line.content |> string.trim
-                      let title = infra.drop_suffix(title, ".")
-                      let title = infra.drop_suffix(title, ":")
-                      let title = case title {
-                        "Übungsaufgabe" -> "Exercise"
-                        "Beobachtung" -> "Observation"
-                        "Beispiel" -> "Example"
-                        "Behauptung" -> "Claim"
-                        "Algorithmus" -> "Algorithm"
-                        "Theroem" -> "Theorem"
-                        _ -> title
-                      }
                       V(
                         desugarer_blame(25),
-                        title,
-                        [],
+                        "Sub",
+                        [Attr(desugarer_blame(27), "title", title)],
                         rest,
                       )
                     }
-                    _ -> {
-                      vxml
-                    }
+                    _ -> vxml
                   }
                 }
-                False -> vxml
+                _ -> vxml
               }
             }
             _ -> vxml
@@ -75,7 +60,7 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
 type Param = Nil
 type InnerParam = Param
 
-pub const name = "ii2_class_well_container_theorem_2_statement"
+pub const name = "ii2_div_class_subchpater_2_sub"
 fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
 
 
@@ -105,16 +90,19 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
     infra.AssertiveTestDataNoParam(
       source:   "
                 <> div
-                  class=well container theorem
-                  <> span
-                    class=numbered-title
-                    <>
-                      'Theorem'
+                  class=subChapter
+                  <> h1
+                    class=hidden-title
+                    <> span
+                      class=chapterTitle
+                      <>
+                        'Komplexitätstheorie'
                   <>
                     'a child'
                 ",
       expected: "
-                <> Theorem
+                <> Sub
+                  title=Komplexitätstheorie
                   <>
                     'a child'
                 ",
