@@ -56,7 +56,7 @@ fn line_to_tooltip_span(line: Line, inner: InnerParam) -> #(Bool, VXML) {
     #(False, t),
   ) 
   use location <- on.eager_error_ok(
-    get_location(line.blame, inner),
+    get_location(line.blame, inner.0),
     #(False, t),
   )
   #(True, wrap_with_tooltip(location, t))
@@ -100,12 +100,20 @@ fn edit_first_t_descendant(
         }
       }
     }
-    [V(_, _, _, children) as first, ..rest] -> {
-      case edit_first_t_descendant(children, inner) {
-        #(True, stuff) -> #(True, [V(..first, children: stuff), ..rest])
-        #(False, _) -> {
+    [V(_, tag, _, children) as first, ..rest] -> {
+      case list.contains(inner.1, tag) {
+        True -> {
           let #(z, q) = edit_first_t_descendant(rest, inner)
           #(z, [first, ..q])
+        }
+        False -> {
+          case edit_first_t_descendant(children, inner) {
+            #(True, stuff) -> #(True, [V(..first, children: stuff), ..rest])
+            #(False, _) -> {
+              let #(z, q) = edit_first_t_descendant(rest, inner)
+              #(z, [first, ..q])
+            }
+          }
         }
       }
     }
@@ -138,15 +146,18 @@ fn transform_factory(inner: InnerParam, outside: List(String)) -> DesugarerTrans
   |> n2t.early_return_one_to_many_no_error_nodemap_2_desugarer_transform_with_forbidden(outside)
 }
 
-fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
-  Ok(param)
+fn param_to_inner_param(
+  param: Param,
+  outside: List(String),
+) -> Result(InnerParam, DesugaringError) {
+  Ok(#(param, outside))
 }
 
 type Param = String
 //           ↖
 //           local path
 //           of source
-type InnerParam = Param
+type InnerParam = #(String, List(String))
 
 pub const name = "lbp_turn_lines_into_3003_spans"
 
@@ -162,7 +173,7 @@ pub fn constructor(param: Param, outside: List(String)) -> Desugarer {
     name: name,
     stringified_param: option.Some(ins(param)),
     stringified_outside: option.None,
-    transform: case param_to_inner_param(param) {
+    transform: case param_to_inner_param(param, outside) {
       Error(error) -> fn(_) { Error(error) }
       Ok(inner) -> transform_factory(inner, outside)
     },
