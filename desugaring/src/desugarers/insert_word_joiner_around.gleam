@@ -6,11 +6,6 @@ import infrastructure.{type Desugarer, Desugarer} as infra
 import desugarers/insert_before_after_if
 import blame
 
-pub type Param =
-  List(String)
-
-pub const name = "insert_word_joiner_around"
-
 fn condition(
   prev: Option(VXML),
   child: VXML,
@@ -65,10 +60,20 @@ fn condition(
   }
 }
 
+pub type Param =
+  List(String)
+
+pub const name = "insert_word_joiner_around"
+
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
+// 🏖️🏖️ Desugarer 🏖️🏖️
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
+//------------------------------------------------53
+/// inserts word joiner characters around specified
+/// tags when they are adjacent to non-space text
 pub fn constructor(param: Param) -> Desugarer {
   let b = blame.Des([], name, 0)
-  // Word joiner character U+2060
-  let word_joiner = "\u{2060}"
+  let word_joiner = "&#8288;"
   let wj_node = T(b, [Line(b, word_joiner)])
 
   let cond = fn(p, c, n) { condition(p, c, n, param) }
@@ -83,26 +88,81 @@ pub fn constructor(param: Param) -> Desugarer {
   )
 }
 
+// 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
 // 🌊🌊🌊 tests 🌊🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
 
 fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
-  let wj = "\u{2060}"
+  let wj = "&#8288;"
   [
     infra.AssertiveTestData(
       param: ["wj"],
-      source: "<div>a<wj></wj>b</div>",
-      expected: "<div>a" <> wj <> "<wj></wj>" <> wj <> "b</div>",
+      source: "
+              <> div
+                <>
+                  'a'
+                <> wj
+                <>
+                  'b'
+              ",
+      expected: "
+                <> div
+                  <>
+                    'a'
+                  <>
+                    '" <> wj <> "'
+                  <> wj
+                  <>
+                    '" <> wj <> "'
+                  <>
+                    'b'
+                ",
     ),
     infra.AssertiveTestData(
       param: ["wj"],
-      source: "<div>a <wj></wj> b</div>",
-      expected: "<div>a <wj></wj> b</div>",
+      source: "
+              <> div
+                <>
+                  'a '
+                <> wj
+                <>
+                  ' b'
+              ",
+      expected: "
+                <> div
+                  <>
+                    'a '
+                  <> wj
+                  <>
+                    ' b'
+                ",
     ),
     infra.AssertiveTestData(
       param: ["wj"],
-      source: "<div><span>a</span><wj></wj><span>b</span></div>",
-      expected: "<div><span>a</span>" <> wj <> "<wj></wj>" <> wj <> "<span>b</span></div>",
+      source: "
+              <> div
+                <> span
+                  <>
+                    'a'
+                <> wj
+                <> span
+                  <>
+                    'b'
+              ",
+      expected: "
+                <> div
+                  <> span
+                    <>
+                      'a'
+                  <>
+                    '" <> wj <> "'
+                  <> wj
+                  <>
+                    '" <> wj <> "'
+                  <> span
+                    <>
+                      'b'
+                ",
     ),
   ]
 }

@@ -1,18 +1,9 @@
 import gleam/option.{type Option, None, Some}
 import gleam/list
 import vxml.{type VXML, V, T}
-import infrastructure.{type Desugarer, Desugarer} as infra
+import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as infra
 import nodemaps_2_desugarer_transforms as n2t
 import blame
-
-pub type Param =
-  #(
-    fn(Option(VXML), VXML, Option(VXML)) -> #(Bool, Bool),
-    VXML,
-    VXML,
-  )
-
-pub const name = "insert_before_after_if"
 
 fn process_children(
   already_processed: List(VXML),
@@ -56,23 +47,49 @@ fn nodemap(vxml: VXML, param: Param) -> VXML {
   }
 }
 
-pub fn constructor(param: Param) -> Desugarer {
-  let transform =
-    fn(node: VXML) { nodemap(node, param) }
-    |> n2t.one_to_one_no_error_nodemap_2_desugarer_transform()
+fn nodemap_factory(param: Param) -> n2t.OneToOneNoErrorNodemap {
+  nodemap(_, param)
+}
 
+fn transform_factory(param: Param) -> DesugarerTransform {
+  nodemap_factory(param)
+  |> n2t.one_to_one_no_error_nodemap_2_desugarer_transform()
+}
+
+fn param_to_inner_param(param: Param) -> Result(Param, DesugaringError) {
+  Ok(param)
+}
+
+pub type Param =
+  #(
+    fn(Option(VXML), VXML, Option(VXML)) -> #(Bool, Bool),
+    VXML,
+    VXML,
+  )
+
+pub const name = "insert_before_after_if"
+
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
+// 🏖️🏖️ Desugarer 🏖️🏖️
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
+//------------------------------------------------53
+/// traverses children and inserts nodes before or
+/// after based on a ternary condition
+pub fn constructor(param: Param) -> Desugarer {
   Desugarer(
     name: name,
     stringified_param: Some("insert_before_after_if_param"),
     stringified_outside: None,
-    transform: transform,
+    transform: case param_to_inner_param(param) {
+      Error(error) -> fn(_) { Error(error) }
+      Ok(inner) -> transform_factory(inner)
+    },
   )
 }
 
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
 // 🌊🌊🌊 tests 🌊🌊🌊🌊🌊
-// 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
-
+// 🌊🌊🌊🌊🌊_test_collection_from_data
 fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
   let b = blame.Des([], name, 0)
   let bef = T(b, [vxml.Line(b, "[")])
@@ -90,13 +107,37 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
   [
     infra.AssertiveTestData(
       param: param,
-      source: "<div><wrap></wrap></div>",
-      expected: "<div>[<wrap></wrap>]</div>",
+      source: "
+              <> div
+                <> wrap
+              ",
+      expected: "
+                <> div
+                  <>
+                    '['
+                  <> wrap
+                  <>
+                    ']'
+                ",
     ),
     infra.AssertiveTestData(
       param: param,
-      source: "<div><span></span><wrap></wrap><span></span></div>",
-      expected: "<div><span></span>[<wrap></wrap>]<span></span></div>",
+      source: "
+              <> div
+                <> span
+                <> wrap
+                <> span
+              ",
+      expected: "
+                <> div
+                  <> span
+                  <>
+                    '['
+                  <> wrap
+                  <>
+                    ']'
+                  <> span
+                ",
     ),
   ]
 }
