@@ -73,7 +73,7 @@ pub const name = "insert_word_joiner_around"
 /// tags when they are adjacent to non-space text
 pub fn constructor(param: Param) -> Desugarer {
   let b = blame.Des([], name, 0)
-  let word_joiner = "&#8288;"
+  let word_joiner = "\u{2060}"
   let wj_node = T(b, [Line(b, word_joiner)])
 
   let cond = fn(p, c, n) { condition(p, c, n, param) }
@@ -93,7 +93,7 @@ pub fn constructor(param: Param) -> Desugarer {
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
 
 fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
-  let wj = "&#8288;"
+  let wj = "\u{2060}"
   [
     infra.AssertiveTestData(
       param: ["wj"],
