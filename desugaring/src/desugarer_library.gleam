@@ -107,7 +107,6 @@ import desugarers/ii2_remove_chapter_number_from_title
 import desugarers/insert_attribute_as_text
 import desugarers/insert_attribute_value_at_first_child_start
 import desugarers/insert_attribute_value_at_start
-import desugarers/insert_before_after_if
 import desugarers/insert_bookend_tags
 import desugarers/insert_bookend_text_if_no_attributes
 import desugarers/insert_custom_before_first
@@ -115,7 +114,7 @@ import desugarers/insert_line_start_end
 import desugarers/insert_text_start_end
 import desugarers/insert_text_start_end_if_else
 import desugarers/insert_text_start_end_if_unique_attr
-import desugarers/insert_word_joiner_around
+import desugarers/insert_word_joiner_into_adjacent_text_nodes
 import desugarers/keep_only_subtrees_and_ancestors_of_nodes_matching_a_key_value_pair
 import desugarers/last_to_first_concatenate_text_nodes
 import desugarers/lbp_adorn_img_with_3003_spans
@@ -357,7 +356,6 @@ pub const ii2_remove_chapter_number_from_title = ii2_remove_chapter_number_from_
 pub const insert_attribute_as_text = insert_attribute_as_text.constructor
 pub const insert_attribute_value_at_first_child_start = insert_attribute_value_at_first_child_start.constructor
 pub const insert_attribute_value_at_start = insert_attribute_value_at_start.constructor
-pub const insert_before_after_if = insert_before_after_if.constructor
 pub const insert_bookend_tags = insert_bookend_tags.constructor
 pub const insert_bookend_text_if_no_attributes = insert_bookend_text_if_no_attributes.constructor
 pub const insert_custom_before_first = insert_custom_before_first.constructor
@@ -365,7 +363,7 @@ pub const insert_line_start_end = insert_line_start_end.constructor
 pub const insert_text_start_end = insert_text_start_end.constructor
 pub const insert_text_start_end_if_else = insert_text_start_end_if_else.constructor
 pub const insert_text_start_end_if_unique_attr = insert_text_start_end_if_unique_attr.constructor
-pub const insert_word_joiner_around = insert_word_joiner_around.constructor
+pub const insert_word_joiner_into_adjacent_text_nodes = insert_word_joiner_into_adjacent_text_nodes.constructor
 pub const keep_only_subtrees_and_ancestors_of_nodes_matching_a_key_value_pair = keep_only_subtrees_and_ancestors_of_nodes_matching_a_key_value_pair.constructor
 pub const last_to_first_concatenate_text_nodes = last_to_first_concatenate_text_nodes.constructor
 pub const lbp_adorn_img_with_3003_spans = lbp_adorn_img_with_3003_spans.constructor
@@ -608,7 +606,6 @@ pub const assertive_tests : List(fn() -> infra.AssertiveTestCollection) = [
   insert_attribute_as_text.assertive_tests,
   insert_attribute_value_at_first_child_start.assertive_tests,
   insert_attribute_value_at_start.assertive_tests,
-  insert_before_after_if.assertive_tests,
   insert_bookend_tags.assertive_tests,
   insert_bookend_text_if_no_attributes.assertive_tests,
   insert_custom_before_first.assertive_tests,
@@ -616,7 +613,7 @@ pub const assertive_tests : List(fn() -> infra.AssertiveTestCollection) = [
   insert_text_start_end.assertive_tests,
   insert_text_start_end_if_else.assertive_tests,
   insert_text_start_end_if_unique_attr.assertive_tests,
-  insert_word_joiner_around.assertive_tests,
+  insert_word_joiner_into_adjacent_text_nodes.assertive_tests,
   keep_only_subtrees_and_ancestors_of_nodes_matching_a_key_value_pair.assertive_tests,
   last_to_first_concatenate_text_nodes.assertive_tests,
   lbp_adorn_img_with_3003_spans.assertive_tests,
