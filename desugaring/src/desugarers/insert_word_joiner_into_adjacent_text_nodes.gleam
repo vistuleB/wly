@@ -5,13 +5,16 @@ import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type 
 import nodemaps_2_desugarer_transforms as n2t
 import vxml.{type VXML, type Line, Line, T, V}
 
-fn edit_last_line(lines: List(Line), wj: String) -> List(Line) {
+// word joiner character
+const word_joiner = "&#8288;"
+
+fn edit_last_line(lines: List(Line)) -> List(Line) {
   case list.reverse(lines) {
     [] -> []
     [last, ..rest] -> {
       let content = last.content
       case content != "" && !string.ends_with(content, " ") {
-        True -> [Line(..last, content: content <> wj), ..rest]
+        True -> [Line(..last, content: content <> word_joiner), ..rest]
         False -> [last, ..rest]
       }
     }
@@ -19,13 +22,13 @@ fn edit_last_line(lines: List(Line), wj: String) -> List(Line) {
   |> list.reverse
 }
 
-fn edit_first_line(lines: List(Line), wj: String) -> List(Line) {
+fn edit_first_line(lines: List(Line)) -> List(Line) {
   case lines {
     [] -> []
     [first, ..rest] -> {
       let content = first.content
       case content != "" && !string.starts_with(content, " ") {
-        True -> [Line(..first, content: wj <> content), ..rest]
+        True -> [Line(..first, content: word_joiner <> content), ..rest]
         False -> [first, ..rest]
       }
     }
@@ -34,15 +37,10 @@ fn edit_first_line(lines: List(Line), wj: String) -> List(Line) {
 
 fn nodemap(
   vxml: VXML,
-  _ancestors: List(VXML),
   prev_siblings: List(VXML),
-  _prev_mapped: List(VXML),
   next_siblings: List(VXML),
   inner: InnerParam,
 ) -> VXML {
-  // word joiner character
-  let wj = "&#8288;"
-  
   case vxml {
     T(blame, lines) -> {
       let prev = list.first(prev_siblings)
@@ -51,7 +49,7 @@ fn nodemap(
       let lines = case prev {
         Ok(V(_, tag, _, _)) ->
           case list.contains(inner, tag) {
-            True -> edit_first_line(lines, wj)
+            True -> edit_first_line(lines)
             False -> lines
           }
         _ -> lines
@@ -60,7 +58,7 @@ fn nodemap(
       let lines = case next {
         Ok(V(_, tag, _, _)) ->
           case list.contains(inner, tag) {
-            True -> edit_last_line(lines, wj)
+            True -> edit_last_line(lines)
             False -> lines
           }
         _ -> lines
@@ -73,11 +71,12 @@ fn nodemap(
 }
 
 fn nodemap_factory(inner: InnerParam) -> n2t.FancyOneToOneNoErrorNodemap {
-  fn(v, a, p1, p2, f) { nodemap(v, a, p1, p2, f, inner) }
+  fn(v, _, p1, _, f) { nodemap(v, p1, f, inner) }
 }
 
 fn transform_factory(inner: InnerParam) -> DesugarerTransform {
-  n2t.fancy_one_to_one_no_error_nodemap_2_desugarer_transform(nodemap_factory(inner))
+  nodemap_factory(inner)
+  |> n2t.fancy_one_to_one_no_error_nodemap_2_desugarer_transform
 }
 
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
