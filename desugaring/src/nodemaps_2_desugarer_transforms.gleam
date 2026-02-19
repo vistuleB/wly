@@ -551,6 +551,72 @@ pub fn fancy_one_to_one_nodemap_2_desugarer_transform(
   }
 }
 
+// *** with forbidden ***
+
+fn fancy_one_to_one_nodemap_walk_with_forbidden(
+  node: VXML,
+  ancestors: List(VXML),
+  previous_siblings_before_mapping: List(VXML),
+  previous_siblings_after_mapping: List(VXML),
+  following_siblings_before_mapping: List(VXML),
+  nodemap: FancyOneToOneNodemap,
+  forbidden: List(String),
+) -> Result(VXML, DesugaringError) {
+  case node {
+    T(_, _) ->
+      nodemap(
+        node,
+        ancestors,
+        previous_siblings_before_mapping,
+        previous_siblings_after_mapping,
+        following_siblings_before_mapping,
+      )
+    V(blame, tag, attrs, children) -> {
+      use <- on.true_false(
+        list.contains(forbidden, tag),
+        fn() { Ok(node) },
+      )
+      let children_ancestors = [node, ..ancestors]
+      use children <- on.ok(
+        list.try_fold(
+          children,
+          #([], [], list.drop(children, 1)),
+          fn(acc, child) {
+            case fancy_one_to_one_nodemap_walk_with_forbidden(child, children_ancestors, acc.0, acc.1, acc.2, nodemap, forbidden) {
+              Error(e) -> Error(e)
+              Ok(mapped_child) -> {
+                Ok(#(
+                  [child, ..acc.0],
+                  [mapped_child, ..acc.1],
+                  list.drop(acc.2, 1),
+                ))
+              }
+            }
+          }
+        )
+        |> result.map(fn(acc) {acc.1 |> list.reverse})
+      )
+      nodemap(
+        V(blame, tag, attrs, children),
+        ancestors,
+        previous_siblings_before_mapping,
+        previous_siblings_after_mapping,
+        following_siblings_before_mapping,
+      )
+    }
+  }
+}
+
+pub fn fancy_one_to_one_nodemap_2_desugarer_transform_with_forbidden(
+  nodemap: FancyOneToOneNodemap,
+  forbidden: List(String),
+) -> DesugarerTransform {
+  fn (vxml) {
+    fancy_one_to_one_nodemap_walk_with_forbidden(vxml, [], [], [], [], nodemap, forbidden)
+    |> result.map(add_no_warnings)
+  }
+}
+
 // ************************************************************
 // FancyOneToManyNoErrorNodemap
 // ************************************************************

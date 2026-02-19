@@ -1,4 +1,3 @@
-import ansel/image
 import gleam/bit_array
 import gleam/dict.{type Dict}
 import gleam/dynamic/decode
@@ -194,7 +193,7 @@ fn last_modified_date(file_path: String) -> Int {
 fn load_last_modified_times(exec_2_src_img: String) -> Result(LastModifiedTimes, DesugaringError) {
   use paths <- on.error_ok(
     simplifile.get_files(exec_2_src_img),
-    fn(err) { Error(DesugaringError(desugarer_blame(195), simplifile.describe_error(err))) }
+    fn(err) { Error(DesugaringError(desugarer_blame(196), simplifile.describe_error(err))) }
   )
   paths
   |> list.map( fn(path) { #(path |> infra.assert_drop_prefix(exec_2_src_img), last_modified_date(path)) })
@@ -287,7 +286,7 @@ fn run_shellout(
   case result {
     Ok(_) -> Ok(Nil)
     Error(e) -> Error(DesugaringError(
-      desugarer_blame(288),
+      desugarer_blame(289),
       "failed to execute: '" <> cmd <> "' (error: " <> string.inspect(e) <> ")"
     ))
   }
@@ -328,7 +327,7 @@ fn build_or_miraculously_retrieve_existing_build_image(
     get_created_date(exec_2_build_version),
     fn(err) {
       Error(DesugaringError(
-        desugarer_blame(329),
+        desugarer_blame(330),
         "could not get created date of optimized image: " <> exec_2_build_version <> ": " <> simplifile.describe_error(err),
       ))
     }
@@ -338,7 +337,7 @@ fn build_or_miraculously_retrieve_existing_build_image(
     get_file_size(exec_2_src_version),
     fn(_) {
       Error(DesugaringError(
-        desugarer_blame(339),
+        desugarer_blame(340),
         "Could not get size of original image: " <> exec_2_src_version,
       ))
     }
@@ -348,7 +347,7 @@ fn build_or_miraculously_retrieve_existing_build_image(
     get_file_size(exec_2_build_version),
     fn(_) {
       Error(DesugaringError(
-        desugarer_blame(349),
+        desugarer_blame(350),
         "Could not get size of build image: " <> exec_2_build_version,
       ))
     }
@@ -371,7 +370,7 @@ fn build_or_miraculously_retrieve_existing_build_image(
 }
 
 fn update_src_attr(attrs: List(Attr), src: String) -> List(Attr) {
-  infra.attrs_set(attrs, desugarer_blame(372), "src", src)
+  infra.attrs_set(attrs, desugarer_blame(373), "src", src)
 }
 
 fn v_before(
@@ -504,7 +503,7 @@ fn remove_files_from_build_img_that_have_no_image_map_preimage(
 ) -> Result(Nil, DesugaringError) {
   use paths <- on.error_ok(
     simplifile.get_files(inner.exec_2_build_img),
-    fn(err) { Error(DesugaringError(desugarer_blame(505), "could not read build_img files at "  <> inner.exec_2_build_img <> " for cleanup: "  <> simplifile.describe_error(err))) }
+    fn(err) { Error(DesugaringError(desugarer_blame(506), "could not read build_img files at "  <> inner.exec_2_build_img <> " for cleanup: "  <> simplifile.describe_error(err))) }
   )
   let values = dict.values(state) |> list.map(fn(info) { info.build_version })
   list.each(

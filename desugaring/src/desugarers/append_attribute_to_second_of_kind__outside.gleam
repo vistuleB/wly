@@ -26,9 +26,9 @@ fn nodemap_factory(inner: InnerParam) -> n2t.FancyOneToOneNodemap {
   }
 }
 
-fn transform_factory(inner: InnerParam) -> DesugarerTransform {
+fn transform_factory(inner: InnerParam, outside: List(String)) -> DesugarerTransform {
   nodemap_factory(inner)
-  |> n2t.fancy_one_to_one_nodemap_2_desugarer_transform
+  |> n2t.fancy_one_to_one_nodemap_2_desugarer_transform_with_forbidden(outside)
 }
 
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
@@ -41,7 +41,7 @@ type Param = #(String, String, String)
 
 type InnerParam = Param
 
-pub const name = "append_attribute_to_second_of_kind"
+pub const name = "append_attribute_to_second_of_kind__outside"
 fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
 
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
@@ -51,14 +51,14 @@ fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
 /// Adds the specified attr-value pair to nodes
 /// with the given tag name when the previous
 /// sibling is also a node with the same tag name
-pub fn constructor(param: Param) -> Desugarer {
+pub fn constructor(param: Param, outside: List(String)) -> Desugarer {
   Desugarer(
     name: name,
     stringified_param: option.Some(ins(param)),
     stringified_outside: option.None,
     transform: case param_to_inner_param(param) {
       Error(error) -> fn(_) { Error(error) }
-      Ok(inner) -> transform_factory(inner)
+      Ok(inner) -> transform_factory(inner, outside)
     },
   )
 }
@@ -66,10 +66,11 @@ pub fn constructor(param: Param) -> Desugarer {
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
 // 🌊🌊🌊 tests 🌊🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
-fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
+fn assertive_tests_data() -> List(infra.AssertiveTestDataWithOutside(Param)) {
   [
-    infra.AssertiveTestData(
+    infra.AssertiveTestDataWithOutside(
       param: #("A", "key1", "val1"),
+      outside: [],
       source:   "
                 <> root
                   <> A
@@ -86,8 +87,9 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
                   <> A
                 "
     ),
-    infra.AssertiveTestData(
+    infra.AssertiveTestDataWithOutside(
       param: #("A", "key1", "val1"),
+      outside: [],
       source:   "
                 <> root
                   <> B
@@ -111,5 +113,5 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
 }
 
 pub fn assertive_tests() {
-  infra.assertive_test_collection_from_data(name, assertive_tests_data(), constructor)
+  infra.assertive_test_collection_from_data_with_outside(name, assertive_tests_data(), constructor)
 }
