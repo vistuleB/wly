@@ -1,3 +1,4 @@
+import ansel/image
 import gleam/bit_array
 import gleam/dict.{type Dict}
 import gleam/dynamic/decode
@@ -154,24 +155,25 @@ fn size_format(bytes: Int) -> String {
   }
 }
 
-fn sum_sizes(entries: List(BuildImgInfo)) -> #(Int, Int) {
+fn sum_sizes(entries: List(BuildImgInfo)) -> #(Int, Int, Int) {
   case entries {
-    [] -> #(0, 0)
+    [] -> #(0, 0, 0)
     [first, ..rest] -> {
-      let #(a, b) = sum_sizes(rest)
+      let #(a, b, c) = sum_sizes(rest)
       case first.used_last_build {
-        True -> #(a + first.original_size, b + first.compressed_size)
-        False -> #(a, b)
+        True -> #(a + first.original_size, b + first.compressed_size, c + 1)
+        False -> #(a, b, c)
       }
     }
   }
 }
 
 fn image_map_stats(image_map: ImageMap) -> Nil {
-  let #(original_sizes, compressed_sizes) =
+  let #(original_sizes, compressed_sizes, num) =
     image_map
     |> dict.values
     |> sum_sizes
+  io.println("  lbp_img_build: " <> ins(num) <> " images")
   io.println("  lbp_img_build: original sizes: " <> size_format(original_sizes) <> ", compressed sizes: " <> size_format(compressed_sizes))
 }
 

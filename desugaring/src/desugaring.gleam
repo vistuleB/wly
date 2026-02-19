@@ -1946,9 +1946,9 @@ pub fn run_renderer(
     False -> case count {
       1 -> case singleton_fragment { 
         True -> Nil // we already announced (see above)
-        False -> io.println("  -> wrote 1 file")
+        False -> io.println("  -> wrote 1 file (use '--verbose' option to see)")
       }
-      _ -> io.println("  -> wrote " <> ins(count) <> " files")
+      _ -> io.println("  -> wrote " <> ins(count) <> " files (use '--verbose' option to see)")
     }
     True -> Nil
   }
