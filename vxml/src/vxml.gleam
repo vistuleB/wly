@@ -1026,6 +1026,24 @@ pub fn bad_html_pre_processor(
       "<img" <> middle <> "/>"
     })
 
+  // close link tags
+  let assert Ok(re) = regexp.from_string("(<link)(\\b[^>]*[^\\/])(>)")
+  let content =
+    regexp.match_map(re, content, fn(match) {
+      let regexp.Match(_, sub) = match
+      let assert [_, Some(middle), _] = sub
+      "<link" <> middle <> "/>"
+    })
+
+  // close meta tags
+  let assert Ok(re) = regexp.from_string("(<meta)(\\b[^>]*[^\\/])(>)")
+  let content =
+    regexp.match_map(re, content, fn(match) {
+      let regexp.Match(_, sub) = match
+      let assert [_, Some(middle), _] = sub
+      "<meta" <> middle <> "/>"
+    })
+
   // remove attrs in closing tags
   let assert Ok(re) = regexp.from_string("(<\\/)(\\w+)(\\s+[^>]*)(>)")
   let matches = regexp.scan(re, content)
