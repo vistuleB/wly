@@ -10,6 +10,7 @@ import infrastructure.{
   DesugaringError,
   Continue,
   GoBack,
+
 } as infra
 import blame as bl
 import on
@@ -195,6 +196,49 @@ pub fn one_to_one_no_error_nodemap_2_desugarer_transform_with_forbidden_self_fir
   fn (vxml) {
     one_to_one_no_error_nodemap_walk_with_forbidden_self_first(vxml, nodemap, forbidden)
     |> add_no_warnings
+    |> Ok
+  }
+}
+
+// ************************************************************
+// OneToOneNoErrorWithWarningsNodemap
+// ************************************************************
+
+pub type OneToOneNoErrorWithWarningsNodemap =
+  fn(VXML) -> #(VXML, List(DesugaringWarning))
+
+// *** without forbidden ***
+
+pub fn one_to_one_no_error_with_warnings_nodemap_walk(
+  node: VXML,
+  nodemap: OneToOneNoErrorWithWarningsNodemap,
+) -> #(VXML, List(DesugaringWarning)) {
+  case node {
+    T(_, _) -> nodemap(node)
+    V(_, _, _, children) -> {
+      let #(children_warnings, children) = list.map_fold(
+        children,
+        [],
+        fn (acc, child) {
+          let #(child, warnings) = one_to_one_no_error_with_warnings_nodemap_walk(child, nodemap)
+          let acc = infra.pour(warnings, acc)
+          #(acc, child)
+        }
+      )
+      let #(us, our_warnings) = nodemap(V(
+        ..node,
+        children: children,
+      ))
+      #(us, infra.pour(our_warnings, children_warnings))
+    }
+  }
+}
+
+pub fn one_to_one_no_error_with_warnings_nodemap_2_desugarer_transform(
+  nodemap: OneToOneNoErrorWithWarningsNodemap,
+) -> DesugarerTransform {
+  fn (vxml) {
+    one_to_one_no_error_with_warnings_nodemap_walk(vxml, nodemap)
     |> Ok
   }
 }

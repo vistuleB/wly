@@ -1963,12 +1963,11 @@ pub fn run_renderer(
     fragments
     |> list.map(fn(result) {
       use fr <- on.ok(result)
-      use <- on.eager_true_false(prettifier_mode == PrettifierOff, result)
-      let dest_dir = case prettifier_mode {
-        PrettifierOff -> panic as "bug"
-        PrettifierOverwriteOutputDir -> Some(output_dir)
-        PrettifierToBespokeDir(dir) -> Some(dir)
-      }
+      use dest_dir <- on.stay(case prettifier_mode {
+        PrettifierOff -> on.Return(result)
+        PrettifierOverwriteOutputDir -> on.Stay(Some(output_dir))
+        PrettifierToBespokeDir(dir) -> on.Stay(Some(dir))
+      })
       case renderer.prettifier(output_dir, fr, dest_dir) {
         Error(e) -> {
           io.println("  prettifying error: " <> ins(e))

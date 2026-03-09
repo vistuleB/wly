@@ -4,9 +4,9 @@ import gleam/regexp
 import infrastructure.{
   type Desugarer,
   type DesugarerTransform,
-  type DesugaringError,
+  type DesugaringWarning,
   Desugarer,
-  DesugaringError,
+  DesugaringWarning,
 } as infra
 import nodemaps_2_desugarer_transforms as n2t
 import vxml.{type VXML, Line, T, V}
@@ -14,15 +14,14 @@ import on
 
 fn nodemap(
   vxml: VXML,
-) -> Result(VXML, DesugaringError) {
+) -> #(VXML, List(DesugaringWarning)) {
   case vxml {
     V(blame, t, attrs, children) -> {
       use <- on.false_true(
         infra.v_has_key_val(vxml, "class", "chapterTitle") ||
         infra.v_has_key_val(vxml, "class", "subChapterTitle"),
-        on_false: fn() { Ok(vxml) },
+        on_false: fn() { #(vxml, []) },
       )
-
       case children {
         [
           T(
@@ -34,31 +33,32 @@ fn nodemap(
           let assert Ok(re) = regexp.from_string("^(\\d+)(\\.(\\d+)?)?\\s")
           use <- on.false_true(
             regexp.check(re, first_text_node_line),
-            on_false: fn() { Ok(vxml) },
+            on_false: fn() { #(vxml, []) },
           )
           let new_line = regexp.replace(re, first_text_node_line, "")
           let contents = T(t_blame, [Line(l_blame, new_line), ..list.drop(rest_contents, 1)])
           let children = [contents, ..list.drop(rest_children, 1)]
-          Ok(V(blame, t, attrs, children))
+          #(V(blame, t, attrs, children), [])
         }
         _ -> {
-          Error(DesugaringError(blame, "could not find T(_,_) element"))
+          let warning = DesugaringWarning(blame, "could not find T(_,_) element")
+          #(vxml, [warning])
         }
       }
     }
-    _ -> Ok(vxml)
+    _ -> #(vxml, [])
   }
 }
 
-fn nodemap_factory(_: InnerParam) -> n2t.OneToOneNodemap {
+fn nodemap_factory(_: InnerParam) -> n2t.OneToOneNoErrorWithWarningsNodemap {
   nodemap
 }
 
 fn transform_factory(inner: InnerParam) -> DesugarerTransform {
-  n2t.one_to_one_nodemap_2_desugarer_transform(nodemap_factory(inner))
+  n2t.one_to_one_no_error_with_warnings_nodemap_2_desugarer_transform(nodemap_factory(inner))
 }
 
-fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
+fn param_to_inner_param(param: Param) -> Result(InnerParam, infra.DesugaringError) {
   Ok(param)
 }
 
