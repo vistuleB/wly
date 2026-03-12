@@ -612,7 +612,7 @@ pub fn process_command_line_arguments(
 
         "--input-dir" -> {
           case values {
-            [one] -> Ok(CommandLineAmendments(..amendments, input_dir: Some(one)))
+            [one] -> Ok(CommandLineAmendments(..amendments, input_dir: Some(one |> infra.drop_ending_slash)))
             [] -> Error(MissingArgumentToOption("--input-dir"))
             _ -> Error(TooManyArgumentsToOption("--input-dir"))
           }
@@ -620,7 +620,7 @@ pub fn process_command_line_arguments(
 
         "--output-dir" -> {
           case values {
-            [one] -> Ok(CommandLineAmendments(..amendments, output_dir: Some(one)))
+            [one] -> Ok(CommandLineAmendments(..amendments, output_dir: Some(one |> infra.drop_ending_slash)))
             [] -> Error(MissingArgumentToOption("--output-dir"))
             _ -> Error(TooManyArgumentsToOption("--output-dir"))
           }
@@ -1561,9 +1561,10 @@ fn run_pipeline(
 // other run_renderer helpers
 // ************************************************************
 
-fn sanitize_output_dir(parameters: RendererParameters) -> RendererParameters {
+fn sanitize_input_output_dirs(parameters: RendererParameters) -> RendererParameters {
   RendererParameters(
     ..parameters,
+    input_dir: infra.drop_ending_slash(parameters.input_dir),
     output_dir: infra.drop_ending_slash(parameters.output_dir),
   )
 }
@@ -1613,7 +1614,7 @@ pub fn run_renderer(
   parameters: RendererParameters,
   options: RendererOptions(d),
 ) -> Result(List(String), RendererError(a, c, e, f, g, h)) {
-  let parameters = sanitize_output_dir(parameters)
+  let parameters = sanitize_input_output_dirs(parameters)
 
   let RendererParameters(
     input_dir,

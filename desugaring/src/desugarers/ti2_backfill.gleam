@@ -2,6 +2,7 @@ import gleam/option
 import gleam/string.{inspect as ins}
 import gleam/int
 import gleam/list
+import gleam/io
 import infrastructure.{
   type Desugarer,
   type DesugarerTransform,
@@ -14,7 +15,7 @@ import infrastructure.{
 } as infra
 import gleam/regexp.{type Regexp}
 import nodemaps_2_desugarer_transforms as n2t
-import vxml.{type VXML, V, Attr}
+import vxml.{type VXML, T, V, Attr}
 import blame as bl
 import on
 
@@ -80,11 +81,24 @@ fn nodemap(
       use children <- on.ok(backfill_elements(children, stub_sub))
       Ok(#(V(..node, children: children), GoBack))
     }
-    V(_, _, _, children) -> {
+    V(_, "Document", _, children) -> {
       use children <- on.ok(backfill_elements(children, stub_chapter))
       Ok(#(V(..node, children: children), Continue))
     }
-    _ -> panic as "how could we see anything except 'Chapter' and root, if 'Chapter' orders GoBack?"
+    V(_, "WriterlyBlankLine", _, _) -> {
+      Ok(#(node, Continue))
+    }
+    V(_, tag, _, _children) -> {
+      let msg = "unexpected tag: " <> tag
+      panic as msg
+    }
+    T(_, lines) -> {
+      io.println("")
+      list.each(lines, fn(line) { io.println(line.content) })
+      io.println("")
+      let msg = "unexpected text node at top level of Document (printout above)"
+      panic as msg
+    }
   }
 }
 
