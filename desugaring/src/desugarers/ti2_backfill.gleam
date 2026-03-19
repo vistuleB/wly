@@ -156,7 +156,7 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
   [
     infra.AssertiveTestDataNoParam(
       source:   "
-                  <> root
+                  <> Document
                     <> Chapter
                       title=Chapter 1
                       should-be-number=1
@@ -168,7 +168,7 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
                         should-be-number=3
                 ",
       expected: "
-                  <> root
+                  <> Document
                     <> Chapter
                       title=Chapter 1
                       should-be-number=1
@@ -184,7 +184,7 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
     ),
     infra.AssertiveTestDataNoParam(
       source:   "
-                  <> root
+                  <> Document
                     <> Chapter
                       title=Chapter 1
                       should-be-number=1
@@ -193,7 +193,7 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
                       should-be-number=4
                 ",
       expected: "
-                  <> root
+                  <> Document
                     <> Chapter
                       title=Chapter 1
                       should-be-number=1
@@ -208,7 +208,7 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
     ),
     infra.AssertiveTestDataNoParam(
       source:   "
-                  <> root
+                  <> Document
                     <> Chapter
                       title=Chapter 2
                       should-be-number=2
@@ -220,7 +220,7 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
                         should-be-number=5
                 ",
       expected: "
-                  <> root
+                  <> Document
                     <> Chapter
                       title=Lorem Ipsum
                     <> Chapter
