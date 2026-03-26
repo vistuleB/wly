@@ -3484,7 +3484,7 @@ pub type Pipe {
     desugarer: Desugarer,
     selector: Selector,
     tracking_mode: TrackingMode,
-    peek: Bool,
+    dump: Bool,
   )
 }
 
@@ -3507,7 +3507,7 @@ pub fn desugarers_2_pipeline(
       desugarer: d,
       selector: id,
       tracking_mode: TrackingOff,
-      peek: False,
+      dump: False,
     )
   })
 }

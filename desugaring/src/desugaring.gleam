@@ -402,7 +402,7 @@ pub type CommandLineAmendments {
     only_key_values: List(#(String, String, String)),
     prettier: Option(PrettifierMode),
     track: Option(PipelineTrackingModifier),
-    peek: Option(List(Int)),
+    dump: Option(List(Int)),
     table: Option(Bool),
     times: Option(Int),
     verbose: Option(Bool),
@@ -430,7 +430,7 @@ fn empty_command_line_amendments() -> CommandLineAmendments {
     only_key_values: [],
     prettier: None,
     track: None,
-    peek: None,
+    dump: None,
     table: None,
     times: None,
     verbose: None,
@@ -469,7 +469,7 @@ pub fn basic_cli_usage(header: String) {
   io.println(margin <> "  -> restrict source to elements that have at least one of the")
   io.println(margin <> "     given key-value pairs as attrs (& ancestors of such)")
   io.println("")
-  io.println(margin <> "--peek <step numbers>")
+  io.println(margin <> "--dump <step numbers>")
   io.println(margin <> "  -> show entire document at given pipeline step numbers; leave")
   io.println(margin <> "     step numbers empty to output document at all steps; use")
   io.println(margin <> "     negative indices to indicate steps from end of pipeline")
@@ -522,7 +522,8 @@ pub fn basic_cli_usage(header: String) {
   io.println(margin <> "  -> include/exclude a printout of the pipeline steps")
   io.println("")
   io.println(margin <> "--times [<cols=" <> ins(default_times_table_char_width) <> ">]")
-  io.println(margin <> "  -> include desugarer timing table using <cols> columns")
+  io.println(margin <> "  -> include performance table (how long it takes each desugarer")
+  io.println(margin <> "     to run) using <cols> columns")
   io.println("")
 }
 
@@ -559,7 +560,7 @@ pub fn advanced_cli_usage(header: String) {
 
 pub type CommandLineError {
   ExpectedDoubleDashString(String)
-  UknownOptionArgument(String)
+  UnknownOptionArgument(String)
   UnexpectedArgumentsToOption(String)
   MissingArgumentToOption(String)
   TooManyArgumentsToOption(String)
@@ -682,10 +683,10 @@ pub fn process_command_line_arguments(
           )
         }
 
-        "--peek" -> {
-          use numbers <- on.ok(parse_peek_args(values))
+        "--dump" -> {
+          use numbers <- on.ok(parse_dump_args(values))
           Ok(
-            CommandLineAmendments(..amendments, peek: Some(numbers))
+            CommandLineAmendments(..amendments, dump: Some(numbers))
           )
         }
 
@@ -734,7 +735,7 @@ pub fn process_command_line_arguments(
         _ -> {
           case list.contains(user_keys, option) {
             True -> Ok(CommandLineAmendments(..amendments, user_args: dict.insert(amendments.user_args, option, values)))
-            False -> Error(UknownOptionArgument(option))
+            False -> Error(UnknownOptionArgument(option))
           }
         }
       }
@@ -1072,7 +1073,7 @@ fn join_pipeline_modifiers(
   )
 }
 
-fn parse_peek_args(
+fn parse_dump_args(
   values: List(String)
 ) {
   use #(restrict, force) <- on.ok(parse_step_numbers(values))
@@ -1141,7 +1142,7 @@ pub fn amend_renderer_by_command_line_amendments(
   let pipeline =
     renderer.pipeline
     |> apply_pipeline_tracking_modifier(amendments.track)
-    |> apply_peeking(amendments.peek)
+    |> apply_peeking(amendments.dump)
 
   Renderer(
     ..renderer,
@@ -1163,7 +1164,7 @@ pub fn amend_renderer_options_by_command_line_amendments(
     },
     suppress_warnings: !option.unwrap(amendments.warnings, !options.suppress_warnings),
     echo_assembled_lines: amendments.echo_assembled || options.echo_assembled_lines,
-    echo_parsed_vxml: options.echo_parsed_vxml || { option.unwrap(amendments.peek, []) |> list.contains(0) },
+    echo_parsed_vxml: options.echo_parsed_vxml || { option.unwrap(amendments.dump, []) |> list.contains(0) },
     echo_vxml_fragments: fn(fr: OutputFragment(d, VXML)) {
       options.echo_vxml_fragments(fr) ||
       exists_match(
@@ -1212,13 +1213,13 @@ fn apply_peeking(
   case apply_to_all {
     True -> list.map(
       pipeline,
-      fn(pipe) { Pipe(..pipe, peek: True) }
+      fn(pipe) { Pipe(..pipe, dump: True) }
     )
     False -> list.index_map(
       pipeline,
       fn(pipe, i) {
         let step_no = i + 1
-        Pipe(..pipe, peek: list.contains(peek_steps, step_no) )
+        Pipe(..pipe, dump: list.contains(peek_steps, step_no) )
       }
     )
   }
@@ -1252,7 +1253,7 @@ fn apply_pipeline_tracking_modifier(
             desugarer: pipe.desugarer,
             selector: option.unwrap(mod.selector, pipe.selector),
             tracking_mode: TrackingOnChange,
-            peek: pipe.peek,
+            dump: pipe.dump,
           )
         }
       )
@@ -1272,7 +1273,7 @@ fn apply_pipeline_tracking_modifier(
           desugarer: pipe.desugarer,
           selector: option.unwrap(mod.selector, pipe.selector),
           tracking_mode: mode,
-          peek: pipe.peek,
+          dump: pipe.dump,
         )
       })
     }
@@ -1343,7 +1344,7 @@ fn producer(
           got_arrow,
         ) = acc
 
-        let Pipe(desugarer, selector, mode, peek) = pipe
+        let Pipe(desugarer, selector, mode, dump) = pipe
 
         let #(printed_arrow, lines) = case track_any && !got_arrow {
           True -> {
@@ -1382,7 +1383,7 @@ fn producer(
           }
         )
 
-        let #(selected_2_print, next_tracking_output) = case mode == TrackingOff && !peek {
+        let #(selected_2_print, next_tracking_output) = case mode == TrackingOff && !dump {
           True -> #([], last_tracking_output)
 
           False -> {
@@ -1393,7 +1394,7 @@ fn producer(
             let next_tracking_output =
               selected_2_print
               |> infra.s_lines_table("", True, 0)
-            let selected_2_print = case peek {
+            let selected_2_print = case dump {
               True -> vxml |> infra.vxml_to_s_lines |> sl.all()
               False -> selected_2_print
             }
@@ -1402,7 +1403,7 @@ fn producer(
         }
 
         let must_print = 
-          peek ||
+          dump ||
           mode == TrackingForced ||
           { mode == TrackingOnChange && next_tracking_output != last_tracking_output }
 
