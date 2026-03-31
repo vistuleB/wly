@@ -12,7 +12,7 @@ import on
 
 fn extract_handle_name(match) -> #(String, Bool) {
   let assert Match(_, [_, option.Some(handle_name)]) = match
-  case string.ends_with(handle_name, ":page") {
+  case string.ends_with(handle_name, "#page") {
     True -> {
       #(handle_name |> string.drop_end(5), True)
     }
@@ -235,7 +235,7 @@ fn grand_wrapper_load(
     fn(acc, attr) {
       let assert [handle_name, page, value, id, path] = attr.val |> string.split("|")
       let page = case page {
-        ":page" -> True
+        "#page" -> True
         "" -> False
         _ -> panic as "malformed GrandWrapper dictionary"
       }
@@ -262,7 +262,7 @@ fn substitute_handle_in_href(
 ) -> Result(Attr, DesugaringWarning) {
   assert attr.val |> string.starts_with(">>")
   let handle_name = attr.val |> string.drop_start(2)
-  let page = handle_name |> string.ends_with(":page")
+  let page = handle_name |> string.ends_with("#page")
   let handle_name = case page {
     True -> handle_name |> string.drop_end(5)
     False -> handle_name
@@ -287,7 +287,7 @@ fn substitute_id_in_href(
 ) -> Result(#(Attr, Option(DesugaringWarning)), DesugaringError) {
   assert attr.val |> string.starts_with("#")
   let id = attr.val |> string.drop_start(1)
-  let #(id, page) = case id |> string.ends_with(":page") {
+  let #(id, page) = case id |> string.ends_with("#page") {
     True -> #(id |> string.drop_end(5), True)
     False -> #(id, False)
   }
@@ -438,7 +438,7 @@ fn transform_factory(inner: InnerParam) -> DesugarerTransform {
 }
 
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
-  let assert Ok(handles_regexp) = regexp.from_string("(>>)([\\w\\^+%-]+(?:\\:page)?)")
+  let assert Ok(handles_regexp) = regexp.from_string("(>>)([\\w\\^+%-]+(?:#page)?)")
   #(
     param.0,
     param.1,
@@ -452,8 +452,8 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
 
 type HandlesDict = Dict(String, #(Bool,     String,   String,   String))
 //                      ↖         ↖         ↖         ↖         ↖
-//                      handle    :page-by  value     id        path
-//                                default
+//                      handle    #page-by  value     id        path
+//                               #default
 //                                option
 
 type IdsDict = Dict(String, List(String))
@@ -534,7 +534,7 @@ fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
 /// is the associated id to handle_name, as given
 /// by the GrandWrapper dictionary; and of the form
 ///
-/// ref=>>handle_name:page
+/// ref=>>handle_name#page
 ///
 /// with
 ///

@@ -18,7 +18,7 @@ fn grand_wrapper_attrs(
       fn (key, value) {
         let #(page, value, id, path, _) = value
         let page = case page {
-          True -> ":page"
+          True -> "#page"
           False -> ""
         }
         Attr(desugarer_blame(24), "handle", key <> "|" <> page <> "|" <> value <> "|" <> id <> "|" <> path)
@@ -41,7 +41,7 @@ fn try_read_handle(
   assert attr.key == "handle"
   case string.split(attr.val, "|") {
     [name, value, id] -> {
-      case name |> string.ends_with(":page") {
+      case name |> string.ends_with("#page") {
         False -> Ok(#(name, False, value, id))
         True -> Ok(#(name |> string.drop_end(5), True, value, id))
       }
@@ -233,7 +233,7 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
 
 type HandlesDict = Dict(String, #(Bool,         String,       String,     String,      Blame))
 //                      ↖         ↖             ↖             ↖           ↖
-//                      handle    ':page' link  string value  handle id   page path
+//                      handle    '#page' link  string value  handle id   page path
 //                      name      by default    of handle     on page     for handle
 
 type Ids = List(#(String, String,     Blame))
@@ -278,15 +278,15 @@ fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
 /// Wraps the root of the document in a node named
 /// 'GrandWrapper' and with attrs of the form
 /// 
-/// handle=<name>|<:page>|<value>|<id>|<path>
+/// handle=<name>|<#page>|<value>|<id>|<path>
 /// 
 /// where <path> is the value of the afore-mentioned
 /// "path" attr associated to each handle
 /// (specifically the value of that attr at the
 /// closest ancestor to the node where the handle 
-/// sits), and where <:page> is either the string
-/// ":page" or the empty string depending on whether
-/// original handle <name> ended with the suffix ':page'
+/// sits), and where <#page> is either the string
+/// "#page" or the empty string depending on whether
+/// original handle <name> ended with the suffix '#page'
 /// or not, in which which case that suffix will also
 /// be stripped in the <name> field of the GrandWrapper
 /// dictionary.
