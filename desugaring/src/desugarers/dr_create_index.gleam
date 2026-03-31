@@ -188,11 +188,14 @@ fn gather_chapter_infos(root: VXML) -> Result(List(ChapterInfo), DesugaringError
 // 🌸 table of contents~~ 🌸
 // 🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸
 
-fn href(chapter_no: Int, section_no: Int) -> String {
-  "./" <> ins(chapter_no) <> "-" <> ins(section_no) <> ".html"
+fn href(chapter_no: Int, section_no: Int, subsection_no: Int) -> String {
+  case subsection_no {
+    0 -> "./" <> ins(chapter_no) <> "-" <> ins(section_no) <> ".html"
+    _ -> "./" <> ins(chapter_no) <> "-" <> ins(section_no) <> "-" <> ins(subsection_no) <> ".html"
+  }
 }
 
-fn subsection_item(section_no: Int, subsection_no: Int, subsection: SubSectionInfo) -> VXML {
+fn subsection_item(ch_no: Int, section_no: Int, subsection_no: Int, subsection: SubSectionInfo) -> VXML {
   let b = desugarer_blame(179)
   let SubSectionInfo(title) = subsection
   
@@ -205,7 +208,7 @@ fn subsection_item(section_no: Int, subsection_no: Int, subsection: SubSectionIn
         b,
         "a",
         [
-          Attr(b, "href", href(section_no, subsection_no)),
+          Attr(b, "href", href(ch_no, section_no, subsection_no)),
         ],
         title,
       ),
@@ -223,7 +226,7 @@ fn section_item(ch_no: Int, section_no: Int, section: SectionInfo) -> VXML {
         b,
         "ol",
         [],
-        list.index_map(subsections |> list.reverse, fn (section, i) { subsection_item(section_no, i + 1, section) }),
+        list.index_map(subsections |> list.reverse, fn (subsection, i) { subsection_item(ch_no, section_no, i + 1, subsection) }),
       ),
     ]
   }
@@ -237,7 +240,7 @@ fn section_item(ch_no: Int, section_no: Int, section: SectionInfo) -> VXML {
         b,
         "a",
         [
-          Attr(b, "href", href(ch_no, section_no)),
+          Attr(b, "href", href(ch_no, section_no, 0)),
         ],
         title,
       ),
@@ -268,7 +271,7 @@ fn chapter_item(
     b,
     "a",
     [
-      Attr(b, "href", href(ch_no, 0)),
+      Attr(b, "href", href(ch_no, 0, 0)),
     ],
     title,
   )
