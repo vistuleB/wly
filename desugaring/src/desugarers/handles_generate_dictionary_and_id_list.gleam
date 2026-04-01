@@ -139,7 +139,7 @@ fn check_no_handles_no_ids(
           Error(DesugaringError(attr.blame, "no page path at handle '" <> name <> "'"))
         }
         "id" -> {
-          Error(DesugaringError(attr.blame, "no page path at id '" <> name <> "'"))
+          Error(DesugaringError(attr.blame, "no page path at id '" <> attr.val <> "'"))
         }
         _ -> Ok(Nil)
       }
@@ -349,6 +349,32 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
                       <> Math
                         <>
                           '$x^2 + b^2$'
+                "
+    ),
+    infra.AssertiveTestData(
+      param: "local_path",
+      source:   "
+                <> root
+                  <> ChapterChapter
+                    local_path=./ch2.html
+                    <>
+                      'some text'
+                    <> Math
+                      handle=other-name#page|BB|_24-other-id
+                      <>
+                        '$y^2$'
+                ",
+      expected: "
+                <> GrandWrapper
+                  handle=other-name|#page|BB|_24-other-id|./ch2.html
+                  <> root
+                    <> ChapterChapter
+                      local_path=./ch2.html
+                      <>
+                        'some text'
+                      <> Math
+                        <>
+                          '$y^2$'
                 "
     ),
   ]
