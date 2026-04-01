@@ -718,6 +718,78 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
                       <>
                         '$x^2 + b^2$'
                 ",
+    ),
+    infra.AssertiveTestData(
+      param:    #(
+                  "path",
+                  "InChapterLink",
+                  "a",
+                  [#("class", "handle-in-chapter-link")],
+                  [#("class", "handle-out-chapter-link")],
+                ),
+      source:   "
+                <> GrandWrapper
+                  handle=fluescence|#page|AA|_23-super-id|./ch1.html
+                  handle=other||BB|_24-other-id|./ch1.html
+                  <> root
+                    <> Chapter
+                      path=./ch1.html
+                      <>
+                        'link to >>fluescence and link to >>other#page.'
+                ",
+      expected: "
+                <> root
+                  <> Chapter
+                    path=./ch1.html
+                    <>
+                      'link to '
+                    <> InChapterLink
+                      href=./ch1.html
+                      class=handle-in-chapter-link
+                      <>
+                        'AA'
+                    <>
+                      ' and link to '
+                    <> InChapterLink
+                      href=./ch1.html
+                      class=handle-in-chapter-link
+                      <>
+                        'BB'
+                    <>
+                      '.'
+                ",
+    ),
+    infra.AssertiveTestData(
+      param:    #(
+                  "path",
+                  "InChapterLink",
+                  "a",
+                  [#("class", "handle-in-chapter-link")],
+                  [#("class", "handle-out-chapter-link")],
+                ),
+      source:   "
+                <> GrandWrapper
+                  handle=fluescence||AA|_23-super-id|./ch1.html
+                  <> root
+                    <> Chapter
+                      path=./ch2.html
+                      <>
+                        'link to >>fluescence#page.'
+                ",
+      expected: "
+                <> root
+                  <> Chapter
+                    path=./ch2.html
+                    <>
+                      'link to '
+                    <> a
+                      href=./ch1.html
+                      class=handle-out-chapter-link
+                      <>
+                        'AA'
+                    <>
+                      '.'
+                ",
     )
   ]
 }
