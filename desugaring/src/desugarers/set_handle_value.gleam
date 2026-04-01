@@ -103,7 +103,7 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
       source:   "
                   <> root
                     <> Chapter
-                      handle=complexity-theory:page
+                      handle=complexity-theory#page
                       <>
                         'Chapter content'
                     <> Chapter
@@ -118,7 +118,7 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
       expected: "
                   <> root
                     <> Chapter
-                      handle=complexity-theory:page ::øøChapterCounter
+                      handle=complexity-theory#page ::øøChapterCounter
                       <>
                         'Chapter content'
                     <> Chapter
