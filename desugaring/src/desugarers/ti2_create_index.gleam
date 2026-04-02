@@ -61,7 +61,7 @@ fn header(root: VXML) -> VXML {
         [
           T(b, [Line(program.0, program.1)]),
           V(b, "br", [], []),
-          T(b, [Line(lecturer.0, lecturer.1 <> ","), Line(institution.0, institution.1 <> ",")]),
+          T(b, [Line(lecturer.0, lecturer.1 <> ","), Line(institution.0, institution.1)]),
         ],
       ),
     ]
