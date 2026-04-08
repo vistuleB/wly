@@ -29,7 +29,7 @@ fn wrap_in_list(
         [wrap, ..already_wrapped] |> list.reverse
       }
     }
-    [V(_, tag, _, _) as first, ..rest] if tag == inner.2 -> case currently_being_wrapped {
+    [V(_, tag, _, _) as first, ..rest] if tag == inner.2 || tag == inner.1 -> case currently_being_wrapped {
       [] -> wrap_in_list([first, ..already_wrapped], [], rest, inner)
       _ -> {
         let wrap = V(desugarer_blame(35), inner.1, [], currently_being_wrapped |> list.reverse)
@@ -84,9 +84,8 @@ fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
 //------------------------------------------------53
 /// For a specified parent tag, wraps consecutive
 /// children that do not have the 'to avoid' tag
-/// in a given wrapper tag.
-///
-/// The 'to avoid' tag children remain  unwrapped.
+/// in a given wrapper tag; automatically avoids the
+/// wrapper tag itself as well.
 pub fn constructor(param: Param) -> Desugarer {
   Desugarer(
     name: name,
@@ -121,6 +120,33 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
                     <> wrapper
                       <> p
                       <> q
+                    <> avoid_me
+                    <> avoid_me
+                    <> wrapper
+                      <> q
+                ",
+    ),
+    infra.AssertiveTestData(
+      param: #("parent", "wrapper", "avoid_me", GoBack),
+      source:   "
+                <> root
+                  <> parent
+                    <> wrapper
+                    <> p
+                    <> q
+                    <> wrapper
+                    <> avoid_me
+                    <> avoid_me
+                    <> q
+                ",
+      expected: "
+                <> root
+                  <> parent
+                    <> wrapper
+                    <> wrapper
+                      <> p
+                      <> q
+                    <> wrapper
                     <> avoid_me
                     <> avoid_me
                     <> wrapper
