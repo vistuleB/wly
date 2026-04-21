@@ -1946,6 +1946,29 @@ pub fn first_in_list(
   }
 }
 
+pub fn v_is_last_child(
+  node: VXML,
+  ancestors: List(VXML),
+) -> Option(VXML) {
+
+  use parent <- on.error_ok(
+    ancestors |> list.first,
+    on_error: fn(_) { None }
+  ) 
+
+  use last_child <- on.error_ok(
+    parent |> v_get_children |> list.last,
+    on_error: fn(_) { None }
+  ) 
+
+  use <- on.true_false(
+    v_get_tag(node) == v_get_tag(last_child),
+    on_false: fn() { None }
+  )
+
+  Some(node)
+}
+
 pub fn v_first_child_with_tag(vxml: VXML, tag: String) -> Option(VXML) {
   let assert V(_, _, _, children) = vxml
   first_in_list(children, tag)

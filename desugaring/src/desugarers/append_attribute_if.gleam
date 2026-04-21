@@ -20,26 +20,29 @@ import blame as bl
 
 fn nodemap(
   vxml: VXML,
+  ancestors: List(VXML),
   inner: InnerParam,
-) -> #(VXML, TrafficLight) {
+) -> Result(VXML, DesugaringError) {
   case vxml {
     V(_, tag, attrs, _) if tag == inner.0 -> {
-      case inner.1(vxml) {
-        True -> #(V(..vxml, attrs: list.append(attrs, [inner.2])), inner.3)
-        False -> #(vxml, Continue)
+      case inner.1(vxml, ancestors) {
+        True -> Ok(V(..vxml, attrs: list.append(attrs, [inner.2])))
+        False -> Ok(vxml)
       }
     }
-    _ -> #(vxml, Continue)
+    _ -> Ok(vxml)
   }
 }
 
-fn nodemap_factory(inner: InnerParam) -> n2t.EarlyReturnOneToOneNoErrorNodemap {
-  nodemap(_, inner)
+fn nodemap_factory(inner: InnerParam) -> n2t.FancyOneToOneNodemap {
+  fn(node, ancestors, _, _, _) {
+    nodemap(node, ancestors, inner)
+  }
 }
 
 fn transform_factory(inner: InnerParam) -> DesugarerTransform {
   nodemap_factory(inner)
-  |> n2t.early_return_one_to_one_no_error_nodemap_2_desugarer_transform
+  |> n2t.fancy_one_to_one_nodemap_2_desugarer_transform
 }
 
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
@@ -52,9 +55,9 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
   |> Ok
 }
 
-type Param = #(String, fn(VXML) -> Bool, String, String,   TrafficLight)
-//             ↖ tag   ↖ condition       ↖ attr  ↖ value   ↖ early return or not
-type InnerParam = #(String, fn(VXML) -> Bool, Attr, TrafficLight)
+type Param = #(String, fn(VXML, List(VXML)) -> Bool, String, String,   TrafficLight)
+//             ↖ tag   ↖ condition             ↖ attr  ↖ value   ↖ early return or not
+type InnerParam = #(String, fn(VXML, List(VXML)) -> Bool, Attr, TrafficLight)
 
 pub const name = "append_attribute_if"
 fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
