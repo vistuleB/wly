@@ -5,7 +5,6 @@ import infrastructure.{
   type Desugarer,
   type DesugarerTransform,
   type DesugaringError,
-  type TrafficLight,
   Desugarer,
 } as infra
 import nodemaps_2_desugarer_transforms as n2t
@@ -52,14 +51,13 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
     param.0,
     param.1,
     Attr(desugarer_blame(54), param.2, param.3),
-    param.4,
   )
   |> Ok
 }
 
-type Param = #(String, fn(VXML, List(VXML), List(VXML), List(VXML), List(VXML)) -> Bool, String, String,   TrafficLight)
-//             ↖ tag   ↖ condition             ↖ attr  ↖ value   ↖ early return or not
-type InnerParam = #(String, fn(VXML, List(VXML), List(VXML), List(VXML), List(VXML)) -> Bool, Attr, TrafficLight)
+type Param = #(String, fn(VXML, List(VXML), List(VXML), List(VXML), List(VXML)) -> Bool, String, String)
+//             ↖ tag   ↖ condition                                                       ↖ attr  ↖ value   ↖ early return or not
+type InnerParam = #(String, fn(VXML, List(VXML), List(VXML), List(VXML), List(VXML)) -> Bool, Attr)
 
 pub const name = "append_attribute_if"
 fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
