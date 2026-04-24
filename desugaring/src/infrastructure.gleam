@@ -1949,24 +1949,24 @@ pub fn first_in_list(
 pub fn v_is_last_child(
   node: VXML,
   ancestors: List(VXML),
-) -> Option(VXML) {
+) -> Bool {
 
-  use parent <- on.error_ok(
+  use parent <- on.eager_error_ok(
     ancestors |> list.first,
-    on_error: fn(_) { None }
+    False,
   ) 
 
-  use last_child <- on.error_ok(
+  use last_child <- on.eager_error_ok(
     parent |> v_get_children |> list.last,
-    on_error: fn(_) { None }
+    False,
   ) 
 
-  use <- on.true_false(
+  use <- on.eager_true_false(
     v_get_tag(node) == v_get_tag(last_child),
-    on_false: fn() { None }
+    False,
   )
 
-  Some(node)
+  True
 }
 
 pub fn v_first_child_with_tag(vxml: VXML, tag: String) -> Option(VXML) {
