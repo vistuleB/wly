@@ -1,4 +1,3 @@
-import gleam/list
 import gleam/option
 import gleam/string.{inspect as ins}
 import infrastructure.{
@@ -9,8 +8,8 @@ import infrastructure.{
 } as infra
 import nodemaps_2_desugarer_transforms as n2t
 import vxml.{
-  type Attr,
   type VXML,
+  type Attr,
   Attr,
   V,
 }
@@ -25,9 +24,9 @@ fn nodemap(
   inner: InnerParam,
 ) -> VXML {
   case vxml {
-    V(_, tag, attrs, _) if tag == inner.0 -> {
-      case inner.1(vxml, ancestors, previous_siblings_before_mapping, previous_siblings_after_mapping, following_siblings_before_mapping) {
-        True -> V(..vxml, attrs: list.append(attrs, [inner.2]))
+    V(_, tag, attrs, _) if tag == inner.0 ->{
+      case inner.2(vxml, ancestors, previous_siblings_before_mapping, previous_siblings_after_mapping, following_siblings_before_mapping) {
+        True -> V(..vxml, attrs: [inner.1, ..attrs])
         False -> vxml
       }
     }
@@ -49,26 +48,30 @@ fn transform_factory(inner: InnerParam) -> DesugarerTransform {
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
   #(
     param.0,
-    param.1,
-    Attr(desugarer_blame(53), param.2, param.3),
+    Attr(desugarer_blame(51), "_", param.1 <> " ::++" <> param.1),
+    param.2,
   )
   |> Ok
 }
 
-type Param = #(String, infra.FancyConditionFn, String, String)
-//             ↖ tag   ↖ condition                                                       ↖ attr  ↖ value   ↖ early return or not
-type InnerParam = #(String, infra.FancyConditionFn, Attr)
-
-pub const name = "append_attribute_if"
+type Param = #(String, String, infra.FancyConditionFn)
+//             ↖       ↖        ↖
+//             tag     counter  condition
+type InnerParam = #(String, Attr, infra.FancyConditionFn)
 fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
+
+pub const name = "prepend_counter_incrementing_attribute"
 
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 // 🏖️🏖️ Desugarer 🏖️🏖️
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 //------------------------------------------------53
-/// append an attribute to a given tag if the node
-/// meets a condition
-pub fn constructor(param: Param) -> Desugarer {
+/// same as prepend_counter_incrementing_attribute
+/// with a condition function
+
+pub fn constructor(
+  param: Param,
+) -> Desugarer {
   Desugarer(
     name: name,
     stringified_param: option.Some(ins(param)),
@@ -84,8 +87,7 @@ pub fn constructor(param: Param) -> Desugarer {
 // 🌊🌊🌊 tests 🌊🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
 fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
-  [
-  ]
+  []
 }
 
 pub fn assertive_tests() {
