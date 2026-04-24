@@ -58,14 +58,14 @@ type TripleThreat(a, b, c) {
 
 fn warning_element(handle_name: String, blame: Blame) -> VXML {
   V(
-    desugarer_blame(67),
+    desugarer_blame(61),
     "InTextWarning",
-    // [Attr(desugarer_blame(69), "style", "color:red;background-color:yellow;")],
+    // [Attr(desugarer_blame(63), "style", "color:red;background-color:yellow;")],
     [],
     [
-      T(desugarer_blame(71), [
+      T(desugarer_blame(66), [
         Line(
-          desugarer_blame(71),
+          desugarer_blame(68),
           "undefined handle at "
             <> bl.blame_digest(blame)
             <> ": "
@@ -446,8 +446,8 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
     param.0,
     param.1,
     param.2,
-    param.3 |> infra.string_pairs_2_attrs(desugarer_blame(446)),
-    param.4 |> infra.string_pairs_2_attrs(desugarer_blame(447)),
+    param.3 |> infra.string_pairs_2_attrs(desugarer_blame(449)),
+    param.4 |> infra.string_pairs_2_attrs(desugarer_blame(450)),
     handles_regexp,
     // inner.5
   )
