@@ -44,6 +44,11 @@ pub type CSSUnit {
   EM
 }
 
+// ************************************************************
+// Helper Types
+// ************************************************************
+pub type FancyConditionFn = fn(VXML, List(VXML), List(VXML), List(VXML), List(VXML)) -> Bool
+
 pub fn parse_to_float(s: String) -> Result(Float, Nil) {
   case float.parse(s), int.parse(s) {
     Ok(number), _ -> Ok(number)
@@ -1944,6 +1949,20 @@ pub fn first_in_list(
     [_, ..rest] -> first_in_list(rest, tag)
     [] -> None
   }
+}
+
+pub fn v_is_first_ancestor(
+  ancestors: List(VXML),
+  tag: String, 
+) -> Bool {
+
+  use first_anc <- on.eager_error_ok(
+    ancestors |> list.first,
+    False,
+  ) 
+
+  v_get_tag(first_anc) == tag
+
 }
 
 pub fn v_first_child_with_tag(vxml: VXML, tag: String) -> Option(VXML) {

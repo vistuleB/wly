@@ -1,19 +1,9 @@
-import gleam/list
 import gleam/option
+import gleam/list
 import gleam/string.{inspect as ins}
-import infrastructure.{
-  type Desugarer,
-  type DesugarerTransform,
-  type DesugaringError,
-  Desugarer,
-} as infra
+import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as infra
 import nodemaps_2_desugarer_transforms as n2t
-import vxml.{
-  type Attr,
-  type VXML,
-  Attr,
-  V,
-}
+import vxml.{type VXML, Line, T, V}
 import blame as bl
 
 fn nodemap(
@@ -25,12 +15,11 @@ fn nodemap(
   inner: InnerParam,
 ) -> VXML {
   case vxml {
-    V(_, tag, attrs, _) if tag == inner.0 -> {
-      case inner.1(vxml, ancestors, previous_siblings_before_mapping, previous_siblings_after_mapping, following_siblings_before_mapping) {
-        True -> V(..vxml, attrs: list.append(attrs, [inner.2]))
+    V(_, tag, _, children) if tag == inner.0 ->
+      case inner.2(vxml, ancestors, previous_siblings_before_mapping, previous_siblings_after_mapping, following_siblings_before_mapping) {
+        True -> V(..vxml, children: [inner.1, ..children])
         False -> vxml
       }
-    }
     _ -> vxml
   }
 }
@@ -47,27 +36,35 @@ fn transform_factory(inner: InnerParam) -> DesugarerTransform {
 }
 
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
+  let blame = desugarer_blame(39)
   #(
     param.0,
-    param.1,
-    Attr(desugarer_blame(53), param.2, param.3),
+    T(
+      blame,
+      param.1
+      |> string.split("\n")
+      |> list.map(Line(blame, _))
+    ),
+    param.2,
   )
   |> Ok
 }
 
-type Param = #(String, infra.FancyConditionFn, String, String)
-//             ↖ tag   ↖ condition                                                       ↖ attr  ↖ value   ↖ early return or not
-type InnerParam = #(String, infra.FancyConditionFn, Attr)
+type Param = #(String, String, infra.FancyConditionFn)
+//             ↖       ↖       ↖
+//             tag     text    condition
+type InnerParam = #(String, VXML, infra.FancyConditionFn)
 
-pub const name = "append_attribute_if"
+pub const name = "prepend_text_node_if_fancy"
 fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
 
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 // 🏖️🏖️ Desugarer 🏖️🏖️
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 //------------------------------------------------53
-/// append an attribute to a given tag if the node
-/// meets a condition
+/// Same as prepend_text_node but with a fancy
+/// condition function — only prepends the text node
+/// when the condition returns True.
 pub fn constructor(param: Param) -> Desugarer {
   Desugarer(
     name: name,
@@ -84,8 +81,7 @@ pub fn constructor(param: Param) -> Desugarer {
 // 🌊🌊🌊 tests 🌊🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
 fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
-  [
-  ]
+  []
 }
 
 pub fn assertive_tests() {
