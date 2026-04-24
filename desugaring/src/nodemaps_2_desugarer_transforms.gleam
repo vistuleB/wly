@@ -1652,6 +1652,56 @@ pub fn early_return_one_to_one_no_error_nodemap_2_desugarer_transform_with_forbi
 }
 
 // ************************************************************
+// EarlyReturnFancyOneToOneNoErrorNodemap
+// ************************************************************
+
+pub type EarlyReturnFancyOneToOneNoErrorNodemap =
+  fn(VXML, List(VXML), List(VXML), List(VXML), List(VXML)) -> #(VXML, TrafficLight)
+
+fn early_return_fancy_one_to_one_no_error_nodemap_walk(
+  node: VXML,
+  ancestors: List(VXML),
+  previous_siblings_before_mapping: List(VXML),
+  previous_siblings_after_mapping: List(VXML),
+  following_siblings_before_mapping: List(VXML),
+  nodemap: EarlyReturnFancyOneToOneNoErrorNodemap,
+) -> VXML {
+  let #(node, signal) = nodemap(node, ancestors, previous_siblings_before_mapping, previous_siblings_after_mapping, following_siblings_before_mapping)
+  case node, signal {
+    V(_, _, _, children), Continue -> {
+      let children_ancestors = [node, ..ancestors]
+      let children =
+        list.fold(
+          children,
+          #([], [], list.drop(children, 1)),
+          fn(acc, child) {
+            let mapped_child =
+              early_return_fancy_one_to_one_no_error_nodemap_walk(child, children_ancestors, acc.0, acc.1, acc.2, nodemap)
+            #(
+              [child, ..acc.0],
+              [mapped_child, ..acc.1],
+              list.drop(acc.2, 1),
+            )
+          }
+        )
+        |> fn(acc) { acc.1 |> list.reverse }
+      V(..node, children: children)
+    }
+    _, _ -> node
+  }
+}
+
+pub fn early_return_fancy_one_to_one_no_error_nodemap_2_desugarer_transform(
+  nodemap: EarlyReturnFancyOneToOneNoErrorNodemap,
+) -> DesugarerTransform {
+  fn(vxml) {
+    early_return_fancy_one_to_one_no_error_nodemap_walk(vxml, [], [], [], [], nodemap)
+    |> add_no_warnings
+    |> Ok
+  }
+}
+
+// ************************************************************
 // EarlyReturnOneToOneNodemap
 // ************************************************************
 
