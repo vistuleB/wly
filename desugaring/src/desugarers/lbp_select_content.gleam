@@ -18,12 +18,9 @@ import nodemaps_2_desugarer_transforms as n2t
 import on
 
 fn with_handle_value(thing: VXML) -> Result(#(String, VXML), DesugaringError) {
-  let assert V(blame, tag, attrs, _) = thing
+  let assert V(blame, _, attrs, _) = thing
   case infra.attrs_val_of_unique_key(attrs, "handle", blame) {
-    Error(_) -> {
-      // Ok(#("", thing))
-      Error(DesugaringError(blame, "'" <> tag <> "' tag missing handle attribute"))
-    }
+    Error(_) -> Ok(#("", thing))
     Ok(x) -> Ok(#(x, thing))
   }
 }
@@ -53,6 +50,7 @@ fn set_exercises_to(chapter: VXML, handles: List(String)) -> Result(#(VXML, List
     |> result.map(fn(pairs) { list.filter(pairs, fn(pair) {pair.0 != ""})})
     |> result.map(dict.from_list)
   )
+  string.inspect(handle_2_exercise_dict) |> io.print
   let #(exercises, warnings) = list.fold(
     handles,
     #([], []),
