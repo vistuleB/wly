@@ -50,7 +50,6 @@ fn set_exercises_to(chapter: VXML, handles: List(String)) -> Result(#(VXML, List
     |> result.map(fn(pairs) { list.filter(pairs, fn(pair) {pair.0 != ""})})
     |> result.map(dict.from_list)
   )
-  string.inspect(handle_2_exercise_dict) |> io.print
   let #(exercises, warnings) = list.fold(
     handles,
     #([], []),
