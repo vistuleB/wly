@@ -1,5 +1,5 @@
 import gleam/dict
-import gleam/option
+import gleam/option.{Some, None}
 import gleam/list
 import gleam/result
 import gleam/string
@@ -36,47 +36,27 @@ fn with_chapter_value(thing: VXML) -> Result(#(String, VXML), DesugaringError) {
   }
 }
 
-fn set_exercises_to(chapter: VXML, handles: List(String)) -> Result(#(VXML, List(DesugaringWarning)), DesugaringError) {
-  let assert V(_, _, _, children) = chapter
-  let #(exercises_node, other_children) = case children |> list.reverse {
-    [V(_, "Exercises", _, _) as first, ..rest] -> #(first, rest)
-    rest -> #(V(desugarer_blame(46), "Exercises", [], []), rest)
-  }
-  let assert V(_, "Exercises", _, exercises) = exercises_node
-  use handle_2_exercise_dict <- on.ok(
-    exercises
-    |> list.filter(infra.is_v_and_tag_equals(_, "Exercise"))
-    |> list.try_map(with_handle_value)
-    |> result.map(fn(pairs) { list.filter(pairs, fn(pair) {pair.0 != ""})})
-    |> result.map(dict.from_list)
-  )
-  let #(exercises, warnings) = list.fold(
-    handles,
-    #([], []),
-    fn(acc, handle) {
-      let #(exercises, warnings) = acc
-      case dict.get(handle_2_exercise_dict, handle) {
-        Ok(x) -> #([x, ..exercises], warnings)
-        _ -> {
-          let warning = DesugaringWarning(desugarer_blame(64), "no Exercise with handle '" <> handle <> "'")
-          #(exercises, [warning, ..warnings])
-        }
+fn exercise_filterer_nodemap(node: VXML, handles: List(String)) -> List(VXML) {
+  case node {
+    V(_, "Exercises", _, []) -> []
+      V(_, "Exercise", attrs, _) -> case infra.attrs_first_with_key(attrs, "handle") {
+      None -> [node]
+      Some(x) -> case list.contains(handles, x.val) {
+        True -> [node]
+        False -> []
       }
     }
-  )
-
-  let children = case exercises {
-    [] -> other_children |> list.reverse
-    _ -> {
-      let exercises_node = V(..exercises_node, children: exercises |> list.reverse)
-      [exercises_node, ..other_children] |> list.reverse
-    }
+    _ -> [node]
   }
+}
 
-  Ok(#(
-    V(..chapter, children: children),
-    warnings,
-  ))
+fn set_exercises_to(chapter: VXML, handles: List(String)) -> Result(#(VXML, List(DesugaringWarning)), DesugaringError) {
+  let nodemap = exercise_filterer_nodemap(_, handles)
+  case n2t.one_to_many_no_error_nodemap_walk(chapter, nodemap) {
+    [root] -> Ok(#(root, []))
+    [] -> Error(DesugaringError(desugarer_blame(56), "empty chapter after filtering exercises"))
+    _ -> panic as "nodemap walk returned list with > 1 node (???)"
+  }
 }
 
 fn at_root(root: VXML) -> Result(#(VXML, List(DesugaringWarning)), DesugaringError) {
@@ -109,19 +89,18 @@ fn at_root(root: VXML) -> Result(#(VXML, List(DesugaringWarning)), DesugaringErr
     |> result.map(dict.from_list)
   )
 
-  use chapter_selection_node <- on.error_ok(
+  use chapter_selection_node <- on.eager_error_ok(
     list.find(
       others,
       infra.is_v_and_tag_equals(_, "ChapterSelection"),
     ),
-    fn(_) { Ok(#(V(..root, children: chapters), [])) },
+    Error(DesugaringError(desugarer_blame(150), "'ChapterSelection' node not found")),
   )
 
-  let selected_chapter_handles = {
+  let handles_of_selected_chapters = {
     let assert V(_, _, _, children) = chapter_selection_node
     children
-    |> list.map(infra.descendant_lines)
-    |> list.flatten
+    |> list.flat_map(infra.descendant_lines)
     |> list.map(fn(line) {
       assert string.starts_with(line.content, ">>")
       let content = string.drop_start(line.content, 2)
@@ -134,7 +113,7 @@ fn at_root(root: VXML) -> Result(#(VXML, List(DesugaringWarning)), DesugaringErr
 
   use #(chapters, warnings) <- on.ok(
     list.try_fold(
-      selected_chapter_handles,
+      handles_of_selected_chapters,
       #([], []),
       fn(acc, handle) {
         use exercise_handles <- on.stay(

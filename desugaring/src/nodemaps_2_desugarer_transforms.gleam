@@ -320,7 +320,7 @@ pub type OneToManyNoErrorNodemap =
 
 // *** without forbidden ***
 
-fn one_to_many_no_error_nodemap_walk(
+pub fn one_to_many_no_error_nodemap_walk(
   node: VXML,
   nodemap: OneToManyNoErrorNodemap,
 ) -> List(VXML) {
