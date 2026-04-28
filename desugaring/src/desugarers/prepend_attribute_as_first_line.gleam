@@ -65,11 +65,11 @@ fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
 /// finds nodes of tag 'tag', and prepends
 /// the value of the attr with key 'attr_key'
 /// as the first line of the first text node child.
-/// If no text node exists, one is created as the first child.
-/// If the attr doesn't exist, the node is left unchanged. 
-/// Empty attr values are ignored.
-///
-/// Processes all matching nodes depth-first.
+/// If no text node exists, one is created as the 
+/// first child.If the attr doesn't exist, the node 
+/// is left unchanged. Empty attr values are 
+/// ignored. Processes all matching nodes 
+/// depth-first.
 pub fn constructor(param: Param) -> Desugarer {
   Desugarer(
     name: name,
