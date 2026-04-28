@@ -146,6 +146,7 @@ import desugarers/prepend
 import desugarers/prepend_append_to_text_children_of
 import desugarers/prepend_attribute
 import desugarers/prepend_attribute__outside
+import desugarers/prepend_attribute_as_first_line
 import desugarers/prepend_attribute_as_text
 import desugarers/prepend_attribute_if
 import desugarers/prepend_counter_incrementing_attribute
@@ -158,9 +159,9 @@ import desugarers/prepend_text_node__outside
 import desugarers/prepend_text_node_if_fancy
 import desugarers/prepend_text_node_if_has_ancestor_else__batch
 import desugarers/rearrange_links
-import desugarers/rearrange_links__batch
 import desugarers/rearrange_links_4_pre_tokenized_src
 import desugarers/rearrange_links_4_pre_tokenized_src__batch
+import desugarers/rearrange_links__batch
 import desugarers/reassign_text_node_blame_to_blame_of_first_nonempty_line_in_text_node
 import desugarers/regex_split_and_replace__batch__outside
 import desugarers/regex_split_and_replace__outside
@@ -249,8 +250,8 @@ import desugarers/wrap_children_up_to_custom
 import desugarers/wrap_custom
 import desugarers/wrap_each_child
 import desugarers/wrap_if_child_of
-import desugarers/wrap_if_not_child_of
 import desugarers/wrap_if_first_child_of
+import desugarers/wrap_if_not_child_of
 import desugarers/wrap_if_text_contains
 import desugarers/wrap_with_custom_if_child_of
 import desugarers/wrap_with_custom_if_not_child_of
@@ -402,6 +403,7 @@ pub const prepend = prepend.constructor
 pub const prepend_append_to_text_children_of = prepend_append_to_text_children_of.constructor
 pub const prepend_attribute = prepend_attribute.constructor
 pub const prepend_attribute__outside = prepend_attribute__outside.constructor
+pub const prepend_attribute_as_first_line = prepend_attribute_as_first_line.constructor
 pub const prepend_attribute_as_text = prepend_attribute_as_text.constructor
 pub const prepend_attribute_if = prepend_attribute_if.constructor
 pub const prepend_counter_incrementing_attribute = prepend_counter_incrementing_attribute.constructor
@@ -414,9 +416,9 @@ pub const prepend_text_node__outside = prepend_text_node__outside.constructor
 pub const prepend_text_node_if_fancy = prepend_text_node_if_fancy.constructor
 pub const prepend_text_node_if_has_ancestor_else__batch = prepend_text_node_if_has_ancestor_else__batch.constructor
 pub const rearrange_links = rearrange_links.constructor
-pub const rearrange_links__batch = rearrange_links__batch.constructor
 pub const rearrange_links_4_pre_tokenized_src = rearrange_links_4_pre_tokenized_src.constructor
 pub const rearrange_links_4_pre_tokenized_src__batch = rearrange_links_4_pre_tokenized_src__batch.constructor
+pub const rearrange_links__batch = rearrange_links__batch.constructor
 pub const reassign_text_node_blame_to_blame_of_first_nonempty_line_in_text_node = reassign_text_node_blame_to_blame_of_first_nonempty_line_in_text_node.constructor
 pub const regex_split_and_replace__batch__outside = regex_split_and_replace__batch__outside.constructor
 pub const regex_split_and_replace__outside = regex_split_and_replace__outside.constructor
@@ -505,8 +507,8 @@ pub const wrap_children_up_to_custom = wrap_children_up_to_custom.constructor
 pub const wrap_custom = wrap_custom.constructor
 pub const wrap_each_child = wrap_each_child.constructor
 pub const wrap_if_child_of = wrap_if_child_of.constructor
-pub const wrap_if_not_child_of = wrap_if_not_child_of.constructor
 pub const wrap_if_first_child_of = wrap_if_first_child_of.constructor
+pub const wrap_if_not_child_of = wrap_if_not_child_of.constructor
 pub const wrap_if_text_contains = wrap_if_text_contains.constructor
 pub const wrap_with_custom_if_child_of = wrap_with_custom_if_child_of.constructor
 pub const wrap_with_custom_if_not_child_of = wrap_with_custom_if_not_child_of.constructor
@@ -659,6 +661,7 @@ pub const assertive_tests : List(fn() -> infra.AssertiveTestCollection) = [
   prepend_append_to_text_children_of.assertive_tests,
   prepend_attribute.assertive_tests,
   prepend_attribute__outside.assertive_tests,
+  prepend_attribute_as_first_line.assertive_tests,
   prepend_attribute_as_text.assertive_tests,
   prepend_attribute_if.assertive_tests,
   prepend_counter_incrementing_attribute.assertive_tests,
@@ -671,9 +674,9 @@ pub const assertive_tests : List(fn() -> infra.AssertiveTestCollection) = [
   prepend_text_node_if_fancy.assertive_tests,
   prepend_text_node_if_has_ancestor_else__batch.assertive_tests,
   rearrange_links.assertive_tests,
-  rearrange_links__batch.assertive_tests,
   rearrange_links_4_pre_tokenized_src.assertive_tests,
   rearrange_links_4_pre_tokenized_src__batch.assertive_tests,
+  rearrange_links__batch.assertive_tests,
   reassign_text_node_blame_to_blame_of_first_nonempty_line_in_text_node.assertive_tests,
   regex_split_and_replace__batch__outside.assertive_tests,
   regex_split_and_replace__outside.assertive_tests,
@@ -762,8 +765,8 @@ pub const assertive_tests : List(fn() -> infra.AssertiveTestCollection) = [
   wrap_custom.assertive_tests,
   wrap_each_child.assertive_tests,
   wrap_if_child_of.assertive_tests,
-  wrap_if_not_child_of.assertive_tests,
   wrap_if_first_child_of.assertive_tests,
+  wrap_if_not_child_of.assertive_tests,
   wrap_if_text_contains.assertive_tests,
   wrap_with_custom_if_child_of.assertive_tests,
   wrap_with_custom_if_not_child_of.assertive_tests,
