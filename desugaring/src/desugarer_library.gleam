@@ -230,6 +230,7 @@ import desugarers/unwrap__outside
 import desugarers/unwrap_if_child_of__batch
 import desugarers/unwrap_if_descendant_of
 import desugarers/unwrap_if_descendant_of__batch
+import desugarers/unwrap_if_first_child
 import desugarers/unwrap_if_no_child_meets_condition
 import desugarers/unwrap_if_no_child_meets_condition__batch
 import desugarers/unwrap_if_unique_child_is
@@ -487,6 +488,7 @@ pub const unwrap__outside = unwrap__outside.constructor
 pub const unwrap_if_child_of__batch = unwrap_if_child_of__batch.constructor
 pub const unwrap_if_descendant_of = unwrap_if_descendant_of.constructor
 pub const unwrap_if_descendant_of__batch = unwrap_if_descendant_of__batch.constructor
+pub const unwrap_if_first_child = unwrap_if_first_child.constructor
 pub const unwrap_if_no_child_meets_condition = unwrap_if_no_child_meets_condition.constructor
 pub const unwrap_if_no_child_meets_condition__batch = unwrap_if_no_child_meets_condition__batch.constructor
 pub const unwrap_if_unique_child_is = unwrap_if_unique_child_is.constructor
@@ -745,6 +747,7 @@ pub const assertive_tests : List(fn() -> infra.AssertiveTestCollection) = [
   unwrap_if_child_of__batch.assertive_tests,
   unwrap_if_descendant_of.assertive_tests,
   unwrap_if_descendant_of__batch.assertive_tests,
+  unwrap_if_first_child.assertive_tests,
   unwrap_if_no_child_meets_condition.assertive_tests,
   unwrap_if_no_child_meets_condition__batch.assertive_tests,
   unwrap_if_unique_child_is.assertive_tests,
