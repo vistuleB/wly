@@ -5,14 +5,14 @@ import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type 
 import nodemaps_2_desugarer_transforms as n2t
 import vxml.{type VXML, V}
 
-fn filter_children(
+fn map_children(
   children: List(VXML),
   inner: InnerParam
 ) -> List(VXML) {
   case children {
     [V(_, tag, _, grandchildren), ..more] if tag == inner -> case grandchildren {
-      [] -> filter_children(more, inner)
-      _ -> filter_children(list.append(grandchildren, more), inner)
+      [] -> map_children(more, inner)
+      _ -> map_children(list.append(grandchildren, more), inner)
     }
     _ -> children
   }
@@ -21,20 +21,20 @@ fn filter_children(
 fn nodemap(
   node: VXML,
   inner: InnerParam,
-) -> #(VXML, infra.TrafficLight) {
+) -> VXML {
   case node {
-    V(_, _, _, children) -> #(V(..node, children: filter_children(children, inner)), infra.Continue)
-    _ -> #(node, infra.Continue)
+    V(_, _, _, children) -> V(..node, children: map_children(children, inner))
+    _ -> node
   }
 }
 
-fn nodemap_factory(inner: InnerParam) -> n2t.EarlyReturnOneToOneNoErrorNodemap {
+fn nodemap_factory(inner: InnerParam) -> n2t.OneToOneNoErrorNodemap {
   nodemap(_, inner)
 }
 
 fn transform_factory(inner: InnerParam) -> DesugarerTransform {
   nodemap_factory(inner)
-  |> n2t.early_return_one_to_one_no_error_nodemap_2_desugarer_transform()
+  |> n2t.one_to_one_no_error_nodemap_2_desugarer_transform()
 }
 
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
