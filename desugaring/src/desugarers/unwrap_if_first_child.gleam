@@ -1,42 +1,40 @@
-import gleam/list
 import gleam/option
+import gleam/list
 import gleam/string.{inspect as ins}
 import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as infra
 import nodemaps_2_desugarer_transforms as n2t
 import vxml.{type VXML, V}
 
-fn nodemap(
-  node: VXML,
-  previous_siblings: List(VXML),
-  inner: InnerParam,
+fn filter_children(
+  children: List(VXML),
+  inner: InnerParam
 ) -> List(VXML) {
-  case node {
-    V(_, tag, _, children) if tag == inner -> {
-      // We check if all previous siblings are whitespace text nodes
-      case list.all(previous_siblings, infra.is_t_and_is_whitespace) {
-        True -> children
-        False -> [node]
-      }
+  case children {
+    [V(_, tag, _, grandchildren), ..more] if tag == inner -> case grandchildren {
+      [] -> filter_children(more, inner)
+      _ -> filter_children(list.append(grandchildren, more), inner)
     }
-    _ -> [node]
+    _ -> children
   }
 }
 
-fn nodemap_factory(inner: InnerParam) -> n2t.FancyOneToManyNoErrorNodemap {
-  fn(
-    vxml: VXML,
-    _: List(VXML),
-    _: List(VXML),
-    previous_siblings_after_mapping: List(VXML),
-    _: List(VXML),
-  ) {
-    nodemap(vxml, previous_siblings_after_mapping, inner)
+fn nodemap(
+  node: VXML,
+  inner: InnerParam,
+) -> #(VXML, infra.TrafficLight) {
+  case node {
+    V(_, _, _, children) -> #(V(..node, children: filter_children(children, inner)), infra.Continue)
+    _ -> #(node, infra.Continue)
   }
+}
+
+fn nodemap_factory(inner: InnerParam) -> n2t.EarlyReturnOneToOneNoErrorNodemap {
+  nodemap(_, inner)
 }
 
 fn transform_factory(inner: InnerParam) -> DesugarerTransform {
   nodemap_factory(inner)
-  |> n2t.fancy_one_to_many_no_error_nodemap_2_desugarer_transform()
+  |> n2t.early_return_one_to_one_no_error_nodemap_2_desugarer_transform()
 }
 
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
@@ -44,8 +42,8 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
 }
 
 type Param = String
-//             ↖
-//             tag to be unwrapped if it's the first child
+//           ↖
+//           tag to be unwrapped if it's the first child
 type InnerParam = Param
 
 pub const name = "unwrap_if_first_child"
@@ -54,12 +52,12 @@ pub const name = "unwrap_if_first_child"
 // 🏖️🏖️ Desugarer 🏖️🏖️
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 //------------------------------------------------53
-/// Unwraps a given tag when it is the first 
-/// non-whitespace child of its parent. Because the 
-/// transformation is applied depth-first and the 
-/// fancy transform handles the children first, it 
-/// effectively unwraps multiple levels of the same 
-/// tag if they are nested at the start.
+/// Unwraps a given tag when it occurs as the first
+/// child of its parent, replacing the tag by its
+/// children or just deleting it, and recurses by
+/// treating re-processing the parent so that if the
+/// same tag is found again as the first child it
+/// will unwrap it again, etc.
 pub fn constructor(param: Param) -> Desugarer {
   Desugarer(
     name: name,
@@ -88,6 +86,45 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
                 ",
       expected: "
                 <> Proof
+                  <>
+                    'some text'
+                ",
+    ),
+    infra.AssertiveTestData(
+      param: "WriterlyBlankLine",
+      source: "
+                <> Proof
+                  <> WriterlyBlankLine
+                    <> Granchild1
+                    <> Granchild2
+                  <> WriterlyBlankLine
+                    <> Granchild3
+                  <>
+                    'some text'
+                ",
+      expected: "
+                <> Proof
+                  <> Granchild1
+                  <> Granchild2
+                  <> WriterlyBlankLine
+                    <> Granchild3
+                  <>
+                    'some text'
+                ",
+    ),
+    infra.AssertiveTestData(
+      param: "WriterlyBlankLine",
+      source: "
+                <> Proof
+                  <> WriterlyBlankLine
+                    <> WriterlyBlankLine
+                    <> Granchild2
+                  <>
+                    'some text'
+                ",
+      expected: "
+                <> Proof
+                  <> Granchild2
                   <>
                     'some text'
                 ",
