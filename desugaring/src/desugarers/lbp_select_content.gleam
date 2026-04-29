@@ -54,7 +54,7 @@ fn set_exercises_to(chapter: VXML, handles: List(String)) -> Result(#(VXML, List
   let nodemap = exercise_filterer_nodemap(_, handles)
   case n2t.one_to_many_no_error_nodemap_walk(chapter, nodemap) {
     [root] -> Ok(#(root, []))
-    [] -> Error(DesugaringError(desugarer_blame(56), "empty chapter after filtering exercises"))
+    [] -> Error(DesugaringError(desugarer_blame(57), "empty chapter after filtering exercises"))
     _ -> panic as "nodemap walk returned list with > 1 node (???)"
   }
 }
@@ -94,7 +94,7 @@ fn at_root(root: VXML) -> Result(#(VXML, List(DesugaringWarning)), DesugaringErr
       others,
       infra.is_v_and_tag_equals(_, "ChapterSelection"),
     ),
-    Error(DesugaringError(desugarer_blame(150), "'ChapterSelection' node not found")),
+    Error(DesugaringError(desugarer_blame(97), "'ChapterSelection' node not found")),
   )
 
   let handles_of_selected_chapters = {
@@ -133,7 +133,7 @@ fn at_root(root: VXML) -> Result(#(VXML, List(DesugaringWarning)), DesugaringErr
               |> on.Stay
             }
             Error(Nil) -> {
-              let warning = DesugaringWarning(desugarer_blame(160), "no '|> In' exercise list found for chapter '" <> handle <> "'")
+              let warning = DesugaringWarning(desugarer_blame(136), "no '|> In' exercise list found for chapter '" <> handle <> "'")
               on.Return(Ok(#(acc.0, [warning, ..acc.1])))
             }
           }
@@ -144,7 +144,7 @@ fn at_root(root: VXML) -> Result(#(VXML, List(DesugaringWarning)), DesugaringErr
           fn(_) {
             Ok(#(
               acc.0,
-              [DesugaringWarning(desugarer_blame(171), "no '|> In' exercise list found for chapter '" <> handle <> "'"), ..acc.1],
+              [DesugaringWarning(desugarer_blame(147), "no '|> In' exercise list found for chapter '" <> handle <> "'"), ..acc.1],
             ))
           }
         )

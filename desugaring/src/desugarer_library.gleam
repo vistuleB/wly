@@ -148,8 +148,8 @@ import desugarers/prepend_attribute
 import desugarers/prepend_attribute__outside
 import desugarers/prepend_attribute_as_first_line
 import desugarers/prepend_attribute_as_text
+import desugarers/prepend_attribute_as_wrapped_text_else_custom
 import desugarers/prepend_attribute_if
-import desugarers/prepend_attribute_wrapped_else_custom
 import desugarers/prepend_counter_incrementing_attribute
 import desugarers/prepend_counter_incrementing_attribute__outside
 import desugarers/prepend_counter_incrementing_attribute_if_fancy
@@ -160,9 +160,9 @@ import desugarers/prepend_text_node__outside
 import desugarers/prepend_text_node_if_fancy
 import desugarers/prepend_text_node_if_has_ancestor_else__batch
 import desugarers/rearrange_links
+import desugarers/rearrange_links__batch
 import desugarers/rearrange_links_4_pre_tokenized_src
 import desugarers/rearrange_links_4_pre_tokenized_src__batch
-import desugarers/rearrange_links__batch
 import desugarers/reassign_text_node_blame_to_blame_of_first_nonempty_line_in_text_node
 import desugarers/regex_split_and_replace__batch__outside
 import desugarers/regex_split_and_replace__outside
@@ -407,8 +407,8 @@ pub const prepend_attribute = prepend_attribute.constructor
 pub const prepend_attribute__outside = prepend_attribute__outside.constructor
 pub const prepend_attribute_as_first_line = prepend_attribute_as_first_line.constructor
 pub const prepend_attribute_as_text = prepend_attribute_as_text.constructor
+pub const prepend_attribute_as_wrapped_text_else_custom = prepend_attribute_as_wrapped_text_else_custom.constructor
 pub const prepend_attribute_if = prepend_attribute_if.constructor
-pub const prepend_attribute_wrapped_else_custom = prepend_attribute_wrapped_else_custom.constructor
 pub const prepend_counter_incrementing_attribute = prepend_counter_incrementing_attribute.constructor
 pub const prepend_counter_incrementing_attribute__outside = prepend_counter_incrementing_attribute__outside.constructor
 pub const prepend_counter_incrementing_attribute_if_fancy = prepend_counter_incrementing_attribute_if_fancy.constructor
@@ -419,9 +419,9 @@ pub const prepend_text_node__outside = prepend_text_node__outside.constructor
 pub const prepend_text_node_if_fancy = prepend_text_node_if_fancy.constructor
 pub const prepend_text_node_if_has_ancestor_else__batch = prepend_text_node_if_has_ancestor_else__batch.constructor
 pub const rearrange_links = rearrange_links.constructor
+pub const rearrange_links__batch = rearrange_links__batch.constructor
 pub const rearrange_links_4_pre_tokenized_src = rearrange_links_4_pre_tokenized_src.constructor
 pub const rearrange_links_4_pre_tokenized_src__batch = rearrange_links_4_pre_tokenized_src__batch.constructor
-pub const rearrange_links__batch = rearrange_links__batch.constructor
 pub const reassign_text_node_blame_to_blame_of_first_nonempty_line_in_text_node = reassign_text_node_blame_to_blame_of_first_nonempty_line_in_text_node.constructor
 pub const regex_split_and_replace__batch__outside = regex_split_and_replace__batch__outside.constructor
 pub const regex_split_and_replace__outside = regex_split_and_replace__outside.constructor
@@ -667,8 +667,8 @@ pub const assertive_tests : List(fn() -> infra.AssertiveTestCollection) = [
   prepend_attribute__outside.assertive_tests,
   prepend_attribute_as_first_line.assertive_tests,
   prepend_attribute_as_text.assertive_tests,
+  prepend_attribute_as_wrapped_text_else_custom.assertive_tests,
   prepend_attribute_if.assertive_tests,
-  prepend_attribute_wrapped_else_custom.assertive_tests,
   prepend_counter_incrementing_attribute.assertive_tests,
   prepend_counter_incrementing_attribute__outside.assertive_tests,
   prepend_counter_incrementing_attribute_if_fancy.assertive_tests,
@@ -679,9 +679,9 @@ pub const assertive_tests : List(fn() -> infra.AssertiveTestCollection) = [
   prepend_text_node_if_fancy.assertive_tests,
   prepend_text_node_if_has_ancestor_else__batch.assertive_tests,
   rearrange_links.assertive_tests,
+  rearrange_links__batch.assertive_tests,
   rearrange_links_4_pre_tokenized_src.assertive_tests,
   rearrange_links_4_pre_tokenized_src__batch.assertive_tests,
-  rearrange_links__batch.assertive_tests,
   reassign_text_node_blame_to_blame_of_first_nonempty_line_in_text_node.assertive_tests,
   regex_split_and_replace__batch__outside.assertive_tests,
   regex_split_and_replace__outside.assertive_tests,

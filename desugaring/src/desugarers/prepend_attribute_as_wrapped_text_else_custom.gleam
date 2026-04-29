@@ -16,8 +16,8 @@ fn nodemap(
           let assert V(b, t, a, c) = inner.2
           V(b, t, a, [
             T(
-              desugarer_blame(18),
-              [Line(desugarer_blame(19), value)]
+              desugarer_blame(19),
+              [Line(desugarer_blame(20), value)]
             ),
             ..c
           ])
@@ -48,7 +48,7 @@ type Param = #(String, String,   VXML,   VXML)
 //             tag     attr_key  wrapper else_node
 type InnerParam = Param
 
-pub const name = "prepend_attribute_wrapped_else_custom"
+pub const name = "prepend_attribute_as_wrapped_text_else_custom"
 fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
 
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️

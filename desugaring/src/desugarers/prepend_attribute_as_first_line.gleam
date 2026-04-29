@@ -14,7 +14,7 @@ fn nodemap(
     V(blame, tag, _, children) if tag == inner.0 -> {
       case infra.v_first_attr_with_key(vxml, inner.1) {
         Some(Attr(_, _, value)) if value != "" -> {
-          let line = Line(desugarer_blame(18), value)
+          let line = Line(desugarer_blame(17), value)
           let children = case list.any(children, infra.is_text_node) {
             True -> {
               let #(before, after) =
