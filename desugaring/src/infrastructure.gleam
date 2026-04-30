@@ -1852,11 +1852,7 @@ pub fn v_val_of_first_attr_with_key(
   key: String,
 ) -> Option(String) {
   let assert V(_, _, attrs, _) = vxml
-  case list.find(attrs, fn(b) { b.key == key })
-  {
-    Error(Nil) -> None
-    Ok(thing) -> Some(thing.val)
-  }
+  attrs_val_of_first_with_key(attrs, key)
 }
 
 pub fn v_attrs_with_key(
@@ -2404,8 +2400,11 @@ pub fn attrs_val_of_first_with_key(
   attrs: List(Attr),
   key: String,
 ) -> Option(String) {
-  attrs_first_with_key(attrs, key)
-  |> option.map(fn(x) { x.val })
+  case list.find(attrs, fn(b) { b.key == key })
+  {
+    Error(Nil) -> None
+    Ok(thing) -> Some(thing.val)
+  }
 }
 
 pub fn replace_attr_val(

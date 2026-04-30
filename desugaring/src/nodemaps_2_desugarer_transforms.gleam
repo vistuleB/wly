@@ -396,6 +396,47 @@ pub fn one_to_many_no_error_nodemap_2_desugarer_transform_with_forbidden(
 }
 
 // ************************************************************
+// OneToManyNoErrorWithWarningsNodemap
+// ************************************************************
+
+pub type OneToManyNoErrorWithWarningsNodemap =
+  fn(VXML) -> #(List(VXML), List(DesugaringWarning))
+
+// *** without forbidden ***
+
+pub fn one_to_many_no_error_with_warnings_nodemap_walk(
+  node: VXML,
+  nodemap: OneToManyNoErrorWithWarningsNodemap,
+) -> #(List(VXML), List(DesugaringWarning)) {
+  case node {
+    T(_, _) -> nodemap(node)
+    V(_, _, _, children) -> {
+      let #(children, warnings) =
+        list.fold(
+          children,
+          #([], []),
+          fn(acc, child) {
+            let #(replacement, warnings) = one_to_many_no_error_with_warnings_nodemap_walk(child, nodemap)
+            #(infra.pour(replacement, acc.0), infra.pour(warnings, acc.1))
+          }
+        )
+      let #(replacement, warnings2) = nodemap(V(..node, children: children |> list.reverse))
+      #(replacement, infra.pour(warnings2, warnings) |> list.reverse)
+    }
+  }
+}
+
+pub fn one_to_many_no_error_with_warnings_nodemap_2_desugarer_transform(
+  nodemap: OneToManyNoErrorWithWarningsNodemap,
+) -> DesugarerTransform {
+  fn (vxml) {
+    let #(replacement, warnings) = one_to_many_no_error_with_warnings_nodemap_walk(vxml, nodemap)
+    use root <- on.ok(get_root(replacement))
+    Ok(#(root, warnings))
+  }
+}
+
+// ************************************************************
 // OneToManyNodemap
 // ************************************************************
 
