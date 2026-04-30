@@ -41,7 +41,7 @@ fn exercise_filterer_nodemap(node: VXML, handles: List(String)) -> #(List(VXML),
   case node {
     V(_, "Exercise", attrs, _) ->
       case infra.attrs_first_with_key(attrs, "handle") {
-        None -> #([], [DesugaringWarning(desugarer_blame(44), "Exercise node w/out handle (removing)")])
+        None -> #([], [DesugaringWarning(desugarer_blame(44), "removing Exercise node w/out handle 🤷")])
         Some(x) ->
           case list.contains(handles, x.val) {
             True -> #([node], [])
