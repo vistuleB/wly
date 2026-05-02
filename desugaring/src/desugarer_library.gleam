@@ -160,9 +160,9 @@ import desugarers/prepend_text_node__outside
 import desugarers/prepend_text_node_if_fancy
 import desugarers/prepend_text_node_if_has_ancestor_else__batch
 import desugarers/rearrange_links
-import desugarers/rearrange_links__batch
 import desugarers/rearrange_links_4_pre_tokenized_src
 import desugarers/rearrange_links_4_pre_tokenized_src__batch
+import desugarers/rearrange_links__batch
 import desugarers/reassign_text_node_blame_to_blame_of_first_nonempty_line_in_text_node
 import desugarers/regex_split_and_replace__batch__outside
 import desugarers/regex_split_and_replace__outside
@@ -184,6 +184,9 @@ import desugarers/rename_with_class
 import desugarers/rename_with_class_and_attributes
 import desugarers/replace_in_attribute_values
 import desugarers/replace_multiple_spaces_by_one
+import desugarers/replace_string
+import desugarers/replace_string__outside
+import desugarers/replace_string_if_has_ancestors_else
 import desugarers/replace_with_arbitrary
 import desugarers/set_handle_value
 import desugarers/set_handle_value__outside
@@ -419,9 +422,9 @@ pub const prepend_text_node__outside = prepend_text_node__outside.constructor
 pub const prepend_text_node_if_fancy = prepend_text_node_if_fancy.constructor
 pub const prepend_text_node_if_has_ancestor_else__batch = prepend_text_node_if_has_ancestor_else__batch.constructor
 pub const rearrange_links = rearrange_links.constructor
-pub const rearrange_links__batch = rearrange_links__batch.constructor
 pub const rearrange_links_4_pre_tokenized_src = rearrange_links_4_pre_tokenized_src.constructor
 pub const rearrange_links_4_pre_tokenized_src__batch = rearrange_links_4_pre_tokenized_src__batch.constructor
+pub const rearrange_links__batch = rearrange_links__batch.constructor
 pub const reassign_text_node_blame_to_blame_of_first_nonempty_line_in_text_node = reassign_text_node_blame_to_blame_of_first_nonempty_line_in_text_node.constructor
 pub const regex_split_and_replace__batch__outside = regex_split_and_replace__batch__outside.constructor
 pub const regex_split_and_replace__outside = regex_split_and_replace__outside.constructor
@@ -443,6 +446,9 @@ pub const rename_with_class = rename_with_class.constructor
 pub const rename_with_class_and_attributes = rename_with_class_and_attributes.constructor
 pub const replace_in_attribute_values = replace_in_attribute_values.constructor
 pub const replace_multiple_spaces_by_one = replace_multiple_spaces_by_one.constructor
+pub const replace_string = replace_string.constructor
+pub const replace_string__outside = replace_string__outside.constructor
+pub const replace_string_if_has_ancestors_else = replace_string_if_has_ancestors_else.constructor
 pub const replace_with_arbitrary = replace_with_arbitrary.constructor
 pub const set_handle_value = set_handle_value.constructor
 pub const set_handle_value__outside = set_handle_value__outside.constructor
@@ -679,9 +685,9 @@ pub const assertive_tests : List(fn() -> infra.AssertiveTestCollection) = [
   prepend_text_node_if_fancy.assertive_tests,
   prepend_text_node_if_has_ancestor_else__batch.assertive_tests,
   rearrange_links.assertive_tests,
-  rearrange_links__batch.assertive_tests,
   rearrange_links_4_pre_tokenized_src.assertive_tests,
   rearrange_links_4_pre_tokenized_src__batch.assertive_tests,
+  rearrange_links__batch.assertive_tests,
   reassign_text_node_blame_to_blame_of_first_nonempty_line_in_text_node.assertive_tests,
   regex_split_and_replace__batch__outside.assertive_tests,
   regex_split_and_replace__outside.assertive_tests,
@@ -703,6 +709,9 @@ pub const assertive_tests : List(fn() -> infra.AssertiveTestCollection) = [
   rename_with_class_and_attributes.assertive_tests,
   replace_in_attribute_values.assertive_tests,
   replace_multiple_spaces_by_one.assertive_tests,
+  replace_string.assertive_tests,
+  replace_string__outside.assertive_tests,
+  replace_string_if_has_ancestors_else.assertive_tests,
   replace_with_arbitrary.assertive_tests,
   set_handle_value.assertive_tests,
   set_handle_value__outside.assertive_tests,
