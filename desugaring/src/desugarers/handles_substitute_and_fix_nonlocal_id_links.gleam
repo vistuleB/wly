@@ -13,13 +13,21 @@ import nodemaps_2_desugarer_transforms as n2t
 import on
 import vxml.{type Attr, type Line, type VXML, Attr, Line, T, V}
 
-fn extract_handle_name(match) -> #(String, Bool) {
-  let assert Match(_, [_, option.Some(handle_name)]) = match
+fn extract_handle_name_and_maybe_link_text(match) -> #(String, Bool, option.Option(String)) {
+  let Match(_, sub_matches) = match
+
+  let #(handle_name, link_text) = case sub_matches {
+    [_, option.Some(handle_name)] -> { #(handle_name, None) }
+    [_, option.Some(handle_name), option.Some(link_text)] -> { #(handle_name, Some(link_text)) }
+    [_, option.Some(handle_name), _] -> { #(handle_name, None) }
+    _ -> panic as "bug"
+  }
+
   case string.ends_with(handle_name, "#page") {
     True -> {
-      #(handle_name |> string.drop_end(5), True)
+      #(handle_name |> string.drop_end(5), True, link_text)
     }
-    False -> #(handle_name, False)
+    False -> #(handle_name, False, link_text)
   }
 }
 
@@ -77,18 +85,20 @@ fn warning_element(handle_name: String, blame: Blame) -> VXML {
 }
 
 fn hyperlink_maybe(
-  handle_and_page: #(String, Bool),
+  handle_and_page_and_maybe_link_text: #(String, Bool, option.Option(String)),
   blame: Blame,
   state: State,
   inner: InnerParam,
 ) -> TripleThreat(VXML, #(VXML, DesugaringWarning), DesugaringError) {
-  let #(handle_name, page) = handle_and_page
+  let #(handle_name, page, link_text) = handle_and_page_and_maybe_link_text
   case dict.get(state.handles, handle_name) {
-    Ok(quad) ->
-      case hyperlink_constructor(quad, page, blame, state, inner) {
+    Ok(quad) ->{
+      let value = on.some_none(link_text, on_some: fn(txt) { txt }, on_none: fn() { quad.1 })
+      case hyperlink_constructor(#(quad.0, value, quad.2, quad.3), page, blame, state, inner) {
         Ok(vxml) -> Success(vxml)
         Error(e) -> Failure(e)
       }
+    }
     _ -> {
       Warning(#(
         warning_element(handle_name, blame),
@@ -116,7 +126,7 @@ fn matches_2_hyperlinks(
 ) -> Result(#(List(VXML), List(DesugaringWarning)), DesugaringError) {
   let threats =
     matches
-    |> list.map(extract_handle_name)
+    |> list.map(extract_handle_name_and_maybe_link_text)
     |> list.map(hyperlink_maybe(_, blame, state, inner))
 
   use _ <- on.ok_error(list.find(threats, is_failure), fn(f) {
@@ -138,8 +148,8 @@ fn matches_2_hyperlinks(
   |> Ok
 }
 
-fn augment_to_1_mod_3(splits: List(String)) -> List(String) {
-  case list.length(splits) % 3 != 1 {
+fn augment_to_1_mod_4(splits: List(String)) -> List(String) {
+  case list.length(splits) % 4 != 1 {
     True -> {
       let assert True = list.is_empty(splits)
       [""]
@@ -148,10 +158,10 @@ fn augment_to_1_mod_3(splits: List(String)) -> List(String) {
   }
 }
 
-fn retain_0_mod_3(splits: List(String)) -> List(String) {
+fn retain_0_mod_4(splits: List(String)) -> List(String) {
   splits
   |> list.index_fold(from: [], with: fn(acc, split, index) {
-    case index % 3 == 0 {
+    case index % 4 == 0 {
       True -> [split, ..acc]
       False -> acc
     }
@@ -165,8 +175,8 @@ fn split_2_t(split: String, blame: Blame) -> VXML {
 
 fn splits_2_ts(splits: List(String), blame: Blame) -> List(VXML) {
   splits
-  |> augment_to_1_mod_3
-  |> retain_0_mod_3
+  |> augment_to_1_mod_4
+  |> retain_0_mod_4
   |> list.map(split_2_t(_, blame))
 }
 
@@ -441,7 +451,7 @@ fn transform_factory(inner: InnerParam) -> DesugarerTransform {
 
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
   let assert Ok(handles_regexp) =
-    regexp.from_string("(>>)([\\w\\^+%-]+(?:#page)?)")
+    regexp.from_string("(>>)([\\w\\^+%-]+(?:#page)?)(?:\\{\\{([^}]+)\\}\\})?")
   #(
     param.0,
     param.1,
@@ -531,6 +541,11 @@ fn desugarer_blame(line_no: Int) {
 /// no 'class' attr will be added at all to
 /// that type of link element.
 ///
+/// it can also overwrite the handle value with
+/// >>handle_name{{ Custom text }}, so in this
+/// case "Custom text" will be the content of
+/// the created link
+/// 
 /// Secondly, substitutes each attr of the
 /// form
 ///
@@ -797,6 +812,38 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
                       class=handle-out-chapter-link
                       <>
                         'AA'
+                    <>
+                      '.'
+                ",
+    ),
+    infra.AssertiveTestData(
+      param: #(
+        "path",
+        "InChapterLink",
+        "a",
+        [#("class", "handle-in-chapter-link")],
+        [#("class", "handle-out-chapter-link")],
+      ),
+      source:   "
+                <> GrandWrapper
+                  handle=fluescence||AA|_23-super-id|./ch1.html
+                  <> root
+                    <> Chapter
+                      path=./ch2.html
+                      <>
+                        'link to >>fluescence#page{{ this is text of the link }}.'
+                ",
+      expected: "
+                <> root
+                  <> Chapter
+                    path=./ch2.html
+                    <>
+                      'link to '
+                    <> a
+                      href=./ch1.html
+                      class=handle-out-chapter-link
+                      <>
+                        'this is text of the link'
                     <>
                       '.'
                 ",

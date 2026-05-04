@@ -135,7 +135,7 @@ fn remove_breadcrumb_title(
 
 fn map_chapter(child: VXML) -> Result(VXML, DesugaringError) {
   case child {
-    V(b, tag, a, children) if tag == "Chapter" || tag == "Bootcamp" -> {
+    V(b, tag, a, children) if tag == "Chapter" || tag == "Bootcamp" || tag == "Appendix" -> {
       let sections = infra.v_children_with_tag(child, "Section")
       let exercises = infra.v_children_with_tag(child, "Exercises")
       use sections_ul <- on.ok(generate_sections_list(sections, exercises))

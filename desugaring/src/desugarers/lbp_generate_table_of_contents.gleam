@@ -22,7 +22,8 @@ fn chapter_link(
   let tp = case tag {
     _ if tag == "Chapter" -> "chapter"
     _ if tag == "Bootcamp" -> "bootcamp"
-    _ -> panic as "expecting 'Chapter' or 'Bootcamp'"
+    _ if tag == "Appendix" -> "appendix"
+    _ -> panic as "expecting 'Chapter' or 'Bootcamp' or 'Appendix'"
   }
   use title_element <- on.ok(infra.v_unique_child(item, "ArticleTitle"))
   let assert V(_, _, _, _) = title_element
@@ -69,64 +70,63 @@ fn div_with_id_title_and_menu_items(
   )
 }
 
+type ArticalParams = #(String, String, String)
+
+fn create_toc_child_div(article_params: ArticalParams, inner: InnerParam, children: List(VXML)) -> Result(List(VXML), DesugaringError) {
+  let #(tag_name, link, title) = article_params
+  let #(
+    _,
+    type_of_chapters_title_component_name,
+    chapter_link_component_name,
+    _,
+  ) = inner
+
+  use menu_items <- on.ok(
+    children
+    |> list.filter(infra.is_v_and_tag_equals(_, tag_name))
+    |> list.index_map(fn(chapter: VXML, index) { chapter_link(chapter_link_component_name, chapter, index + 1) })
+    |> result.all
+  )
+
+  let div =
+    div_with_id_title_and_menu_items(
+      type_of_chapters_title_component_name,
+      link,
+      title,
+      menu_items,
+    )
+
+  on.false_true(
+    list.is_empty(menu_items),
+    on_false: fn() { Ok([div]) },
+    on_true: fn() { Ok([]) }
+  )
+}
+
 fn at_root(root: VXML, param: InnerParam) -> Result(VXML, DesugaringError) {
   let assert V(_, _, _, children) = root
 
   let #(
     toc_tag,
-    type_of_chapters_title_component_name,
-    chapter_link_component_name,
+    _,
+    _,
     maybe_spacer,
   ) = param
 
-  use chapter_menu_items <- on.ok(
-    children
-    |> list.filter(infra.is_v_and_tag_equals(_, "Chapter"))
-    |> list.index_map(fn(chapter: VXML, index) { chapter_link(chapter_link_component_name, chapter, index + 1) })
-    |> result.all
-  )
+  let res = [
+    #("Chapter", "chapter", "Chapters"),
+    #("Bootcamp", "bootcamp", "Bootcamps"),
+    #("Appendix", "appendix", "Appendices"),
+  ] |> list.try_map(fn(a_params) { create_toc_child_div(a_params, param, children) })
+   
+  use merged <- on.ok(res)
 
-  use bootcamp_menu_items <- on.ok(
-    children
-    |> list.filter(infra.is_v_and_tag_equals(_, "Bootcamp"))
-    |> list.index_map(fn(bootcamp: VXML, index) { chapter_link(chapter_link_component_name, bootcamp, index + 1) })
-    |> result.all
-  )
+  let flattened = list.flatten(merged)
 
-  let chapters_div =
-    div_with_id_title_and_menu_items(
-      type_of_chapters_title_component_name,
-      "chapter",
-      "Chapters",
-      chapter_menu_items,
-    )
-
-  let bootcamps_div =
-    div_with_id_title_and_menu_items(
-      type_of_chapters_title_component_name,
-      "bootcamp",
-      "Bootcamps",
-      bootcamp_menu_items,
-    )
-
-  let exists_bootcamps = !list.is_empty(bootcamp_menu_items)
-  let exists_chapters = !list.is_empty(chapter_menu_items)
-
-  let toc_children = [
-    case exists_chapters {
-      True -> [chapters_div]
-      False -> []
-    },
-    case exists_bootcamps, exists_chapters, maybe_spacer {
-      True, True, Some(spacer_tag) -> [V(desugarer_blame(121), spacer_tag, [], [])]
-      _, _, _ -> []
-    },
-    case exists_bootcamps {
-      True -> [bootcamps_div]
-      False -> []
-    },
-  ]
-  |> list.flatten
+  let toc_children = case maybe_spacer {
+    Some(spacer_tag) -> { list.intersperse(flattened, V(desugarer_blame(151), spacer_tag, [], [])) }
+    _ -> flattened
+  }
 
   let toc = V(desugarer_blame(131), toc_tag, [], toc_children)
 
