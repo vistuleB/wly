@@ -1860,8 +1860,7 @@ pub fn v_attrs_with_key(
   key: String,
 ) -> List(Attr) {
   let assert V(_, _, attrs, _) = vxml
-  attrs
-  |> list.filter(fn(b) {b.key == key})
+  attrs |> attrs_with_key(key)
 }
 
 pub fn v_has_attr_with_key(vxml: VXML, key: String) -> Bool {
