@@ -1,9 +1,7 @@
-import blame
 import gleam/list
 import gleam/option
-import gleam/regexp
 import gleam/string.{inspect as ins}
-import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError, DesugaringError} as infra
+import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as infra
 import nodemaps_2_desugarer_transforms as n2t
 import vxml.{type VXML, T, Line}
 
@@ -14,20 +12,20 @@ fn nodemap(
 ) -> VXML {
   case vxml {
     T(blame, lines) -> {
-      let #(ancestor_tags, if_re, if_to, else_re, else_to) = inner
+      let #(ancestor_tags, if_pair, else_pair) = inner
       
       let has_ancestor = list.any(ancestors, fn(a) { 
         list.contains(ancestor_tags, infra.v_get_tag(a))
       })
 
-      let #(re, to) = case has_ancestor {
-        True -> #(if_re, if_to)
-        False -> #(else_re, else_to)
+      let #(from, to) = case has_ancestor {
+        True -> if_pair
+        False -> else_pair
       }
 
       let new_lines =
         list.map(lines, fn(line) {
-          Line(..line, content: regexp.replace(re, line.content, to))
+          Line(..line, content: string.replace(line.content, from, to))
         })
       T(blame, new_lines)
     }
@@ -46,32 +44,22 @@ fn transform_factory(inner: InnerParam) -> DesugarerTransform {
 }
 
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
-  let #(ancestors, if_pair, else_pair) = param
-  
-  case regexp.from_string(if_pair.0), regexp.from_string(else_pair.0) {
-    Ok(if_re), Ok(else_re) -> 
-        Ok(#(ancestors, if_re, if_pair.1, else_re, else_pair.1))
-    Error(_), _ -> 
-        Error(DesugaringError(blame.no_blame, "Invalid if-regex: " <> if_pair.0))
-    _, Error(_) -> 
-        Error(DesugaringError(blame.no_blame, "Invalid else-regex: " <> else_pair.0))
-  }
+  Ok(param)
 }
 
 type Param = #(List(String), #(String, String), #(String, String))
 //             ↖             ↖                ↖
 //             ancestors     if version       else version
-type InnerParam = #(List(String), regexp.Regexp, String, regexp.Regexp, String)
+type InnerParam = Param
 
-pub const name = "find_replace_regexp_if_has_ancestor_else"
+pub const name = "find_replace_if_has_ancestor_else"
 
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 // 🏖️🏖️ Desugarer 🏖️🏖️
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 //------------------------------------------------53
-/// replaces occurrences of a regex pattern with 
-/// another based on whether the text node has any 
-/// of the specified ancestors
+/// replaces literal occurrences of a string with another 
+/// based on whether the text node has any of the specified ancestors
 pub fn constructor(param: Param) -> Desugarer {
   Desugarer(
     name: name,
@@ -95,19 +83,21 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
                 <> root
                   <> special
                     <>
-                      'Inside special ``backticks``'
+                      'First line ``'
+                      'Second line ``'
                   <> ordinary
                     <>
-                      'Outside special ``backticks``'
+                      'Outside special ``'
                 ",
       expected: "
                 <> root
                   <> special
                     <>
-                      'Inside special “backticks“'
+                      'First line “'
+                      'Second line “'
                   <> ordinary
                     <>
-                      'Outside special `backticks`'
+                      'Outside special `'
                 ",
     ),
   ]

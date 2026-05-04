@@ -82,10 +82,8 @@ import desugarers/expel_initial_last_backward_forward
 import desugarers/extract_starting_and_ending_spaces
 import desugarers/filter_nodes_by_attributes
 import desugarers/find_replace__batch__outside
+import desugarers/find_replace_if_has_ancestor_else
 import desugarers/find_replace_in_descendants_of__batch
-import desugarers/find_replace_regexp
-import desugarers/find_replace_regexp__outside
-import desugarers/find_replace_regexp_if_has_ancestor_else
 import desugarers/fold_children_into_text_if
 import desugarers/fold_contents_into_text
 import desugarers/fold_contents_into_text__batch
@@ -344,10 +342,8 @@ pub const expel_initial_last_backward_forward = expel_initial_last_backward_forw
 pub const extract_starting_and_ending_spaces = extract_starting_and_ending_spaces.constructor
 pub const filter_nodes_by_attributes = filter_nodes_by_attributes.constructor
 pub const find_replace__batch__outside = find_replace__batch__outside.constructor
+pub const find_replace_if_has_ancestor_else = find_replace_if_has_ancestor_else.constructor
 pub const find_replace_in_descendants_of__batch = find_replace_in_descendants_of__batch.constructor
-pub const find_replace_regexp = find_replace_regexp.constructor
-pub const find_replace_regexp__outside = find_replace_regexp__outside.constructor
-pub const find_replace_regexp_if_has_ancestor_else = find_replace_regexp_if_has_ancestor_else.constructor
 pub const fold_children_into_text_if = fold_children_into_text_if.constructor
 pub const fold_contents_into_text = fold_contents_into_text.constructor
 pub const fold_contents_into_text__batch = fold_contents_into_text__batch.constructor
@@ -607,10 +603,8 @@ pub const assertive_tests : List(fn() -> infra.AssertiveTestCollection) = [
   extract_starting_and_ending_spaces.assertive_tests,
   filter_nodes_by_attributes.assertive_tests,
   find_replace__batch__outside.assertive_tests,
+  find_replace_if_has_ancestor_else.assertive_tests,
   find_replace_in_descendants_of__batch.assertive_tests,
-  find_replace_regexp.assertive_tests,
-  find_replace_regexp__outside.assertive_tests,
-  find_replace_regexp_if_has_ancestor_else.assertive_tests,
   fold_children_into_text_if.assertive_tests,
   fold_contents_into_text.assertive_tests,
   fold_contents_into_text__batch.assertive_tests,
