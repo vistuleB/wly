@@ -63,7 +63,7 @@ type Param = #(List(String), #(String, String), #(String, String))
 //             ancestors     if version       else version
 type InnerParam = #(List(String), regexp.Regexp, String, regexp.Regexp, String)
 
-pub const name = "replace_string_if_has_ancestors_else"
+pub const name = "find_replace_regexp_if_has_ancestor_else"
 
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 // 🏖️🏖️ Desugarer 🏖️🏖️

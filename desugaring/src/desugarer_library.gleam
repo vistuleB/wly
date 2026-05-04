@@ -82,8 +82,10 @@ import desugarers/expel_initial_last_backward_forward
 import desugarers/extract_starting_and_ending_spaces
 import desugarers/filter_nodes_by_attributes
 import desugarers/find_replace__batch__outside
-import desugarers/find_replace__outside
 import desugarers/find_replace_in_descendants_of__batch
+import desugarers/find_replace_regexp
+import desugarers/find_replace_regexp__outside
+import desugarers/find_replace_regexp_if_has_ancestor_else
 import desugarers/fold_children_into_text_if
 import desugarers/fold_contents_into_text
 import desugarers/fold_contents_into_text__batch
@@ -184,9 +186,7 @@ import desugarers/rename_with_class
 import desugarers/rename_with_class_and_attributes
 import desugarers/replace_in_attribute_values
 import desugarers/replace_multiple_spaces_by_one
-import desugarers/replace_string
 import desugarers/replace_string__outside
-import desugarers/replace_string_if_has_ancestors_else
 import desugarers/replace_with_arbitrary
 import desugarers/set_handle_value
 import desugarers/set_handle_value__outside
@@ -344,8 +344,10 @@ pub const expel_initial_last_backward_forward = expel_initial_last_backward_forw
 pub const extract_starting_and_ending_spaces = extract_starting_and_ending_spaces.constructor
 pub const filter_nodes_by_attributes = filter_nodes_by_attributes.constructor
 pub const find_replace__batch__outside = find_replace__batch__outside.constructor
-pub const find_replace__outside = find_replace__outside.constructor
 pub const find_replace_in_descendants_of__batch = find_replace_in_descendants_of__batch.constructor
+pub const find_replace_regexp = find_replace_regexp.constructor
+pub const find_replace_regexp__outside = find_replace_regexp__outside.constructor
+pub const find_replace_regexp_if_has_ancestor_else = find_replace_regexp_if_has_ancestor_else.constructor
 pub const fold_children_into_text_if = fold_children_into_text_if.constructor
 pub const fold_contents_into_text = fold_contents_into_text.constructor
 pub const fold_contents_into_text__batch = fold_contents_into_text__batch.constructor
@@ -446,9 +448,7 @@ pub const rename_with_class = rename_with_class.constructor
 pub const rename_with_class_and_attributes = rename_with_class_and_attributes.constructor
 pub const replace_in_attribute_values = replace_in_attribute_values.constructor
 pub const replace_multiple_spaces_by_one = replace_multiple_spaces_by_one.constructor
-pub const replace_string = replace_string.constructor
 pub const replace_string__outside = replace_string__outside.constructor
-pub const replace_string_if_has_ancestors_else = replace_string_if_has_ancestors_else.constructor
 pub const replace_with_arbitrary = replace_with_arbitrary.constructor
 pub const set_handle_value = set_handle_value.constructor
 pub const set_handle_value__outside = set_handle_value__outside.constructor
@@ -607,8 +607,10 @@ pub const assertive_tests : List(fn() -> infra.AssertiveTestCollection) = [
   extract_starting_and_ending_spaces.assertive_tests,
   filter_nodes_by_attributes.assertive_tests,
   find_replace__batch__outside.assertive_tests,
-  find_replace__outside.assertive_tests,
   find_replace_in_descendants_of__batch.assertive_tests,
+  find_replace_regexp.assertive_tests,
+  find_replace_regexp__outside.assertive_tests,
+  find_replace_regexp_if_has_ancestor_else.assertive_tests,
   fold_children_into_text_if.assertive_tests,
   fold_contents_into_text.assertive_tests,
   fold_contents_into_text__batch.assertive_tests,
@@ -709,9 +711,7 @@ pub const assertive_tests : List(fn() -> infra.AssertiveTestCollection) = [
   rename_with_class_and_attributes.assertive_tests,
   replace_in_attribute_values.assertive_tests,
   replace_multiple_spaces_by_one.assertive_tests,
-  replace_string.assertive_tests,
   replace_string__outside.assertive_tests,
-  replace_string_if_has_ancestors_else.assertive_tests,
   replace_with_arbitrary.assertive_tests,
   set_handle_value.assertive_tests,
   set_handle_value__outside.assertive_tests,

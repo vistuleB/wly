@@ -47,7 +47,7 @@ type Param = #(String, String)
 //             from    to
 type InnerParam = #(regexp.Regexp, String)
 
-pub const name = "replace_string"
+pub const name = "find_replace_regexp"
 
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 // 🏖️🏖️ Desugarer 🏖️🏖️
