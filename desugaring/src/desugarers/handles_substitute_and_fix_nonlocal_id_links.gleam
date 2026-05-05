@@ -13,7 +13,7 @@ import nodemaps_2_desugarer_transforms as n2t
 import on
 import vxml.{type Attr, type Line, type VXML, Attr, Line, T, V}
 
-fn extract_handle_name_and_maybe_link_text(match) -> #(String, Bool, option.Option(String)) {
+fn sturcture_matches(match) -> #(String, Bool, Option(String), Option(String)) {
   let Match(_, sub_matches) = match
 
   let #(handle_name, link_text) = case sub_matches {
@@ -23,13 +23,17 @@ fn extract_handle_name_and_maybe_link_text(match) -> #(String, Bool, option.Opti
     _ -> panic as "bug"
   }
 
-  case string.ends_with(handle_name, "#page") {
-    True -> {
-      #(handle_name |> string.drop_end(5), True, link_text)
-    }
-    False -> #(handle_name, False, link_text)
+   let #(handle_name, page) = case string.split_once(handle_name,  "#page") {
+    Ok(#(before, after)) -> #(before <> after, True)
+    _ -> #(handle_name, False)
   }
+  let #(handle_name, decoy) = case string.split_once(handle_name, "#decoy:") {
+    Ok(#(before, after)) -> #(before, option.Some(after))
+    _ -> #(handle_name, None)
+  }
+  #(handle_name, page, decoy, link_text)
 }
+
 
 fn hyperlink_constructor(
   handle: #(Bool, String, String, String),
@@ -58,6 +62,12 @@ fn hyperlink_constructor(
   Ok(V(blame, tag, attrs, [T(blame, [Line(blame, value)])]))
 }
 
+// fn decoy_constructor(
+//   decoy: String
+// ) -> VXML {
+//   let attrs = [Attr(blame, "class", "handle-decoy-link"), ..attrs]
+// }
+
 type TripleThreat(a, b, c) {
   Success(a)
   Warning(b)
@@ -85,12 +95,12 @@ fn warning_element(handle_name: String, blame: Blame) -> VXML {
 }
 
 fn hyperlink_maybe(
-  handle_and_page_and_maybe_link_text: #(String, Bool, option.Option(String)),
+  matches_output: #(String, Bool, Option(String), Option(String)),
   blame: Blame,
   state: State,
   inner: InnerParam,
 ) -> TripleThreat(VXML, #(VXML, DesugaringWarning), DesugaringError) {
-  let #(handle_name, page, link_text) = handle_and_page_and_maybe_link_text
+  let #(handle_name, page, decoy, link_text) = matches_output
   case dict.get(state.handles, handle_name) {
     Ok(quad) ->{
       let value = on.some_none(link_text, on_some: fn(txt) { txt }, on_none: fn() { quad.1 })
@@ -100,8 +110,18 @@ fn hyperlink_maybe(
       }
     }
     _ -> {
+      use warning_span_or_decoy_link <- on.error_ok(
+        case decoy {
+          None -> Ok(warning_element(handle_name, blame))
+          Some(decoy) -> {
+            let quad = #(False, decoy, "decoy-id", "decoy-target-path")
+            hyperlink_constructor(quad, page, blame, state, inner)
+          }
+        },
+        fn(e) { Failure(e) }
+      )
       Warning(#(
-        warning_element(handle_name, blame),
+        warning_span_or_decoy_link,
         DesugaringWarning(
           blame,
           "handle '" <> handle_name <> "' is not assigned",
@@ -126,7 +146,7 @@ fn matches_2_hyperlinks(
 ) -> Result(#(List(VXML), List(DesugaringWarning)), DesugaringError) {
   let threats =
     matches
-    |> list.map(extract_handle_name_and_maybe_link_text)
+    |> list.map(sturcture_matches)
     |> list.map(hyperlink_maybe(_, blame, state, inner))
 
   use _ <- on.ok_error(list.find(threats, is_failure), fn(f) {
@@ -151,7 +171,7 @@ fn matches_2_hyperlinks(
 fn augment_to_1_mod_4(splits: List(String)) -> List(String) {
   case list.length(splits) % 4 != 1 {
     True -> {
-      let assert True = list.is_empty(splits)
+      let assert True = list.is_empty(splits) as { ins(splits) }
       [""]
     }
     False -> splits
@@ -230,7 +250,7 @@ fn process_lines(
 }
 
 fn grand_wrapper_load(state: State, attrs: List(Attr)) -> State {
-  let #(handles, ids) = list.partition(attrs, fn(attr) { attr.key == "handle" })
+  let #(handles, ids) = infra.attrs_extract_key_occurrences(attrs, "handle")
 
   let handles =
     list.fold(handles, dict.new(), fn(acc, attr) {
@@ -451,7 +471,8 @@ fn transform_factory(inner: InnerParam) -> DesugarerTransform {
 
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
   let assert Ok(handles_regexp) =
-    regexp.from_string("(>>)([\\w\\^+%-]+(?:#page)?)(?:\\{\\{([^}]+)\\}\\})?")
+    regexp.from_string("(>>)([\\w\\^+%-]+(?:#page)?(?:#decoy:[0-9]+)?)(?:\\{\\{([^}]+)\\}\\})?")
+
   #(
     param.0,
     param.1,
@@ -459,7 +480,6 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
     param.3 |> infra.string_pairs_2_attrs(desugarer_blame(449)),
     param.4 |> infra.string_pairs_2_attrs(desugarer_blame(450)),
     handles_regexp,
-    // inner.5
   )
   |> Ok
 }
@@ -483,16 +503,13 @@ type State {
   State(handles: HandlesDict, ids: IdsDict, path: Option(String))
 }
 
-type Param =
-  #(String, String, String, List(#(String, String)), List(#(String, String)))
-
+type Param = #(String,            String,                 String,                List(#(String, String)),   List(#(String, String)))
 //             ↖                  ↖                       ↖                      ↖                          ↖
 //             attr key           tag to use              tag to use             additional key-value       additional key-value
 //             to update the      when handle path        when handle path       pairs for former case      pairs for latter case
 //             local path         equals local path       !equals local path
 //                                at point of insertion   at point of insertion
-type InnerParam =
-  #(String, String, String, List(Attr), List(Attr), Regexp)
+type InnerParam = #(String, String, String, List(Attr), List(Attr), Regexp)
 
 pub const name = "handles_substitute_and_fix_nonlocal_id_links"
 
@@ -614,7 +631,7 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
         [#("class", "handle-in-chapter-link")],
         [#("class", "handle-out-chapter-link")],
       ),
-      source:   "
+      source: "
                 <> GrandWrapper
                   handle=fluescence||AA|_23-super-id|./ch1.html
                   <> root
@@ -652,7 +669,7 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
         [#("class", "handle-in-link-class")],
         [#("class", "handle-out-link-class")],
       ),
-      source:   "
+      source: "
                 <> GrandWrapper
                   handle=fluescence||AA|_23-super-id|./ch1.html
                   handle=out||AA|_24-super-id|./ch1.html
@@ -706,7 +723,7 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
         [#("class", "handle-in-chapter-link")],
         [#("class", "handle-out-chapter-link")],
       ),
-      source:   "
+      source: "
                 <> GrandWrapper
                   handle=my-cardinal||Cardinal Number|_25-dash-id|./ch1.html
                   handle=test^handle||Caret Test|_26-caret-id|./ch1.html
@@ -752,7 +769,7 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
         [#("class", "handle-in-chapter-link")],
         [#("class", "handle-out-chapter-link")],
       ),
-      source:   "
+      source: "
                 <> GrandWrapper
                   handle=fluescence|#page|AA|_23-super-id|./ch1.html
                   handle=other||BB|_24-other-id|./ch1.html
@@ -792,7 +809,7 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
         [#("class", "handle-in-chapter-link")],
         [#("class", "handle-out-chapter-link")],
       ),
-      source:   "
+      source: "
                 <> GrandWrapper
                   handle=fluescence||AA|_23-super-id|./ch1.html
                   <> root

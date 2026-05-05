@@ -6,6 +6,8 @@ import nodemaps_2_desugarer_transforms as n2t
 import vxml.{type VXML, V}
 import blame as bl
 
+const blame = bl.Des([], name, 9)
+
 fn nodemap(
   vxml: VXML,
   ancestors: List(VXML),
@@ -22,7 +24,7 @@ fn nodemap(
       }
       case parent_excluded {
         True -> vxml
-        False -> V(desugarer_blame(25), inner.1, [], [vxml])
+        False -> V(blame, inner.1, [], [vxml])
       }
     }
     _ -> vxml
@@ -51,7 +53,6 @@ type Param = #(String,  String,     List(String))
 type InnerParam = Param
 
 pub const name = "wrap_if_not_child_of"
-fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
 
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 // 🏖️🏖️ Desugarer 🏖️🏖️
