@@ -229,7 +229,7 @@ fn process_lines(
     |> list.flatten
     // you now have a list of t-nodes and of hyperlinks
     |> infra.plain_concatenation_in_list
-  // adjacent t-nodes are wrapped into single t-node, with 1 line per old t-node (pre-concatenation)
+    // adjacent t-nodes are wrapped into single t-node, with 1 line per old t-node (pre-concatenation)
 
   let warnings =
     list_list_warnings
@@ -264,40 +264,51 @@ fn grand_wrapper_load(state: State, attrs: List(Attr)) -> State {
   State(..state, handles: handles, ids: ids)
 }
 
+type HrefType {
+  InPage
+  OutOfPage
+  UndefinedOrOutOfDocument
+  NotAnHref
+}
+
 fn substitute_handle_in_href(
   attr: Attr,
   state: State,
-) -> Result(Attr, DesugaringWarning) {
+) -> #(Attr, HrefType, List(DesugaringWarning)) {
   assert attr.val |> string.starts_with(">>")
   let handle_name = attr.val |> string.drop_start(2)
-  let page = handle_name |> string.ends_with("#page")
-  let handle_name = case page {
-    True -> handle_name |> string.drop_end(5)
-    False -> handle_name
+  let #(page, handle_name) = case string.ends_with(handle_name, "#page") {
+    True -> #(True, handle_name |> string.drop_end(5))
+    False -> #(False, handle_name)
   }
   case dict.get(state.handles, handle_name) {
     Ok(#(page_by_default, _, id, target_path)) -> {
-      case page || page_by_default {
-        True -> Ok(Attr(..attr, val: target_path))
-        False ->
-          case target_path == option.unwrap(state.path, "") {
-            True -> Ok(Attr(..attr, val: "#" <> id))
-            False -> Ok(Attr(..attr, val: target_path <> "#" <> id))
-          }
+      let href_type = case target_path == option.unwrap(state.path, "") {
+        True -> InPage
+        False -> OutOfPage
       }
+      let attr = case page || page_by_default, href_type {
+        True, _ -> Attr(..attr, val: target_path)
+        False, InPage -> Attr(..attr, val: "#" <> id)
+        False, OutOfPage -> Attr(..attr, val: target_path <> "#" <> id)
+        False, _ -> panic
+      }
+      #(attr, href_type, [])
     }
-    _ ->
-      Error(DesugaringWarning(
+    _ -> {
+      let warning = DesugaringWarning(
         attr.blame,
         "handle '" <> handle_name <> "' is not assigned",
-      ))
+      )
+      #(attr, UndefinedOrOutOfDocument, [warning])
+    }
   }
 }
 
 fn substitute_id_in_href(
   attr: Attr,
   state: State,
-) -> Result(#(Attr, Option(DesugaringWarning)), DesugaringError) {
+) -> Result(#(Attr, HrefType, List(DesugaringWarning)), DesugaringError) {
   assert attr.val |> string.starts_with("#")
   let id = attr.val |> string.drop_start(1)
   let #(id, page) = case id |> string.ends_with("#page") {
@@ -316,16 +327,15 @@ fn substitute_id_in_href(
         attr.blame,
         "path not found for id '" <> id <> "'; maybe it's not defined?",
       )
-    Ok(#(attr, Some(warning)))
+    Ok(#(attr, UndefinedOrOutOfDocument, [warning]))
   })
   case list.contains(paths, path) {
     True -> {
       // the page we're pointing to is
       // the current page, nothing to do
       case page {
-        True -> Ok(#(Attr(..attr, val: path), None))
-        // (this case is a bit weird but whatever the user says...)
-        False -> Ok(#(attr, None))
+        True -> Ok(#(Attr(..attr, val: path), InPage, []))
+        False -> Ok(#(attr, InPage, []))
       }
     }
     False ->
@@ -333,8 +343,8 @@ fn substitute_id_in_href(
         [] -> panic as "each id should have at least 1 path?"
         [one] ->
           case page {
-            True -> Ok(#(Attr(..attr, val: one), None))
-            False -> Ok(#(Attr(..attr, val: one <> attr.val), None))
+            True -> Ok(#(Attr(..attr, val: one), OutOfPage, []))
+            False -> Ok(#(Attr(..attr, val: one <> attr.val), OutOfPage, []))
           }
         _ ->
           Error(DesugaringError(
@@ -350,40 +360,46 @@ fn substitute_id_in_href(
 fn substitute_in_href(
   attr: Attr,
   state: State,
-) -> Result(#(Attr, Option(DesugaringWarning)), DesugaringError) {
-  use <- on.false_true(attr.key == "href", fn() { Ok(#(attr, None)) })
+) -> Result(#(Attr, HrefType, List(DesugaringWarning)), DesugaringError) {
+  use <- on.false_true(
+    attr.key == "href",
+    fn() { Ok(#(attr, NotAnHref, [])) }
+  )
 
-  let #(attr, warning) = case attr.val |> string.starts_with(">>") {
-    False -> #(attr, None)
-    True ->
-      case substitute_handle_in_href(attr, state) {
-        Ok(attr) -> #(attr, None)
-        Error(w) -> #(attr, Some(w))
-      }
+  case attr.val {
+    ">>" <> _ -> substitute_handle_in_href(attr, state) |> Ok
+    "#" <> _ -> substitute_id_in_href(attr, state)
+    _ -> Ok(#(attr, UndefinedOrOutOfDocument, []))
   }
-
-  use <- on.false_true(attr.val |> string.starts_with("#"), fn() {
-    Ok(#(attr, warning))
-  })
-
-  // note that at this point, 'warning' is necessarily None;
-  // we can overwrite it without losing information:
-
-  use #(attr, warning) <- on.ok(substitute_id_in_href(attr, state))
-  Ok(#(attr, warning))
 }
 
-fn substitute_in_hrefs(
-  attrs: List(Attr),
+fn substitute_hrefs_in_a(
+  vxml: VXML,
   state: State,
-) -> Result(#(List(Attr), List(DesugaringWarning)), DesugaringError) {
-  list.try_fold(attrs, #([], []), fn(acc, attr) {
-    case substitute_in_href(attr, state) {
-      Ok(#(attr, None)) -> Ok(#([attr, ..acc.0], acc.1))
-      Ok(#(attr, Some(warning))) -> Ok(#([attr, ..acc.0], [warning, ..acc.1]))
-      Error(z) -> Error(z)
+  inner: InnerParam,
+) -> Result(#(VXML, State, List(DesugaringWarning)), DesugaringError) {
+  let assert V(_, "a", attrs, _) = vxml
+  use #(attrs, acc) <- on.ok(infra.try_map_fold(
+    attrs,
+    #(None, []),
+    fn(acc, attr) {
+      use #(attr, href_type, warnings) <- on.ok(substitute_in_href(attr, state))
+      use acc0 <- on.ok(
+        case acc.0, href_type {
+          _, NotAnHref -> Ok(acc.0)
+          None, _ -> Ok(Some(href_type))
+          _, _ -> Error(DesugaringError(desugarer_blame(0), "duplicate 'href' attribute"))
+        }
+      )
+      Ok(#(attr, #(acc0, list.append(warnings, acc.1))))
     }
-  })
+  ))
+  let tag = case acc.0 {
+    Some(InPage) -> inner.1
+    Some(OutOfPage) -> inner.2
+    _ -> vxml.tag
+  }
+  Ok(#(V(..vxml, tag: tag, attrs: attrs), state, acc.1))
 }
 
 fn update_state_path(state: State, vxml: VXML, inner: InnerParam) -> State {
@@ -400,16 +416,13 @@ fn v_before_transform(
   inner: InnerParam,
 ) -> Result(#(VXML, State, List(DesugaringWarning)), DesugaringError) {
   let assert V(_, tag, attrs, _) = vxml
-  case tag == "GrandWrapper" {
-    True -> {
-      let state = grand_wrapper_load(state, attrs)
-      Ok(#(vxml, state, []))
-    }
-    False -> {
-      let state = update_state_path(state, vxml, inner)
-      use #(attrs, warnings) <- on.ok(substitute_in_hrefs(attrs, state))
-      Ok(#(V(..vxml, attrs: attrs |> list.reverse), state, warnings))
-    }
+  let state = case tag {
+    "GrandWrapper" -> grand_wrapper_load(state, attrs)
+    _ -> update_state_path(state, vxml, inner)
+  }
+  case tag {
+    "a" -> substitute_hrefs_in_a(vxml, state, inner)
+    _ -> Ok(#(vxml, state, []))
   }
 }
 
@@ -473,17 +486,13 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
   |> Ok
 }
 
-type HandlesDict =
-  Dict(String, #(Bool, String, String, String))
-
+type HandlesDict = Dict(String, #(Bool,     String,   String,   String))
 //                      ↖         ↖         ↖         ↖         ↖
 //                      handle    #page-by  value     id        path
 //                               #default
 //                                option
 
-type IdsDict =
-  Dict(String, List(String))
-
+type IdsDict = Dict(String, List(String))
 //                  ↖       ↖
 //                  id      list of pages (local paths)
 //                          where id appears
