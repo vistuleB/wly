@@ -3,49 +3,49 @@ import gleam/option
 import gleam/string.{inspect as ins}
 import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as infra
 import nodemaps_2_desugarer_transforms as n2t
-import vxml.{type VXML, T, Line}
+import vxml.{type VXML, V}
 
-fn nodemap(
-  vxml: VXML,
-  ancestors: List(VXML),
-  inner: InnerParam,
-) -> VXML {
-  case vxml {
-    T(blame, lines) -> {
-      let #(ancestor_tags, if_pair, else_pair) = inner
-      
-      let has_ancestor = list.any(ancestors, fn(a) { 
-        list.contains(ancestor_tags, infra.v_get_tag(a))
-      })
-
-      let #(from, to) = case has_ancestor {
-        True -> if_pair
-        False -> else_pair
-      }
-
-      let new_lines =
-        list.map(lines, fn(line) {
-          Line(..line, content: string.replace(line.content, from, to))
-        })
-      T(blame, new_lines)
+fn v_before_transforming_children(vxml: VXML, state: State, inner: InnerParam) -> #(VXML, State) {
+  case state {
+    True -> #(vxml, True)
+    False -> {
+      let assert V(_, tag, _, _) = vxml
+      #(vxml, list.contains(inner.0, tag))
     }
-    _ -> vxml
   }
 }
 
-fn nodemap_factory(inner: InnerParam) -> n2t.FancyOneToOneNoErrorNodemap {
-  fn(vxml, ancestors, _s1, _s2, _s3) {
-    nodemap(vxml, ancestors, inner)
+fn v_after_transforming_children(vxml: VXML, original_state: State, _latest_state: State) -> #(VXML, State) {
+  #(vxml, original_state)
+}
+
+fn t_transform(vxml: VXML, state: State, inner: InnerParam) -> #(VXML, State) {
+  let #(from, to) = case state {
+    True -> inner.1
+    False -> inner.2
   }
+
+  #(infra.t_find_replace(vxml, from, to), state)
+}
+
+fn nodemap_factory(inner: InnerParam) -> n2t.OneToOneBeforeAndAfterStatefulNoErrorNodemap(State) {
+  n2t.OneToOneBeforeAndAfterStatefulNoErrorNodemap(
+    v_before_transforming_children: fn(vxml, state) { v_before_transforming_children(vxml, state, inner) },
+    v_after_transforming_children: v_after_transforming_children,
+    t_nodemap: fn(vxml, state) { t_transform(vxml, state, inner) },
+  )
 }
 
 fn transform_factory(inner: InnerParam) -> DesugarerTransform {
-  n2t.fancy_one_to_one_no_error_nodemap_2_desugarer_transform(nodemap_factory(inner))
+  nodemap_factory(inner)
+  |> n2t.one_to_one_before_and_after_stateful_no_error_nodemap_2_desugarer_transform(False)
 }
 
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
   Ok(param)
 }
+
+type State = Bool
 
 type Param = #(List(String), #(String, String), #(String, String))
 //             ↖             ↖                ↖
