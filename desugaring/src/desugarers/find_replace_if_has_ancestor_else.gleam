@@ -6,50 +6,54 @@ import nodemaps_2_desugarer_transforms as n2t
 import vxml.{type VXML, V}
 
 fn v_before_transforming_children(vxml: VXML, state: State, inner: InnerParam) -> #(VXML, State) {
-  case state {
-    True -> #(vxml, True)
+  let state = case state.0 {
+    True -> state
     False -> {
       let assert V(_, tag, _, _) = vxml
-      #(vxml, list.contains(inner.0, tag))
+      case list.contains(inner.0, tag) {
+        False -> state
+        True -> #(True, inner.1.0, inner.1.1)
+      }
     }
   }
+  #(vxml, state)
 }
 
 fn v_after_transforming_children(vxml: VXML, original_state: State, _latest_state: State) -> #(VXML, State) {
   #(vxml, original_state)
 }
 
-fn t_transform(vxml: VXML, state: State, inner: InnerParam) -> #(VXML, State) {
-  let #(from, to) = case state {
-    True -> inner.1
-    False -> inner.2
-  }
-
-  #(infra.t_find_replace(vxml, from, to), state)
+fn t_transform(vxml: VXML, state: State) -> #(VXML, State) {
+  #(infra.t_find_replace(vxml, state.1, state.2), state)
 }
 
 fn nodemap_factory(inner: InnerParam) -> n2t.OneToOneBeforeAndAfterStatefulNoErrorNodemap(State) {
   n2t.OneToOneBeforeAndAfterStatefulNoErrorNodemap(
     v_before_transforming_children: fn(vxml, state) { v_before_transforming_children(vxml, state, inner) },
     v_after_transforming_children: v_after_transforming_children,
-    t_nodemap: fn(vxml, state) { t_transform(vxml, state, inner) },
+    t_nodemap: t_transform,
   )
 }
 
 fn transform_factory(inner: InnerParam) -> DesugarerTransform {
+  let state = #(False, inner.2.0, inner.2.1)
   nodemap_factory(inner)
-  |> n2t.one_to_one_before_and_after_stateful_no_error_nodemap_2_desugarer_transform(False)
+  |> n2t.one_to_one_before_and_after_stateful_no_error_nodemap_2_desugarer_transform(state)
 }
 
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
   Ok(param)
 }
 
-type State = Bool
+type State = #(Bool,         String,            String)
+//             ↖             ↖                  ↖
+//             have we        current 'from'    current 'to'
+//             seen ancestor
+//             yet or no
 
 type Param = #(List(String), #(String, String), #(String, String))
-//             ↖             ↖                ↖
-//             ancestors     if version       else version
+//             ↖             ↖                  ↖
+//             ancestors     if version         else version
 type InnerParam = Param
 
 pub const name = "find_replace_if_has_ancestor_else"
