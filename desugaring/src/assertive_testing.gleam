@@ -41,9 +41,9 @@ pub fn run_assertive_test(name: String, tst: AssertiveTest) -> Result(Nil, Asser
     name != desugarer.name,
     fn() { Error(NonMatchingDesugarerName(desugarer.name)) },
   )
-  use vxmls <- on.ok(vxml.parse_string(tst.source, "tst.source") |> result.map_error(fn(e) { VXMLParseError(e) }))
+  use vxmls <- on.ok(vxml.parse_string(tst.source, "tst.source", True) |> result.map_error(fn(e) { VXMLParseError(e) }))
   let assert [input] = vxmls
-  use vxmls <- on.ok(vxml.parse_string(tst.expected, "tst.expect") |> result.map_error(fn(e) { VXMLParseError(e) }))
+  use vxmls <- on.ok(vxml.parse_string(tst.expected, "tst.expect", True) |> result.map_error(fn(e) { VXMLParseError(e) }))
   let assert [expected] = vxmls
   use #(output, _) <- on.ok(
     desugarer.transform(input)

@@ -85,7 +85,7 @@ fn vxml_engine_light() -> Result(Nil, String) {
   let path = "samples/sample.vxml"
 
   use vxmls <- on.error_ok(
-    vxml.parse_file(path),
+    vxml.parse_file(path, False),
     fn (e) {
       case e {
         vxml.IOError(error) -> Error("vxml_engine_light i/o error on '" <> path <> "': " <> ins(error))

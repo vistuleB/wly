@@ -2534,6 +2534,12 @@ pub fn vxml_digest(vxml: VXML) -> String {
   }
 }
 
+pub fn vxmls_digest(vxmls: List(VXML)) -> String {
+  vxmls
+  |> list.map(vxml_digest)
+  |> string.join(", ")
+}
+
 pub const node_digest = vxml_digest
 
 // ************************************************************

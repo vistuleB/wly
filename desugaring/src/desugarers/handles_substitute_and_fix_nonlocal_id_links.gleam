@@ -206,7 +206,10 @@ fn process_line(
         inner,
       ))
       let text_nodes = splits_2_ts(splits, blame)
-      Ok(#(list.interleave([text_nodes, hyperlinks]), warnings))
+      let vxmls = 
+        list.interleave([text_nodes, hyperlinks])
+        |> infra.last_to_first_concatenation
+      Ok(#(vxmls, warnings))
     }
     [] -> Ok(#([T(line.blame, [line])], []))
   }
@@ -228,9 +231,9 @@ fn process_lines(
   let vxmls =
     list_list_vxml
     |> list.flatten
-    |> infra.last_to_first_concatenation
+    // |> infra.last_to_first_concatenation
     // you now have a list of t-nodes and of hyperlinks
-    // |> infra.plain_concatenation_in_list
+    |> infra.plain_concatenation_in_list
     // adjacent t-nodes are wrapped into single t-node, with 1 line per old t-node (pre-concatenation)
 
   let warnings =
@@ -851,6 +854,82 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
                       '.'
                 ",
     ),
+    infra.AssertiveTestData(
+      param: #(
+        "path",
+        "InChapterLink",
+        "OutChapterLink",
+        [#("class", "handle-in-chapter-link")],
+        [#("class", "handle-out-chapter-link")],
+        ["a"],
+      ),
+      source: "
+        <> GrandWrapper
+          handle=slopes||26|section-1|/article/chapter1
+          <> Book
+            <> Chapter
+              path=/article/chapter2
+              <> Section
+                <>
+                  '*Terminology: “dimension” vs. “dimensional”.*'
+                  'As explained in the '
+                <> a
+                  href=>>slopes
+                  <>
+                    'Epilogue to Chapter >>slopes#decoy:2'
+      ",
+      expected: "
+        <> Book
+          <> Chapter
+            path=/article/chapter2
+            <> Section
+              <>
+                '*Terminology: “dimension” vs. “dimensional”.*'
+                'As explained in the '
+              <> OutChapterLink
+                href=/article/chapter1#section-1
+                <>
+                  'Epilogue to Chapter 26'
+      ",
+    ),
+    infra.AssertiveTestData(
+      param: #(
+        "path",
+        "InChapterLink",
+        "OutChapterLink",
+        [#("class", "handle-in-chapter-link")],
+        [#("class", "handle-out-chapter-link")],
+        ["a"],
+      ),
+      source: "
+        <> GrandWrapper
+          handle=goober||26|section-1|/article/chapter1
+          <> Book
+            <> Chapter
+              path=/article/chapter2
+              <> Section
+                <>
+                  '*Terminology: “dimension” vs. “dimensional”.*'
+                  'As explained in the '
+                <> a
+                  href=>>slopes
+                  <>
+                    'Epilogue to Chapter >>slopes#decoy:2'
+      ",
+      expected: "
+        <> Book
+          <> Chapter
+            path=/article/chapter2
+            <> Section
+              <>
+                '*Terminology: “dimension” vs. “dimensional”.*'
+                'As explained in the '
+              <> a
+                href=>>slopes
+                <>
+                  'Epilogue to Chapter 2'
+      ",
+    )
   ]
 }
 

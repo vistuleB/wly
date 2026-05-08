@@ -953,10 +953,17 @@ pub fn vxmls_to_html_output_lines(
 
 pub fn parse_input_lines(
   lines: List(io_l.InputLine),
+  unique_root: Bool,
 ) -> Result(List(VXML), VXMLParseError) {
   use #(vxmls, after) <- on.ok(parse_nodes_at_indent(0, lines))
   assert after == []
-  Ok(vxmls)
+  case unique_root {
+    False -> Ok(vxmls)
+    True -> case vxmls {
+      [_] -> Ok(vxmls)
+      _ -> Error(VXMLParseErrorNonUniqueRoot(vxmls |> list.length))
+    }
+  }
 }
 
 // ************************************************************
@@ -966,10 +973,11 @@ pub fn parse_input_lines(
 pub fn parse_string(
   source: String,
   filename: String,
+  unique_root: Bool,
 ) -> Result(List(VXML), VXMLParseError) {
   source
   |> io_l.string_to_input_lines(filename, 0)
-  |> parse_input_lines
+  |> parse_input_lines(unique_root)
 }
 
 // ************************************************************
@@ -978,13 +986,14 @@ pub fn parse_string(
 
 pub fn parse_file(
   path: String,
+  unique_root: Bool,
 ) -> Result(List(VXML), VXMLParseFileError) {
   use contents <- on.error_ok(
     simplifile.read(path),
     fn (io_error) { Error(IOError(io_error)) },
   )
 
-  parse_string(contents, path)
+  parse_string(contents, path, unique_root)
   |> result.map_error(fn(e) { DocumentError(e) })
 }
 

@@ -175,7 +175,7 @@ pub fn part_4_test() {
     'second'
   " |> string.trim
 
-  let assert Ok([vxml_parsed]) = vxml.parse_string(vxml_doc, "doc")
+  let assert Ok([vxml_parsed]) = vxml.parse_string(vxml_doc, "doc", True)
 
   vxml_parsed
   |> wl.vxml_to_writerly

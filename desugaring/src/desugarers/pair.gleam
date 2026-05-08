@@ -41,7 +41,7 @@ fn accumulator(
           already_processed |> list.reverse
         }
         option.Some(dude) -> {
-          list.flatten([after_last_opening, [dude, ..already_processed]])
+          list.append(after_last_opening, [dude, ..already_processed])
           |> list.reverse
         }
       }
@@ -118,7 +118,7 @@ fn accumulator(
                     closing,
                     enclosing,
                     unbridgeable,
-                    [first, ..infra.pour(after_last_opening, [x, ..already_processed])],
+                    [first, ..list.append(after_last_opening, [x, ..already_processed])],
                     option.None,
                     [],
                     rest,
@@ -191,7 +191,7 @@ fn accumulator(
                         closing,
                         enclosing,
                         unbridgeable,
-                        list.flatten([after_last_opening, [dude, ..already_processed]]),
+                        list.append(after_last_opening, [dude, ..already_processed]),
                         option.Some(first),
                         [],
                         rest,
@@ -356,7 +356,62 @@ pub fn constructor(param: Param) -> Desugarer {
 // 🌊🌊🌊 tests 🌊🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
 fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
-  []
+  [
+    infra.AssertiveTestData(
+      param: #("MDLinkOpening", "MDLinkClosing", "MDLink", ["WriterlyBlankLine"]),
+      source: "
+        <> root
+          <> MDLinkOpening
+          <> a
+          <> b
+          <> WriterlyBlankLine
+      ",
+      expected: "
+        <> root
+          <> MDLinkOpening
+          <> a
+          <> b
+          <> WriterlyBlankLine
+      "
+    ),
+    infra.AssertiveTestData(
+      param: #("MDLinkOpening", "MDLinkClosing", "MDLink", ["WriterlyBlankLine"]),
+      source: "
+        <> root
+          <> MDLinkOpening
+          <> a
+          <> b
+          <> WriterlyBlankLine
+          <> MDLinkClosing
+      ",
+      expected: "
+        <> root
+          <> MDLinkOpening
+          <> a
+          <> b
+          <> WriterlyBlankLine
+          <> MDLinkClosing
+      "
+    ),
+    infra.AssertiveTestData(
+      param: #("MDLinkOpening", "MDLinkClosing", "MDLink", ["WriterlyBlankLine"]),
+      source: "
+        <> root
+          <> MDLinkOpening
+          <> a
+          <> b
+          <> MDLinkClosing
+          <> WriterlyBlankLine
+      ",
+      expected: "
+        <> root
+          <> MDLink
+            <> a
+            <> b
+          <> WriterlyBlankLine
+      "
+    )
+  ]
 }
 
 pub fn assertive_tests() {
