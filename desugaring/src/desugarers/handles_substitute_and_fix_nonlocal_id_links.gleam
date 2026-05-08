@@ -33,13 +33,21 @@ fn hyperlink_constructor(
   state: State,
   inner: InnerParam,
 ) -> Result(VXML, DesugaringError) {
+  let #(page_by_default, value, id, target_path) = handle
+
+  // dispatch the case where we don't even want a link:
+  use _ <- on.stay(case state.inside_a_link_tag {
+    False -> on.Stay(Nil)
+    True -> on.Return(Ok(T(blame, [Line(blame, value)])))
+  })
+
+  // back to constructing a link:
   use our_path <- on.none_some(state.path, fn() {
     Error(DesugaringError(
       blame,
       "handle occurrence when local path is not defined",
     ))
   })
-  let #(page_by_default, value, id, target_path) = handle
   let #(tag, attrs) = case target_path == our_path {
     True -> #(inner.1, inner.3)
     False -> #(inner.2, inner.4)
@@ -53,12 +61,6 @@ fn hyperlink_constructor(
   Ok(V(blame, tag, attrs, [T(blame, [Line(blame, value)])]))
 }
 
-// fn decoy_constructor(
-//   decoy: String
-// ) -> VXML {
-//   let attrs = [Attr(blame, "class", "handle-decoy-link"), ..attrs]
-// }
-
 type TripleThreat(a, b, c) {
   Success(a)
   Warning(b)
@@ -69,7 +71,6 @@ fn warning_element(handle_name: String, blame: Blame) -> VXML {
   V(
     desugarer_blame(61),
     "InTextWarning",
-    // [Attr(desugarer_blame(63), "style", "color:red;background-color:yellow;")],
     [],
     [
       T(desugarer_blame(66), [
@@ -227,8 +228,9 @@ fn process_lines(
   let vxmls =
     list_list_vxml
     |> list.flatten
+    |> infra.last_to_first_concatenation
     // you now have a list of t-nodes and of hyperlinks
-    |> infra.plain_concatenation_in_list
+    // |> infra.plain_concatenation_in_list
     // adjacent t-nodes are wrapped into single t-node, with 1 line per old t-node (pre-concatenation)
 
   let warnings =
@@ -402,7 +404,11 @@ fn substitute_hrefs_in_a(
   Ok(#(V(..vxml, tag: tag, attrs: attrs), state, acc.1))
 }
 
-fn update_state_path(state: State, vxml: VXML, inner: InnerParam) -> State {
+fn update_state_path(
+  state: State,
+  vxml: VXML,
+  inner: InnerParam,
+) -> State {
   let assert V(_, _, _, _) = vxml
   case infra.v_first_attr_with_key(vxml, inner.0) {
     Some(Attr(_, _, value)) -> State(..state, path: Some(value))
@@ -420,6 +426,10 @@ fn v_before_transform(
     "GrandWrapper" -> grand_wrapper_load(state, attrs)
     _ -> update_state_path(state, vxml, inner)
   }
+  let state = case state.inside_a_link_tag || !list.contains(inner.6, tag) {
+    True -> state
+    False -> State(..state, inside_a_link_tag: True)
+  }
   case tag {
     "a" -> substitute_hrefs_in_a(vxml, state, inner)
     _ -> Ok(#(vxml, state, []))
@@ -428,15 +438,19 @@ fn v_before_transform(
 
 fn v_after_transform(
   vxml: VXML,
-  state: State,
+  original_state: State,
+  latest_state: State,
 ) -> Result(#(List(VXML), State, List(DesugaringWarning)), DesugaringError) {
   let assert V(_, tag, _, children) = vxml
+  // this is incorrect we should just use original_state but
+  // min changes for now:
+  let exit_state = State(..latest_state, inside_a_link_tag: original_state.inside_a_link_tag)
   case tag == "GrandWrapper" {
     True -> {
       let assert [V(_, _, _, _) as root] = children
-      Ok(#([root], state, []))
+      Ok(#([root], exit_state, []))
     }
-    False -> Ok(#([vxml], state, []))
+    False -> Ok(#([vxml], exit_state, []))
   }
 }
 
@@ -457,8 +471,8 @@ fn nodemap_factory(
     v_before_transforming_children: fn(vxml, state) {
       v_before_transform(vxml, state, inner)
     },
-    v_after_transforming_children: fn(vxml, _, new) {
-      v_after_transform(vxml, new)
+    v_after_transforming_children: fn(vxml, original_state, latest_state) {
+      v_after_transform(vxml, original_state, latest_state)
     },
     t_nodemap: fn(vxml, state) { t_transform(vxml, state, inner) },
   )
@@ -467,7 +481,7 @@ fn nodemap_factory(
 fn transform_factory(inner: InnerParam) -> DesugarerTransform {
   nodemap_factory(inner)
   |> n2t.one_to_many_before_and_after_stateful_nodemap_with_warnings_2_desufarer_transform(
-    State(dict.new(), dict.new(), None),
+    State(dict.new(), dict.new(), None, False),
   )
 }
 
@@ -482,6 +496,7 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
     param.3 |> infra.string_pairs_2_attrs(desugarer_blame(449)),
     param.4 |> infra.string_pairs_2_attrs(desugarer_blame(450)),
     handles_regexp,
+    param.5,
   )
   |> Ok
 }
@@ -498,16 +513,21 @@ type IdsDict = Dict(String, List(String))
 //                          where id appears
 
 type State {
-  State(handles: HandlesDict, ids: IdsDict, path: Option(String))
+  State(
+    handles: HandlesDict,
+    ids: IdsDict,
+    path: Option(String),
+    inside_a_link_tag: Bool,
+  )
 }
 
-type Param = #(String,            String,                 String,                List(#(String, String)),   List(#(String, String)))
-//             ↖                  ↖                       ↖                      ↖                          ↖
-//             attr key           tag to use              tag to use             additional key-value       additional key-value
-//             to update the      when handle path        when handle path       pairs for former case      pairs for latter case
-//             local path         equals local path       !equals local path
+type Param = #(String,            String,                 String,                List(#(String, String)),   List(#(String, String)),   List(String))
+//             ↖                  ↖                       ↖                      ↖                          ↖                          ↖
+//             attr key           tag to use              tag to use             additional attribute       additional attribute       tags that count as
+//             to update the      when handle path        when handle path       key-value pairs for        key-value pairs for        "already being inside a link"
+//             local path         equals local path       !equals local path     former case                latter case 
 //                                at point of insertion   at point of insertion
-type InnerParam = #(String, String, String, List(Attr), List(Attr), Regexp)
+type InnerParam = #(String, String, String, List(Attr), List(Attr), Regexp, List(String))
 
 pub const name = "handles_substitute_and_fix_nonlocal_id_links"
 
@@ -623,6 +643,7 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
         "a",
         [#("class", "handle-in-chapter-link")],
         [#("class", "handle-out-chapter-link")],
+        ["a"],
       ),
       source: "
                 <> GrandWrapper
@@ -661,6 +682,7 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
         "outLink",
         [#("class", "handle-in-link-class")],
         [#("class", "handle-out-link-class")],
+        ["a"],
       ),
       source: "
                 <> GrandWrapper
@@ -715,6 +737,7 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
         "a",
         [#("class", "handle-in-chapter-link")],
         [#("class", "handle-out-chapter-link")],
+        ["a"],
       ),
       source: "
                 <> GrandWrapper
@@ -761,6 +784,7 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
         "a",
         [#("class", "handle-in-chapter-link")],
         [#("class", "handle-out-chapter-link")],
+        ["a"],
       ),
       source: "
                 <> GrandWrapper
@@ -801,6 +825,7 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
         "a",
         [#("class", "handle-in-chapter-link")],
         [#("class", "handle-out-chapter-link")],
+        ["a"],
       ),
       source: "
                 <> GrandWrapper
