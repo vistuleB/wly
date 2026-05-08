@@ -1,3 +1,4 @@
+import either_or.{type EitherOr,Either,Or}
 import gleam/list
 import gleam/option.{type Option, Some}
 import gleam/result
@@ -16,7 +17,7 @@ import on
 fn chapter_link(
   chapter_link_component_name: String,
   item: VXML,
-  count: Int,
+  count: String,
 ) -> Result(VXML, DesugaringError) {
   let assert V(blame, tag, _, _) = item
   let tp = case tag {
@@ -27,12 +28,13 @@ fn chapter_link(
   }
   use title_element <- on.ok(infra.v_unique_child(item, "ArticleTitle"))
   let assert V(_, _, _, _) = title_element
+
   V(
     blame,
     chapter_link_component_name,
     [
-      Attr(desugarer_blame(33), "article_type", ins(count)),
-      Attr(desugarer_blame(34), "href", tp <> ins(count)),
+      Attr(desugarer_blame(33), "article_type", count),
+      Attr(desugarer_blame(34), "href", tp <> count),
     ],
     title_element.children,
   )
@@ -70,10 +72,26 @@ fn div_with_id_title_and_menu_items(
   )
 }
 
-type ArticalParams = #(String, String, String)
+type ArticalParams = #(String, String, String, CounterType)
+
+type CounterType {
+  Number
+  Alphabetic
+}
+
+fn increamentor(index: Int, counter_type: CounterType) -> String {
+  case counter_type {
+    Number -> ins(index + 1) 
+    Alphabetic ->{
+      let assert Ok(utf) = string.utf_codepoint(64 + index + 1)
+      string.from_utf_codepoints([utf])
+    }
+  }
+}
+
 
 fn create_toc_child_div(article_params: ArticalParams, inner: InnerParam, children: List(VXML)) -> Result(List(VXML), DesugaringError) {
-  let #(tag_name, link, title) = article_params
+  let #(tag_name, link, title, counter_type) = article_params
   let #(
     _,
     type_of_chapters_title_component_name,
@@ -84,7 +102,7 @@ fn create_toc_child_div(article_params: ArticalParams, inner: InnerParam, childr
   use menu_items <- on.ok(
     children
     |> list.filter(infra.is_v_and_tag_equals(_, tag_name))
-    |> list.index_map(fn(chapter: VXML, index) { chapter_link(chapter_link_component_name, chapter, index + 1) })
+    |> list.index_map(fn(chapter: VXML, index) { chapter_link(chapter_link_component_name, chapter, increamentor(index, counter_type)) })
     |> result.all
   )
 
@@ -114,9 +132,9 @@ fn at_root(root: VXML, param: InnerParam) -> Result(VXML, DesugaringError) {
   ) = param
 
   let res = [
-    #("Chapter", "chapter", "Chapters"),
-    #("Bootcamp", "bootcamp", "Bootcamps"),
-    #("Appendix", "appendix", "Appendices"),
+    #("Chapter", "chapter", "Chapters", Number),
+    #("Bootcamp", "bootcamp", "Bootcamps", Number),
+    #("Appendix", "appendix", "Appendices", Alphabetic),
   ] |> list.try_map(fn(a_params) { create_toc_child_div(a_params, param, children) })
    
   use merged <- on.ok(res)

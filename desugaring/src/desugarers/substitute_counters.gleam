@@ -15,6 +15,7 @@ import on
 type CounterType {
   Arabic
   Roman
+  Alphabetic
   Unary(String)
 }
 
@@ -64,6 +65,10 @@ fn render_info(
     Arabic -> ins(info.value)
     Roman -> roman.int_to_roman(info.value) |> option.unwrap([]) |> roman.roman_to_string()
     Unary(c) -> string.repeat(c, info.value)
+    Alphabetic -> {
+      let assert Ok(utf) = string.utf_codepoint(info.value)
+      string.from_utf_codepoints([utf])
+    }
   }
 }
 
@@ -166,8 +171,29 @@ fn take_existing_counters(
   |> dict.filter(fn(k, _) { dict.has_key(current, k) })
 }
 
+fn parse_starting_value(
+  attr: Attr,
+  value: String,
+  counter_type: CounterType,
+) -> Result(Int, DesugaringError) {
+  case counter_type {
+    Alphabetic -> {
+      let assert [utf] = string.to_utf_codepoints(value)
+      Ok(string.utf_codepoint_to_int(utf))
+    }
+    _ -> {
+      use starting_value <- on.error_ok(
+        int.parse(value),
+        fn(_) { Error(DesugaringError(attr.blame, "counter starting value must be a number")) },
+      )
+      Ok(starting_value)
+    }
+  }
+}
+
 fn handle_non_unary_att_value(
   attr: Attr,
+  counter_type: CounterType,
 ) -> Result(#(String, Int, Int), DesugaringError) {
   let splits = string.split(attr.val, " ")
 
@@ -176,15 +202,17 @@ fn handle_non_unary_att_value(
     fn() { Error(DesugaringError(attr.blame, "counter must have a name")) },
   )
 
+  let default_value = case counter_type {
+    Alphabetic -> 64
+    _ -> 0
+  }
+
   use starting_value, rest <- on.empty_nonempty(
     rest,
-    fn() { Ok(#(counter_name, 0, 1)) },
+    fn() { Ok(#(counter_name, default_value, 1)) },
   )
 
-  use starting_value <- on.error_ok(
-    int.parse(starting_value),
-    fn(_) { Error(DesugaringError(attr.blame, "counter starting value must be a number")) },
-  )
+  use starting_value <- on.ok(parse_starting_value(attr, starting_value, counter_type))
 
   use step, rest <- on.empty_nonempty(
     rest,
@@ -220,6 +248,7 @@ fn attr_key_is_counter(
   case key {
     "counter" -> Ok(Arabic)
     "roman-counter" -> Ok(Roman)
+    "alphabetic-counter" -> Ok(Alphabetic)
     "unary-counter" -> Ok(Unary(""))
     _ -> Error(Nil)
   }
@@ -239,7 +268,7 @@ fn read_counter_definition(
       Ok(Some(#(counter_name, CounterInfo(Unary(unary_char), 0, 1))))
     }
     _ -> {
-      use #(counter_name, initial_value, step) <- on.ok(handle_non_unary_att_value(attr))
+      use #(counter_name, initial_value, step) <- on.ok(handle_non_unary_att_value(attr, counter_type))
       Ok(Some(#(counter_name, CounterInfo(counter_type, initial_value, step))))
     }
   }
