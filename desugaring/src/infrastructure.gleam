@@ -3496,41 +3496,4 @@ pub fn s_lines_table(
 // Pipeline
 // ************************************************************
 
-pub type TrackingMode {
-  TrackingOff
-  TrackingOnChange
-  TrackingForced
-}
-
-pub type Pipe {
-  Pipe(
-    desugarer: Desugarer,
-    selector: Selector,
-    tracking_mode: TrackingMode,
-    dump: Bool,
-  )
-}
-
-pub type Pipeline =
-  List(Pipe)
-
-pub fn pipeline_desugarers(
-  pipeline: Pipeline
-) -> List(Desugarer) {
-  pipeline |> list.map(fn(x) { x.desugarer })
-}
-
-pub fn desugarers_2_pipeline(
-  desugarers: List(Desugarer),
-) -> Pipeline {
-  let id = fn(x) { x }
-  desugarers
-  |> list.map(fn (d) {
-    Pipe(
-      desugarer: d,
-      selector: id,
-      tracking_mode: TrackingOff,
-      dump: False,
-    )
-  })
-}
+pub type Pipeline = List(Desugarer)

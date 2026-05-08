@@ -1,3 +1,4 @@
+import gleam/function
 import gleam/dict.{type Dict}
 import gleam/float
 import gleam/pair
@@ -12,7 +13,7 @@ import gleam/time/timestamp
 import blame.{Ext, type Blame} as bl
 import io_lines.{type InputLine, type OutputLine, OutputLine} as io_l
 import desugarer_library as dl
-import infrastructure.{type Desugarer, Pipe, type Pipeline, TrackingOff, TrackingForced, TrackingOnChange} as infra
+import infrastructure.{type Desugarer, type Pipeline, type Selector} as infra
 import selector_library as sl
 import shellout
 import simplifile
@@ -25,6 +26,36 @@ import gleam/erlang/process.{type Subject, spawn, send, receive}
 import dirtree.{type DirTree} as dt
 
 const default_times_table_char_width = 90 // MacBook 16' can take 140
+
+pub type TrackingMode {
+  TrackingOff
+  TrackingOnChange
+  TrackingForced
+}
+
+pub type DecoratedDesugarer {
+  DecoratedDesugarer(
+    desugarer: Desugarer,
+    selector: Selector,
+    tracking_mode: TrackingMode,
+    dump: Bool,
+  )
+}
+
+pub fn desugarers_2_decorateds(
+  desugarers: List(Desugarer),
+) -> List(DecoratedDesugarer) {
+  desugarers
+  |> list.map(fn (d) {
+    DecoratedDesugarer(
+      desugarer: d,
+      selector: function.identity,
+      tracking_mode: TrackingOff,
+      dump: False,
+    )
+  })
+}
+
 
 // ************************************************************
 // Assembler(a)                                                // 'a' is assembler error type; "assembler" = "source assembler"
@@ -55,7 +86,7 @@ pub fn default_other_files_assembler(
 }
 
 // ************************************************************
-// Paser(c)                                                    // 'c' is parser error type
+// Parser(c)                                                   // 'c' is parser error type
 // List(InputLine) -> VXML
 // ************************************************************
 
@@ -355,6 +386,8 @@ pub type RendererOptions(d) {
     profiling_table: Option(Int),
     interactive_mode: Bool,
     suppress_warnings: Bool,
+    dump: Option(List(Int)),
+    tracker: Option(Tracker),
     echo_assembled_lines: Bool,
     echo_parsed_vxml: Bool,
     echo_vxml_fragments: fn(OutputFragment(d, VXML)) -> Bool,
@@ -371,6 +404,8 @@ pub fn vanilla_options() -> RendererOptions(d) {
     profiling_table: None,
     interactive_mode: False,
     suppress_warnings: False,
+    dump: None,
+    tracker: None,
     echo_assembled_lines: False,
     echo_parsed_vxml: False,
     echo_vxml_fragments: fn (_) { False },
@@ -384,8 +419,8 @@ pub fn vanilla_options() -> RendererOptions(d) {
 // CommandLineAmendments
 // ************************************************************
 
-pub type PipelineTrackingModifier {
-  PipelineTrackingModifier(
+pub type Tracker {
+  Tracker(
     selector: Option(infra.Selector),
     steps_with_tracking_on_change: List(Int),
     steps_with_tracking_forced: List(Int),
@@ -401,7 +436,7 @@ pub type CommandLineAmendments {
     only_paths: List(String),
     only_key_values: List(#(String, String, String)),
     prettier: Option(PrettifierMode),
-    track: Option(PipelineTrackingModifier),
+    tracker: Option(Tracker),
     dump: Option(List(Int)),
     table: Option(Bool),
     times: Option(Int),
@@ -429,7 +464,7 @@ fn empty_command_line_amendments() -> CommandLineAmendments {
     only_paths: [],
     only_key_values: [],
     prettier: None,
-    track: None,
+    tracker: None,
     dump: None,
     table: None,
     times: None,
@@ -562,6 +597,7 @@ pub type CommandLineError {
   ExpectedDoubleDashString(String)
   UnknownOptionArgument(String)
   UnexpectedArgumentsToOption(String)
+  DuplicateOption(String)
   MissingArgumentToOption(String)
   TooManyArgumentsToOption(String)
   SelectorValues(String)
@@ -658,36 +694,31 @@ pub fn process_command_line_arguments(
           }
 
         "--track" -> {
-          use pipeline_mod <- on.ok(parse_track_args(values))
+          use tracker <- on.ok(parse_track_args(values))
           Ok(
             CommandLineAmendments(
               ..amendments,
-              track: Some(join_pipeline_modifiers(
-                amendments.track,
-                pipeline_mod,
-              )),
+              tracker: Some(join_trackers(amendments.tracker, tracker)),
             ),
           )
         }
 
         "--track-steps" -> {
-          use pipeline_mod <- on.ok(parse_track_steps_args(values))
+          use tracker <- on.ok(parse_track_steps_args(values))
           Ok(
             CommandLineAmendments(
               ..amendments,
-              track: Some(join_pipeline_modifiers(
-                amendments.track,
-                pipeline_mod,
-              )),
+              tracker: Some(join_trackers(amendments.tracker, tracker)),
             ),
           )
         }
 
         "--dump" -> {
           use numbers <- on.ok(parse_dump_args(values))
-          Ok(
-            CommandLineAmendments(..amendments, dump: Some(numbers))
-          )
+          case amendments.dump {
+            None -> Ok(CommandLineAmendments(..amendments, dump: Some(numbers)))
+            _ -> Error(DuplicateOption(option))
+          }
         }
 
         "--echo-assembled" ->
@@ -954,7 +985,7 @@ fn parse_step_numbers(
 
 fn parse_track_args(
   values: List(String),
-) -> Result(PipelineTrackingModifier, CommandLineError) {
+) -> Result(Tracker, CommandLineError) {
   use first_payload, values <- on.empty_nonempty(
     values,
     fn() { Error(SelectorValues("missing 1st argument")) },
@@ -994,7 +1025,7 @@ fn parse_track_args(
   use second_payload, values <- on.empty_nonempty(
     values,
     fn() { Ok(
-      PipelineTrackingModifier(
+      Tracker(
         selector: Some(selector),
         steps_with_tracking_on_change: [],
         steps_with_tracking_forced: [],
@@ -1021,7 +1052,7 @@ fn parse_track_args(
     parse_step_numbers(values)
   )
 
-  Ok(PipelineTrackingModifier(
+  Ok(Tracker(
     selector: Some(selector),
     steps_with_tracking_on_change: restrict,
     steps_with_tracking_forced: force,
@@ -1031,14 +1062,14 @@ fn parse_track_args(
 
 fn parse_track_steps_args(
   values: List(String),
-) -> Result(PipelineTrackingModifier, CommandLineError) {
+) -> Result(Tracker, CommandLineError) {
   use #(restrict, force) <- on.ok(
     parse_step_numbers(values)
   )
 
   let #(with_enter, _) = infra.delete(values, "-i")
 
-  Ok(PipelineTrackingModifier(
+  Ok(Tracker(
     selector: None,
     steps_with_tracking_on_change: restrict,
     steps_with_tracking_forced: force,
@@ -1046,10 +1077,10 @@ fn parse_track_steps_args(
   ))
 }
 
-fn join_pipeline_modifiers(
-  pm1: Option(PipelineTrackingModifier),
-  pm2: PipelineTrackingModifier,
-) -> PipelineTrackingModifier {
+fn join_trackers(
+  pm1: Option(Tracker),
+  pm2: Tracker,
+) -> Tracker {
   use pm1 <- on.eager_none_some(pm1, pm2)
   let #(restrict, force) =
     cleanup_step_numbers(
@@ -1059,7 +1090,7 @@ fn join_pipeline_modifiers(
         pm2.steps_with_tracking_on_change,
       ),
     )
-  PipelineTrackingModifier(
+  Tracker(
     selector: case pm1.selector, pm2.selector {
       Some(s1), Some(s2) -> Some(infra.or_selectors(s1, s2))
       _, _ -> option.or(pm1.selector, pm2.selector)
@@ -1137,17 +1168,9 @@ fn exists_match(
 
 pub fn amend_renderer_by_command_line_amendments(
   renderer: Renderer(a, c, d, e, f, g, h),
-  amendments: CommandLineAmendments,
+  _amendments: CommandLineAmendments,
 ) -> Renderer(a, c, d, e, f, g, h) {
-  let pipeline =
-    renderer.pipeline
-    |> apply_pipeline_tracking_modifier(amendments.track)
-    |> apply_peeking(amendments.dump)
-
-  Renderer(
-    ..renderer,
-    pipeline: pipeline
-  )
+  renderer
 }
 
 pub fn amend_renderer_options_by_command_line_amendments(
@@ -1160,9 +1183,18 @@ pub fn amend_renderer_options_by_command_line_amendments(
     profiling_table: option.or(amendments.times, options.profiling_table),
     interactive_mode: {
       options.interactive_mode ||
-      option.map(amendments.track, fn(x){x.interactive_mode}) |> option.unwrap(False)
+      option.map(amendments.tracker, fn(x){x.interactive_mode}) |> option.unwrap(False)
     },
     suppress_warnings: !option.unwrap(amendments.warnings, !options.suppress_warnings),
+    dump: case options.dump, amendments.dump {
+      None, _ -> amendments.dump
+      _, None -> options.dump
+      Some(x), Some(y) -> Some(list.append(x, y) |> list.sort(int.compare) |> list.unique)
+    },
+    tracker: case amendments.tracker {
+      None -> options.tracker
+      Some(x) -> Some(join_trackers(options.tracker, x))
+    },
     echo_assembled_lines: amendments.echo_assembled || options.echo_assembled_lines,
     echo_parsed_vxml: options.echo_parsed_vxml || { option.unwrap(amendments.dump, []) |> list.contains(0) },
     echo_vxml_fragments: fn(fr: OutputFragment(d, VXML)) {
@@ -1196,12 +1228,12 @@ pub fn amend_renderer_options_by_command_line_amendments(
   )
 }
 
-fn apply_peeking(
-  pipeline: Pipeline,
+fn apply_dumping(
+  decorateds: List(DecoratedDesugarer),
   mod: Option(List(Int)),
-) -> Pipeline {
-  use mod <- on.eager_none_some(mod, pipeline)
-  let num_steps = list.length(pipeline)
+) -> List(DecoratedDesugarer) {
+  use mod <- on.eager_none_some(mod, decorateds)
+  let num_steps = list.length(decorateds)
   let wraparound = fn(x: Int) {
     case x < 0 {
       True -> num_steps + x + 1
@@ -1209,30 +1241,30 @@ fn apply_peeking(
     }
   }
   let apply_to_all = mod == []
-  let peek_steps = list.map(mod, wraparound)
+  let dumping_steps = list.map(mod, wraparound)
   case apply_to_all {
     True -> list.map(
-      pipeline,
-      fn(pipe) { Pipe(..pipe, dump: True) }
+      decorateds,
+      fn(decorated) { DecoratedDesugarer(..decorated, dump: True) }
     )
     False -> list.index_map(
-      pipeline,
-      fn(pipe, i) {
+      decorateds,
+      fn(decorated, i) {
         let step_no = i + 1
-        Pipe(..pipe, dump: list.contains(peek_steps, step_no) )
+        DecoratedDesugarer(..decorated, dump: list.contains(dumping_steps, step_no) )
       }
     )
   }
 }
 
 // ************************************************************
-// Pipeline + PipelineTrackingModifier -> Pipeline (used by above)
+// Pipeline + Tracker -> Pipeline (used by above)
 // ************************************************************
 
 fn apply_pipeline_tracking_modifier(
-  pipeline: Pipeline,
-  mod: Option(PipelineTrackingModifier),
-) -> Pipeline {
+  pipeline: List(DecoratedDesugarer),
+  mod: Option(Tracker),
+) -> List(DecoratedDesugarer) {
   use mod <- on.eager_none_some(mod, pipeline)
   let num_steps = list.length(pipeline)
   let wraparound = fn(x: Int) {
@@ -1248,12 +1280,12 @@ fn apply_pipeline_tracking_modifier(
     True -> {
       list.map(
         pipeline,
-        fn(pipe) {
-          Pipe(
-            desugarer: pipe.desugarer,
-            selector: option.unwrap(mod.selector, pipe.selector),
+        fn(decorated) {
+          DecoratedDesugarer(
+            desugarer: decorated.desugarer,
+            selector: option.unwrap(mod.selector, decorated.selector),
             tracking_mode: TrackingOnChange,
-            dump: pipe.dump,
+            dump: decorated.dump,
           )
         }
       )
@@ -1269,7 +1301,7 @@ fn apply_pipeline_tracking_modifier(
           True, _ -> TrackingOnChange
           _, _ -> TrackingOff
         }
-        Pipe(
+        DecoratedDesugarer(
           desugarer: pipe.desugarer,
           selector: option.unwrap(mod.selector, pipe.selector),
           tracking_mode: mode,
@@ -1324,7 +1356,7 @@ type Message {
 fn producer(
   main_process_subject: Subject(Message),
   vxml: VXML,
-  pipeline: Pipeline,
+  pipeline: List(DecoratedDesugarer),
 ) -> Nil {
   let track_any = list.any(pipeline, fn(p) { p.tracking_mode != TrackingOff })
   let last_step = list.length(pipeline)
@@ -1344,7 +1376,7 @@ fn producer(
           got_arrow,
         ) = acc
 
-        let Pipe(desugarer, selector, mode, dump) = pipe
+        let DecoratedDesugarer(desugarer, selector, mode, dump) = pipe
 
         let #(printed_arrow, lines) = case track_any && !got_arrow {
           True -> {
@@ -1526,7 +1558,7 @@ fn loop(
 
 fn run_pipeline(
   vxml: VXML,
-  pipeline: Pipeline,
+  decorateds: List(DecoratedDesugarer),
   interactive_mode: Bool,
 ) -> Result(#(
     VXML,
@@ -1544,7 +1576,7 @@ fn run_pipeline(
     producer(
       main_subject,
       vxml,
-      pipeline,
+      decorateds,
     )
   })
 
@@ -1624,7 +1656,7 @@ pub fn run_renderer(
   ) = parameters
 
   case options.steps_table {
-    True -> pr.print_pipeline(renderer.pipeline |> infra.pipeline_desugarers)
+    True -> pr.print_pipeline(renderer.pipeline)
     False -> Nil
   }
 
@@ -1697,10 +1729,16 @@ pub fn run_renderer(
   io.println("• starting pipeline...")
   let t0 = timestamp.system_time()
 
+  let decorateds =
+    renderer.pipeline
+    |> desugarers_2_decorateds
+    |> apply_pipeline_tracking_modifier(options.tracker)
+    |> apply_dumping(options.dump)
+
   use #(desugared, warnings, durations) <- on.error_ok(
     run_pipeline(
       parsed,
-      renderer.pipeline,
+      decorateds,
       options.interactive_mode,
     ),
     on_error: fn(e) {
@@ -1763,9 +1801,9 @@ pub fn run_renderer(
       let bars = list.index_map(
         list.zip(renderer.pipeline, all_seconds),
         fn (pair, i) {
-          let #(pipe, seconds) = pair
+          let #(desugarer, seconds) = pair
           let num_bars = float.round(seconds *. 100.0 *. one_hundreth_seconds_num_bars)
-          #(ins(i + 1) <> ".", pipe.desugarer.name, pr.blocks(num_bars))
+          #(ins(i + 1) <> ".", desugarer.name, pr.blocks(num_bars))
         }
       )
       pr.three_column_table([#("#.", "name", scale), ..bars])
