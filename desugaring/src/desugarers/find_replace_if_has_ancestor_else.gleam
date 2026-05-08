@@ -3,18 +3,12 @@ import gleam/option
 import gleam/string.{inspect as ins}
 import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as infra
 import nodemaps_2_desugarer_transforms as n2t
-import vxml.{type VXML, V}
+import vxml.{type VXML}
 
 fn v_before_transforming_children(vxml: VXML, state: State, inner: InnerParam) -> #(VXML, State) {
-  let state = case state.0 {
+  let state = case state.0 || !list.contains(inner.0, infra.v_get_tag(vxml)) {
     True -> state
-    False -> {
-      let assert V(_, tag, _, _) = vxml
-      case list.contains(inner.0, tag) {
-        False -> state
-        True -> #(True, inner.1.0, inner.1.1)
-      }
-    }
+    False -> #(True, inner.1.0, inner.1.1)
   }
   #(vxml, state)
 }
