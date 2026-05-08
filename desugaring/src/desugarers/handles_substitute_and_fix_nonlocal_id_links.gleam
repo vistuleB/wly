@@ -61,12 +61,6 @@ fn hyperlink_constructor(
   Ok(V(blame, tag, attrs, [T(blame, [Line(blame, value)])]))
 }
 
-type TripleThreat(a, b, c) {
-  Success(a)
-  Warning(b)
-  Failure(c)
-}
-
 fn warning_element(handle_name: String, blame: Blame) -> VXML {
   V(
     desugarer_blame(61),
@@ -91,41 +85,30 @@ fn hyperlink_maybe(
   blame: Blame,
   state: State,
   inner: InnerParam,
-) -> TripleThreat(VXML, #(VXML, DesugaringWarning), DesugaringError) {
+) -> Result(#(VXML, List(DesugaringWarning)), DesugaringError) {
   let #(handle_name, page, decoy) = handle_and_page_and_decoy
-  case dict.get(state.handles, handle_name) {
-    Ok(quad) ->
-      case hyperlink_constructor(quad, page, blame, state, inner) {
-        Ok(vxml) -> Success(vxml)
-        Error(e) -> Failure(e)
-      }
-    _ -> {
-      use warning_span_or_decoy_link <- on.error_ok(
-        case decoy {
-          None -> Ok(warning_element(handle_name, blame))
-          Some(decoy) -> {
-            let quad = #(False, decoy, "decoy-id", "decoy-target-path")
-            hyperlink_constructor(quad, page, blame, state, inner)
-          }
-        },
-        fn(e) { Failure(e) }
-      )
-      Warning(#(
-        warning_span_or_decoy_link,
-        DesugaringWarning(
-          blame,
-          "handle '" <> handle_name <> "' is not assigned",
-        ),
-      ))
+  use _ <- on.ok_error(
+    dict.get(state.handles, handle_name),
+    fn(quad) {
+      hyperlink_constructor(quad, page, blame, state, inner)
+      |> result.try(fn(vxml) { Ok(#(vxml, [])) } )
     }
-  }
-}
+  )
 
-fn is_failure(threat: TripleThreat(a, b, c)) -> Bool {
-  case threat {
-    Failure(_) -> True
-    _ -> False
-  }
+  use warning_span_or_decoy_link <- on.ok(case decoy {
+    None -> Ok(warning_element(handle_name, blame))
+    Some(decoy) -> {
+      let quad = #(False, decoy, "decoy-id", "decoy-target-path")
+      hyperlink_constructor(quad, page, blame, state, inner)
+    }
+  })
+
+  let actual_warning = DesugaringWarning(
+    desugarer_blame(0),
+    "handle '" <> handle_name <> "' is not assigned",
+  )
+
+  Ok(#(warning_span_or_decoy_link, [actual_warning]))
 }
 
 fn matches_2_hyperlinks(
@@ -134,28 +117,16 @@ fn matches_2_hyperlinks(
   state: State,
   inner: InnerParam,
 ) -> Result(#(List(VXML), List(DesugaringWarning)), DesugaringError) {
-  let threats =
-    matches
-    |> list.map(extract_handle_and_page_and_decoy)
-    |> list.map(hyperlink_maybe(_, blame, state, inner))
-
-  use _ <- on.ok_error(list.find(threats, is_failure), fn(f) {
-    let assert Failure(desugaring_error) = f
-    Error(desugaring_error)
-  })
-
-  list.fold(threats, #([], []), fn(acc, t) {
-    case t {
-      Failure(_) -> panic as "bug"
-      Success(link_element) -> #([link_element, ..acc.0], acc.1)
-      Warning(#(warning_span, warning)) -> #([warning_span, ..acc.0], [
-        warning,
-        ..acc.1
-      ])
+  let handles_and_pages_and_decoys = matches |> list.map(extract_handle_and_page_and_decoy)
+  use #(vxmls, warnings) <- on.ok(list.try_fold(
+    handles_and_pages_and_decoys,
+    #([], []),
+    fn(acc, handle_and_page_and_decoy) {
+      use #(vxml, warnings) <- on.ok(hyperlink_maybe(handle_and_page_and_decoy, blame, state, inner))
+      Ok(#([vxml, ..acc.0], infra.pour(warnings, acc.1)))
     }
-  })
-  |> fn(pair) { #(pair.0 |> list.reverse, pair.1 |> list.reverse) }
-  |> Ok
+  ))
+  Ok(#(vxmls |> list.reverse, warnings |> list.reverse))
 }
 
 fn augment_to_1_mod_3(splits: List(String)) -> List(String) {
@@ -231,10 +202,7 @@ fn process_lines(
   let vxmls =
     list_list_vxml
     |> list.flatten
-    // |> infra.last_to_first_concatenation
-    // you now have a list of t-nodes and of hyperlinks
     |> infra.plain_concatenation_in_list
-    // adjacent t-nodes are wrapped into single t-node, with 1 line per old t-node (pre-concatenation)
 
   let warnings =
     list_list_warnings
