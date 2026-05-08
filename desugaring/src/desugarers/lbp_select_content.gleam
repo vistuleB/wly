@@ -120,7 +120,7 @@ fn set_exercises_to(
       [root] -> on.Stay(root)
       [] -> on.Return(
         Error(DesugaringError(
-          desugarer_blame(57),
+          desugarer_blame(123),
           "empty chapter after filtering exercises",
         ))
       )
@@ -176,7 +176,7 @@ fn at_root(
   use chapter_selection_node <- on.eager_error_ok(
     list.find(others, infra.is_v_and_tag_equals(_, "ChapterSelection")),
     Error(DesugaringError(
-      desugarer_blame(97),
+      desugarer_blame(179),
       "'ChapterSelection' node not found",
     )),
   )
@@ -213,7 +213,7 @@ fn at_root(
           Error(Nil) -> {
             let warning =
               DesugaringWarning(
-                desugarer_blame(136),
+                desugarer_blame(216),
                 "no '|> In' exercise list found for chapter '" <> handle <> "'",
               )
             on.Return(Ok(#(acc.0, [warning, ..acc.1])))
@@ -225,7 +225,7 @@ fn at_root(
         Ok(
           #(acc.0, [
             DesugaringWarning(
-              desugarer_blame(147),
+              desugarer_blame(228),
               "no '|> In' exercise list found for chapter '" <> handle <> "'",
             ),
             ..acc.1

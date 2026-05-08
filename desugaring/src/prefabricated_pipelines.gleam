@@ -1,9 +1,9 @@
 import gleam/list
 import group_replacement_splitting as grs
 import infrastructure.{
-  type Desugarer,
   type LatexDelimiterPair,
   type LatexDelimiterSingleton,
+  type Pipeline,
   DoubleDollarSingleton,
   SingleDollarSingleton,
   BackslashOpeningParenthesis,
@@ -193,7 +193,7 @@ fn split_pair_fold_for_delimiter_pair(
   wrapper: String,
   unbridgeable: List(String),
   forbidden: List(String),
-) -> List(Desugarer) {
+) -> Pipeline {
   let #(d1, d2) = infra.opening_and_closing_singletons_for_pair(pair)
   case closing_equals_opening(pair) {
     True -> {
@@ -230,7 +230,7 @@ fn create_math_or_mathblock_elements(
   backup: LatexDelimiterPair,
   which: String,
   unbridgeable: List(String),
-) -> List(Desugarer) {
+) -> Pipeline {
   let produced = infra.opening_and_closing_string_for_pair(produced)
   let backup = infra.opening_and_closing_string_for_pair(backup)
 
@@ -270,7 +270,7 @@ fn create_math_or_mathblock_elements(
 pub fn create_mathblock_elements(
   parsed: List(LatexDelimiterPair),
   produced: LatexDelimiterPair,
-) -> List(Desugarer) {
+) -> Pipeline {
   create_math_or_mathblock_elements(parsed, produced, produced, "MathBlock", ["WriterlyBlankLine"])
 }
 
@@ -278,7 +278,7 @@ pub fn create_math_elements(
   parsed: List(LatexDelimiterPair),
   produced: LatexDelimiterPair,
   backup: LatexDelimiterPair,
-) -> List(Desugarer) {
+) -> Pipeline {
   create_math_or_mathblock_elements(parsed, produced, backup, "Math", ["WriterlyBlankLine"])
 }
 
@@ -291,7 +291,7 @@ pub fn symmetric_delim_splitting(
   delim_ordinary_form: String,
   tag: String,
   forbidden: List(String),
-) -> List(Desugarer) {
+) -> Pipeline {
   let opening_grs = grs.rr_splitter_for_groups([
     #("[\\s]", grs.Keep),
     #(delim_regex_form, grs.Tag("OpeningSymmetricDelim")),
@@ -333,7 +333,7 @@ pub fn asymmetric_delim_splitting(
   closing_ordinary_form: String,
   tag: String,
   forbidden: List(String),
-) -> List(Desugarer) {
+) -> Pipeline {
   let opening_grs = grs.rr_splitter_for_groups([
     #("[\\s]|^", grs.Keep),
     #(opening_regex_form, grs.Tag("OpeningAsymmetricDelim")),
@@ -364,7 +364,7 @@ pub fn barbaric_symmetric_delim_splitting(
   delim_ordinary_form: String,
   tag: String,
   forbidden: List(String),
-) -> List(Desugarer) {
+) -> Pipeline {
   let opening_or_closing_grs = grs.unescaped_suffix_rr_splitter(
     re_suffix: delim_regex_form,
     replacement: grs.Tag("OpeningOrClosingSymmetricDelim")
@@ -384,7 +384,7 @@ pub fn annotated_backtick_splitting(
   tag: String,
   annotation_key: String,
   forbidden: List(String),
-) -> List(Desugarer) {
+) -> Pipeline {
   let text_folder = fn(v: VXML) -> String {
     let assert V(_, _, [Attr(_, z, value)], _) = v
     assert z == annotation_key
@@ -420,7 +420,7 @@ pub fn annotated_backtick_splitting(
 
 pub fn markdown_link_splitting(
   forbidden: List(String),
-) -> List(Desugarer) {
+) -> Pipeline {
   let text_folder = fn(v: VXML) -> String {
     let assert V(_, _, [Attr(_, "href", value)], _) = v
     "]aaa\\(" <> value <> "\\)"
@@ -442,7 +442,7 @@ pub fn markdown_link_splitting(
 // clean up after splitting
 // ************************************************************
 
-pub fn splitting_empty_lines_cleanup() -> List(Desugarer) {
+pub fn splitting_empty_lines_cleanup() -> Pipeline {
   [
     dl.concatenate_text_nodes(),
     dl.delete_text_nodes_with_singleton_empty_line(),

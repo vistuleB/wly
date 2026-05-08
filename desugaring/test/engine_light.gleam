@@ -11,7 +11,6 @@ fn pipeline() -> infra.Pipeline {
     dl.identity(),
     dl.rearrange_links(#("Theorem <a href=1>_1_</a>", "<a href=1>Theorem _1_</a>")),
   ]
-  |> infra.desugarers_2_pipeline
 }
 
 pub fn run_renderer_test() {
