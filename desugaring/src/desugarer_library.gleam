@@ -129,8 +129,8 @@ import desugarers/lbp_exercise_graveyard_content_selection_to_grand_wrapper_attr
 import desugarers/lbp_generate_breadcrumbs
 import desugarers/lbp_generate_prev_next_attributes
 import desugarers/lbp_generate_table_of_contents
-import desugarers/lbp_grand_wrapper_cut_nodes_to_exercise_graveyard
 import desugarers/lbp_img_build
+import desugarers/lbp_move_to_be_moved_from_grand_wrapper_to_exercise_graveyard
 import desugarers/lbp_move_to_be_moveds_to_grand_wrapper
 import desugarers/lbp_select_content
 import desugarers/lbp_turn_lines_into_3003_spans
@@ -395,8 +395,8 @@ pub const lbp_exercise_graveyard_content_selection_to_grand_wrapper_attributes =
 pub const lbp_generate_breadcrumbs = lbp_generate_breadcrumbs.constructor
 pub const lbp_generate_prev_next_attributes = lbp_generate_prev_next_attributes.constructor
 pub const lbp_generate_table_of_contents = lbp_generate_table_of_contents.constructor
-pub const lbp_grand_wrapper_cut_nodes_to_exercise_graveyard = lbp_grand_wrapper_cut_nodes_to_exercise_graveyard.constructor
 pub const lbp_img_build = lbp_img_build.constructor
+pub const lbp_move_to_be_moved_from_grand_wrapper_to_exercise_graveyard = lbp_move_to_be_moved_from_grand_wrapper_to_exercise_graveyard.constructor
 pub const lbp_move_to_be_moveds_to_grand_wrapper = lbp_move_to_be_moveds_to_grand_wrapper.constructor
 pub const lbp_select_content = lbp_select_content.constructor
 pub const lbp_turn_lines_into_3003_spans = lbp_turn_lines_into_3003_spans.constructor
@@ -662,8 +662,8 @@ pub const assertive_tests : List(fn() -> infra.AssertiveTestCollection) = [
   lbp_generate_breadcrumbs.assertive_tests,
   lbp_generate_prev_next_attributes.assertive_tests,
   lbp_generate_table_of_contents.assertive_tests,
-  lbp_grand_wrapper_cut_nodes_to_exercise_graveyard.assertive_tests,
   lbp_img_build.assertive_tests,
+  lbp_move_to_be_moved_from_grand_wrapper_to_exercise_graveyard.assertive_tests,
   lbp_move_to_be_moveds_to_grand_wrapper.assertive_tests,
   lbp_select_content.assertive_tests,
   lbp_turn_lines_into_3003_spans.assertive_tests,

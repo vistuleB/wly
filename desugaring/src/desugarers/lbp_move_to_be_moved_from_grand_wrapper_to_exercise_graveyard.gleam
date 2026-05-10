@@ -40,18 +40,20 @@ fn v_before_transforming_children(
     True -> state
     False -> #(True, load_cut_nodes(vxml))
   }
-  // cases we should not GoBack:
-  // - GrandWrapper
-  // - Book
-  // - Appendix handle=exercise-graveyard
   let assert V(blame, tag, attrs, children) = vxml
   use _ <- on.stay(case tag {
+    // the only time we stay to process the node:
+    "Exercises" -> on.Stay(Nil)
+    // GrandWrapper / Book we Return & Continue:
     "GrandWrapper" | "Book" -> on.Return(Ok(#(vxml, state, [], infra.Continue)))
+    // GrandWrapper / Book we Return & Continue:
     "Appendix" -> case infra.attrs_val_first_with_key(attrs, "handle") {
+      // Appendix >>exercise-graveyard we Return & Continue:
       Some("exercise-graveyard") -> on.Return(Ok(#(vxml, state, [], infra.Continue)))
+      // other Appendix we Return & GoBack
       _ -> on.Return(Ok(#(vxml, state, [], infra.GoBack)))
     }
-    "Exercises" -> on.Stay(Nil)
+    // other we Return & GoBack
     _ -> on.Return(Ok(#(vxml, state, [], infra.GoBack)))
   })
   assert tag == "Exercises"
@@ -113,7 +115,7 @@ type State = #(Bool, Dict(String, List(VXML)))
 type Param = Nil
 type InnerParam = Param
 
-pub const name = "lbp_grand_wrapper_cut_nodes_to_exercise_graveyard"
+pub const name = "lbp_move_to_be_moved_from_grand_wrapper_to_exercise_graveyard"
 // fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
 
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
