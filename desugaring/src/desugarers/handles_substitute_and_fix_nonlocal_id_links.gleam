@@ -51,7 +51,9 @@ fn hyperlink_constructor(
   })
   let #(tag, attrs) = case target_path == our_path {
     True -> #(inner.1, inner.3)
-    False -> #(inner.2, inner.4)
+    False -> {
+      #(inner.2, inner.4)
+    }
   }
   let page = page || page_by_default
   let target_path = case page {
@@ -368,10 +370,10 @@ fn substitute_hrefs_in_a(
       Ok(#(attr, #(acc0, list.append(warnings, acc.1))))
     }
   ))
-  let tag = case acc.0 {
-    Some(InPage) -> inner.1
-    Some(OutOfPage) -> inner.2
-    _ -> vxml.tag
+  let #(tag, attrs) = case acc.0 {
+    Some(InPage) -> #(inner.1, infra.pour(inner.3, attrs))
+    Some(OutOfPage) -> #(inner.2, infra.pour(inner.4, attrs))
+    _ -> #(vxml.tag, attrs)
   }
   Ok(#(V(..vxml, tag: tag, attrs: attrs), state, acc.1))
 }
