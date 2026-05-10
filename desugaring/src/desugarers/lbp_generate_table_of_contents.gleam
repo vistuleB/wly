@@ -16,22 +16,24 @@ import on
 fn chapter_link(
   chapter_link_component_name: String,
   item: VXML,
-  count: Int,
+  count: String,
 ) -> Result(VXML, DesugaringError) {
   let assert V(blame, tag, _, _) = item
   let tp = case tag {
     _ if tag == "Chapter" -> "chapter"
     _ if tag == "Bootcamp" -> "bootcamp"
-    _ -> panic as "expecting 'Chapter' or 'Bootcamp'"
+    _ if tag == "Appendix" -> "appendix"
+    _ -> panic as "expecting 'Chapter' or 'Bootcamp' or 'Appendix'"
   }
   use title_element <- on.ok(infra.v_unique_child(item, "ArticleTitle"))
   let assert V(_, _, _, _) = title_element
+
   V(
     blame,
     chapter_link_component_name,
     [
-      Attr(desugarer_blame(33), "article_type", ins(count)),
-      Attr(desugarer_blame(34), "href", tp <> ins(count)),
+      Attr(desugarer_blame(36), "article_type", count),
+      Attr(desugarer_blame(37), "href", tp <> count),
     ],
     title_element.children,
   )
@@ -43,9 +45,9 @@ fn type_of_chapters_title(
   label: String,
 ) -> VXML {
   V(
-    desugarer_blame(46),
+    desugarer_blame(49),
     type_of_chapters_title_component_name,
-    [Attr(desugarer_blame(48), "label", label)],
+    [Attr(desugarer_blame(51), "label", label)],
     [],
   )
 }
@@ -57,15 +59,64 @@ fn div_with_id_title_and_menu_items(
   menu_items: List(VXML),
 ) -> VXML {
   V(
-    desugarer_blame(60),
+    desugarer_blame(63),
     "div",
     [
-      Attr(desugarer_blame(63), "id", id),
+      Attr(desugarer_blame(66), "id", id),
     ],
     [
       type_of_chapters_title(type_of_chapters_title_component_name, title_label),
-      V(desugarer_blame(67), "ul", [], menu_items),
+      V(desugarer_blame(70), "ul", [], menu_items),
     ],
+  )
+}
+
+type ArticalParams = #(String, String, String, CounterType)
+
+type CounterType {
+  Number
+  Alphabetic
+}
+
+fn increamentor(index: Int, counter_type: CounterType) -> String {
+  case counter_type {
+    Number -> ins(index + 1) 
+    Alphabetic ->{
+      let assert Ok(utf) = string.utf_codepoint(64 + index + 1)
+      string.from_utf_codepoints([utf])
+    }
+  }
+}
+
+
+fn create_toc_child_div(article_params: ArticalParams, inner: InnerParam, children: List(VXML)) -> Result(List(VXML), DesugaringError) {
+  let #(tag_name, link, title, counter_type) = article_params
+  let #(
+    _,
+    type_of_chapters_title_component_name,
+    chapter_link_component_name,
+    _,
+  ) = inner
+
+  use menu_items <- on.ok(
+    children
+    |> list.filter(infra.is_v_and_tag_equals(_, tag_name))
+    |> list.index_map(fn(chapter: VXML, index) { chapter_link(chapter_link_component_name, chapter, increamentor(index, counter_type)) })
+    |> result.all
+  )
+
+  let div =
+    div_with_id_title_and_menu_items(
+      type_of_chapters_title_component_name,
+      link,
+      title,
+      menu_items,
+    )
+
+  on.false_true(
+    list.is_empty(menu_items),
+    on_false: fn() { Ok([div]) },
+    on_true: fn() { Ok([]) }
   )
 }
 
@@ -74,61 +125,27 @@ fn at_root(root: VXML, param: InnerParam) -> Result(VXML, DesugaringError) {
 
   let #(
     toc_tag,
-    type_of_chapters_title_component_name,
-    chapter_link_component_name,
+    _,
+    _,
     maybe_spacer,
   ) = param
 
-  use chapter_menu_items <- on.ok(
-    children
-    |> list.filter(infra.is_v_and_tag_equals(_, "Chapter"))
-    |> list.index_map(fn(chapter: VXML, index) { chapter_link(chapter_link_component_name, chapter, index + 1) })
-    |> result.all
-  )
+  let res = [
+    #("Chapter", "chapter", "Chapters", Number),
+    #("Bootcamp", "bootcamp", "Bootcamps", Number),
+    #("Appendix", "appendix", "Appendices", Alphabetic),
+  ] |> list.try_map(fn(a_params) { create_toc_child_div(a_params, param, children) })
+   
+  use merged <- on.ok(res)
 
-  use bootcamp_menu_items <- on.ok(
-    children
-    |> list.filter(infra.is_v_and_tag_equals(_, "Bootcamp"))
-    |> list.index_map(fn(bootcamp: VXML, index) { chapter_link(chapter_link_component_name, bootcamp, index + 1) })
-    |> result.all
-  )
+  let flattened = list.flatten(merged)
 
-  let chapters_div =
-    div_with_id_title_and_menu_items(
-      type_of_chapters_title_component_name,
-      "chapter",
-      "Chapters",
-      chapter_menu_items,
-    )
+  let toc_children = case maybe_spacer {
+    Some(spacer_tag) -> { list.intersperse(flattened, V(desugarer_blame(145), spacer_tag, [], [])) }
+    _ -> flattened
+  }
 
-  let bootcamps_div =
-    div_with_id_title_and_menu_items(
-      type_of_chapters_title_component_name,
-      "bootcamp",
-      "Bootcamps",
-      bootcamp_menu_items,
-    )
-
-  let exists_bootcamps = !list.is_empty(bootcamp_menu_items)
-  let exists_chapters = !list.is_empty(chapter_menu_items)
-
-  let toc_children = [
-    case exists_chapters {
-      True -> [chapters_div]
-      False -> []
-    },
-    case exists_bootcamps, exists_chapters, maybe_spacer {
-      True, True, Some(spacer_tag) -> [V(desugarer_blame(121), spacer_tag, [], [])]
-      _, _, _ -> []
-    },
-    case exists_bootcamps {
-      True -> [bootcamps_div]
-      False -> []
-    },
-  ]
-  |> list.flatten
-
-  let toc = V(desugarer_blame(131), toc_tag, [], toc_children)
+  let toc = V(desugarer_blame(149), toc_tag, [], toc_children)
 
   Ok(V(..root, children: [toc, ..children]))
 }

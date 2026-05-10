@@ -26,6 +26,7 @@ fn extract_handle_and_page_and_decoy(match: Match) -> #(String, Bool, Option(Str
   #(handle_name, page, decoy)
 }
 
+
 fn hyperlink_constructor(
   handle: #(Bool, String, String, String),
   page: Bool,
@@ -546,7 +547,7 @@ fn desugarer_blame(line_no: Int) {
 /// links respectively. If the class list is empty
 /// no 'class' attr will be added at all to
 /// that type of link element.
-///
+/// 
 /// Secondly, substitutes each attr of the
 /// form
 ///
