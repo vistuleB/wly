@@ -68,14 +68,14 @@ type TripleThreat(a, b, c) {
 
 fn warning_element(handle_name: String, blame: Blame) -> VXML {
   V(
-    desugarer_blame(61),
+    desugarer_blame(71),
     "InTextWarning",
-    // [Attr(desugarer_blame(63), "style", "color:red;background-color:yellow;")],
+    // [Attr(desugarer_blame(73), "style", "color:red;background-color:yellow;")],
     [],
     [
-      T(desugarer_blame(66), [
+      T(desugarer_blame(76), [
         Line(
-          desugarer_blame(68),
+          desugarer_blame(78),
           "undefined handle at "
             <> bl.blame_digest(blame)
             <> ": "
@@ -390,7 +390,7 @@ fn substitute_hrefs_in_a(
         case acc.0, href_type {
           _, NotAnHref -> Ok(acc.0)
           None, _ -> Ok(Some(href_type))
-          _, _ -> Error(DesugaringError(desugarer_blame(0), "duplicate 'href' attribute"))
+          _, _ -> Error(DesugaringError(desugarer_blame(393), "duplicate 'href' attribute"))
         }
       )
       Ok(#(attr, #(acc0, list.append(warnings, acc.1))))
@@ -481,8 +481,8 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
     param.0,
     param.1,
     param.2,
-    param.3 |> infra.string_pairs_2_attrs(desugarer_blame(449)),
-    param.4 |> infra.string_pairs_2_attrs(desugarer_blame(450)),
+    param.3 |> infra.string_pairs_2_attrs(desugarer_blame(484)),
+    param.4 |> infra.string_pairs_2_attrs(desugarer_blame(485)),
     handles_regexp,
   )
   |> Ok

@@ -1,4 +1,3 @@
-import either_or.{type EitherOr,Either,Or}
 import gleam/list
 import gleam/option.{type Option, Some}
 import gleam/result
@@ -33,8 +32,8 @@ fn chapter_link(
     blame,
     chapter_link_component_name,
     [
-      Attr(desugarer_blame(33), "article_type", count),
-      Attr(desugarer_blame(34), "href", tp <> count),
+      Attr(desugarer_blame(36), "article_type", count),
+      Attr(desugarer_blame(37), "href", tp <> count),
     ],
     title_element.children,
   )
@@ -46,9 +45,9 @@ fn type_of_chapters_title(
   label: String,
 ) -> VXML {
   V(
-    desugarer_blame(46),
+    desugarer_blame(49),
     type_of_chapters_title_component_name,
-    [Attr(desugarer_blame(48), "label", label)],
+    [Attr(desugarer_blame(51), "label", label)],
     [],
   )
 }
@@ -60,14 +59,14 @@ fn div_with_id_title_and_menu_items(
   menu_items: List(VXML),
 ) -> VXML {
   V(
-    desugarer_blame(60),
+    desugarer_blame(63),
     "div",
     [
-      Attr(desugarer_blame(63), "id", id),
+      Attr(desugarer_blame(66), "id", id),
     ],
     [
       type_of_chapters_title(type_of_chapters_title_component_name, title_label),
-      V(desugarer_blame(67), "ul", [], menu_items),
+      V(desugarer_blame(70), "ul", [], menu_items),
     ],
   )
 }
@@ -142,11 +141,11 @@ fn at_root(root: VXML, param: InnerParam) -> Result(VXML, DesugaringError) {
   let flattened = list.flatten(merged)
 
   let toc_children = case maybe_spacer {
-    Some(spacer_tag) -> { list.intersperse(flattened, V(desugarer_blame(151), spacer_tag, [], [])) }
+    Some(spacer_tag) -> { list.intersperse(flattened, V(desugarer_blame(145), spacer_tag, [], [])) }
     _ -> flattened
   }
 
-  let toc = V(desugarer_blame(131), toc_tag, [], toc_children)
+  let toc = V(desugarer_blame(149), toc_tag, [], toc_children)
 
   Ok(V(..root, children: [toc, ..children]))
 }

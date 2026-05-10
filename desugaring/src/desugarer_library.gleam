@@ -94,6 +94,8 @@ import desugarers/fold_into_text
 import desugarers/fold_into_text__batch
 import desugarers/free_children
 import desugarers/free_children__batch
+import desugarers/grand_wrapper_append_attributes
+import desugarers/grand_wrapper_move_nodes_to_wrapper
 import desugarers/group_consecutive_children__outside
 import desugarers/handles_add_ids
 import desugarers/handles_generate_dictionary_and_id_list
@@ -123,10 +125,13 @@ import desugarers/keep_only_subtrees_and_ancestors_of_nodes_matching_a_key_value
 import desugarers/last_to_first_concatenate_text_nodes
 import desugarers/lbp_adorn_img_with_3003_spans
 import desugarers/lbp_adorn_with_3003_spans
+import desugarers/lbp_exercise_graveyard_content_selection_to_grand_wrapper_attributes
 import desugarers/lbp_generate_breadcrumbs
 import desugarers/lbp_generate_prev_next_attributes
 import desugarers/lbp_generate_table_of_contents
+import desugarers/lbp_grand_wrapper_cut_nodes_to_exercise_graveyard
 import desugarers/lbp_img_build
+import desugarers/lbp_move_to_be_moveds_to_grand_wrapper
 import desugarers/lbp_select_content
 import desugarers/lbp_turn_lines_into_3003_spans
 import desugarers/lbp_wrap_with_3003_spans
@@ -161,9 +166,9 @@ import desugarers/prepend_text_node__outside
 import desugarers/prepend_text_node_if_fancy
 import desugarers/prepend_text_node_if_has_ancestor_else__batch
 import desugarers/rearrange_links
+import desugarers/rearrange_links__batch
 import desugarers/rearrange_links_4_pre_tokenized_src
 import desugarers/rearrange_links_4_pre_tokenized_src__batch
-import desugarers/rearrange_links__batch
 import desugarers/reassign_text_node_blame_to_blame_of_first_nonempty_line_in_text_node
 import desugarers/regex_split_and_replace__batch__outside
 import desugarers/regex_split_and_replace__outside
@@ -355,6 +360,8 @@ pub const fold_into_text = fold_into_text.constructor
 pub const fold_into_text__batch = fold_into_text__batch.constructor
 pub const free_children = free_children.constructor
 pub const free_children__batch = free_children__batch.constructor
+pub const grand_wrapper_append_attributes = grand_wrapper_append_attributes.constructor
+pub const grand_wrapper_move_nodes_to_wrapper = grand_wrapper_move_nodes_to_wrapper.constructor
 pub const group_consecutive_children__outside = group_consecutive_children__outside.constructor
 pub const handles_add_ids = handles_add_ids.constructor
 pub const handles_generate_dictionary_and_id_list = handles_generate_dictionary_and_id_list.constructor
@@ -384,10 +391,13 @@ pub const keep_only_subtrees_and_ancestors_of_nodes_matching_a_key_value_pair = 
 pub const last_to_first_concatenate_text_nodes = last_to_first_concatenate_text_nodes.constructor
 pub const lbp_adorn_img_with_3003_spans = lbp_adorn_img_with_3003_spans.constructor
 pub const lbp_adorn_with_3003_spans = lbp_adorn_with_3003_spans.constructor
+pub const lbp_exercise_graveyard_content_selection_to_grand_wrapper_attributes = lbp_exercise_graveyard_content_selection_to_grand_wrapper_attributes.constructor
 pub const lbp_generate_breadcrumbs = lbp_generate_breadcrumbs.constructor
 pub const lbp_generate_prev_next_attributes = lbp_generate_prev_next_attributes.constructor
 pub const lbp_generate_table_of_contents = lbp_generate_table_of_contents.constructor
+pub const lbp_grand_wrapper_cut_nodes_to_exercise_graveyard = lbp_grand_wrapper_cut_nodes_to_exercise_graveyard.constructor
 pub const lbp_img_build = lbp_img_build.constructor
+pub const lbp_move_to_be_moveds_to_grand_wrapper = lbp_move_to_be_moveds_to_grand_wrapper.constructor
 pub const lbp_select_content = lbp_select_content.constructor
 pub const lbp_turn_lines_into_3003_spans = lbp_turn_lines_into_3003_spans.constructor
 pub const lbp_wrap_with_3003_spans = lbp_wrap_with_3003_spans.constructor
@@ -422,9 +432,9 @@ pub const prepend_text_node__outside = prepend_text_node__outside.constructor
 pub const prepend_text_node_if_fancy = prepend_text_node_if_fancy.constructor
 pub const prepend_text_node_if_has_ancestor_else__batch = prepend_text_node_if_has_ancestor_else__batch.constructor
 pub const rearrange_links = rearrange_links.constructor
+pub const rearrange_links__batch = rearrange_links__batch.constructor
 pub const rearrange_links_4_pre_tokenized_src = rearrange_links_4_pre_tokenized_src.constructor
 pub const rearrange_links_4_pre_tokenized_src__batch = rearrange_links_4_pre_tokenized_src__batch.constructor
-pub const rearrange_links__batch = rearrange_links__batch.constructor
 pub const reassign_text_node_blame_to_blame_of_first_nonempty_line_in_text_node = reassign_text_node_blame_to_blame_of_first_nonempty_line_in_text_node.constructor
 pub const regex_split_and_replace__batch__outside = regex_split_and_replace__batch__outside.constructor
 pub const regex_split_and_replace__outside = regex_split_and_replace__outside.constructor
@@ -617,6 +627,8 @@ pub const assertive_tests : List(fn() -> infra.AssertiveTestCollection) = [
   fold_into_text__batch.assertive_tests,
   free_children.assertive_tests,
   free_children__batch.assertive_tests,
+  grand_wrapper_append_attributes.assertive_tests,
+  grand_wrapper_move_nodes_to_wrapper.assertive_tests,
   group_consecutive_children__outside.assertive_tests,
   handles_add_ids.assertive_tests,
   handles_generate_dictionary_and_id_list.assertive_tests,
@@ -646,10 +658,13 @@ pub const assertive_tests : List(fn() -> infra.AssertiveTestCollection) = [
   last_to_first_concatenate_text_nodes.assertive_tests,
   lbp_adorn_img_with_3003_spans.assertive_tests,
   lbp_adorn_with_3003_spans.assertive_tests,
+  lbp_exercise_graveyard_content_selection_to_grand_wrapper_attributes.assertive_tests,
   lbp_generate_breadcrumbs.assertive_tests,
   lbp_generate_prev_next_attributes.assertive_tests,
   lbp_generate_table_of_contents.assertive_tests,
+  lbp_grand_wrapper_cut_nodes_to_exercise_graveyard.assertive_tests,
   lbp_img_build.assertive_tests,
+  lbp_move_to_be_moveds_to_grand_wrapper.assertive_tests,
   lbp_select_content.assertive_tests,
   lbp_turn_lines_into_3003_spans.assertive_tests,
   lbp_wrap_with_3003_spans.assertive_tests,
@@ -684,9 +699,9 @@ pub const assertive_tests : List(fn() -> infra.AssertiveTestCollection) = [
   prepend_text_node_if_fancy.assertive_tests,
   prepend_text_node_if_has_ancestor_else__batch.assertive_tests,
   rearrange_links.assertive_tests,
+  rearrange_links__batch.assertive_tests,
   rearrange_links_4_pre_tokenized_src.assertive_tests,
   rearrange_links_4_pre_tokenized_src__batch.assertive_tests,
-  rearrange_links__batch.assertive_tests,
   reassign_text_node_blame_to_blame_of_first_nonempty_line_in_text_node.assertive_tests,
   regex_split_and_replace__batch__outside.assertive_tests,
   regex_split_and_replace__outside.assertive_tests,

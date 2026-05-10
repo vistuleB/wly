@@ -1852,7 +1852,7 @@ pub fn v_val_of_first_attr_with_key(
   key: String,
 ) -> Option(String) {
   let assert V(_, _, attrs, _) = vxml
-  attrs_val_of_first_with_key(attrs, key)
+  attrs_val_first_with_key(attrs, key)
 }
 
 pub fn v_attrs_with_key(
@@ -2299,6 +2299,20 @@ pub fn attrs_extract_key_val(
   list.partition(attrs, fn(attr) { attr.key == key && attr.val == val })
 }
 
+pub fn attrs_extract_first(
+  attrs: List(Attr),
+  key: String,
+) -> #(Option(Attr), List(Attr)) {
+  case attrs {
+    [Attr(_, attr_key, _) as first, ..more] if attr_key == key -> #(Some(first), more)
+    [first, ..more] -> {
+      let #(z, q) = attrs_extract_first(more, key)
+      #(z, [first, ..q])
+    }
+    [] -> #(None, [])
+  }
+}
+
 pub fn attrs_extract_unique_key_or_none(
   attrs: List(Attr),
   key: String,
@@ -2326,31 +2340,6 @@ pub fn attrs_extract_unique_key_or_none(
 
   Ok(#(extracted, attrs))
 }
-
-// pub fn attr_substitute(
-//   attr: Attr,
-//   from: String,
-//   to: String,
-// ) -> Attr {
-//   Attr(..attr, val: string.replace(attr.val, from, to))
-// }
-
-// pub fn substitute_in_attrs(
-//   attrs: List(Attr),
-//   key: String,
-//   from: String,
-//   to: String,
-// ) -> List(Attr) {
-//   attrs
-//   |> list.map(
-//     fn (attr) {
-//       case attr.key == key {
-//         False -> attr
-//         True -> attr |> attr_substitute(from, to)
-//       }
-//     }
-//   )
-// }
 
 pub fn attrs_set(
   attrs: List(Attr),
@@ -2395,7 +2384,7 @@ pub fn attrs_first_with_key(
   }
 }
 
-pub fn attrs_val_of_first_with_key(
+pub fn attrs_val_first_with_key(
   attrs: List(Attr),
   key: String,
 ) -> Option(String) {
@@ -2403,6 +2392,17 @@ pub fn attrs_val_of_first_with_key(
   {
     Error(Nil) -> None
     Ok(thing) -> Some(thing.val)
+  }
+}
+
+pub fn attrs_val_first_with_key_expected(
+  attrs: List(Attr),
+  key: String,
+  blame: Blame,
+) -> Result(String, DesugaringError) {
+  case list.find(attrs, fn(b) { b.key == key }) {
+    Ok(attr) -> Ok(attr.val)
+    _ -> Error(DesugaringError(blame, "expected '" <> key <> "' key"))
   }
 }
 

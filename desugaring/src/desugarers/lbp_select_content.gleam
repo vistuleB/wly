@@ -120,7 +120,7 @@ fn set_exercises_to(
       [root] -> on.Stay(root)
       [] -> on.Return(
         Error(DesugaringError(
-          desugarer_blame(57),
+          desugarer_blame(123),
           "empty chapter after filtering exercises",
         ))
       )
@@ -131,8 +131,8 @@ fn set_exercises_to(
   let exercise_comparer = fn(a: VXML, b: VXML) -> order.Order {
     let assert V(_, "Exercise", attrs_a, _) = a
     let assert V(_, "Exercise", attrs_b, _) = b
-    let assert Some(handle_a) = infra.attrs_val_of_first_with_key(attrs_a, "handle")
-    let assert Some(handle_b) = infra.attrs_val_of_first_with_key(attrs_b, "handle")
+    let assert Some(handle_a) = infra.attrs_val_first_with_key(attrs_a, "handle")
+    let assert Some(handle_b) = infra.attrs_val_first_with_key(attrs_b, "handle")
     let assert Ok(index_a) = dict.get(exercises_dict, handle_a)
     let assert Ok(index_b) = dict.get(exercises_dict, handle_b)
     int.compare(index_a, index_b)
@@ -176,7 +176,7 @@ fn at_root(
   use chapter_selection_node <- on.eager_error_ok(
     list.find(others, infra.is_v_and_tag_equals(_, "ChapterSelection")),
     Error(DesugaringError(
-      desugarer_blame(97),
+      desugarer_blame(179),
       "'ChapterSelection' node not found",
     )),
   )
@@ -213,7 +213,7 @@ fn at_root(
           Error(Nil) -> {
             let warning =
               DesugaringWarning(
-                desugarer_blame(136),
+                desugarer_blame(216),
                 "no '|> In' exercise list found for chapter '" <> handle <> "'",
               )
             on.Return(Ok(#(acc.0, [warning, ..acc.1])))
@@ -225,7 +225,7 @@ fn at_root(
         Ok(
           #(acc.0, [
             DesugaringWarning(
-              desugarer_blame(147),
+              desugarer_blame(228),
               "no '|> In' exercise list found for chapter '" <> handle <> "'",
             ),
             ..acc.1
@@ -237,6 +237,7 @@ fn at_root(
         chapter,
         exercise_handles,
       ))
+
       #([chapter, ..acc.0], list.append(acc.1, warnings)) |> Ok
     }),
   )
