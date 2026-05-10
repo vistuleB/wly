@@ -21,7 +21,7 @@ fn harvest_handle_attrs_from_line(line: Line) -> Result(Attr, DesugaringWarning)
       let stuff = string.trim(stuff)
       case string.contains(stuff, " ") || string.contains(stuff, ">") {
         True -> Error(DesugaringWarning(line.blame, "handle contains space or '>': " <> stuff))
-        False -> Ok(Attr(desugarer_blame(0), "to-be-cut", ">>" <> stuff))
+        False -> Ok(Attr(desugarer_blame(24), "to-be-moved", ">>" <> stuff))
       }
     }
     _ -> Error(DesugaringWarning(line.blame, "'>>' not found in text node"))
@@ -139,9 +139,9 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
       ",
       expected: "
         <> GrandWrapper
-          to-be-cut=>>blabla2
-          to-be-cut=>>blabla3
-          to-be-cut=>>blabla4
+          to-be-moved=>>blabla2
+          to-be-moved=>>blabla3
+          to-be-moved=>>blabla4
           <> Book
             <> In
               chapter=>>functions

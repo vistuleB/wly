@@ -64,13 +64,13 @@ fn hyperlink_constructor(
 
 fn warning_element(handle_name: String, blame: Blame) -> VXML {
   V(
-    desugarer_blame(66),
+    desugarer_blame(67),
     "InTextWarning",
     [],
     [
-      T(desugarer_blame(70), [
+      T(desugarer_blame(71), [
         Line(
-          desugarer_blame(72),
+          desugarer_blame(73),
           "undefined handle at "
             <> bl.blame_digest(blame)
             <> ": "
@@ -105,7 +105,7 @@ fn hyperlink_maybe(
   })
 
   let actual_warning = DesugaringWarning(
-    desugarer_blame(107),
+    desugarer_blame(108),
     "handle '" <> handle_name <> "' is not assigned",
   )
 
@@ -362,7 +362,7 @@ fn substitute_hrefs_in_a(
         case acc.0, href_type {
           _, NotAnHref -> Ok(acc.0)
           None, _ -> Ok(Some(href_type))
-          _, _ -> Error(DesugaringError(desugarer_blame(364), "duplicate 'href' attribute"))
+          _, _ -> Error(DesugaringError(desugarer_blame(365), "duplicate 'href' attribute"))
         }
       )
       Ok(#(attr, #(acc0, list.append(warnings, acc.1))))
@@ -465,8 +465,8 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
     param.0,
     param.1,
     param.2,
-    param.3 |> infra.string_pairs_2_attrs(desugarer_blame(467)),
-    param.4 |> infra.string_pairs_2_attrs(desugarer_blame(468)),
+    param.3 |> infra.string_pairs_2_attrs(desugarer_blame(468)),
+    param.4 |> infra.string_pairs_2_attrs(desugarer_blame(469)),
     handles_regexp,
     param.5,
   )

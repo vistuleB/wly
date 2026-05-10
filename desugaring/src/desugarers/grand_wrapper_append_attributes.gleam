@@ -43,7 +43,7 @@ fn v_after_transforming_children(
       case tag {
         "GrandWrapper" -> V(..vxml, attrs: list.append(attrs, latest_attrs))
         _ -> V(
-          desugarer_blame(43),
+          desugarer_blame(46),
           "GrandWrapper",
           latest_attrs,
           [vxml],
@@ -147,7 +147,7 @@ fn v_before_1(_: Nil, vxml: VXML) -> Result(#(Nil, List(Attr), List(DesugaringWa
   )
   Ok(#(
     Nil,
-    [Attr(desugarer_blame(140), "hey", "hello")],
+    [Attr(desugarer_blame(150), "hey", "hello")],
     [],
     infra.GoBack
   ))
@@ -167,7 +167,7 @@ fn harvest_handle_attrs_from_line(line: Line) -> Result(Attr, DesugaringWarning)
       let stuff = string.trim(stuff)
       case string.contains(stuff, " ") || string.contains(stuff, ">") {
         True -> Error(DesugaringWarning(line.blame, "handle contains space or '>': " <> stuff))
-        False -> Ok(Attr(desugarer_blame(0), "source", ">>" <> stuff))
+        False -> Ok(Attr(desugarer_blame(170), "source", ">>" <> stuff))
       }
     }
     _ -> Error(DesugaringWarning(line.blame, "'>>' not found in text node"))

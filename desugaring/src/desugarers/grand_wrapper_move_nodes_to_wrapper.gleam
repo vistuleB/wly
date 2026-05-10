@@ -47,9 +47,9 @@ fn v_after_transforming_children(
       let assert V(_, tag, _, _) = vxml
       let grand_wrapper = case tag {
         "GrandWrapper" -> vxml
-        _ -> V(desugarer_blame(43), "GrandWrapper", [], [vxml])
+        _ -> V(desugarer_blame(50), "GrandWrapper", [], [vxml])
       }
-      let anointed_child = V(desugarer_blame(0), inner.4, [], vxmls |> list.reverse)
+      let anointed_child = V(desugarer_blame(52), inner.4, [], vxmls |> list.reverse)
       let assert V(_, _, _, children) = grand_wrapper
       Some(V(..grand_wrapper, children: [anointed_child, ..children]))
     }
@@ -169,7 +169,7 @@ fn v_before_1(doomed_handles: List(String), vxml: VXML) -> Result(
     },
   )
   // normalize the cut node, putting the (normalized) handle first:
-  let vxml = V(..vxml, attrs: [Attr(desugarer_blame(0), attr.key, handle_name), ..attrs])
+  let vxml = V(..vxml, attrs: [Attr(desugarer_blame(172), attr.key, handle_name), ..attrs])
   Ok(#(doomed_handles, Error(vxml), [], infra.GoBack))
 }
 
@@ -196,7 +196,7 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param(List(String)))) 
     //     v_before_1,
     //     v_after_1,
     //     t_1,
-    //     "CutNodes",
+    //     "NodesBeingMoved",
     //   ),
     //   source: "
     //     <> root
@@ -204,7 +204,7 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param(List(String)))) 
     //   ",
     //   expected: "
     //     <> GrandWrapper
-    //       <> CutNodes
+    //       <> NodesBeingMoved
     //       <> root
     //         <> SomeGuy
     //   ",
@@ -215,7 +215,7 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param(List(String)))) 
         v_before_1,
         v_after_1,
         t_1,
-        "CutNodes",
+        "NodesBeingMoved",
       ),
       source: "
         <> GrandWrapper
@@ -234,7 +234,7 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param(List(String)))) 
         <> GrandWrapper
           source=>>koolio
           source=>>koolio2
-          <> CutNodes
+          <> NodesBeingMoved
             <> DoomedGuy
               handle=koolio
             <> OtherDoomedGuy

@@ -15,8 +15,8 @@ import on
 
 fn load_cut_nodes(vxml: VXML) -> Dict(String, List(VXML)) {
   let assert V(_, "GrandWrapper", _, children) = vxml
-  let assert Ok(cut_nodes) = list.find(children, infra.is_v_and_tag_equals(_, "CutNodes"))
-  let assert V(_, "CutNodes", _, cut_nodes) = cut_nodes
+  let assert Ok(cut_nodes) = list.find(children, infra.is_v_and_tag_equals(_, "NodesBeingMoved"))
+  let assert V(_, "NodesBeingMoved", _, cut_nodes) = cut_nodes
   list.fold(
     cut_nodes,
     [] |> dict.from_list,
@@ -141,7 +141,7 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
     infra.AssertiveTestDataNoParam(
       source: "
         <> GrandWrapper
-          <> CutNodes
+          <> NodesBeingMoved
             <> Exercise
               handle=calami
               chapter=functions

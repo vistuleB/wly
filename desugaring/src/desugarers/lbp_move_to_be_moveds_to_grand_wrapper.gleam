@@ -17,7 +17,7 @@ fn harvest_handles_2b_cut_from_grand_wrapper(vxml: VXML) -> List(String) {
   let assert V(_, "GrandWrapper", attrs, _) = vxml
   attrs
   |> list.map(fn(attr) {
-    assert attr.key == "to-be-cut"
+    assert attr.key == "to-be-moved"
     let assert ">>" <> stuff = attr.val
     assert stuff == string.trim(stuff)
     stuff
@@ -70,7 +70,7 @@ fn v_before_1(state: State, vxml: VXML) -> Result(
 
   // we're getting cut:
   let attr1 = Attr(..attr, val: handle_name)
-  let attr2 = Attr(desugarer_blame(0), "chapter", chapter_handle)
+  let attr2 = Attr(desugarer_blame(73), "chapter", chapter_handle)
   let vxml = V(..vxml, attrs: [attr1, attr2, ..attrs])
   Ok(#(state, Error(vxml), [], infra.GoBack))
 }
@@ -109,7 +109,7 @@ pub fn constructor() -> Desugarer {
         v_before_1,
         v_after_1,
         t_1,
-        "CutNodes",
+        "NodesBeingMoved",
       )
     ).transform,
   )
@@ -124,9 +124,9 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
     infra.AssertiveTestDataNoParam(
       source: "
         <> GrandWrapper
-          to-be-cut=>>koolio
-          to-be-cut=>>koolio2
-          to-be-cut=>>koolio4
+          to-be-moved=>>koolio
+          to-be-moved=>>koolio2
+          to-be-moved=>>koolio4
           <> Book
             <> Chapter
               handle=ch1
@@ -144,10 +144,10 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
       ",
       expected: "
         <> GrandWrapper
-          to-be-cut=>>koolio
-          to-be-cut=>>koolio2
-          to-be-cut=>>koolio4
-          <> CutNodes
+          to-be-moved=>>koolio
+          to-be-moved=>>koolio2
+          to-be-moved=>>koolio4
+          <> NodesBeingMoved
             <> ShallBeMoved
               handle=koolio
               chapter=ch1
