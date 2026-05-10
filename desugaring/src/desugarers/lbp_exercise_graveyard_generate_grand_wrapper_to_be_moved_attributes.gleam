@@ -91,7 +91,7 @@ fn t_transform(_: Nil, _vxml: VXML) -> Result(#(Nil, List(Attr), List(Desugaring
   Ok(#(Nil, [], []))
 }
 
-pub const name = "lbp_exercise_graveyard_content_selection_to_grand_wrapper_attributes"
+pub const name = "lbp_exercise_graveyard_generate_grand_wrapper_to_be_moved_attributes"
 fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
 
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
