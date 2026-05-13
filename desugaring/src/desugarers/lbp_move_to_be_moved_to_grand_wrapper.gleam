@@ -91,7 +91,7 @@ fn t_1(state: State, vxml: VXML) -> Result(
 
 type State = #(Option(String), List(String))
 
-pub const name = "lbp_move_to_be_moveds_to_grand_wrapper"
+pub const name = "lbp_move_to_be_moved_to_grand_wrapper"
 fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
 
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️

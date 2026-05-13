@@ -44,17 +44,16 @@ fn v_before_transforming_children(
   use _ <- on.stay(case tag {
     // the only time we stay to process the node:
     "Exercises" -> on.Stay(Nil)
-    // GrandWrapper / Book we Return & Continue:
-    "GrandWrapper" | "Book" -> on.Return(Ok(#(vxml, state, [], infra.Continue)))
-    // GrandWrapper / Book we Return & Continue:
     "Appendix" -> case infra.attrs_val_first_with_key(attrs, "handle") {
       // Appendix >>exercise-graveyard we Return & Continue:
       Some("exercise-graveyard") -> on.Return(Ok(#(vxml, state, [], infra.Continue)))
       // other Appendix we Return & GoBack
       _ -> on.Return(Ok(#(vxml, state, [], infra.GoBack)))
     }
-    // other we Return & GoBack
-    _ -> on.Return(Ok(#(vxml, state, [], infra.GoBack)))
+    // Chapter or Bootcamp we Return & GoBack
+    "Chapter" | "Bootcamp" -> on.Return(Ok(#(vxml, state, [], infra.GoBack)))
+    // other we Return & Continue
+    _ -> on.Return(Ok(#(vxml, state, [], infra.Continue)))
   })
   assert tag == "Exercises"
   use chapter_handle <- on.ok(infra.attrs_val_first_with_key_expected(attrs, "chapter", blame))
