@@ -1957,7 +1957,19 @@ pub fn v_is_first_ancestor(
   ) 
 
   v_get_tag(first_anc) == tag
+}
 
+pub fn v_is_descendant_of(
+  ancestors: List(VXML),
+  tag: String, 
+) -> Bool {
+
+  list.any(ancestors, fn(anc) {
+    case anc {
+      V(_, t, _, _) if t == tag -> True
+      _ -> False
+    }
+  })
 }
 
 pub fn v_first_child_with_tag(vxml: VXML, tag: String) -> Option(VXML) {
