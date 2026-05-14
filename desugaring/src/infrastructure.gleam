@@ -1946,30 +1946,21 @@ pub fn first_in_list(
   }
 }
 
-pub fn v_is_first_ancestor(
-  ancestors: List(VXML),
-  tag: String, 
+pub fn first_is(
+  vxmls: List(VXML),
+  tag: String,
 ) -> Bool {
-
-  use first_anc <- on.eager_error_ok(
-    ancestors |> list.first,
-    False,
-  ) 
-
-  v_get_tag(first_anc) == tag
+  case vxmls {
+    [V(_, t, _, _), ..] -> t == tag
+    _ -> False
+  }
 }
 
-pub fn v_is_descendant_of(
-  ancestors: List(VXML),
+pub fn contains(
+  vxmls: List(VXML),
   tag: String, 
 ) -> Bool {
-
-  list.any(ancestors, fn(anc) {
-    case anc {
-      V(_, t, _, _) if t == tag -> True
-      _ -> False
-    }
-  })
+  list.any(vxmls, is_v_and_tag_equals(_, tag))
 }
 
 pub fn v_first_child_with_tag(vxml: VXML, tag: String) -> Option(VXML) {
@@ -2476,38 +2467,36 @@ pub fn invalid_tag(tag: String) -> Bool {
 
 pub fn is_v_and_has_key_val(vxml: VXML, key: String, val: String) -> Bool {
   case vxml {
-    T(_, _) -> False
-    _ -> {
-      v_has_key_val(vxml, key, val)
-    }
+    V(_, _, attrs, _) -> attrs_have_key_val(attrs, key, val)
+    _ -> False
   }
 }
 
 pub fn is_v_and_tag_equals(vxml: VXML, tag: String) -> Bool {
   case vxml {
-    T(_, _) -> False
     V(_, t, _, _) -> t == tag
+    _ -> False
   }
 }
 
 pub fn is_v_and_tag_not_equals(vxml: VXML, tag: String) -> Bool {
   case vxml {
-    T(_, _) -> False
     V(_, t, _, _) -> t != tag
+    _ -> False
   }
 }
 
 pub fn is_v_and_tag_is_one_of(vxml: VXML, tags: List(String)) -> Bool {
   case vxml {
-    T(_, _) -> False
     V(_, tag, _, _) -> list.contains(tags, tag)
+    _ -> False
   }
 }
 
 pub fn is_v_and_tag_is_not_one_of(vxml: VXML, tags: List(String)) -> Bool {
   case vxml {
-    T(_, _) -> False
     V(_, tag, _, _) -> !list.contains(tags, tag)
+    _ -> False
   }
 }
 

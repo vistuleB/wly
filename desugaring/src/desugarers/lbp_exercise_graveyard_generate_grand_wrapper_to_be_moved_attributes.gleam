@@ -61,8 +61,6 @@ fn v_before(_: Nil, vxml: VXML) -> Result(#(Nil, List(Attr), List(DesugaringWarn
     "In" -> on.Stay(Nil)
     // cases we GoBack
     _ -> on.Return(Ok(#(Nil, [], [], infra.GoBack)))
-    // unexpected -- to be thought about
-    // _ -> on.Return(Error(DesugaringError(blame, "unexpected tag: '" <> tag <> "'")))
   })
 
   use chapter_handle <- on.ok(infra.attrs_val_first_with_key_expected(attrs, "chapter", blame))
