@@ -49,6 +49,8 @@ pub type ParseError {
   CodeBlockNotClosed(blame: Blame)
   CodeBlockUnwantedAnnotationAtClose(blame: Blame, opening_blame: Blame, annotation: String)
   DuplicateIdInCodeBlockLanguageAnnotation(blame: Blame)
+  NonUniqueRoot(blame: Blame)
+  MissingRoot(blame: Blame)
 }
 
 pub type AssemblyError {
@@ -79,7 +81,6 @@ pub type AssemblyOrParseError {
 // directory or filepath -> List(InputLine)   // Result
 // 
 // pub fn assemble_input_lines
-// pub fn assemble_and_parse
 // ************************************************************
 
 fn file_is_not_commented(path: String) -> Bool {
@@ -301,31 +302,16 @@ pub fn assemble_input_lines(
   Ok(#(tree, lines))
 }
 
-pub fn assemble_and_parse(
-  dirpath_or_filepath: String,
-  path_selectors: List(String),
-) -> Result(List(Writerly), AssemblyOrParseError) {
-  use #(_, assembled) <- on.error_ok(
-    assemble_input_lines(dirpath_or_filepath, path_selectors),
-    fn(e) { Error(AssemblyError(e)) },
-  )
-
-  use writerlys <- on.error_ok(
-    parse_input_lines(assembled),
-    fn(e) { Error(ParseError(e)) },
-  )
-
-  Ok(writerlys)
-}
-
 // ************************************************************
 // PART 2
 //
 // List(InputLine) -> List(Writerly)      // Result
 // String -> Writerly                     // Result
 // 
-// pub fn parse_input_lines
-// pub fn parse_string
+// pub fn input_lines_to_writerlys
+// pub fn input_lines_to_writerly
+// pub fn string_to_writerlys
+// pub fn string_to_writerly
 // ************************************************************
 
 type FileHead =
@@ -812,33 +798,59 @@ fn our_regexes() -> OurRegexes {
   )
 }
 
-pub fn parse_input_lines(
+pub fn input_lines_to_writerlys(
   lines: FileHead
 ) -> Result(List(Writerly), ParseError) {
   let rgxs = our_regexes()
   use #(writerlys, _, _, _) <- on.ok(parse_writerlys_at_indent(0, lines, rgxs))
-  let writerlys = list.filter(writerlys, fn(writerly) { case writerly {
-    BlankLine(..) -> False
-    _ -> True
-  }})
   Ok(writerlys)
 }
 
-pub fn parse_string(
+fn is_not_blank_line(
+  w: Writerly
+) -> Bool {
+  case w {
+    BlankLine(..) -> False
+    _ -> True
+  }
+}
+
+pub fn input_lines_to_writerly(
+  lines: FileHead
+) -> Result(Writerly, ParseError) {
+  use writerlys <- on.ok(input_lines_to_writerlys(lines))
+  case list.filter(writerlys, is_not_blank_line) {
+    [one] -> Ok(one)
+    [] -> Error(MissingRoot(bl.no_blame))
+    [one, ..] -> Error(NonUniqueRoot(one.blame))
+  }
+}
+
+pub fn string_to_writerlys(
   source: String,
   filename: String,
 ) -> Result(List(Writerly), ParseError) {
   source
   |> io_l.string_to_input_lines(filename, 0)
-  |> parse_input_lines
+  |> input_lines_to_writerlys
+}
+
+pub fn string_to_writerly(
+  source: String,
+  filename: String,
+) -> Result(Writerly, ParseError) {
+  source
+  |> io_l.string_to_input_lines(filename, 0)
+  |> input_lines_to_writerly
 }
 
 // ************************************************************
 // PART 3
 //
-// Writerly -> VXML
+// Writerly -> VXML, List(InputLine) -> VXML
 //
 // pub fn writerly_to_vxml
+// pub fn input_lines_to_vxml
 // ************************************************************
 
 const writerly_blank_line_vxml_tag = "WriterlyBlankLine"
@@ -891,6 +903,13 @@ pub fn writerlys_to_vxmls(
   writerlys: List(Writerly)
 ) -> List(VXML) {
   writerlys |> list.map(writerly_to_vxml)
+}
+
+pub fn input_lines_to_vxml(
+  lines: FileHead
+) -> Result(VXML, ParseError) {
+  input_lines_to_writerly(lines)
+  |> result.map(writerly_to_vxml)
 }
 
 // ************************************************************

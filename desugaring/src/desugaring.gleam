@@ -56,7 +56,6 @@ pub fn desugarers_2_decorateds(
   })
 }
 
-
 // ************************************************************
 // Assembler(a)                                                // 'a' is assembler error type; "assembler" = "source assembler"
 // file/directory -> List(InputLine)
@@ -66,23 +65,20 @@ pub type Assembler(a) =
   fn(String) -> Result(#(List(InputLine), Option(DirTree)), a)    // the 'List(String)' is a feedback/success message on assembly
 
 pub fn default_writerly_assembler(
+  dirpath_or_filepath: String,
   path_selectors: List(String),
-) -> Assembler(wl.AssemblyError) {
-  fn(dirpath_or_filepath) {
-    use #(tree, assembled) <- on.ok(
-      wl.assemble_input_lines(dirpath_or_filepath, path_selectors),
-    )
-    Ok(#(assembled, Some(tree)))
-  }
+) -> Result(#(List(InputLine), Option(DirTree)), wl.AssemblyError) {
+  use #(tree, assembled) <- on.ok(
+    wl.assemble_input_lines(dirpath_or_filepath, path_selectors),
+  )
+  Ok(#(assembled, Some(tree)))
 }
 
 pub fn default_other_files_assembler(
   path: String
 ) -> Result(#(List(InputLine), Option(DirTree)), simplifile.FileError) {
-  case io_l.read(path, 0) {
-    Ok(lines) -> Ok(#(lines, None))
-    Error(e) -> Error(e)
-  }
+  io_l.read(path, 0)
+  |> result.map(fn(lines) { #(lines, None) })
 }
 
 // ************************************************************
@@ -94,45 +90,17 @@ pub type Parser(c) =
   fn(List(InputLine)) -> Result(VXML, #(Blame, c))
 
 pub fn default_writerly_parser(
-  only_args: List(#(String, String, String)),
-) -> Parser(String) {
-  fn(lines) {
-    use writerlys <- on.error_ok(
-      wl.parse_input_lines(lines),
-      fn(e) { Error(#(e.blame, ins(e))) },
-    )
-
-    use vxml <- on.ok(
-      case writerlys |> wl.writerlys_to_vxmls {
-        [vxml] -> Ok(vxml)
-        vxmls -> Error(#(bl.no_blame, "found " <> ins(list.length(vxmls)) <> " ≠ 1 top-level nodes in writerly source"))
-      }
-    )
-
-    use #(filtered_vxml, _) <- on.error_ok(
-      dl.filter_nodes_by_attributes(only_args).transform(vxml),
-      fn(_) { Error(#(bl.no_blame, "empty document after filtering nodes by: " <> ins(only_args))) },
-    )
-
-    Ok(filtered_vxml)
-  }
+  lines: List(InputLine)
+) -> Result(VXML, #(Blame, String)) {
+  wl.input_lines_to_vxml(lines)
+  |> result.map_error(fn(e) { #(e.blame, ins(e)) })
 }
 
 pub fn default_xml_parser(
   lines: List(InputLine),
-  only_args: List(#(String, String, String)),
 ) -> Result(VXML, #(Blame, String)) {
-  use vxml <- on.error_ok(
-    vp.streaming_based_xml_parser(lines),
-    fn(xmlm_parse_error) { Error(#(bl.no_blame, "xmlm parse error: " <> ins(xmlm_parse_error))) }
-  )
-
-  use #(vxml, _) <- on.error_ok(
-    dl.filter_nodes_by_attributes(only_args).transform(vxml),
-    fn(_) { Error(#(bl.no_blame, "empty document after filtering nodes by: " <> ins(only_args))) },
-  )
-
-  Ok(vxml)
+  vp.streaming_based_xml_parser(lines)
+  |> result.map_error(fn(e) { #(bl.no_blame, "xmlm parse error: " <> ins(e)) })
 }
 
 pub const default_html_parser = default_xml_parser
@@ -386,10 +354,12 @@ pub type RendererOptions(d) {
     profiling_table: Option(Int),
     interactive_mode: Bool,
     suppress_warnings: Bool,
+    only_key_values: List(#(String, String)),
     dump: Option(List(Int)),
     tracker: Option(Tracker),
     echo_assembled_lines: Bool,
     echo_parsed_vxml: Bool,
+    echo_filtered_vxml: Bool,
     echo_vxml_fragments: fn(OutputFragment(d, VXML)) -> Bool,
     echo_output_lines_fragments: fn(OutputFragment(d, List(OutputLine))) -> Bool,
     echo_string_fragments: fn(OutputFragment(d, String)) -> Bool,
@@ -404,10 +374,12 @@ pub fn vanilla_options() -> RendererOptions(d) {
     profiling_table: None,
     interactive_mode: False,
     suppress_warnings: False,
+    only_key_values: [],
     dump: None,
     tracker: None,
     echo_assembled_lines: False,
     echo_parsed_vxml: False,
+    echo_filtered_vxml: False,
     echo_vxml_fragments: fn (_) { False },
     echo_output_lines_fragments: fn(_: OutputFragment(d, List(OutputLine))) { False },
     echo_string_fragments: fn(_: OutputFragment(d, String)) { False },
@@ -434,7 +406,7 @@ pub type CommandLineAmendments {
     input_dir: Option(String),
     output_dir: Option(String),
     only_paths: List(String),
-    only_key_values: List(#(String, String, String)),
+    only_key_values: List(#(String, String)),
     prettier: Option(PrettifierMode),
     tracker: Option(Tracker),
     dump: Option(List(Int)),
@@ -444,6 +416,8 @@ pub type CommandLineAmendments {
     warnings: Option(Bool),
     timing: Option(Bool),
     echo_assembled: Bool,
+    echo_parsed: Bool,
+    echo_filtered: Bool,
     vxml_fragments_local_paths_to_echo: Option(List(String)),
     output_lines_fragments_local_paths_to_echo: Option(List(String)),
     string_fragments_local_paths_to_echo: Option(List(String)),
@@ -472,6 +446,8 @@ fn empty_command_line_amendments() -> CommandLineAmendments {
     warnings: None,
     timing: None,
     echo_assembled: False,
+    echo_parsed: False,
+    echo_filtered: False,
     vxml_fragments_local_paths_to_echo: None,
     output_lines_fragments_local_paths_to_echo: None,
     string_fragments_local_paths_to_echo: None,
@@ -573,6 +549,12 @@ pub fn advanced_cli_usage(header: String) {
   io.println("")
   io.println(margin <> "--echo-assembled")
   io.println(margin <> "  -> print the assembled input lines of source")
+  io.println("")
+  io.println(margin <> "--echo-parsed")
+  io.println(margin <> "  -> print the parsed VXML")
+  io.println("")
+  io.println(margin <> "--echo-filtered")
+  io.println(margin <> "  -> print the parsed VXML filtered for key-value pairs")
   io.println("")
   io.println(margin <> "--echo-vxml-fragments <subpath1> <subpath2> ...")
   io.println(margin <> "  -> echo fragments whose paths contain one of the given subpaths")
@@ -727,6 +709,18 @@ pub fn process_command_line_arguments(
             False -> Error(UnexpectedArgumentsToOption(option))
           }
 
+        "--echo-parsed" ->
+          case list.is_empty(values) {
+            True -> Ok(CommandLineAmendments(..amendments, echo_parsed: True))
+            False -> Error(UnexpectedArgumentsToOption(option))
+          }
+
+        "--echo-filtered" ->
+          case list.is_empty(values) {
+            True -> Ok(CommandLineAmendments(..amendments, echo_filtered: True))
+            False -> Error(UnexpectedArgumentsToOption(option))
+          }
+
         "--echo-vxml-fragments" ->
           case list.is_empty(values) {
             True -> Ok(CommandLineAmendments(..amendments, vxml_fragments_local_paths_to_echo: Some(values)))
@@ -828,16 +822,14 @@ fn amend_only_args(
     only_key_values: list.append(
       amendments.only_key_values,
       args
-      |> list.filter(fn(a) {a.1 != "" || a.2 != ""})
+      |> list.filter(fn(a) { a.1 != "" || a.2 != ""})
+      |> list.map(fn(a) { #(a.1, a.2) })
     ),
     only_paths: list.append(
       amendments.only_paths,
       args
-        |> list.map(fn(a) {
-          let #(path, _, _) = a
-          path
-        })
-        |> list.filter(fn(p){p != ""})
+      |> list.filter(fn(a) { a.0 != "" })
+      |> list.map(fn(a) { a.0 })
     ),
   )
 }
@@ -1186,6 +1178,7 @@ pub fn amend_renderer_options_by_command_line_amendments(
       option.map(amendments.tracker, fn(x){x.interactive_mode}) |> option.unwrap(False)
     },
     suppress_warnings: !option.unwrap(amendments.warnings, !options.suppress_warnings),
+    only_key_values: amendments.only_key_values,
     dump: case options.dump, amendments.dump {
       None, _ -> amendments.dump
       _, None -> options.dump
@@ -1196,7 +1189,8 @@ pub fn amend_renderer_options_by_command_line_amendments(
       Some(x) -> Some(join_trackers(options.tracker, x))
     },
     echo_assembled_lines: amendments.echo_assembled || options.echo_assembled_lines,
-    echo_parsed_vxml: options.echo_parsed_vxml || { option.unwrap(amendments.dump, []) |> list.contains(0) },
+    echo_parsed_vxml: amendments.echo_parsed || options.echo_parsed_vxml,
+    echo_filtered_vxml: amendments.echo_filtered || options.echo_filtered_vxml || { option.unwrap(amendments.dump, []) |> list.contains(0) },
     echo_vxml_fragments: fn(fr: OutputFragment(d, VXML)) {
       options.echo_vxml_fragments(fr) ||
       exists_match(
@@ -1632,6 +1626,7 @@ pub type ThreePossibilities(f, g, h) {
 pub type RendererError(a, c, e, f, g, h) {
   FileOrParseError(a)
   SourceParserError(Blame, c)
+  KeyValueFiltrationError(Blame, String)
   PipelineError(InSituDesugaringError)
   UserExitError(Int)
   SplitterError(e)
@@ -1724,6 +1719,44 @@ pub fn run_renderer(
     },
   )
 
+  case options.echo_parsed_vxml {
+    False -> Nil
+    True -> {
+      parsed
+      |> vp.vxml_to_output_lines
+      |> io_l.output_lines_table("parsed:", 2)
+      |> io.println
+    }
+  }
+
+  use #(filtered, filtration_warnings) <- on.error_ok(
+    dl.filter_nodes_by_key_values(options.only_key_values).transform(parsed),
+    on_error: fn(error) {
+      let infra.DesugaringError(blame, msg) = error
+      io.println("  ...key-value filtration error:")
+      io.println("")
+      [
+        #(" blame:", pr.our_blame_digest(blame)),
+        #(" error: ", ins(msg) |> pr.strip_quotes),
+      ]
+      |> pr.two_column_error_announcer(0, 70, "💥", 2, "/ filtration error /")
+      |> io.println
+      Error(KeyValueFiltrationError(blame, msg))
+    },
+  )
+
+  assert filtration_warnings == []
+
+  case options.echo_filtered_vxml {
+    False -> Nil
+    True -> {
+      filtered
+      |> vp.vxml_to_output_lines
+      |> io_l.output_lines_table("filtered:", 2)
+      |> io.println
+    }
+  }
+
   // 🌸 pipeline 🌸
 
   io.println("• starting pipeline...")
@@ -1737,7 +1770,7 @@ pub fn run_renderer(
 
   use #(desugared, warnings, durations) <- on.error_ok(
     run_pipeline(
-      parsed,
+      filtered,
       decorateds,
       options.interactive_mode,
     ),

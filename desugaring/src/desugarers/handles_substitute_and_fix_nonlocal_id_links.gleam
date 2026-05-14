@@ -858,6 +858,7 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
                 '*Terminology: “dimension” vs. “dimensional”.*'
                 'As explained in the '
               <> OutChapterLink
+                class=handle-out-chapter-link
                 href=/article/chapter1#section-1
                 <>
                   'Epilogue to Chapter 26'
