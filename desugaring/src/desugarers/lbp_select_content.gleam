@@ -160,6 +160,9 @@ fn at_root(
   let #(in_elts, others) =
     list.partition(others, infra.is_v_and_tag_equals(_, "In"))
 
+  let #(to_keep, others) =
+    list.partition(others, infra.is_v_and_tag_is_one_of(_, ["HeaderBlob"]))
+
   use handle_2_chapter_dict <- on.ok(
     chapters
     |> list.try_map(with_handle_value)
@@ -242,7 +245,7 @@ fn at_root(
     }),
   )
 
-  Ok(#(V(..root, children: chapters |> list.reverse), warnings))
+  Ok(#(V(..root, children: chapters |> list.reverse |> list.append(to_keep)), warnings))
 }
 
 fn desugarer_factory(_inner: InnerParam) -> infra.DesugarerTransform {
