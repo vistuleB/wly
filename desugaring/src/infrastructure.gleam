@@ -1935,6 +1935,13 @@ pub fn first_is(
   }
 }
 
+pub fn contains(
+  vxmls: List(VXML),
+  tag: String, 
+) -> Bool {
+  list.any(vxmls, is_v_and_tag_equals(_, tag))
+}
+
 pub fn v_first_child_with_tag(vxml: VXML, tag: String) -> Option(VXML) {
   let assert V(_, _, _, children) = vxml
   first_with_tag(children, tag)
@@ -2436,7 +2443,6 @@ pub fn invalid_tag(tag: String) -> Bool {
 // ************************************************************
 // is_
 // ************************************************************
-
 
 pub fn is_t(node: VXML) -> Bool {
   case node {

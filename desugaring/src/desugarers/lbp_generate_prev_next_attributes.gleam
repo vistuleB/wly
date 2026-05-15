@@ -23,7 +23,7 @@ fn add_links_to_chapter(vxml: VXML, number: Int, num_chapters: Int, num_appendic
   }
   let next_link = case number == num_chapters {
     True -> case num_appendices > 0 {
-      True -> "/article/appendix1"
+      True -> "/article/appendixA"
       False -> ""
     }
     False -> "/article/chapter" <> ins(number + 1)
@@ -33,6 +33,12 @@ fn add_links_to_chapter(vxml: VXML, number: Int, num_chapters: Int, num_appendic
   |> prepend_link(prev_link, "prev-page")
 }
 
+fn number_to_appendix_letter(number: Int) -> String {
+  let ascii_code_for_a = 65
+  let assert Ok(utf) = string.utf_codepoint(ascii_code_for_a - 1 + number)
+  string.from_utf_codepoints([utf])
+}
+
 fn add_links_to_appendix(vxml: VXML, number: Int, num_appendices: Int, num_chapters: Int) -> VXML {
   let assert True = number >= 1 && number <= num_appendices
   let prev_link = case number == 1 {
@@ -40,11 +46,11 @@ fn add_links_to_appendix(vxml: VXML, number: Int, num_appendices: Int, num_chapt
       True -> "/article/chapter" <> ins(num_chapters)
       False -> "/"
     }
-    False -> "/article/appendix" <> ins(number - 1)
+    False -> "/article/appendix" <> number_to_appendix_letter(number - 1)
   }
   let next_link = case number == num_appendices {
     True -> ""
-    False -> "/article/appendix" <> ins(number + 1)
+    False -> "/article/appendix" <> number_to_appendix_letter(number + 1)
   }
   vxml
   |> prepend_link(next_link, "next-page")

@@ -7,7 +7,6 @@ import infrastructure.{
   type DesugaringError,
   type DesugaringWarning,
   DesugaringWarning,
-  DesugaringError,
   Desugarer,
 } as infra
 import vxml.{type Attr, type VXML, V, T, Attr, type Line}
@@ -57,12 +56,10 @@ fn v_before(_: Nil, vxml: VXML) -> Result(#(Nil, List(Attr), List(DesugaringWarn
   use _ <- on.stay(case tag {
     // cases we Continue
     "GrandWrapper" | "Book" -> on.Return(Ok(#(Nil, [], [], infra.Continue)))
-    // cases we GoBack
-    "Chapter" | "Bootcamp" | "ChapterSelection" -> on.Return(Ok(#(Nil, [], [], infra.GoBack)))
     // case we process
     "In" -> on.Stay(Nil)
-    // unexpected
-    _ -> on.Return(Error(DesugaringError(blame, "unexpected tag: '" <> tag <> "'")))
+    // cases we GoBack
+    _ -> on.Return(Ok(#(Nil, [], [], infra.GoBack)))
   })
 
   use chapter_handle <- on.ok(infra.attrs_val_first_with_key_expected(attrs, "chapter", blame))

@@ -59,7 +59,12 @@ fn v_before_1(state: State, vxml: VXML) -> Result(
   let handle_name = string.trim(attr.val)
   use <- on.false_true(
     list.contains(handles_2b_cut, handle_name),
-    fn() { Ok(#(state, Ok(vxml), [], infra.Continue)) },
+    fn() { 
+      case tag {
+        "Section" | "Exercise" -> Ok(#(state, Ok(vxml), [], infra.GoBack))
+        _ -> Ok(#(state, Ok(vxml), [], infra.Continue))
+      }
+    },
   )
 
   // we're supposed to get cut --- but we freak out if chapter_handle is not defined
@@ -91,7 +96,7 @@ fn t_1(state: State, vxml: VXML) -> Result(
 
 type State = #(Option(String), List(String))
 
-pub const name = "lbp_move_to_be_moveds_to_grand_wrapper"
+pub const name = "lbp_move_to_be_moved_to_grand_wrapper"
 fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
 
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
