@@ -7,7 +7,6 @@ import infrastructure.{
   type DesugaringError,
   type DesugaringWarning,
   DesugaringWarning,
-  DesugaringError,
   Desugarer,
 } as infra
 import vxml.{type Attr, type VXML, V, T, Attr, type Line}
