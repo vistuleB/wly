@@ -9,6 +9,7 @@ import desugarers/add_before_but_not_before_first_child__batch
 import desugarers/add_before_but_not_before_first_of_kind
 import desugarers/add_before_but_not_before_first_of_kind__batch
 import desugarers/add_between
+import desugarers/add_between_all_pairs_2
 import desugarers/add_between_tag_and_text_node
 import desugarers/add_between_tag_and_text_node__batch
 import desugarers/add_between_tags__batch
@@ -180,6 +181,7 @@ import desugarers/rename_attributes
 import desugarers/rename_attributes_by_function
 import desugarers/rename_if_child_of
 import desugarers/rename_if_child_of__batch
+import desugarers/rename_if_child_of_one_of
 import desugarers/rename_if_has_key_value
 import desugarers/rename_if_has_singleton_class_attribute
 import desugarers/rename_if_has_singleton_key_value
@@ -275,6 +277,7 @@ pub const add_before_but_not_before_first_child__batch = add_before_but_not_befo
 pub const add_before_but_not_before_first_of_kind = add_before_but_not_before_first_of_kind.constructor
 pub const add_before_but_not_before_first_of_kind__batch = add_before_but_not_before_first_of_kind__batch.constructor
 pub const add_between = add_between.constructor
+pub const add_between_all_pairs_2 = add_between_all_pairs_2.constructor
 pub const add_between_tag_and_text_node = add_between_tag_and_text_node.constructor
 pub const add_between_tag_and_text_node__batch = add_between_tag_and_text_node__batch.constructor
 pub const add_between_tags__batch = add_between_tags__batch.constructor
@@ -446,6 +449,7 @@ pub const rename_attributes = rename_attributes.constructor
 pub const rename_attributes_by_function = rename_attributes_by_function.constructor
 pub const rename_if_child_of = rename_if_child_of.constructor
 pub const rename_if_child_of__batch = rename_if_child_of__batch.constructor
+pub const rename_if_child_of_one_of = rename_if_child_of_one_of.constructor
 pub const rename_if_has_key_value = rename_if_has_key_value.constructor
 pub const rename_if_has_singleton_class_attribute = rename_if_has_singleton_class_attribute.constructor
 pub const rename_if_has_singleton_key_value = rename_if_has_singleton_key_value.constructor
@@ -542,6 +546,7 @@ pub const assertive_tests : List(fn() -> infra.AssertiveTestCollection) = [
   add_before_but_not_before_first_of_kind.assertive_tests,
   add_before_but_not_before_first_of_kind__batch.assertive_tests,
   add_between.assertive_tests,
+  add_between_all_pairs_2.assertive_tests,
   add_between_tag_and_text_node.assertive_tests,
   add_between_tag_and_text_node__batch.assertive_tests,
   add_between_tags__batch.assertive_tests,
@@ -713,6 +718,7 @@ pub const assertive_tests : List(fn() -> infra.AssertiveTestCollection) = [
   rename_attributes_by_function.assertive_tests,
   rename_if_child_of.assertive_tests,
   rename_if_child_of__batch.assertive_tests,
+  rename_if_child_of_one_of.assertive_tests,
   rename_if_has_key_value.assertive_tests,
   rename_if_has_singleton_class_attribute.assertive_tests,
   rename_if_has_singleton_key_value.assertive_tests,
