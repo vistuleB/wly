@@ -1310,7 +1310,7 @@ fn nonempty_list_t_plain_concatenation(nodes: List(VXML)) -> VXML {
 
 pub fn plain_concatenation_in_list(nodes: List(VXML)) -> List(VXML) {
   nodes
-  |> eo.map_from_condition(is_text_node)
+  |> eo.map_from_condition(is_t)
   |> eo.group_eithers
   |> eo.map_resolve(
     fn(either: List(VXML)) -> VXML { nonempty_list_t_plain_concatenation(either) },
@@ -1408,39 +1408,18 @@ pub fn t_trim_end(node: VXML) -> Option(VXML) {
   }
 }
 
+pub fn lines_super_trim_end(lines: List(Line)) -> List(Line) {
+  lines
+  |> list.reverse
+  |> list.take_while(fn(line) { string.trim_end(line.content) == "" })
+}
+
 pub fn t_super_trim_end(node: VXML) -> Option(VXML) {
   let assert T(blame, lines) = node
-  let lines =
-    lines
-    |> list.reverse
-    |> list.take_while(fn(line) { string.trim_end(line.content) == "" })
+  let lines = lines_super_trim_end(lines)
   case lines {
     [] -> None
     _ -> Some(T(blame, lines |> list.reverse))
-  }
-}
-
-pub fn t_super_trim_end_and_remove_ending_period(node: VXML) -> Option(VXML) {
-  let assert T(blame, lines) = node
-
-  let lines =
-    lines
-    |> list.reverse
-    |> list.drop_while(fn(line) { string.trim_end(line.content) == "" })
-
-  case lines {
-    [] -> None
-    [last, ..rest] -> {
-      let content = string.trim_end(last.content)
-      case string.ends_with(content, ".") && !string.ends_with(content, "..") {
-        True -> {
-          let last = Line(..last, content: {content |> string.drop_end(1)})
-          T(blame, [last, ..rest] |> list.reverse)
-          |> t_super_trim_end_and_remove_ending_period
-        }
-        False -> Some(T(blame, [last, ..rest] |> list.reverse))
-      }
-    }
   }
 }
 
@@ -1935,34 +1914,30 @@ pub fn v_unique_child_with_singleton_error(
   }
 }
 
-pub fn first_in_list(
+pub fn first_with_tag(
   nodes: List(VXML),
   tag: String,
 ) -> Option(VXML) {
   case nodes {
     [V(_, t, _, _) as first, ..] if t == tag -> Some(first)
-    [_, ..rest] -> first_in_list(rest, tag)
+    [_, ..rest] -> first_with_tag(rest, tag)
     [] -> None
   }
 }
 
-pub fn v_is_first_ancestor(
-  ancestors: List(VXML),
-  tag: String, 
+pub fn first_is(
+  vxmls: List(VXML),
+  tag: String,
 ) -> Bool {
-
-  use first_anc <- on.eager_error_ok(
-    ancestors |> list.first,
-    False,
-  ) 
-
-  v_get_tag(first_anc) == tag
-
+  case vxmls {
+    [V(_, t, _, _), ..] -> t == tag
+    _ -> False
+  }
 }
 
 pub fn v_first_child_with_tag(vxml: VXML, tag: String) -> Option(VXML) {
   let assert V(_, _, _, children) = vxml
-  first_in_list(children, tag)
+  first_with_tag(children, tag)
 }
 
 pub fn v_replace_children_with(node: VXML, children: List(VXML)) {
@@ -2462,68 +2437,74 @@ pub fn invalid_tag(tag: String) -> Bool {
 // is_
 // ************************************************************
 
+
+pub fn is_t(node: VXML) -> Bool {
+  case node {
+    T(..) -> True
+    _ -> False
+  }
+}
+
+pub fn is_v(node: VXML) -> Bool {
+  case node {
+    V(..) -> True
+    _ -> False
+  }
+}
+
 pub fn is_v_and_has_key_val(vxml: VXML, key: String, val: String) -> Bool {
   case vxml {
-    T(_, _) -> False
-    _ -> {
-      v_has_key_val(vxml, key, val)
-    }
+    V(_, _, attrs, _) -> attrs_have_key_val(attrs, key, val)
+    _ -> False
   }
 }
 
 pub fn is_v_and_tag_equals(vxml: VXML, tag: String) -> Bool {
   case vxml {
-    T(_, _) -> False
     V(_, t, _, _) -> t == tag
+    _ -> False
   }
 }
 
 pub fn is_v_and_tag_not_equals(vxml: VXML, tag: String) -> Bool {
   case vxml {
-    T(_, _) -> False
     V(_, t, _, _) -> t != tag
+    _ -> False
   }
 }
 
 pub fn is_v_and_tag_is_one_of(vxml: VXML, tags: List(String)) -> Bool {
   case vxml {
-    T(_, _) -> False
-    V(_, tag, _, _) -> list.contains(tags, tag)
+    V(_, t, _, _) -> list.contains(tags, t)
+    _ -> False
   }
 }
 
 pub fn is_v_and_tag_is_not_one_of(vxml: VXML, tags: List(String)) -> Bool {
   case vxml {
-    T(_, _) -> False
-    V(_, tag, _, _) -> !list.contains(tags, tag)
+    V(_, t, _, _) -> !list.contains(tags, t)
+    _ -> False
   }
 }
 
-pub fn is_text_node(node: VXML) -> Bool {
+pub fn is_t_or_is_one_of(node: VXML, tags: List(String)) -> Bool {
   case node {
-    T(_, _) -> True
-    V(_, _, _, _) -> False
-  }
-}
-
-pub fn is_text_or_is_one_of(node: VXML, tags: List(String)) -> Bool {
-  case node {
-    T(_, _) -> True
-    V(_, tag, _, _) -> list.contains(tags, tag)
+    V(_, t, _, _) -> list.contains(tags, t)
+    _ -> True
   }
 }
 
 pub fn has_text_child(node: VXML) {
   case node {
-    T(_, _) -> False
-    V(_, _, _, children) -> list.any(children, is_text_node)
+    V(_, _, _, children) -> list.any(children, is_t)
+    _ -> False
   }
 }
 
 pub fn is_v_and_has_class(vxml: VXML, class: String) -> Bool {
   case vxml {
-    T(_, _) -> False
-    _ -> v_has_class(vxml, class)
+    V(_, _, attrs, _) -> attrs_have_class(attrs, class)
+    _ -> False
   }
 }
 

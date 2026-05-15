@@ -15,10 +15,10 @@ fn nodemap(
       case infra.v_first_attr_with_key(vxml, inner.1) {
         Some(Attr(_, _, value)) if value != "" -> {
           let line = Line(desugarer_blame(17), value)
-          let children = case list.any(children, infra.is_text_node) {
+          let children = case list.any(children, infra.is_t) {
             True -> {
               let #(before, after) =
-                list.split_while(children, fn(c) { !infra.is_text_node(c) })
+                list.split_while(children, fn(c) { !infra.is_t(c) })
               let assert [first_t, ..rest] = after
               list.append(before, [infra.t_start_insert_line(first_t, line), ..rest])
             }

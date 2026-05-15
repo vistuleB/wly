@@ -9,13 +9,13 @@ fn has_text_descendant(child: VXML) {
   let assert V(_, _, _, children) = child
   // do in DFS order:
   {
-    list.any(children, infra.is_text_node) ||
+    list.any(children, infra.is_t) ||
     list.any(children, has_text_descendant)
   }
 }
 
 fn is_text_or_has_text_descendant(node: VXML) {
-  infra.is_text_node(node) || has_text_descendant(node)
+  infra.is_t(node) || has_text_descendant(node)
 }
 
 fn nodemap(
