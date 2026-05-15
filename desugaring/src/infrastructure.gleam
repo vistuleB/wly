@@ -2444,7 +2444,6 @@ pub fn invalid_tag(tag: String) -> Bool {
 // is_
 // ************************************************************
 
-
 pub fn is_t(node: VXML) -> Bool {
   case node {
     T(..) -> True
