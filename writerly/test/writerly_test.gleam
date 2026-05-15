@@ -48,10 +48,10 @@ fn ergonomic_source_to_standard_source(source: String) -> String {
 
 // see comment above
 fn parse_ergonomic_wly(source: String, name: String) -> Writerly {
-  let assert Ok([writerly]) =
+  let assert Ok(writerly) =
     source
     |> ergonomic_source_to_standard_source
-    |> wl.parse_string(name)
+    |> wl.string_to_writerly(name)
   writerly
 }
 
@@ -87,7 +87,7 @@ pub fn part_2_test() {
 |> Book
     a=b
   " |> string.trim()
-  wl.parse_string(wly_doc, "doc")
+  wl.string_to_writerlys(wly_doc, "doc")
   |> should.equal(Ok([
     wl.Tag(
       Src([], "doc", 1, 1, True),
@@ -102,7 +102,7 @@ pub fn part_2_test() {
   let assert Ok(#(_tree, lines)) = wl.assemble_input_lines("test/test1.wly", [])
 
   lines
-  |> wl.parse_input_lines()
+  |> wl.input_lines_to_writerlys()
   |> should.equal(
     Ok([
       wl.Tag(
@@ -125,7 +125,7 @@ pub fn part_2_test() {
 
   let assert Ok(#(_tree, lines)) = wl.assemble_input_lines("test/testA", [])
   lines
-  |> wl.parse_input_lines()
+  |> wl.input_lines_to_writerlys()
   |> should.equal(
     Ok([
       wl.Tag(
@@ -152,7 +152,7 @@ pub fn part_3_test() {
     a=b
   " |> string.trim()
 
-  let assert Ok([wly_parsed]) = wl.parse_string(wly_doc, "doc")
+  let assert Ok(wly_parsed) = wl.string_to_writerly(wly_doc, "doc")
 
   wly_parsed
   |> wl.writerly_to_vxml()
@@ -217,7 +217,7 @@ pub fn part_5_test() {
     a=b
   " |> string.trim()
 
-  let assert Ok([wly_parsed]) = wl.parse_string(wly_doc, "doc")
+  let assert Ok(wly_parsed) = wl.string_to_writerly(wly_doc, "doc")
 
   wly_parsed
   |> wl.writerly_to_string

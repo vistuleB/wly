@@ -23,7 +23,7 @@ fn contents_test() -> Result(Nil, String) {
   io.println("")
 
   use writerlys <- on.error_ok(
-    wl.parse_input_lines(lines),
+    wl.input_lines_to_writerlys(lines),
     fn(e) { Error("CONTENTS_TEST ERROR: " <> ins(e)) },
   )
 
@@ -61,7 +61,7 @@ fn sample_test() -> Result(Nil, String) {
   )
 
   use writerlys <- on.error_ok(
-    wl.parse_string(contents, filename),
+    wl.string_to_writerlys(contents, filename),
     fn(e) { Error("SAMPLE_TEST error: parsing error: " <> ins(e)) },
   )
 

@@ -4,47 +4,30 @@ import gleam/option
 import gleam/string.{inspect as ins}
 import infrastructure.{type DesugaringError, type Desugarer, Desugarer} as infra
 import vxml.{type VXML, V}
-import blame as bl
 import nodemaps_2_desugarer_transforms as n2t
 
-fn matches_a_selector(vxml: VXML, inner: InnerParam) -> Bool {
-  let assert V(blame, _, attrs, _) = vxml
-  let v_path = case blame {
-    bl.Src(_, v_path, _, _, _) -> v_path
-    _ -> ""
-  }
-  list.any(inner, fn(selector) {
-    let #(path, key, value) = selector
-    {
-      string.contains(v_path, path)
-      && {
-        key == ""
-        || list.any(attrs, fn(attr) {
-          { attr.key == key && attr.val == value }
-        })
-      }
-    }
+fn matches_a_pair(vxml: VXML, inner: InnerParam) -> Bool {
+  let assert V(_, _, attrs, _) = vxml
+  list.any(attrs, fn(attr) {
+    list.any(inner, fn(kv) { kv.0 == attr.key && kv.1 == attr.val })
   })
 }
 
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
-  list.each(param, fn(p) { assert p.0 == "" } )
   Ok(param)
 }
 
-type Param = List(#(String,  String,  String))
-//                  ↖        ↖        ↖
-//                  path     key      value
+type Param = List(#(String,  String))
+//                  ↖        ↖
+//                  key      value
 type InnerParam = Param
 
-pub const name = "filter_nodes_by_attributes"
+pub const name = "filter_nodes_by_key_values"
 
 //------------------------------------------------53
-/// filters by identifying nodes whose
-/// blame.filename contain the extra.path as a
-/// substring and whose attrs match at least
-/// one of the given #(key, value) pairs, with a
-/// match counting as true if key == ""; keeps only
+/// filters by identifying nodes whose attrs match
+/// at least one of the given #(key, value) pairs, 
+/// counting only perfectly literal matches; keeps only
 /// nodes that are descendants of such nodes, or
 /// ancestors of such nodes
 pub fn constructor(param: Param) -> Desugarer {
@@ -56,7 +39,7 @@ pub fn constructor(param: Param) -> Desugarer {
       Error(error) -> fn(_) { Error(error) }
       Ok(inner) -> case inner {
         [] -> n2t.identity_transform
-        _ -> delete_outside_subtrees(matches_a_selector(_, inner)).transform
+        _ -> delete_outside_subtrees(matches_a_pair(_, inner)).transform
       }
     }
   )

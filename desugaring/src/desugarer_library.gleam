@@ -80,7 +80,7 @@ import desugarers/ensure_attribute_value_starts_with_prefix
 import desugarers/expand_info_attribute
 import desugarers/expel_initial_last_backward_forward
 import desugarers/extract_starting_and_ending_spaces
-import desugarers/filter_nodes_by_attributes
+import desugarers/filter_nodes_by_key_values
 import desugarers/find_replace__batch__outside
 import desugarers/find_replace__outside
 import desugarers/find_replace_if_has_ancestor_else
@@ -346,7 +346,7 @@ pub const ensure_attribute_value_starts_with_prefix = ensure_attribute_value_sta
 pub const expand_info_attribute = expand_info_attribute.constructor
 pub const expel_initial_last_backward_forward = expel_initial_last_backward_forward.constructor
 pub const extract_starting_and_ending_spaces = extract_starting_and_ending_spaces.constructor
-pub const filter_nodes_by_attributes = filter_nodes_by_attributes.constructor
+pub const filter_nodes_by_key_values = filter_nodes_by_key_values.constructor
 pub const find_replace__batch__outside = find_replace__batch__outside.constructor
 pub const find_replace__outside = find_replace__outside.constructor
 pub const find_replace_if_has_ancestor_else = find_replace_if_has_ancestor_else.constructor
@@ -613,7 +613,7 @@ pub const assertive_tests : List(fn() -> infra.AssertiveTestCollection) = [
   expand_info_attribute.assertive_tests,
   expel_initial_last_backward_forward.assertive_tests,
   extract_starting_and_ending_spaces.assertive_tests,
-  filter_nodes_by_attributes.assertive_tests,
+  filter_nodes_by_key_values.assertive_tests,
   find_replace__batch__outside.assertive_tests,
   find_replace__outside.assertive_tests,
   find_replace_if_has_ancestor_else.assertive_tests,
