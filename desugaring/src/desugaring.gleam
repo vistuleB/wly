@@ -352,6 +352,7 @@ pub type RendererParameters {
 pub type RendererOptions(d) {
   RendererOptions(
     verbose: Bool,
+    artifacts: Bool,
     steps_table: Bool,
     profiling_table: Option(Int),
     interactive_mode: Bool,
@@ -373,6 +374,7 @@ pub type RendererOptions(d) {
 pub fn vanilla_options() -> RendererOptions(d) {
   RendererOptions(
     verbose: False,
+    artifacts: False,
     steps_table: False,
     profiling_table: None,
     interactive_mode: False,
@@ -419,6 +421,7 @@ pub type CommandLineAmendments {
     table: Option(Bool),
     times: Option(Int),
     verbose: Option(Bool),
+    artifacts: Option(Bool),
     warnings: Option(Bool),
     timing: Option(Bool),
     echo_assembled: Bool,
@@ -450,6 +453,7 @@ fn empty_command_line_amendments() -> CommandLineAmendments {
     table: None,
     times: None,
     verbose: None,
+    artifacts: None,
     warnings: None,
     timing: None,
     echo_assembled: False,
@@ -537,11 +541,14 @@ pub fn basic_cli_usage(header: String) {
   io.println(margin <> "     <dir>; if absent, <dir> defaults to")
   io.println(margin <> "     renderer_parameters.output_dir")
   io.println("")
-  io.println(margin <> "--verbose/--succinct")
-  io.println(margin <> "  -> force/suppress verbose renderer output")
+  io.println(margin <> "--verbose")
+  io.println(margin <> "  -> verbose renderer output")
   io.println("")
-  io.println(margin <> "--table/--no-table")
-  io.println(margin <> "  -> include/exclude a printout of the pipeline steps")
+  io.println(margin <> "--artifacts")
+  io.println(margin <> "  -> subset of '--verbose' to show which files were printed")
+  io.println("")
+  io.println(margin <> "--table")
+  io.println(margin <> "  -> include a printout of the pipeline steps")
   io.println("")
   io.println(margin <> "--times [<cols=" <> ins(default_times_table_char_width) <> ">]")
   io.println(margin <> "  -> include performance table (how long it takes each desugarer")
@@ -753,6 +760,18 @@ pub fn process_command_line_arguments(
         "--verbose" ->
           case list.is_empty(values) {
             True -> Ok(CommandLineAmendments(..amendments, verbose: Some(True)))
+            False -> Error(UnexpectedArgumentsToOption(option))
+          }
+        
+        "--artifacts" ->
+          case list.is_empty(values) {
+            True -> Ok(CommandLineAmendments(..amendments, artifacts: Some(True)))
+            False -> Error(UnexpectedArgumentsToOption(option))
+          }
+        
+        "--no-artifacts" ->
+          case list.is_empty(values) {
+            True -> Ok(CommandLineAmendments(..amendments, artifacts: Some(False)))
             False -> Error(UnexpectedArgumentsToOption(option))
           }
         
@@ -1218,6 +1237,7 @@ pub fn amend_renderer_options_by_command_line_amendments(
 ) -> RendererOptions(d) {
   RendererOptions(
     verbose: option.unwrap(amendments.verbose, options.verbose),
+    artifacts: option.unwrap(amendments.artifacts, options.artifacts),
     steps_table: option.unwrap(amendments.table, options.steps_table),
     profiling_table: option.or(amendments.times, options.profiling_table),
     interactive_mode: {
@@ -2163,7 +2183,7 @@ pub fn run_renderer(
           Ok(z) -> {
             case singleton_fragment {
               True -> io.println("  -> wrote [" <> output_dir <> "/]" <> fr.path)
-              False -> case options.verbose {
+              False -> case options.verbose || options.artifacts {
                 True -> io.println("  wrote [" <> output_dir <> "/]" <> fr.path)
                 False -> Nil
               }
@@ -2174,13 +2194,13 @@ pub fn run_renderer(
       }
     )
 
-  case options.verbose {
+  case options.verbose || options.artifacts {
     False -> case count {
       1 -> case singleton_fragment { 
         True -> Nil // we already announced (see above)
-        False -> io.println("  -> wrote 1 file (use '--verbose' option to see)")
+        False -> io.println("  -> wrote 1 file (use '--artifacts' or '--verbose' to see)")
       }
-      _ -> io.println("  -> wrote " <> ins(count) <> " files (use '--verbose' option to see)")
+      _ -> io.println("  -> wrote " <> ins(count) <> " files (use '--artifacts' or '--verbose' to see)")
     }
     True -> Nil
   }
