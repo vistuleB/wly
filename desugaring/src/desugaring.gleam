@@ -25,6 +25,7 @@ import writerly as wl
 import gleam/erlang/process.{type Subject, spawn, send, receive}
 import dirtree.{type DirTree} as dt
 import gleam/regexp
+import splitter
 
 const default_times_table_char_width = 90 // MacBook 16' can take 140
 
@@ -972,8 +973,8 @@ fn parse_step_numbers(
           False -> x
         }
       }
-      use #(lo, hi) <- on.ok(case string.split_once(val, "-") {
-        Ok(#(before, after)) -> {
+      use #(lo, hi) <- on.ok(case echo splitter.split(splitter.new(["-", "+"]), val) {
+        #(before, _, after) if after != "" -> {
           case int.parse(before), int.parse(after) {
             Ok(lo), Ok(hi) -> Ok(#(Some(lo), Some(hi)))
             _, _ -> Error(StepNoValues(
