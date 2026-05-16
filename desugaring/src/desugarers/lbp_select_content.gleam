@@ -171,8 +171,7 @@ fn at_root(
 
   use handle_2_in_elts_dict <- on.ok(
     in_elts
-    |> list.map(with_chapter_value)
-    |> result.all
+    |> list.try_map(with_chapter_value)
     |> result.map(dict.from_list),
   )
 
@@ -184,7 +183,7 @@ fn at_root(
     )),
   )
 
-  let handles_of_selected_chapters = {
+  let handles_of_selected_chapters = echo {
     let assert V(_, _, _, children) = chapter_selection_node
     children
     |> list.flat_map(infra.descendant_lines)
@@ -200,47 +199,29 @@ fn at_root(
 
   use #(chapters, warnings) <- on.ok(
     list.try_fold(handles_of_selected_chapters, #([], []), fn(acc, handle) {
-      use exercise_handles <- on.stay(
-        case dict.get(handle_2_in_elts_dict, handle) {
-          Ok(in_elt) -> {
-            let assert V(_, "In", _, children) = in_elt
-            children
-            |> list.map(infra.descendant_lines)
-            |> list.flatten
-            |> list.map(fn(line) {
-              assert string.starts_with(line.content, ">>")
-              string.drop_start(line.content, 2)
-            })
-            |> on.Stay
-          }
-          Error(Nil) -> {
-            let warning =
-              DesugaringWarning(
-                desugarer_blame(216),
-                "no '|> In' exercise list found for chapter '" <> handle <> "'",
-              )
-            on.Return(Ok(#(acc.0, [warning, ..acc.1])))
-          }
-        },
+      use chapter <- on.error_ok(
+        dict.get(handle_2_chapter_dict, handle),
+        on_error: fn(_) {
+          let warning = DesugaringWarning(desugarer_blame(206), "found no chapter with handle '" <> handle <> "'")
+          Ok(#(acc.0, [warning, ..acc.1]))
+        }
       )
-
-      use chapter <- on.error_ok(dict.get(handle_2_chapter_dict, handle), fn(_) {
-        Ok(
-          #(acc.0, [
-            DesugaringWarning(
-              desugarer_blame(228),
-              "no '|> In' exercise list found for chapter '" <> handle <> "'",
-            ),
-            ..acc.1
-          ]),
-        )
-      })
-
-      use #(chapter, warnings) <- on.ok(set_exercises_to(
-        chapter,
-        exercise_handles,
-      ))
-
+      use in_elt <- on.error_ok(
+        dict.get(handle_2_in_elts_dict, handle),
+        on_error: fn(_) {
+            let warning = DesugaringWarning(desugarer_blame(216), "no '|> In' exercise list found for chapter '" <> handle <> "'")
+            Ok(#([chapter, ..acc.0], [warning, ..acc.1]))
+        }
+      )
+      let assert V(_, "In", _, in_elt_children) = in_elt
+      let exercise_handles =
+        in_elt_children
+        |> list.flat_map(infra.descendant_lines)
+        |> list.map(fn(line) {
+          assert string.starts_with(line.content, ">>")
+          string.drop_start(line.content, 2)
+        })
+      use #(chapter, warnings) <- on.ok(set_exercises_to(chapter, exercise_handles))
       #([chapter, ..acc.0], list.append(acc.1, warnings)) |> Ok
     }),
   )
