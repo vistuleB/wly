@@ -967,6 +967,7 @@ fn parse_step_numbers(
         True -> #(True, string.drop_start(val, 1))
         False -> #(False, val)
       }
+      let val = infra.drop_prefix(val, "+")
       let multiply_first = fn(x: Int) {
         case first_val_negative {
           True -> -x
