@@ -24,6 +24,7 @@ import input
 import writerly as wl
 import gleam/erlang/process.{type Subject, spawn, send, receive}
 import dirtree.{type DirTree} as dt
+import gleam/regexp
 
 const default_times_table_char_width = 90 // MacBook 16' can take 140
 
@@ -165,9 +166,9 @@ pub fn stub_html_emitter(
         OutputLine(Ext([], "stub_html_emitter"), 0, "<body>"),
       ],
       fragment.payload
-        |> infra.v_get_children
-        |> list.map(fn(vxml) { vp.vxml_to_html_output_lines(vxml, 2, 2) })
-        |> list.flatten,
+      |> infra.v_get_children
+      |> list.map(fn(vxml) { vp.vxml_to_html_output_lines(vxml, 2, 2) })
+      |> list.flatten,
       [
         OutputLine(Ext([], "stub_html_emitter"), 0, "</body>"),
         OutputLine(Ext([], "stub_html_emitter"), 0, ""),
@@ -356,6 +357,7 @@ pub type RendererOptions(d) {
     suppress_warnings: Bool,
     only_key_values: List(#(String, String)),
     dump: Option(List(Int)),
+    dump_named: List(#(String, Int, Int)),
     tracker: Option(Tracker),
     echo_assembled_lines: Bool,
     echo_parsed_vxml: Bool,
@@ -376,6 +378,7 @@ pub fn vanilla_options() -> RendererOptions(d) {
     suppress_warnings: False,
     only_key_values: [],
     dump: None,
+    dump_named: [],
     tracker: None,
     echo_assembled_lines: False,
     echo_parsed_vxml: False,
@@ -397,6 +400,7 @@ pub type Tracker {
     steps_with_tracking_on_change: List(Int),
     steps_with_tracking_forced: List(Int),
     interactive_mode: Bool,
+    desugarer_named_ranges: List(#(String, Int, Int, Bool)),
   )
 }
 
@@ -410,6 +414,7 @@ pub type CommandLineAmendments {
     prettier: Option(PrettifierMode),
     tracker: Option(Tracker),
     dump: Option(List(Int)),
+    dump_named: List(#(String, Int, Int)),
     table: Option(Bool),
     times: Option(Int),
     verbose: Option(Bool),
@@ -440,6 +445,7 @@ fn empty_command_line_amendments() -> CommandLineAmendments {
     prettier: None,
     tracker: None,
     dump: None,
+    dump_named: [],
     table: None,
     times: None,
     verbose: None,
@@ -501,6 +507,10 @@ pub fn basic_cli_usage(header: String) {
   io.println(margin <> "     • <step numbers> specificy which desugaring steps to track:")
   io.println(margin <> "         • <x-y> to track changes in desugaring steps x to y only")
   io.println(margin <> "         • !x to force a printout at step x")
+  io.println(margin <> "         • add <desugarer-name> before <step numbers> to make the")
+  io.println(margin <> "           step numbers relative to occurrences of a given")
+  io.println(margin <> "           desugarer in the pipeline; in this case, leaving")
+  io.println(margin <> "           <steps number> empty defaults to step numbers '+0-0'")
   io.println("")
   io.println(margin <> "     leave <step numbers> empty to track all steps")
   io.println("")
@@ -696,9 +706,9 @@ pub fn process_command_line_arguments(
         }
 
         "--dump" -> {
-          use numbers <- on.ok(parse_dump_args(values))
+          use #(numbers, named) <- on.ok(parse_dump_args(values))
           case amendments.dump {
-            None -> Ok(CommandLineAmendments(..amendments, dump: Some(numbers)))
+            None -> Ok(CommandLineAmendments(..amendments, dump: Some(numbers), dump_named: list.append(amendments.dump_named, named)))
             _ -> Error(DuplicateOption(option))
           }
         }
@@ -928,15 +938,29 @@ fn cleanup_step_numbers(
   #(restrict, force)
 }
 
+pub fn extract_desugarer_name(input: String) -> #(String, String) {
+  let assert Ok(re) = regexp.from_string("^([a-z_][a-z0-9_]*)(.*)")
+  case regexp.scan(with: re, content: input) {
+    [regexp.Match(_, [Some(prefix), rest, ..])] -> 
+      #(prefix, option.unwrap(rest, ""))
+    _ -> #("", input)
+  }
+}
+
 fn parse_step_numbers(
   values: List(String),
-) -> Result(#(List(Int), List(Int)), CommandLineError) {
-  use #(restrict, force) <- on.ok(
-    list.try_fold(values, #([], []), fn(acc, val) {
+) -> Result(#(List(Int), List(Int), List(#(String, Int, Int, Bool))), CommandLineError) {
+  use #(on_change, force, named) <- on.ok(
+    list.try_fold(values, #([], [], []), fn(acc, val) {
       let original_val = val
       let #(forced, val) = case string.starts_with(val, "!") {
         True -> #(True, string.drop_start(val, 1))
         False -> #(False, val)
+      }
+      let #(desugarer_name, val) = extract_desugarer_name(val)
+      let #(forced, val) = case string.starts_with(val, "!") {
+        True -> #(True, string.drop_start(val, 1))
+        False -> #(forced, val)
       }
       let #(first_val_negative, val) = case string.starts_with(val, "-") {
         True -> #(True, string.drop_start(val, 1))
@@ -948,31 +972,50 @@ fn parse_step_numbers(
           False -> x
         }
       }
-      use ints <- on.ok(case string.split_once(val, "-") {
-        Ok(#(before, after)) ->
+      use #(lo, hi) <- on.ok(case string.split_once(val, "-") {
+        Ok(#(before, after)) -> {
           case int.parse(before), int.parse(after) {
-            Ok(lo), Ok(hi) -> Ok(lo_hi_ints(lo |> multiply_first, hi))
-            _, _ ->
-              Error(StepNoValues(
+            Ok(lo), Ok(hi) -> Ok(#(Some(lo), Some(hi)))
+            _, _ -> Error(StepNoValues(
+              "unable to parse integer range in '" <> original_val <> "'",
+            ))
+          }
+        }
+        _ -> {
+          case val {
+            "" -> Ok(#(None, None))
+            _ -> case int.parse(val) {
+              Ok(lo) -> Ok(#(Some(lo), None))
+              Error(Nil) -> Error(StepNoValues(
                 "unable to parse '" <> original_val <> "' as integer range (1)",
               ))
+            }
           }
-        Error(Nil) ->
-          case int.parse(val) {
-            Ok(guy) -> Ok([guy |> multiply_first])
-            Error(Nil) ->
-              Error(StepNoValues(
-                "unable to parse '" <> original_val <> "' as integer range (2)",
-              ))
-          }
+        }
       })
-      case forced {
-        False -> Ok(#(list.append(acc.0, ints), acc.1))
-        True -> Ok(#(acc.0, list.append(acc.1, ints)))
+      case desugarer_name {
+        "" -> {
+          use lo <- on.none_some(
+            lo,
+            fn() { Error(StepNoValues("unable to parse '" <> original_val <> "' as integer range (2)")) }
+          )
+          let hi = option.unwrap(hi, lo)
+          let ints = lo_hi_ints(lo |> multiply_first, hi)
+          case forced {
+            False -> Ok(#(list.append(acc.0, ints), acc.1, acc.2))
+            True -> Ok(#(acc.0, list.append(acc.1, ints), acc.2))
+          }
+        }
+        _ -> {
+          let lo = option.unwrap(lo, 0) |> multiply_first
+          let hi = option.unwrap(hi, lo)
+          Ok(#(acc.0, acc.1, [#(desugarer_name, lo, hi, forced), ..acc.2]))
+        }
       }
     }),
   )
-  Ok(cleanup_step_numbers(restrict, force))
+  let #(on_change, force) = cleanup_step_numbers(on_change, force)
+  #(on_change, force, named) |> Ok
 }
 
 fn parse_track_args(
@@ -1016,14 +1059,16 @@ fn parse_track_args(
 
   use second_payload, values <- on.empty_nonempty(
     values,
-    fn() { Ok(
+    fn() {
       Tracker(
         selector: Some(selector),
         steps_with_tracking_on_change: [],
         steps_with_tracking_forced: [],
         interactive_mode: with_enter,
-      ),
-    ) },
+        desugarer_named_ranges: [],
+      )
+      |> Ok
+    },
   )
 
   use plus_minus <- on.error_ok(
@@ -1040,32 +1085,28 @@ fn parse_track_args(
     |> infra.extend_selector_up(plus_minus.minus)
     |> infra.extend_selector_down(plus_minus.plus)
 
-  use #(restrict, force) <- on.ok(
-    parse_step_numbers(values)
-  )
+  use #(on_change, force, named) <- on.ok(parse_step_numbers(values))
 
   Ok(Tracker(
     selector: Some(selector),
-    steps_with_tracking_on_change: restrict,
+    steps_with_tracking_on_change: on_change,
     steps_with_tracking_forced: force,
     interactive_mode: with_enter,
+    desugarer_named_ranges: named,
   ))
 }
 
 fn parse_track_steps_args(
   values: List(String),
 ) -> Result(Tracker, CommandLineError) {
-  use #(restrict, force) <- on.ok(
-    parse_step_numbers(values)
-  )
-
+  use #(on_change, force, named) <- on.ok(parse_step_numbers(values))
   let #(with_enter, _) = infra.delete(values, "-i")
-
   Ok(Tracker(
     selector: None,
-    steps_with_tracking_on_change: restrict,
+    steps_with_tracking_on_change: on_change,
     steps_with_tracking_forced: force,
     interactive_mode: with_enter,
+    desugarer_named_ranges: named,
   ))
 }
 
@@ -1092,17 +1133,21 @@ fn join_trackers(
     interactive_mode: {
       pm1.interactive_mode ||
       pm2.interactive_mode
-    }
+    },
+    desugarer_named_ranges: list.append(
+      pm1.desugarer_named_ranges,
+      pm2.desugarer_named_ranges,
+    ),
   )
 }
 
 fn parse_dump_args(
   values: List(String)
-) {
-  use #(restrict, force) <- on.ok(parse_step_numbers(values))
-  list.append(restrict, force)
-  |> unique_ints
-  |> Ok
+) -> Result(#(List(Int), List(#(String, Int, Int))), CommandLineError) {
+  use #(on_change, force, named) <- on.ok(parse_step_numbers(values))
+  let numbers = list.append(on_change, force) |> unique_ints
+  let named = list.map(named, fn(n) { #(n.0, n.1, n.2) })
+  Ok(#(numbers, named))
 }
 
 // 🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠
@@ -1184,6 +1229,7 @@ pub fn amend_renderer_options_by_command_line_amendments(
       _, None -> options.dump
       Some(x), Some(y) -> Some(list.append(x, y) |> list.sort(int.compare) |> list.unique)
     },
+    dump_named: list.append(options.dump_named, amendments.dump_named),
     tracker: case amendments.tracker {
       None -> options.tracker
       Some(x) -> Some(join_trackers(options.tracker, x))
@@ -1222,11 +1268,25 @@ pub fn amend_renderer_options_by_command_line_amendments(
   )
 }
 
-fn apply_dumping(
+fn apply_dump_named(
   decorateds: List(DecoratedDesugarer),
-  mod: Option(List(Int)),
+  dump_named: List(#(String, Int, Int))
+) -> Result(List(DecoratedDesugarer), RendererError(a, b, c, d, e, f)) {
+  let dump_named = list.map(dump_named, fn(d) {#(d.0, d.1, d.2, False)})
+  use #(on_change, _) <- on.ok(extract_all_on_change_and_forced_steps_from_named_ranges(dump_named, decorateds))
+  assert list.length(on_change) >= list.length(dump_named)
+  list.index_map(decorateds, fn(decorated, i) {
+    let step_no = i + 1
+    DecoratedDesugarer(..decorated, dump: list.contains(on_change, step_no))
+  })
+  |> Ok
+}
+
+fn apply_dump_numbers(
+  decorateds: List(DecoratedDesugarer),
+  dump_numbers: Option(List(Int)),
 ) -> List(DecoratedDesugarer) {
-  use mod <- on.eager_none_some(mod, decorateds)
+  use dump_numbers <- on.eager_none_some(dump_numbers, decorateds)
   let num_steps = list.length(decorateds)
   let wraparound = fn(x: Int) {
     case x < 0 {
@@ -1234,8 +1294,8 @@ fn apply_dumping(
       False -> x
     }
   }
-  let apply_to_all = mod == []
-  let dumping_steps = list.map(mod, wraparound)
+  let apply_to_all = dump_numbers == []
+  let dumping_steps = list.map(dump_numbers, wraparound)
   case apply_to_all {
     True -> list.map(
       decorateds,
@@ -1255,29 +1315,102 @@ fn apply_dumping(
 // Pipeline + Tracker -> Pipeline (used by above)
 // ************************************************************
 
-fn apply_pipeline_tracking_modifier(
+fn list_int_cleaner(ze_list: List(Int)) -> List(Int) {
+  ze_list |> list.unique |> list.sort(int.compare)
+}
+
+fn extract_on_change_and_forced_steps_from_name_and_pipeline(
+  params: #(String, Int, Int, Bool),
   pipeline: List(DecoratedDesugarer),
-  mod: Option(Tracker),
-) -> List(DecoratedDesugarer) {
-  use mod <- on.eager_none_some(mod, pipeline)
-  let num_steps = list.length(pipeline)
+) -> Result(#(List(Int), List(Int)), RendererError(a, b, c, d, e, f)) {
+  let #(name, lo, hi, forced) = params
+  let indices = list.index_fold(
+    pipeline,
+    [],
+    fn(acc, dd, i) {
+      case dd.desugarer.name == name {
+        True -> [i, ..acc]
+        False -> acc
+      }
+    }
+  )
+  use _ <- on.stay(
+    case indices {
+      [] -> on.Return(Error(DesugarerNameNotFoundError(name)))
+      _ -> on.Stay(Nil)
+    }
+  )
+  let #(lo, hi) = case lo > hi {
+    True -> #(hi, lo)
+    False -> #(lo, hi)
+  }
+  let relative_range = int.range(lo, hi + 1, [], fn(acc, i) { [i, ..acc] })
+  let final_range = list.fold(
+    indices,
+    [],
+    fn(acc, index) {
+      let step_no = index + 1
+      list.fold(
+        relative_range,
+        acc,
+        fn(sub_acc, x) { [step_no + x, ..sub_acc] },
+      )
+    },
+  )
+  assert final_range != []
+  let final_range = list.unique(final_range)
+  case forced {
+    True -> #([], final_range)
+    False -> #(final_range, [])
+  }
+  |> Ok
+}
+
+fn extract_all_on_change_and_forced_steps_from_named_ranges(
+  named_ranges: List(#(String, Int, Int, Bool)),
+  pipeline: List(DecoratedDesugarer),
+) -> Result(#(List(Int), List(Int)), RendererError(a, b, c, d, e, f)) {
+  use #(oa, f) <- on.ok(list.try_fold(
+    named_ranges,
+    #([], []),
+    fn(acc, named_range) {
+      use #(oa, f) <- on.ok(extract_on_change_and_forced_steps_from_name_and_pipeline(named_range, pipeline))
+      #(list.append(acc.0, oa), list.append(acc.1, f)) |> Ok
+    }
+  ))
+  #(oa |> list_int_cleaner, f |> list_int_cleaner) |> Ok
+}
+
+fn apply_pipeline_tracking_modifier(
+  decorateds: List(DecoratedDesugarer),
+  tracker: Option(Tracker),
+) -> Result(List(DecoratedDesugarer), RendererError(a, b, c, d, e, f)) {
+  // if mod is None return the pipeline
+  use tracker <- on.eager_none_some(tracker, Ok(decorateds))
+  // else...
+  let num_steps = list.length(decorateds)
   let wraparound = fn(x: Int) {
     case x < 0 {
       True -> num_steps + x + 1
       False -> x
     }
   }
-  let on_change_steps = list.map(mod.steps_with_tracking_on_change, wraparound)
-  let force = list.map(mod.steps_with_tracking_forced, wraparound)
+  let on_change_steps = list.map(tracker.steps_with_tracking_on_change, wraparound)
+  let force = list.map(tracker.steps_with_tracking_forced, wraparound)
+  use #(named_oa, named_f) <- on.ok(
+    extract_all_on_change_and_forced_steps_from_named_ranges(tracker.desugarer_named_ranges, decorateds)
+  )
+  let on_change_steps = list.append(named_oa, on_change_steps) |> list_int_cleaner
+  let force = list.append(named_f, force) |> list_int_cleaner
   let apply_to_all = on_change_steps == [] && force == []
   case apply_to_all {
     True -> {
       list.map(
-        pipeline,
+        decorateds,
         fn(decorated) {
           DecoratedDesugarer(
             desugarer: decorated.desugarer,
-            selector: option.unwrap(mod.selector, decorated.selector),
+            selector: option.unwrap(tracker.selector, decorated.selector),
             tracking_mode: TrackingOnChange,
             dump: decorated.dump,
           )
@@ -1286,7 +1419,7 @@ fn apply_pipeline_tracking_modifier(
     }
 
     False -> {
-      list.index_map(pipeline, fn(pipe, i) {
+      list.index_map(decorateds, fn(decorated, i) {
         let step_no = i + 1
         let on_change = list.contains(on_change_steps, step_no)
         let forced = list.contains(force, step_no)
@@ -1296,14 +1429,15 @@ fn apply_pipeline_tracking_modifier(
           _, _ -> TrackingOff
         }
         DecoratedDesugarer(
-          desugarer: pipe.desugarer,
-          selector: option.unwrap(mod.selector, pipe.selector),
+          desugarer: decorated.desugarer,
+          selector: option.unwrap(tracker.selector, decorated.selector),
           tracking_mode: mode,
-          dump: pipe.dump,
+          dump: decorated.dump,
         )
       })
     }
   }
+  |> Ok
 }
 
 // ************************************************************
@@ -1627,6 +1761,7 @@ pub type RendererError(a, c, e, f, g, h) {
   FileOrParseError(a)
   SourceParserError(Blame, c)
   KeyValueFiltrationError(Blame, String)
+  DesugarerNameNotFoundError(String)
   PipelineError(InSituDesugaringError)
   UserExitError(Int)
   SplitterError(e)
@@ -1762,11 +1897,33 @@ pub fn run_renderer(
   io.println("• starting pipeline...")
   let t0 = timestamp.system_time()
 
-  let decorateds =
+  use decorateds <- on.error_ok(
     renderer.pipeline
     |> desugarers_2_decorateds
-    |> apply_pipeline_tracking_modifier(options.tracker)
-    |> apply_dumping(options.dump)
+    |> apply_pipeline_tracking_modifier(options.tracker),
+    on_error: fn(error) {
+      io.println("  ...error:")
+      io.println("")
+      [#("", ins(error))]
+      |> pr.two_column_error_announcer(0, 70, "💥", 2, "/ '--track' option error: /")
+      |> io.println
+      Error(error)
+    },
+  )
+
+  use decorateds <- on.error_ok(
+    decorateds
+    |> apply_dump_numbers(options.dump)
+    |> apply_dump_named(options.dump_named),
+    on_error: fn(error) {
+      io.println("  ...error:")
+      io.println("")
+      [#("", ins(error))]
+      |> pr.two_column_error_announcer(0, 70, "💥", 2, "/ '--dump' option error /")
+      |> io.println
+      Error(error)
+    },
+  )
 
   use #(desugared, warnings, durations) <- on.error_ok(
     run_pipeline(
