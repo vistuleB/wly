@@ -226,6 +226,8 @@ fn at_root(
     }),
   )
 
+  use _, _ <- on.empty_nonempty(chapters, fn() { Error(DesugaringError(bl.no_blame, "no chapters found")) })
+
   Ok(#(V(..root, children: chapters |> list.reverse |> list.append(to_keep, _)), warnings))
 }
 
