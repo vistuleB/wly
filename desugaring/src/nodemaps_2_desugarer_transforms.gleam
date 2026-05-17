@@ -1,3 +1,4 @@
+import gleam/pair
 import gleam/result
 import gleam/list
 import gleam/option.{type Option, Some, None}
@@ -18,6 +19,10 @@ import on
 
 pub fn add_no_warnings(vxml: VXML) {
   #(vxml, [])
+}
+
+pub fn add_warnings(vxml: VXML, warnings: List(DesugaringWarning)) {
+  #(vxml, warnings)
 }
 
 pub fn at_root_2_desugarer_transform(at_root: fn(VXML) -> Result(VXML, DesugaringError)) {
@@ -78,6 +83,13 @@ fn get_root(vxmls: List(VXML)) -> Result(VXML, DesugaringError) {
     [root] -> Ok(root)
     [] -> Error(DesugaringError(bl.no_blame, "found 0 top-level nodes after desugaring"))
     [_, second, ..] -> Error(DesugaringError(second.blame, "found " <> ins(list.length(vxmls)) <> " > 1 top-level nodes"))
+  }
+}
+
+fn get_root_option(vxml: Option(VXML)) -> Result(VXML, DesugaringError) {
+  case vxml {
+    Some(root) -> Ok(root)
+    None -> Error(DesugaringError(bl.no_blame, "found 'None' top-level node after desugaring"))
   }
 }
 
@@ -903,6 +915,49 @@ pub fn one_to_one_stateful_nodemap_2_desugarer_transform(
 }
 
 // ************************************************************
+// EarlyReturnOneToOptionNoErrorStatefulNodemap
+// ************************************************************
+
+pub type EarlyReturnOneToOptionNoErrorStatefulNodemap(a) =
+  fn(VXML, a) -> #(Option(VXML), a, TrafficLight)
+
+fn early_return_one_to_option_no_error_stateful_nodemap_walk(
+  state: a,
+  node: VXML,
+  nodemap: EarlyReturnOneToOptionNoErrorStatefulNodemap(a),
+) -> #(Option(VXML), a) {
+  let #(node, state, traffic_light) = nodemap(node, state)
+  case node, traffic_light {
+    _, GoBack -> #(node, state)
+    None, _ -> #(node, state)
+    Some(T(..)), Continue -> #(node, state)
+    Some(V(_, _, _, children) as node) , Continue -> {
+      let #(state, children) = 
+        list.map_fold(
+          children,
+          state,
+          fn(acc, child) {
+            early_return_one_to_option_no_error_stateful_nodemap_walk(acc, child, nodemap)
+            |> pair.swap
+          }
+        )
+      #(Some(V(..node, children: children |> option.values)), state)
+    }
+  }
+}
+
+pub fn early_return_one_to_option_no_error_stateful_nodemap_2_desugarer_transform(
+  nodemap: EarlyReturnOneToOptionNoErrorStatefulNodemap(a),
+  initial_state: a,
+) -> DesugarerTransform {
+  fn(vxml) {
+    let #(node, _) = early_return_one_to_option_no_error_stateful_nodemap_walk(initial_state, vxml, nodemap)
+    use node <- on.ok(get_root_option(node))
+    Ok(#(node, []))
+  }
+}
+
+// ************************************************************
 // FancyOneToOneStatefulNodemap
 // ************************************************************
 
@@ -992,21 +1047,21 @@ pub fn fancy_one_to_one_stateful_nodemap_2_desugarer_transform(
 }
 
 // ************************************************************
-// OneToOneBeforeAndAfterStatefulNoErrorNodemap
+// OneToOneNoErrorBeforeAndAfterStatefulNodemap
 // ************************************************************
 
-pub type OneToOneBeforeAndAfterStatefulNoErrorNodemap(a) {
-  OneToOneBeforeAndAfterStatefulNoErrorNodemap(
+pub type OneToOneNoErrorBeforeAndAfterStatefulNodemap(a) {
+  OneToOneNoErrorBeforeAndAfterStatefulNodemap(
     v_before_transforming_children: fn(VXML, a) -> #(VXML, a),
     v_after_transforming_children: fn(VXML, a, a) -> #(VXML, a),
     t_nodemap: fn(VXML, a) -> #(VXML, a),
   )
 }
 
-fn one_to_one_before_and_after_stateful_no_error_nodemap_walk(
+fn one_to_one_no_error_before_and_after_stateful_nodemap_walk(
   original_state: a,
   node: VXML,
-  nodemap: OneToOneBeforeAndAfterStatefulNoErrorNodemap(a),
+  nodemap: OneToOneNoErrorBeforeAndAfterStatefulNodemap(a),
 ) -> #(VXML, a) {
   case node {
     T(_, _) -> nodemap.t_nodemap(node, original_state)
@@ -1021,7 +1076,7 @@ fn one_to_one_before_and_after_stateful_no_error_nodemap_walk(
           children,
           latest_state,
           fn (acc, child) {
-            let #(vxml, state) = one_to_one_before_and_after_stateful_no_error_nodemap_walk(acc, child, nodemap)
+            let #(vxml, state) = one_to_one_no_error_before_and_after_stateful_nodemap_walk(acc, child, nodemap)
             #(state, vxml)
           }
         )
@@ -1034,13 +1089,13 @@ fn one_to_one_before_and_after_stateful_no_error_nodemap_walk(
   }
 }
 
-pub fn one_to_one_before_and_after_stateful_no_error_nodemap_2_desugarer_transform(
-  nodemap: OneToOneBeforeAndAfterStatefulNoErrorNodemap(a),
+pub fn one_to_one_no_error_before_and_after_stateful_nodemap_2_desugarer_transform(
+  nodemap: OneToOneNoErrorBeforeAndAfterStatefulNodemap(a),
   initial_state: a,
 ) -> DesugarerTransform {
   fn(vxml) {
     let #(vxml, _) =
-      one_to_one_before_and_after_stateful_no_error_nodemap_walk(
+      one_to_one_no_error_before_and_after_stateful_nodemap_walk(
         initial_state,
         vxml,
         nodemap,
@@ -1068,10 +1123,10 @@ fn custom_map_folder(
   }
 }
 
-fn one_to_one_before_and_after_stateful_no_error_nodemap_walk_with_forbidden(
+fn one_to_one_no_error_before_and_after_stateful_nodemap_walk_with_forbidden(
   original_state: a,
   node: VXML,
-  nodemap: OneToOneBeforeAndAfterStatefulNoErrorNodemap(a),
+  nodemap: OneToOneNoErrorBeforeAndAfterStatefulNodemap(a),
   forbidden: List(String),
 ) -> #(VXML, a) {
   case node {
@@ -1089,7 +1144,7 @@ fn one_to_one_before_and_after_stateful_no_error_nodemap_walk_with_forbidden(
             custom_map_folder(
               children,
               latest_state,
-              fn(child, state) { one_to_one_before_and_after_stateful_no_error_nodemap_walk_with_forbidden(state, child, nodemap, forbidden) },
+              fn(child, state) { one_to_one_no_error_before_and_after_stateful_nodemap_walk_with_forbidden(state, child, nodemap, forbidden) },
               [],
             )
           nodemap.v_after_transforming_children(
@@ -1103,14 +1158,14 @@ fn one_to_one_before_and_after_stateful_no_error_nodemap_walk_with_forbidden(
   }
 }
 
-pub fn one_to_one_before_and_after_stateful_no_error_nodemap_2_desugarer_transform_with_forbidden(
-  nodemap: OneToOneBeforeAndAfterStatefulNoErrorNodemap(a),
+pub fn one_to_one_no_error_before_and_after_stateful_nodemap_2_desugarer_transform_with_forbidden(
+  nodemap: OneToOneNoErrorBeforeAndAfterStatefulNodemap(a),
   initial_state: a,
   forbidden: List(String),
 ) -> DesugarerTransform {
   fn(vxml) {
     let #(vxml, _) =
-      one_to_one_before_and_after_stateful_no_error_nodemap_walk_with_forbidden(
+      one_to_one_no_error_before_and_after_stateful_nodemap_walk_with_forbidden(
         initial_state,
         vxml,
         nodemap,
@@ -1653,6 +1708,300 @@ pub fn early_return_fancy_one_to_one_before_and_after_stateful_nodemap_with_warn
 }
 
 // ************************************************************
+// EarlyReturnOneToOptionNoErrorBeforeAndAfterStatefulNodemap(a)
+// ************************************************************
+
+pub type EarlyReturnOneToOptionNoErrorBeforeAndAfterStatefulNodemap(a) {
+  EarlyReturnOneToOptionNoErrorBeforeAndAfterStatefulNodemap(
+    v_before_transforming_children: fn(VXML, a) -> #(Option(VXML), a, TrafficLight),
+    v_after_transforming_children: fn(VXML, a, a) -> #(Option(VXML), a),
+    t_nodemap: fn(VXML, a) -> #(Option(VXML), a),
+  )
+}
+
+fn early_return_one_to_option_no_error_before_and_after_stateful_nodemap_walk(
+  original_state: a,
+  node: VXML,
+  nodemap: EarlyReturnOneToOptionNoErrorBeforeAndAfterStatefulNodemap(a),
+) -> #(Option(VXML), a) {
+  case node {
+    T(..) -> nodemap.t_nodemap(node, original_state)
+    V(..) -> {
+      let #(node, latest_state, traffic_light) = nodemap.v_before_transforming_children(node, original_state)
+      use node <- on.none_some(node, fn() { #(None, latest_state) })
+      let assert V(_, _, _, children) = node
+      let #(latest_state, children) = case traffic_light {
+        Continue -> {
+          let #(latest_state, option_children) = list.map_fold(
+            children,
+            latest_state,
+            fn (acc, child) {
+              early_return_one_to_option_no_error_before_and_after_stateful_nodemap_walk(
+                acc,
+                child,
+                nodemap,
+              )
+              |> pair.swap
+            }
+          )
+          #(latest_state, option_children |> option.values)
+        }
+        GoBack -> #(latest_state, children)
+      }
+      let node = V(..node, children: children)
+      nodemap.v_after_transforming_children(node, original_state, latest_state)
+    }
+  }
+}
+
+pub fn early_return_one_to_option_no_error_before_and_after_stateful_nodemap_2_desugarer_transform(
+  nodemap: EarlyReturnOneToOptionNoErrorBeforeAndAfterStatefulNodemap(a),
+  initial_state: a,
+) -> DesugarerTransform {
+  fn(vxml) {
+    let #(vxml, _) = early_return_one_to_option_no_error_before_and_after_stateful_nodemap_walk(
+      initial_state,
+      vxml,
+      nodemap,
+    )
+    vxml
+    |> get_root_option
+    |> result.map(add_no_warnings)
+  }
+}
+
+// ************************************************************
+// EarlyReturnOneToOptionNoErrorBeforeAndAfterV2StatefulNodemap(a)
+// ************************************************************
+
+// 'BeforeAndAfterV2Stateful' is when the v_after gets the list of all child
+// returned states, as opposed to the returned state of the last child
+
+pub type EarlyReturnOneToOptionNoErrorBeforeAndAfterV2StatefulNodemap(a) {
+  EarlyReturnOneToOptionNoErrorBeforeAndAfterV2StatefulNodemap(
+    v_before_transforming_children: fn(VXML, a) -> #(Option(VXML), a, TrafficLight),
+    v_after_transforming_children: fn(VXML, a, List(a)) -> #(Option(VXML), a),
+    t_nodemap: fn(VXML, a) -> #(Option(VXML), a),
+  )
+}
+
+fn early_return_one_to_option_no_error_before_and_after_v2_stateful_nodemap_walk(
+  original_state: a,
+  node: VXML,
+  nodemap: EarlyReturnOneToOptionNoErrorBeforeAndAfterV2StatefulNodemap(a),
+) -> #(Option(VXML), a) {
+  case node {
+    T(..) -> nodemap.t_nodemap(node, original_state)
+    V(..) -> {
+      let #(node, parent_state, traffic_light) = nodemap.v_before_transforming_children(node, original_state)
+      use <- on.true_false(traffic_light == GoBack, fn() { #(node, parent_state) })
+      use node <- on.none_some(node, fn() { #(None, parent_state) })
+      let assert V(_, _, _, children) = node
+      let #(children_states, children) =
+        children
+        |> list.fold(
+          #([], []),
+          fn (acc, child) {
+            let #(option_child, child_state) = early_return_one_to_option_no_error_before_and_after_v2_stateful_nodemap_walk(
+              parent_state,
+              child,
+              nodemap,
+            )
+            case option_child {
+              None -> acc
+              Some(x) -> #([child_state, ..acc.0], [x, ..acc.1])
+            }
+          }
+        )
+      let node = V(..node, children: children |> list.reverse)
+      nodemap.v_after_transforming_children(node, original_state, children_states)
+    }
+  }
+}
+
+pub fn early_return_one_to_option_no_error_before_and_after_v2_stateful_nodemap_2_desugarer_transform(
+  nodemap: EarlyReturnOneToOptionNoErrorBeforeAndAfterV2StatefulNodemap(a),
+  initial_state: a,
+) -> DesugarerTransform {
+  fn(vxml) {
+    let #(vxml, _) = early_return_one_to_option_no_error_before_and_after_v2_stateful_nodemap_walk(
+      initial_state,
+      vxml,
+      nodemap,
+    )
+    vxml
+    |> get_root_option
+    |> result.map(add_no_warnings)
+  }
+}
+
+// ************************************************************
+// EarlyReturnOneToOptionBeforeAndAfterStatefulNodemap(a)
+// ************************************************************
+
+pub type EarlyReturnOneToOptionBeforeAndAfterStatefulNodemap(a) {
+  EarlyReturnOneToOptionBeforeAndAfterStatefulNodemap(
+    v_before_transforming_children: fn(VXML, a) ->
+      Result(#(Option(VXML), a, TrafficLight), DesugaringError),
+    v_after_transforming_children: fn(VXML, a, a) ->
+      Result(#(Option(VXML), a), DesugaringError),
+    t_nodemap: fn(VXML, a) ->
+      Result(#(Option(VXML), a), DesugaringError),
+  )
+}
+
+fn early_return_one_to_option_before_and_after_stateful_nodemap_walk(
+  original_state: a,
+  node: VXML,
+  nodemap: EarlyReturnOneToOptionBeforeAndAfterStatefulNodemap(a),
+) -> Result(#(Option(VXML), a), DesugaringError) {
+  case node {
+    T(..) -> nodemap.t_nodemap(node, original_state)
+    V(_, _, _, _) -> {
+      use #(node, latest_state, traffic_light) <- on.ok(
+        nodemap.v_before_transforming_children(node, original_state),
+      )
+      use node <- on.none_some(
+        node,
+        fn() { Ok(#(None, latest_state)) },
+      )
+      let assert V(_, _, _, children) = node
+      use #(children, latest_state) <- on.ok(case traffic_light {
+        Continue -> {
+          list.try_fold(
+            children,
+            #([], latest_state),
+            fn (acc, child) {
+              use #(mapped_child, state) <- on.ok(early_return_one_to_option_before_and_after_stateful_nodemap_walk(
+                acc.1,
+                child,
+                nodemap,
+              ))
+              let renovated_siblings = case mapped_child {
+                None -> acc.0
+                Some(x) -> [x, ..acc.0]
+              }
+              Ok(#(
+                renovated_siblings,
+                state,
+              ))
+            }
+          )
+          |> result.map(fn(acc){#(acc.0 |> list.reverse, acc.1)})
+        }
+        GoBack -> Ok(#(children, latest_state))
+      })
+      let node = V(..node, children: children)
+      nodemap.v_after_transforming_children(node, original_state, latest_state)
+    }
+  }
+}
+
+pub fn early_return_one_to_option_before_and_after_stateful_nodemap_2_desugarer_transform(
+  nodemap: EarlyReturnOneToOptionBeforeAndAfterStatefulNodemap(a),
+  initial_state: a,
+) -> DesugarerTransform {
+  fn(vxml) {
+    use #(vxml, _) <- on.ok(
+      early_return_one_to_option_before_and_after_stateful_nodemap_walk(
+        initial_state,
+        vxml,
+        nodemap,
+      )
+    )
+    vxml
+    |> get_root_option
+    |> result.map(add_no_warnings)
+  }
+}
+
+// ************************************************************
+// EarlyReturnOneToOptionBeforeAndAfterStatefulNodemapWithWarnings(a)
+// ************************************************************
+
+pub type EarlyReturnOneToOptionBeforeAndAfterStatefulNodemapWithWarnings(a) {
+  EarlyReturnOneToOptionBeforeAndAfterStatefulNodemapWithWarnings(
+    v_before_transforming_children: fn(VXML, a) ->
+      Result(#(Option(VXML), a, List(DesugaringWarning), TrafficLight), DesugaringError),
+    v_after_transforming_children: fn(VXML, a, a) ->
+      Result(#(Option(VXML), a, List(DesugaringWarning)), DesugaringError),
+    t_nodemap: fn(VXML, a) ->
+      Result(#(Option(VXML), a, List(DesugaringWarning)), DesugaringError),
+  )
+}
+
+fn early_return_one_to_option_before_and_after_stateful_nodemap_with_warnings_walk(
+  original_state: a,
+  node: VXML,
+  nodemap: EarlyReturnOneToOptionBeforeAndAfterStatefulNodemapWithWarnings(a),
+) -> Result(#(Option(VXML), a, List(DesugaringWarning)), DesugaringError) {
+  case node {
+    T(..) -> nodemap.t_nodemap(node, original_state)
+    V(_, _, _, _) -> {
+      use #(node, latest_state, warnings, traffic_light) <- on.ok(
+        nodemap.v_before_transforming_children(node, original_state),
+      )
+      use node <- on.none_some(
+        node,
+        fn() { Ok(#(None, latest_state, warnings)) },
+      )
+      let assert V(_, _, _, children) = node
+      use #(children, latest_state, children_warnings) <- on.ok(case traffic_light {
+        Continue -> {
+          list.try_fold(
+            children,
+            #([], latest_state, warnings),
+            fn (acc, child) {
+              use #(mapped_child, state, ws) <- on.ok(early_return_one_to_option_before_and_after_stateful_nodemap_with_warnings_walk(
+                acc.1,
+                child,
+                nodemap,
+              ))
+              let renovated_siblings = case mapped_child {
+                None -> acc.0
+                Some(x) -> [x, ..acc.0]
+              }
+              Ok(#(
+                renovated_siblings,
+                state,
+                infra.pour(ws, acc.2),
+              ))
+            }
+          )
+          |> result.map(fn(acc){#(acc.0 |> list.reverse, acc.1, acc.2)})
+        }
+        GoBack -> Ok(#(children, latest_state, []))
+      })
+      let node = V(..node, children: children)
+      use #(node, latest_state, after_warnings) <- on.ok(nodemap.v_after_transforming_children(
+        node,
+        original_state,
+        latest_state,
+      ))
+      Ok(#(node, latest_state, infra.pour(after_warnings, children_warnings)))
+    }
+  }
+}
+
+pub fn early_return_one_to_option_before_and_after_stateful_nodemap_with_warnings_2_desugarer_transform(
+  nodemap: EarlyReturnOneToOptionBeforeAndAfterStatefulNodemapWithWarnings(a),
+  initial_state: a,
+) -> DesugarerTransform {
+  fn(vxml) {
+    use #(vxml, _, warnings) <- on.ok(
+      early_return_one_to_option_before_and_after_stateful_nodemap_with_warnings_walk(
+        initial_state,
+        vxml,
+        nodemap,
+      )
+    )
+    vxml
+    |> get_root_option
+    |> result.map(add_warnings(_, warnings))
+  }
+}
+
+// ************************************************************
 // EarlyReturnFancyOneToOptionBeforeAndAfterStatefulNodemapWithWarnings(a)
 // ************************************************************
 
@@ -2161,7 +2510,7 @@ fn early_return_one_to_many_no_error_nodemap_walk_with_forbidden(
       // right now we're not super in love with EarlyReturn (or more
       // generally self_first) nodemap replacing itself by > 1 node
       // and asking us to continue at child level
-      panic as "EarlyReturn recursive_application asked to Continue after node spit itself"
+      panic as "EarlyReturnOneToManyNoErrorNodemap asked to Continue after node multiplied itself"
     }
   }
 }

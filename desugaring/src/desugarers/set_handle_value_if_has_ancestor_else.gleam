@@ -41,8 +41,8 @@ fn v_before_nodemap(
   }
 }
 
-fn nodemap_factory(inner: InnerParam) -> n2t.OneToOneBeforeAndAfterStatefulNoErrorNodemap(State){
-  n2t.OneToOneBeforeAndAfterStatefulNoErrorNodemap(
+fn nodemap_factory(inner: InnerParam) -> n2t.OneToOneNoErrorBeforeAndAfterStatefulNodemap(State){
+  n2t.OneToOneNoErrorBeforeAndAfterStatefulNodemap(
       v_before_transforming_children: fn (vxml, state) { v_before_nodemap(vxml, state, inner) },
       v_after_transforming_children: fn(vxml, original_state, _latest_state) { #(vxml, original_state) },
       t_nodemap: fn(vxml, state) { #(vxml, state) }
@@ -51,7 +51,7 @@ fn nodemap_factory(inner: InnerParam) -> n2t.OneToOneBeforeAndAfterStatefulNoErr
 
 fn transform_factory(inner: InnerParam) -> DesugarerTransform {
   nodemap_factory(inner)
-  |> n2t.one_to_one_before_and_after_stateful_no_error_nodemap_2_desugarer_transform(False)
+  |> n2t.one_to_one_no_error_before_and_after_stateful_nodemap_2_desugarer_transform(False)
 }
 
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {

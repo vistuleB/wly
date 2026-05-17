@@ -21,8 +21,8 @@ fn t_transform(vxml: VXML, state: State) -> #(VXML, State) {
   #(infra.t_find_replace(vxml, state.1, state.2), state)
 }
 
-fn nodemap_factory(inner: InnerParam) -> n2t.OneToOneBeforeAndAfterStatefulNoErrorNodemap(State) {
-  n2t.OneToOneBeforeAndAfterStatefulNoErrorNodemap(
+fn nodemap_factory(inner: InnerParam) -> n2t.OneToOneNoErrorBeforeAndAfterStatefulNodemap(State) {
+  n2t.OneToOneNoErrorBeforeAndAfterStatefulNodemap(
     v_before_transforming_children: fn(vxml, state) { v_before_transforming_children(vxml, state, inner) },
     v_after_transforming_children: v_after_transforming_children,
     t_nodemap: t_transform,
@@ -32,7 +32,7 @@ fn nodemap_factory(inner: InnerParam) -> n2t.OneToOneBeforeAndAfterStatefulNoErr
 fn transform_factory(inner: InnerParam) -> DesugarerTransform {
   let state = #(False, inner.2.0, inner.2.1)
   nodemap_factory(inner)
-  |> n2t.one_to_one_before_and_after_stateful_no_error_nodemap_2_desugarer_transform(state)
+  |> n2t.one_to_one_no_error_before_and_after_stateful_nodemap_2_desugarer_transform(state)
 }
 
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {

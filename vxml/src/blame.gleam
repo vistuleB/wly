@@ -113,6 +113,13 @@ pub fn comments_digest(
   <> "]"
 }
 
+pub fn path_contains(blame: Blame, s: String) -> Bool {
+  case blame {
+    Src(..) -> string.contains(blame.path, s)
+    _ -> False
+  }
+}
+
 // **************************************************
 // List(#(Blame, String)) pretty-printer (no1)
 // **************************************************

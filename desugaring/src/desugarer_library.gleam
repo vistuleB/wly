@@ -71,6 +71,7 @@ import desugarers/delete_first_child_occurrences_of_and_recurse
 import desugarers/delete_if_empty
 import desugarers/delete_if_empty__batch
 import desugarers/delete_outside_subtrees
+import desugarers/delete_outside_subtrees_v2
 import desugarers/delete_text_nodes_with_singleton_empty_line
 import desugarers/detokenize_all
 import desugarers/detokenize_href_surroundings
@@ -82,6 +83,7 @@ import desugarers/expand_info_attribute
 import desugarers/expel_initial_last_backward_forward
 import desugarers/extract_starting_and_ending_spaces
 import desugarers/filter_nodes_by_key_values
+import desugarers/filter_nodes_by_path_key_values
 import desugarers/find_replace__batch__outside
 import desugarers/find_replace__outside
 import desugarers/find_replace_if_has_ancestor_else
@@ -339,6 +341,7 @@ pub const delete_first_child_occurrences_of_and_recurse = delete_first_child_occ
 pub const delete_if_empty = delete_if_empty.constructor
 pub const delete_if_empty__batch = delete_if_empty__batch.constructor
 pub const delete_outside_subtrees = delete_outside_subtrees.constructor
+pub const delete_outside_subtrees_v2 = delete_outside_subtrees_v2.constructor
 pub const delete_text_nodes_with_singleton_empty_line = delete_text_nodes_with_singleton_empty_line.constructor
 pub const detokenize_all = detokenize_all.constructor
 pub const detokenize_href_surroundings = detokenize_href_surroundings.constructor
@@ -350,6 +353,7 @@ pub const expand_info_attribute = expand_info_attribute.constructor
 pub const expel_initial_last_backward_forward = expel_initial_last_backward_forward.constructor
 pub const extract_starting_and_ending_spaces = extract_starting_and_ending_spaces.constructor
 pub const filter_nodes_by_key_values = filter_nodes_by_key_values.constructor
+pub const filter_nodes_by_path_key_values = filter_nodes_by_path_key_values.constructor
 pub const find_replace__batch__outside = find_replace__batch__outside.constructor
 pub const find_replace__outside = find_replace__outside.constructor
 pub const find_replace_if_has_ancestor_else = find_replace_if_has_ancestor_else.constructor
@@ -608,6 +612,7 @@ pub const assertive_tests : List(fn() -> infra.AssertiveTestCollection) = [
   delete_if_empty.assertive_tests,
   delete_if_empty__batch.assertive_tests,
   delete_outside_subtrees.assertive_tests,
+  delete_outside_subtrees_v2.assertive_tests,
   delete_text_nodes_with_singleton_empty_line.assertive_tests,
   detokenize_all.assertive_tests,
   detokenize_href_surroundings.assertive_tests,
@@ -619,6 +624,7 @@ pub const assertive_tests : List(fn() -> infra.AssertiveTestCollection) = [
   expel_initial_last_backward_forward.assertive_tests,
   extract_starting_and_ending_spaces.assertive_tests,
   filter_nodes_by_key_values.assertive_tests,
+  filter_nodes_by_path_key_values.assertive_tests,
   find_replace__batch__outside.assertive_tests,
   find_replace__outside.assertive_tests,
   find_replace_if_has_ancestor_else.assertive_tests,

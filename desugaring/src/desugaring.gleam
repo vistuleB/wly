@@ -308,26 +308,26 @@ pub fn empty_prettifier(
 }
 
 // ************************************************************
-// Renderer(a, c, d, e, f, g, h)
+// Renderer(a, b, z, e, f, g, h)
 // ************************************************************
 
 pub type Renderer(
-  a, // SourceAssembler error type
-  c, // SourceParser error type
-  d, // VXML Fragment enum type
-  e, // Splitter error type
-  f, // Emitter error type
-  g, // Writer error type
-  h, // Prettifier error type
+  a, // Assembler error
+  b, // Parser error
+  e, // Splitter error
+  f, // Emitter error
+  g, // Writer error
+  h, // Prettifier error
+  z, // VXML Fragment enum
 ) {
   Renderer(
     assembler: Assembler(a),          // file/directory -> List(InputLine)                                    Result w/ error type a
-    parser: Parser(c),                // List(InputLine) -> VXML                                              Result w/ error type c
+    parser: Parser(b),                // List(InputLine) -> VXML                                              Result w/ error type b
     pipeline: Pipeline,               // VXML -> ... -> VXML                                                  Result w/ error type InSituDesugaringError
-    splitter: Splitter(d, e),         // VXML -> List(OutputFragment(d, VXML))                                Result w/ error type e
-    emitter: Emitter(d, f),           // OutputFragment(d, VXML) -> OutputFragment(d, String)                 Result w/ error type f
-    writer: Writer(d, g),             // output_dir, OutputFragment(d, String) -> GhostOfOutputFragment(d)    Result w/ error type g
-    prettifier: Prettifier(d, h),     // output_dir, GhostOfOutputFragment(d), Option(prettifier_dir) -> Nil  Result w/ error type h
+    splitter: Splitter(z, e),         // VXML -> List(OutputFragment(z, VXML))                                Result w/ error type e
+    emitter: Emitter(z, f),           // OutputFragment(z, VXML) -> OutputFragment(z, String)                 Result w/ error type f
+    writer: Writer(z, g),             // output_dir, OutputFragment(z, String) -> GhostOfOutputFragment(z)    Result w/ error type g
+    prettifier: Prettifier(z, h),     // output_dir, GhostOfOutputFragment(z), Option(prettifier_dir) -> Nil  Result w/ error type h
   )
 }
 
@@ -349,7 +349,7 @@ pub type RendererParameters {
   )
 }
 
-pub type RendererOptions(d) {
+pub type RendererOptions(z) {
   RendererOptions(
     verbose: Bool,
     artifacts: Bool,
@@ -357,21 +357,22 @@ pub type RendererOptions(d) {
     profiling_table: Option(Int),
     interactive_mode: Bool,
     suppress_warnings: Bool,
-    only_key_values: List(#(String, String)),
+    only_key_vals: List(#(String, String)),
+    only_path_key_vals: List(#(String, String, String)),
     dump: Option(List(Int)),
     dump_named: List(#(String, Int, Int)),
     tracker: Option(Tracker),
     echo_assembled_lines: Bool,
     echo_parsed_vxml: Bool,
     echo_filtered_vxml: Bool,
-    echo_vxml_fragments: fn(OutputFragment(d, VXML)) -> Bool,
-    echo_output_lines_fragments: fn(OutputFragment(d, List(OutputLine))) -> Bool,
-    echo_string_fragments: fn(OutputFragment(d, String)) -> Bool,
-    echo_prettified_fragments: fn(GhostOfOutputFragment(d)) -> Bool,
+    echo_vxml_fragments: fn(OutputFragment(z, VXML)) -> Bool,
+    echo_output_lines_fragments: fn(OutputFragment(z, List(OutputLine))) -> Bool,
+    echo_string_fragments: fn(OutputFragment(z, String)) -> Bool,
+    echo_prettified_fragments: fn(GhostOfOutputFragment(z)) -> Bool,
   )
 }
 
-pub fn vanilla_options() -> RendererOptions(d) {
+pub fn vanilla_options() -> RendererOptions(z) {
   RendererOptions(
     verbose: False,
     artifacts: False,
@@ -379,7 +380,8 @@ pub fn vanilla_options() -> RendererOptions(d) {
     profiling_table: None,
     interactive_mode: False,
     suppress_warnings: False,
-    only_key_values: [],
+    only_key_vals: [],
+    only_path_key_vals: [],
     dump: None,
     dump_named: [],
     tracker: None,
@@ -387,9 +389,9 @@ pub fn vanilla_options() -> RendererOptions(d) {
     echo_parsed_vxml: False,
     echo_filtered_vxml: False,
     echo_vxml_fragments: fn (_) { False },
-    echo_output_lines_fragments: fn(_: OutputFragment(d, List(OutputLine))) { False },
-    echo_string_fragments: fn(_: OutputFragment(d, String)) { False },
-    echo_prettified_fragments: fn(_: GhostOfOutputFragment(d)) { False },
+    echo_output_lines_fragments: fn(_: OutputFragment(z, List(OutputLine))) { False },
+    echo_string_fragments: fn(_: OutputFragment(z, String)) { False },
+    echo_prettified_fragments: fn(_: GhostOfOutputFragment(z)) { False },
   )
 }
 
@@ -413,7 +415,8 @@ pub type CommandLineAmendments {
     input_dir: Option(String),
     output_dir: Option(String),
     only_paths: List(String),
-    only_key_values: List(#(String, String)),
+    only_key_vals: List(#(String, String)),
+    only_path_key_vals: List(#(String, String, String)),
     prettier: Option(PrettifierMode),
     tracker: Option(Tracker),
     dump: Option(List(Int)),
@@ -445,7 +448,8 @@ fn empty_command_line_amendments() -> CommandLineAmendments {
     input_dir: None,
     output_dir: None,
     only_paths: [],
-    only_key_values: [],
+    only_key_vals: [],
+    only_path_key_vals: [],
     prettier: None,
     tracker: None,
     dump: None,
@@ -849,17 +853,22 @@ fn amend_only_args(
 ) -> CommandLineAmendments {
   CommandLineAmendments(
     ..amendments,
-    only_key_values: list.append(
-      amendments.only_key_values,
-      args
-      |> list.filter(fn(a) { a.1 != "" || a.2 != ""})
-      |> list.map(fn(a) { #(a.1, a.2) })
-    ),
     only_paths: list.append(
       amendments.only_paths,
       args
       |> list.filter(fn(a) { a.0 != "" })
       |> list.map(fn(a) { a.0 })
+    ),
+    only_key_vals: list.append(
+      amendments.only_key_vals,
+      args
+      |> list.filter(fn(a) {a.0 == "" && { a.1 != "" || a.2 != ""} })
+      |> list.map(fn(a) { #(a.1, a.2) })
+    ),
+    only_path_key_vals: list.append(
+      amendments.only_path_key_vals,
+      args
+      |> list.filter(fn(a) { a.0 != "" && { a.1 != "" || a.2 != ""} })
     ),
   )
 }
@@ -877,12 +886,13 @@ fn parse_attr_value_args_in_filename(
       }
     }
     // did contain '&'
-    _ ->
+    _ -> {
       list.map(args, fn(arg) {
         let assert [key, value] = string.split(arg, "=")
         // <- this should be generating a CommandLineError instead of asserting
         #(path, key, value)
       })
+    }
   }
 }
 
@@ -993,7 +1003,7 @@ fn parse_step_numbers(
           False -> x
         }
       }
-      use #(lo, hi) <- on.ok(case echo splitter.split(splitter.new(["-", "+"]), val) {
+      use #(lo, hi) <- on.ok(case splitter.split(splitter.new(["-", "+"]), val) {
         #(before, _, after) if after != "" -> {
           case int.parse(before), int.parse(after) {
             Ok(lo), Ok(hi) -> Ok(#(Some(lo), Some(hi)))
@@ -1225,16 +1235,16 @@ fn exists_match(
 }
 
 pub fn amend_renderer_by_command_line_amendments(
-  renderer: Renderer(a, c, d, e, f, g, h),
+  renderer: Renderer(a, b, z, e, f, g, h),
   _amendments: CommandLineAmendments,
-) -> Renderer(a, c, d, e, f, g, h) {
+) -> Renderer(a, b, z, e, f, g, h) {
   renderer
 }
 
 pub fn amend_renderer_options_by_command_line_amendments(
-  options: RendererOptions(d),
+  options: RendererOptions(z),
   amendments: CommandLineAmendments,
-) -> RendererOptions(d) {
+) -> RendererOptions(z) {
   RendererOptions(
     verbose: option.unwrap(amendments.verbose, options.verbose),
     artifacts: option.unwrap(amendments.artifacts, options.artifacts),
@@ -1245,7 +1255,8 @@ pub fn amend_renderer_options_by_command_line_amendments(
       option.map(amendments.tracker, fn(x){x.interactive_mode}) |> option.unwrap(False)
     },
     suppress_warnings: !option.unwrap(amendments.warnings, !options.suppress_warnings),
-    only_key_values: amendments.only_key_values,
+    only_key_vals: list.append(options.only_key_vals, amendments.only_key_vals),
+    only_path_key_vals: list.append(options.only_path_key_vals, amendments.only_path_key_vals),
     dump: case options.dump, amendments.dump {
       None, _ -> amendments.dump
       _, None -> options.dump
@@ -1259,28 +1270,28 @@ pub fn amend_renderer_options_by_command_line_amendments(
     echo_assembled_lines: amendments.echo_assembled || options.echo_assembled_lines,
     echo_parsed_vxml: amendments.echo_parsed || options.echo_parsed_vxml,
     echo_filtered_vxml: amendments.echo_filtered || options.echo_filtered_vxml || { option.unwrap(amendments.dump, []) |> list.contains(0) },
-    echo_vxml_fragments: fn(fr: OutputFragment(d, VXML)) {
+    echo_vxml_fragments: fn(fr: OutputFragment(z, VXML)) {
       options.echo_vxml_fragments(fr) ||
       exists_match(
         amendments.vxml_fragments_local_paths_to_echo,
         string.contains(fr.path, _),
       )
     },
-    echo_output_lines_fragments: fn(fr: OutputFragment(d, List(OutputLine))) {
+    echo_output_lines_fragments: fn(fr: OutputFragment(z, List(OutputLine))) {
       options.echo_output_lines_fragments(fr) ||
       exists_match(
         amendments.output_lines_fragments_local_paths_to_echo,
         string.contains(fr.path, _),
       )
     },
-    echo_string_fragments: fn(fr: OutputFragment(d, String)) {
+    echo_string_fragments: fn(fr: OutputFragment(z, String)) {
       options.echo_string_fragments(fr) ||
       exists_match(
         amendments.string_fragments_local_paths_to_echo,
         string.contains(fr.path, _),
       )
     },
-    echo_prettified_fragments: fn(fr: GhostOfOutputFragment(d)) {
+    echo_prettified_fragments: fn(fr: GhostOfOutputFragment(z)) {
       options.echo_prettified_fragments(fr) ||
       exists_match(
         amendments.prettified_fragments_local_paths_to_echo,
@@ -1779,9 +1790,9 @@ pub type ThreePossibilities(f, g, h) {
   P3(h)
 }
 
-pub type RendererError(a, c, e, f, g, h) {
+pub type RendererError(a, b, e, f, g, h) {
   FileOrParseError(a)
-  SourceParserError(Blame, c)
+  SourceParserError(Blame, b)
   KeyValueFiltrationError(Blame, String)
   DesugarerNameNotFoundError(String)
   PipelineError(InSituDesugaringError)
@@ -1795,10 +1806,10 @@ pub type RendererError(a, c, e, f, g, h) {
 // ************************************************************
 
 pub fn run_renderer(
-  renderer: Renderer(a, c, d, e, f, g, h),
+  renderer: Renderer(a, b, e, f, g, h, z),
   parameters: RendererParameters,
-  options: RendererOptions(d),
-) -> Result(List(String), RendererError(a, c, e, f, g, h)) {
+  options: RendererOptions(z),
+) -> Result(List(String), RendererError(a, b, e, f, g, h)) {
   let parameters = sanitize_input_output_dirs(parameters)
 
   let RendererParameters(
@@ -1887,10 +1898,28 @@ pub fn run_renderer(
   }
 
   use #(filtered, filtration_warnings) <- on.error_ok(
-    dl.filter_nodes_by_key_values(options.only_key_values).transform(parsed),
+    dl.filter_nodes_by_key_values(options.only_key_vals).transform(parsed),
     on_error: fn(error) {
       let infra.DesugaringError(blame, msg) = error
       io.println("  ...key-value filtration error:")
+      io.println("")
+      [
+        #(" blame:", pr.our_blame_digest(blame)),
+        #(" error: ", ins(msg) |> pr.strip_quotes),
+      ]
+      |> pr.two_column_error_announcer(0, 70, "💥", 2, "/ filtration error /")
+      |> io.println
+      Error(KeyValueFiltrationError(blame, msg))
+    },
+  )
+
+  assert filtration_warnings == []
+
+  use #(filtered, filtration_warnings) <- on.error_ok(
+    dl.filter_nodes_by_path_key_values(options.only_path_key_vals).transform(filtered),
+    on_error: fn(error) {
+      let infra.DesugaringError(blame, msg) = error
+      io.println("  ...path-key-value filtration error:")
       io.println("")
       [
         #(" blame:", pr.our_blame_digest(blame)),
@@ -2295,8 +2324,6 @@ pub fn run_renderer(
 
   case errors {
     [] -> Ok(oks |> list.map(fn(ghost) { ghost.path }))
-    _ -> {
-      Error(EmittingOrWritingOrPrettifyingErrors(errors))
-    }
+    _ -> Error(EmittingOrWritingOrPrettifyingErrors(errors))
   }
 }
