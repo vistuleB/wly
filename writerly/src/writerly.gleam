@@ -88,21 +88,16 @@ fn file_is_not_commented(path: String) -> Bool {
 }
 
 fn file_is_selected_or_has_selected_descendant(
-  path_selectors: List(String),
+  path_selector: fn(String) -> Bool,
   path: String,
   all_paths: List(String),
 ) -> Bool {
-  path_selectors == []
-  || list.any(path_selectors, string.contains(path, _))
-  || {
+  path_selector(path) || {
     string.ends_with(path, "__parent.wly") && {
       let prefix = path |> string.drop_end(12)
       list.any(
         all_paths,
-        fn (x) {
-          string.starts_with(x, prefix) &&
-          list.any(path_selectors, string.contains(x, _))
-        }
+        fn (x) { string.starts_with(x, prefix) && path_selector(x) },
       )
     }
   }
@@ -263,9 +258,9 @@ fn input_lines_for_dirtree_at_depth(
   }
 }
 
-pub fn assemble_input_lines(
+pub fn assemble_input_lines_with_path_selector(
   dirpath_or_filepath: String,
-  path_selectors: List(String),
+  path_selector: fn(String) -> Bool,
 ) -> Result(#(DirTree, List(InputLine)), AssemblyError) {
   use #(dirname, paths) <- on.ok(
     get_dirname_and_relative_paths_of_uncommented_wly_in_dir(dirpath_or_filepath)
@@ -279,7 +274,7 @@ pub fn assemble_input_lines(
   let paths =
     paths
     |> list.filter(
-      file_is_selected_or_has_selected_descendant(path_selectors, _, paths),
+      file_is_selected_or_has_selected_descendant(path_selector, _, paths),
     )
 
   let drop_suffix = fn(name) {
@@ -300,6 +295,12 @@ pub fn assemble_input_lines(
   )
 
   Ok(#(tree, lines))
+}
+
+pub fn assemble_input_lines(
+  dirpath_or_filepath: String,
+) -> Result(#(DirTree, List(InputLine)), AssemblyError) {
+  assemble_input_lines_with_path_selector(dirpath_or_filepath, fn(_) { True })
 }
 
 // ************************************************************

@@ -183,7 +183,7 @@ fn at_root(
     )),
   )
 
-  let handles_of_selected_chapters = echo {
+  let handles_of_selected_chapters = {
     let assert V(_, _, _, children) = chapter_selection_node
     children
     |> list.flat_map(infra.descendant_lines)

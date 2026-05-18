@@ -70,8 +70,16 @@ pub fn default_writerly_assembler(
   dirpath_or_filepath: String,
   path_selectors: List(String),
 ) -> Result(#(List(InputLine), Option(DirTree)), wl.AssemblyError) {
+  let #(s1, s2) = list.partition(path_selectors, string.starts_with(_, "!"))
+  let s1 = list.map(s1, string.drop_start(_, 1))
+  let path_selector = case s1, s2 {
+    [], [] -> fn(_) { True }
+    [], _ -> fn(path) { list.any(s2, string.contains(path, _)) }
+    _, [] -> fn(path) { !list.any(s1, string.contains(path, _)) }
+    _, _ -> fn(path) { list.any(s2, string.contains(path, _)) && !list.any(s1, string.contains(path, _)) }
+  }
   use #(tree, assembled) <- on.ok(
-    wl.assemble_input_lines(dirpath_or_filepath, path_selectors),
+    wl.assemble_input_lines_with_path_selector(dirpath_or_filepath, path_selector),
   )
   Ok(#(assembled, Some(tree)))
 }

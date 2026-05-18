@@ -56,7 +56,7 @@ fn parse_ergonomic_wly(source: String, name: String) -> Writerly {
 }
 
 pub fn part_1_test() {
-  wl.assemble_input_lines("test/test1.wly", [])
+  wl.assemble_input_lines("test/test1.wly")
   |> should.equal(
     Ok(#(
       Dirpath("test", [Filepath("test1.wly")]),
@@ -69,7 +69,7 @@ pub fn part_1_test() {
     )),
   )
 
-  wl.assemble_input_lines("test/testA", [])
+  wl.assemble_input_lines("test/testA")
   |> should.equal(
     Ok(#(
       Dirpath("test/testA", [Filepath("__parent.wly"), Filepath("childA.wly")]),
@@ -99,7 +99,7 @@ pub fn part_2_test() {
     ),
   ]))
 
-  let assert Ok(#(_tree, lines)) = wl.assemble_input_lines("test/test1.wly", [])
+  let assert Ok(#(_tree, lines)) = wl.assemble_input_lines("test/test1.wly")
 
   lines
   |> wl.input_lines_to_writerlys()
@@ -123,7 +123,7 @@ pub fn part_2_test() {
     )
   )
 
-  let assert Ok(#(_tree, lines)) = wl.assemble_input_lines("test/testA", [])
+  let assert Ok(#(_tree, lines)) = wl.assemble_input_lines("test/testA")
   lines
   |> wl.input_lines_to_writerlys()
   |> should.equal(
