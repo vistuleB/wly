@@ -38,7 +38,7 @@ fn t_transform(
   assert !state
   case inner(vxml) {
     True -> #(Some(vxml), True)
-    False -> #(Some(vxml), False)
+    False -> #(None, False)
   }
 }
 
@@ -62,11 +62,11 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
 type State = Bool
 
 type Param = fn(VXML) -> Bool
-//             ↖
-//             a node is saved
-//             iff it or one of its
-//             ancestors fulfills
-//             this condition
+//           ↖
+//           a node is saved
+//           iff it or one of its
+//           ancestors fulfills
+//           this condition
 type InnerParam = Param
 
 pub const name = "delete_outside_subtrees_v2"
