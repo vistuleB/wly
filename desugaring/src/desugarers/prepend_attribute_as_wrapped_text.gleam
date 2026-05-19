@@ -12,12 +12,13 @@ fn nodemap(
   case vxml {
     V(_, tag, _, children) if tag == inner.0 -> {
       case infra.v_first_attr_with_key(vxml, inner.1) {
-        Some(Attr(_, _, value)) if value != "" -> {
+        Some(Attr(blame, key, value)) if value != "" -> {
           let assert V(b, t, a, c) = inner.2
+          let t_blame = bl.advance(blame, string.length(key) + 1)
           let wrapped_text = V(b, t, a, [
             T(
-              desugarer_blame(19),
-              [Line(desugarer_blame(20), value)]
+              t_blame,
+              [Line(t_blame, value)]
             ),
             ..c
           ])
@@ -49,7 +50,6 @@ type Param = #(String, String, VXML)
 type InnerParam = Param
 
 pub const name = "prepend_attribute_as_wrapped_text"
-fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
 
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 // 🏖️🏖️ Desugarer 🏖️🏖️
