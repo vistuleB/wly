@@ -2,7 +2,7 @@ import gleam/option.{Some}
 import gleam/string.{inspect as ins}
 import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as infra
 import nodemaps_2_desugarer_transforms as n2t
-import vxml.{ type VXML, Line, T, V, Attr}
+import vxml.{ type VXML, Line, T, V, Attr }
 import blame as bl
 
 fn nodemap(
@@ -44,9 +44,9 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
   Ok(param)
 }
 
-type Param = #(String, String, VXML)
-//             ↖       ↖       ↖
-//             tag     attr_key wrapper
+type Param = #(String,  String,   VXML)
+//             ↖        ↖         ↖
+//             tag      attr_key  wrapper
 type InnerParam = Param
 
 pub const name = "prepend_attribute_as_wrapped_text"
