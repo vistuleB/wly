@@ -43,7 +43,7 @@ pub type Writerly {
 pub type ParseError {
   BadTag(blame: Blame, bad_name: String)
   BadKey(blame: Blame, bad_key: String)
-  IndentationTooLarge(blame: Blame, line: String)
+  IndentationTooLarge(blame: Blame, expected: String, found: String, line: String)
   IndentationNotMultipleOfFour(blame: Blame, line: String)
   CodeBlockInfoStartsWithSpace(blame: Blame, bad_info: String)
   CodeBlockNotClosed(blame: Blame)
@@ -322,7 +322,7 @@ type Encounter {
   EncounteredFileEnd
   EncounteredBlankLine(blame: Blame, indent: Int)
   EncounteredNonMod4Indent(blame: Blame, indent: Int, suffix: String)
-  EncounteredHigherIndent(blame: Blame, indent: Int, suffix: String)
+  EncounteredHigherIndent(blame: Blame, indent: Int, suffix: String, original_indent: Int, higher_indent: Int)
   EncounteredLowerIndent(blame: Blame, indent: Int, suffix: String)
   EncounteredTextLine(blame: Blame, suffix: String)
   EncounteredTagLine(blame: Blame, suffix: String)
@@ -370,7 +370,7 @@ fn filehead_encounter(
 
   use <- on.true_false(
     first_indent > indent,
-    fn() { #(EncounteredHigherIndent(blame, first_indent, suffix), rest) },
+    fn() { #(EncounteredHigherIndent(blame, first_indent, suffix, indent, first_indent), rest) },
   )
 
   let encounter = nonempty_suffix_encounter(blame, suffix)
@@ -500,8 +500,8 @@ fn parse_writerlys_at_indent_from_encounter(
       Error(IndentationNotMultipleOfFour(blame, suffix))
     }
 
-    EncounteredHigherIndent(blame, _, suffix) -> {
-      Error(IndentationTooLarge(blame, suffix))
+    EncounteredHigherIndent(blame, _, suffix, indent, higher_indent) -> {
+      Error(IndentationTooLarge(blame, "expected: " <> ins(indent), "found: " <> ins(higher_indent), "line: '" <> suffix <> "'"))
     }
 
     EncounteredLowerIndent(blame, suffix_indent, suffix) -> {
