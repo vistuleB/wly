@@ -12,14 +12,11 @@ fn nodemap(
   case vxml {
     V(_, tag, _, children) if tag == inner.0 -> {
       case infra.v_first_attr_with_key(vxml, inner.1) {
-        Some(Attr(blame, key, value)) if value != "" -> {
+        Some(Attr(blame, _, value)) if value != "" -> {
           let assert V(b, t, a, c) = inner.2
-          let t_blame = bl.advance(blame, string.length(key) + 1)
+          let t_blame = bl.advance(blame, inner.3 + 1)
           let wrapped_text = V(b, t, a, [
-            T(
-              t_blame,
-              [Line(t_blame, value)]
-            ),
+            T(t_blame, [Line(t_blame, value)]),
             ..c
           ])
           V(..vxml, children: [wrapped_text, ..children])
@@ -41,13 +38,13 @@ fn transform_factory(inner: InnerParam) -> DesugarerTransform {
 }
 
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
-  Ok(param)
+  Ok(#(param.0, param.1, param.2, string.length(param.1)))
 }
 
 type Param = #(String,  String,   VXML)
 //             ↖        ↖         ↖
 //             tag      attr_key  wrapper
-type InnerParam = Param
+type InnerParam = #(String, String, VXML, Int)
 
 pub const name = "prepend_attribute_as_wrapped_text"
 
