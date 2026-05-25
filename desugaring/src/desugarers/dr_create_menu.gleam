@@ -19,12 +19,15 @@ import on
 // ---- Page address types ----
 
 type PageAddr {
+  ChapterAddr(ch_no: Int)
   SectionAddr(ch_no: Int, sec_no: Int)
   SubSectionAddr(ch_no: Int, sec_no: Int, sub_no: Int)
 }
 
 fn page_href(addr: PageAddr) -> String {
   case addr {
+    ChapterAddr(ch) ->
+      "/" <> int.to_string(ch) <> "-0.html"
     SectionAddr(ch, sec) ->
       "/" <> int.to_string(ch) <> "-" <> int.to_string(sec) <> ".html"
     SubSectionAddr(ch, sec, sub) ->
@@ -35,6 +38,16 @@ fn page_href(addr: PageAddr) -> String {
       <> "-"
       <> int.to_string(sub)
       <> ".html"
+  }
+}
+
+// A Chapter has content when it has nodes before its first Section child
+fn chapter_has_content(vxml: VXML) -> Bool {
+  let assert V(_, "Chapter", _, children) = vxml
+  case children {
+    [] -> False
+    [V(_, "Section", _, _), ..] -> False
+    _ -> True
   }
 }
 
@@ -55,11 +68,15 @@ fn gather_nodemap(
 ) -> Result(#(GatherState, TrafficLight), DesugaringError) {
   case vxml {
     V(_, "Document", _, _) -> Ok(#(state, Continue))
-    V(_, "Chapter", _, _) ->
-      Ok(#(
-        GatherState(..state, ch_no: state.ch_no + 1, sec_no: 0, sub_no: 0),
-        Continue,
-      ))
+    V(_, "Chapter", _, _) -> {
+      let new_ch = state.ch_no + 1
+      let base = GatherState(..state, ch_no: new_ch, sec_no: 0, sub_no: 0)
+      let new_state = case chapter_has_content(vxml) {
+        False -> base
+        True -> GatherState(..base, pages: [ChapterAddr(new_ch), ..base.pages])
+      }
+      Ok(#(new_state, Continue))
+    }
     V(_, "Section", _, _) -> {
       let new_sec = state.sec_no + 1
       let addr = SectionAddr(state.ch_no, new_sec)
@@ -123,7 +140,7 @@ fn build_nav_dict(
   pages: List(PageAddr),
 ) -> Dict(PageAddr, #(Option(String), Option(String))) {
   let hrefs = list.map(pages, page_href)
-  build_nav_entries(pages, hrefs, None)
+  build_nav_entries(pages, hrefs, Some("/"))
   |> dict.from_list
 }
 
@@ -162,7 +179,19 @@ fn v_before(
   let #(ch, sec, sub) = state
   case node {
     V(_, "Document", _, _) -> #(node, state)
-    V(_, "Chapter", _, _) -> #(node, #(ch + 1, 0, 0))
+    V(_, "Chapter", _, _) -> {
+      let new_ch = ch + 1
+      case chapter_has_content(node) {
+        False -> #(node, #(new_ch, 0, 0))
+        True -> {
+          let addr = ChapterAddr(new_ch)
+          let #(prev_href, next_href) =
+            result.unwrap(dict.get(nav_dict, addr), #(None, None))
+          let nav = make_navigation(prev_href, next_href)
+          #(infra.v_prepend_child(node, nav), #(new_ch, 0, 0))
+        }
+      }
+    }
     V(_, "Section", _, _) -> {
       let new_sec = sec + 1
       let addr = SectionAddr(ch, new_sec)
@@ -260,6 +289,9 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
                       <> Navigation
                         class=nav
                         <> a
+                          id=prev-page
+                          href=/
+                        <> a
                           id=next-page
                           href=/1-2.html
                     <> Section
@@ -291,6 +323,9 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
                     <> Section
                       <> Navigation
                         class=nav
+                        <> a
+                          id=prev-page
+                          href=/
                         <> a
                           id=next-page
                           href=/1-2.html
@@ -356,6 +391,55 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
                         <> a
                           id=prev-page
                           href=/2-2-3.html
+                ",
+    ),
+    infra.AssertiveTestDataNoParam(
+      source: "
+                <> Document
+                  <> Chapter
+                    <> SomeContent
+                    <> Section
+                    <> Section
+                  <> Chapter
+                    <> Section
+                ",
+      expected: "
+                <> Document
+                  <> Chapter
+                    <> Navigation
+                      class=nav
+                      <> a
+                        id=prev-page
+                        href=/
+                      <> a
+                        id=next-page
+                        href=/1-1.html
+                    <> SomeContent
+                    <> Section
+                      <> Navigation
+                        class=nav
+                        <> a
+                          id=prev-page
+                          href=/1-0.html
+                        <> a
+                          id=next-page
+                          href=/1-2.html
+                    <> Section
+                      <> Navigation
+                        class=nav
+                        <> a
+                          id=prev-page
+                          href=/1-1.html
+                        <> a
+                          id=next-page
+                          href=/2-1.html
+                  <> Chapter
+                    <> Section
+                      <> Navigation
+                        class=nav
+                        <> a
+                          id=prev-page
+                          href=/1-2.html
                 ",
     ),
   ]
