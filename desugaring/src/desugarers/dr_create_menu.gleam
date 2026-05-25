@@ -129,9 +129,9 @@ fn build_nav_dict(
 
 // ---- Navigation node construction ----
 
-fn anchor(class: String, href: String) -> VXML {
+fn anchor(id: String, href: String) -> VXML {
   let b = desugarer_blame(120)
-  V(b, "a", [Attr(b, "class", class), Attr(b, "href", href)], [])
+  V(b, "a", [Attr(b, "id", id), Attr(b, "href", href)], [])
 }
 
 fn make_navigation(
@@ -260,13 +260,13 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
                       <> Navigation
                         class=nav
                         <> a
-                          class=next-page
+                          id=next-page
                           href=/1-2.html
                     <> Section
                       <> Navigation
                         class=nav
                         <> a
-                          class=prev-page
+                          id=prev-page
                           href=/1-1.html
                 ",
     ),
@@ -292,69 +292,69 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
                       <> Navigation
                         class=nav
                         <> a
-                          class=next-page
+                          id=next-page
                           href=/1-2.html
                     <> Section
                       <> Navigation
                         class=nav
                         <> a
-                          class=prev-page
+                          id=prev-page
                           href=/1-1.html
                         <> a
-                          class=next-page
+                          id=next-page
                           href=/2-1.html
                   <> Chapter
                     <> Section
                       <> Navigation
                         class=nav
                         <> a
-                          class=prev-page
+                          id=prev-page
                           href=/1-2.html
                         <> a
-                          class=next-page
+                          id=next-page
                           href=/2-2.html
                     <> Section
                       <> Navigation
                         class=nav
                         <> a
-                          class=prev-page
+                          id=prev-page
                           href=/2-1.html
                         <> a
-                          class=next-page
+                          id=next-page
                           href=/2-2-1.html
                       <> SubSection
                         <> Navigation
                           class=nav
                           <> a
-                            class=prev-page
+                            id=prev-page
                             href=/2-2.html
                           <> a
-                            class=next-page
+                            id=next-page
                             href=/2-2-2.html
                       <> SubSection
                         <> Navigation
                           class=nav
                           <> a
-                            class=prev-page
+                            id=prev-page
                             href=/2-2-1.html
                           <> a
-                            class=next-page
+                            id=next-page
                             href=/2-2-3.html
                       <> SubSection
                         <> Navigation
                           class=nav
                           <> a
-                            class=prev-page
+                            id=prev-page
                             href=/2-2-2.html
                           <> a
-                            class=next-page
+                            id=next-page
                             href=/3-1.html
                   <> Chapter
                     <> Section
                       <> Navigation
                         class=nav
                         <> a
-                          class=prev-page
+                          id=prev-page
                           href=/2-2-3.html
                 ",
     ),
