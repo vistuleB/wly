@@ -41,12 +41,15 @@ fn page_href(addr: PageAddr) -> String {
   }
 }
 
-// A Chapter has content when it has nodes before its first Section child
+// A Chapter has content when there are nodes between its optional ChapterTitle
+// and its first Section child.
 fn chapter_has_content(vxml: VXML) -> Bool {
   let assert V(_, "Chapter", _, children) = vxml
   case children {
     [] -> False
+    [V(_, "ChapterTitle", _, _)] -> False
     [V(_, "Section", _, _), ..] -> False
+    [V(_, "ChapterTitle", _, _), V(_, "Section", _, _), ..] -> False
     _ -> True
   }
 }
@@ -440,6 +443,49 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
                         <> a
                           id=prev-page
                           href=/1-2.html
+                ",
+    ),
+    infra.AssertiveTestDataNoParam(
+      source: "
+                <> Document
+                  <> Chapter
+                    <> ChapterTitle
+                    <> Section
+                  <> Chapter
+                    <> ChapterTitle
+                    <> SomeContent
+                    <> Section
+                ",
+      expected: "
+                <> Document
+                  <> Chapter
+                    <> ChapterTitle
+                    <> Section
+                      <> Navigation
+                        class=nav
+                        <> a
+                          id=prev-page
+                          href=/
+                        <> a
+                          id=next-page
+                          href=/2-0.html
+                  <> Chapter
+                    <> Navigation
+                      class=nav
+                      <> a
+                        id=prev-page
+                        href=/1-1.html
+                      <> a
+                        id=next-page
+                        href=/2-1.html
+                    <> ChapterTitle
+                    <> SomeContent
+                    <> Section
+                      <> Navigation
+                        class=nav
+                        <> a
+                          id=prev-page
+                          href=/2-0.html
                 ",
     ),
   ]
