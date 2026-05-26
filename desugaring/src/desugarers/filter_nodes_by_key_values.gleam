@@ -1,4 +1,4 @@
-import desugarers/delete_outside_subtrees_v2.{constructor as delete_outside_subtrees_v2}
+import desugarers/delete_outside_subtrees.{constructor as delete_outside_subtrees}
 import gleam/list
 import gleam/option
 import gleam/string.{inspect as ins}
@@ -41,7 +41,7 @@ pub fn constructor(param: Param) -> Desugarer {
       Error(error) -> fn(_) { Error(error) }
       Ok(inner) -> case inner {
         [] -> n2t.identity_transform
-        _ -> delete_outside_subtrees_v2(matches_a_pair(_, inner)).transform
+        _ -> delete_outside_subtrees(matches_a_pair(_, inner)).transform
       }
     }
   )

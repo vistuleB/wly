@@ -68,9 +68,10 @@ pub type Assembler(a) =
 
 pub fn default_writerly_assembler(
   dirpath_or_filepath: String,
-  path_selectors: List(String),
+  options: RendererOptions(_),
 ) -> Result(#(List(InputLine), Option(DirTree)), wl.AssemblyError) {
-  let #(s1, s2) = list.partition(path_selectors, string.starts_with(_, "!"))
+  let only_paths = options.only_paths
+  let #(s1, s2) = list.partition(only_paths, string.starts_with(_, "!"))
   let s1 = list.map(s1, string.drop_start(_, 1))
   let path_selector = case s1, s2 {
     [], [] -> fn(_) { True }
@@ -92,12 +93,12 @@ pub fn default_other_files_assembler(
 }
 
 // ************************************************************
-// Parser(c)                                                   // 'c' is parser error type
+// Parser(b)                                                   // 'b' is parser error type
 // List(InputLine) -> VXML
 // ************************************************************
 
-pub type Parser(c) =
-  fn(List(InputLine)) -> Result(VXML, #(Blame, c))
+pub type Parser(b) =
+  fn(List(InputLine)) -> Result(VXML, #(Blame, b))
 
 pub fn default_writerly_parser(
   lines: List(InputLine)
@@ -116,16 +117,42 @@ pub fn default_xml_parser(
 pub const default_html_parser = default_xml_parser
 
 // ************************************************************
-// Splitter(d, e)                                              // 'd' is fragment classifier type, 'e' is splitter error type
+// Filterer(c)                                                 // 'c' is parser error type
+// VXML -> VXML
+// ************************************************************
+
+pub type Filterer(c) =
+  fn(VXML) -> Result(VXML, c)
+
+pub fn default_filterer(
+  vxml: VXML,
+  options: RendererOptions(_),
+  saving: List(String),
+) -> Result(VXML, String) {
+  use #(vxml, warnings) <- on.error_ok(
+    dl.filter_nodes_by_path_key_values_while_saving(#(options.only_path_key_vals, saving)).transform(vxml),
+    fn(e) { Error(e.message) }
+  )
+  assert warnings == []
+  use #(vxml, warnings) <- on.error_ok(
+    dl.filter_nodes_by_key_values_while_saving(#(options.only_key_vals, saving)).transform(vxml),
+    fn(e) { Error(e.message) }
+  )
+  assert warnings == []
+  Ok(vxml)
+}
+
+// ************************************************************
+// Splitter(z, d)                                              // 'z' is fragment classifier type, 'd' is splitter error type
 // VXML -> List(OutputFragment)
 // ************************************************************
 
-pub type OutputFragment(d, z) {                  // 'd' is fragment classifier type, 'z' is payload type (VXML or List(OutputLine))
-  OutputFragment(classifier: d, path: String, payload: z)
+pub type OutputFragment(z, p) {                  // 'z' is fragment classifier type, 'p' is payload type (VXML or List(OutputLine))
+  OutputFragment(classifier: z, path: String, payload: p)
 }
 
-pub type Splitter(d, e) =
-  fn(VXML) -> Result(List(OutputFragment(d, VXML)), e)
+pub type Splitter(z, d) =
+  fn(VXML) -> Result(List(OutputFragment(z, VXML)), d)
 
 /// emits 1 fragment whose 'path' is the tag
 /// of the VXML root concatenated with a provided
@@ -138,16 +165,16 @@ pub fn stub_splitter(suffix: String) -> Splitter(Nil, Nil) {
 }
 
 // ************************************************************
-// Emitter(d, f)                                               // where 'd' is fragment type & 'f' is emitter error type
-// OutputFragment(d, VXML) -> OutputFragment(d, List(OutputLine))
+// Emitter(z, e)                                               // where 'z' is fragment type & 'e' is emitter error type
+// OutputFragment(z, VXML) -> OutputFragment(z, List(OutputLine))
 // ************************************************************
 
-pub type Emitter(d, f) =
-  fn(OutputFragment(d, VXML)) -> Result(OutputFragment(d, List(OutputLine)), f)
+pub type Emitter(z, e) =
+  fn(OutputFragment(z, VXML)) -> Result(OutputFragment(z, List(OutputLine)), e)
 
 pub fn default_writerly_emitter(
-  fragment: OutputFragment(d, VXML),
-) -> Result(OutputFragment(d, List(OutputLine)), b) {
+  fragment: OutputFragment(z, VXML),
+) -> Result(OutputFragment(z, List(OutputLine)), b) {
   let lines =
     fragment.payload
     |> wl.vxml_to_writerlys
@@ -158,8 +185,8 @@ pub fn default_writerly_emitter(
 }
 
 pub fn stub_html_emitter(
-  fragment: OutputFragment(d, VXML),
-) -> Result(OutputFragment(d, List(OutputLine)), b) {
+  fragment: OutputFragment(z, VXML),
+) -> Result(OutputFragment(z, List(OutputLine)), b) {
   let lines =
     list.flatten([
       [
@@ -187,8 +214,8 @@ pub fn stub_html_emitter(
 }
 
 pub fn stub_jsx_emitter(
-  fragment: OutputFragment(d, VXML),
-) -> Result(OutputFragment(d, List(OutputLine)), b) {
+  fragment: OutputFragment(z, VXML),
+) -> Result(OutputFragment(z, List(OutputLine)), b) {
   let lines =
     list.flatten([
       [
@@ -211,12 +238,12 @@ pub fn stub_jsx_emitter(
 }
 
 // ************************************************************
-// Writer(d, g)                                                // 'd' is fragment classifier type, 'g' is writer error type
-// String, OutputFragment(d, String) -> GhostOfOutputFragment(d)
+// Writer(z, f)                                                // 'z' is fragment classifier type, 'f' is writer error type
+// String, OutputFragment(z, String) -> GhostOfOutputFragment(z)
 // ************************************************************
 
-pub type Writer(d, g) =
-  fn(String, OutputFragment(d, String)) -> Result(GhostOfOutputFragment(d), g)
+pub type Writer(z, f) =
+  fn(String, OutputFragment(z, String)) -> Result(GhostOfOutputFragment(z), f)
 
 fn output_dir_local_path_printer(
   output_dir: String,
@@ -232,8 +259,8 @@ fn output_dir_local_path_printer(
 
 pub fn default_writer(
   output_dir: String,
-  fragment: OutputFragment(d, String),
-) -> Result(GhostOfOutputFragment(d), String) {
+  fragment: OutputFragment(z, String),
+) -> Result(GhostOfOutputFragment(z), String) {
   case output_dir_local_path_printer(output_dir, fragment.path, fragment.payload) {
     Ok(Nil) -> {
       Ok(GhostOfOutputFragment(fragment.classifier, fragment.path))
@@ -245,20 +272,20 @@ pub fn default_writer(
 }
 
 // ************************************************************
-// Prettifier(d, h)                                            // 'd' is fragment classifier, 'h' is prettifier error type
-// String, GhostOfOutputFragment(d), Option(String) -> Result(String, h)
+// Prettifier(z, g)                                            // 'z' is fragment classifier, 'g' is prettifier error type
+// String, GhostOfOutputFragment(z), Option(String) -> Result(String, g)
 // ☝                                 ☝                        ☝
 // output_dir                        optional                 on_success
 //                                   'prettified dir'         report-back message
 //                                   (else use output_dir)
 // ************************************************************
 
-pub type GhostOfOutputFragment(d) {
-  GhostOfOutputFragment(classifier: d, path: String)
+pub type GhostOfOutputFragment(z) {
+  GhostOfOutputFragment(classifier: z, path: String)
 }
 
-pub type Prettifier(d, h) =
-  fn(String, GhostOfOutputFragment(d), Option(String)) -> Result(String, h)
+pub type Prettifier(z, g) =
+  fn(String, GhostOfOutputFragment(z), Option(String)) -> Result(String, g)
 
 pub fn run_prettier(in: String, path: String, check: Bool) -> Result(String, #(Int, String)) {
   shellout.command(
@@ -278,7 +305,7 @@ pub fn run_prettier(in: String, path: String, check: Bool) -> Result(String, #(I
 
 pub fn default_prettier_prettifier(
   output_dir: String,
-  ghost: GhostOfOutputFragment(d),
+  ghost: GhostOfOutputFragment(z),
   prettier_dir: Option(String),
 ) -> Result(String, #(Int, String)) {
   let source_path = output_dir <> "/" <> ghost.path
@@ -309,33 +336,35 @@ pub fn default_prettier_prettifier(
 
 pub fn empty_prettifier(
   _: String,
-  _: GhostOfOutputFragment(d),
+  _: GhostOfOutputFragment(z),
   _: Option(String)
 ) -> Result(String, #(Int, String)) {
   Ok("")
 }
 
 // ************************************************************
-// Renderer(a, b, z, e, f, g, h)
+// Renderer(a, b, c, d, e, f, g, z)
 // ************************************************************
 
 pub type Renderer(
   a, // Assembler error
   b, // Parser error
-  e, // Splitter error
-  f, // Emitter error
-  g, // Writer error
-  h, // Prettifier error
+  c, // Filterer error
+  d, // Splitter error
+  e, // Emitter error
+  f, // Writer error
+  g, // Prettifier error
   z, // VXML Fragment enum
 ) {
   Renderer(
     assembler: Assembler(a),          // file/directory -> List(InputLine)                                    Result w/ error type a
     parser: Parser(b),                // List(InputLine) -> VXML                                              Result w/ error type b
+    filterer: Filterer(c),            // VXML -> VXML                                                         Result w/ error type c
     pipeline: Pipeline,               // VXML -> ... -> VXML                                                  Result w/ error type InSituDesugaringError
-    splitter: Splitter(z, e),         // VXML -> List(OutputFragment(z, VXML))                                Result w/ error type e
-    emitter: Emitter(z, f),           // OutputFragment(z, VXML) -> OutputFragment(z, String)                 Result w/ error type f
-    writer: Writer(z, g),             // output_dir, OutputFragment(z, String) -> GhostOfOutputFragment(z)    Result w/ error type g
-    prettifier: Prettifier(z, h),     // output_dir, GhostOfOutputFragment(z), Option(prettifier_dir) -> Nil  Result w/ error type h
+    splitter: Splitter(z, d),         // VXML -> List(OutputFragment(z, VXML))                                Result w/ error type d
+    emitter: Emitter(z, e),           // OutputFragment(z, VXML) -> OutputFragment(z, String)                 Result w/ error type e
+    writer: Writer(z, f),             // output_dir, OutputFragment(z, String) -> GhostOfOutputFragment(z)    Result w/ error type f
+    prettifier: Prettifier(z, g),     // output_dir, GhostOfOutputFragment(z), Option(prettifier_dir) -> Nil  Result w/ error type g
   )
 }
 
@@ -365,6 +394,7 @@ pub type RendererOptions(z) {
     profiling_table: Option(Int),
     interactive_mode: Bool,
     suppress_warnings: Bool,
+    only_paths: List(String),
     only_key_vals: List(#(String, String)),
     only_path_key_vals: List(#(String, String, String)),
     dump: Option(List(Int)),
@@ -388,6 +418,7 @@ pub fn vanilla_options() -> RendererOptions(z) {
     profiling_table: None,
     interactive_mode: False,
     suppress_warnings: False,
+    only_paths: [],
     only_key_vals: [],
     only_path_key_vals: [],
     dump: None,
@@ -1233,19 +1264,19 @@ pub fn amend_renderer_paramaters_by_command_line_amendments(
 
 fn exists_match(
   z: Option(List(a)), // List(a) = list of things that might cause a match, left empty if we always want a match
-  f: fn(a) -> Bool,   // match tester
+  e: fn(a) -> Bool,   // match tester
 ) -> Bool {
   case z {
     None -> False
     Some([]) -> True
-    Some(x) -> list.any(x, f)
+    Some(x) -> list.any(x, e)
   }
 }
 
 pub fn amend_renderer_by_command_line_amendments(
-  renderer: Renderer(a, b, z, e, f, g, h),
+  renderer: Renderer(a, b, c, d, e, f, g, z),
   _amendments: CommandLineAmendments,
-) -> Renderer(a, b, z, e, f, g, h) {
+) -> Renderer(a, b, c, d, e, f, g, z) {
   renderer
 }
 
@@ -1263,6 +1294,7 @@ pub fn amend_renderer_options_by_command_line_amendments(
       option.map(amendments.tracker, fn(x){x.interactive_mode}) |> option.unwrap(False)
     },
     suppress_warnings: !option.unwrap(amendments.warnings, !options.suppress_warnings),
+    only_paths: list.append(options.only_paths, amendments.only_paths),
     only_key_vals: list.append(options.only_key_vals, amendments.only_key_vals),
     only_path_key_vals: list.append(options.only_path_key_vals, amendments.only_path_key_vals),
     dump: case options.dump, amendments.dump {
@@ -1312,8 +1344,8 @@ pub fn amend_renderer_options_by_command_line_amendments(
 fn apply_dump_named(
   decorateds: List(DecoratedDesugarer),
   dump_named: List(#(String, Int, Int))
-) -> Result(List(DecoratedDesugarer), RendererError(a, b, c, d, e, f)) {
-  let dump_named = list.map(dump_named, fn(d) {#(d.0, d.1, d.2, False)})
+) -> Result(List(DecoratedDesugarer), RendererError(a, b, c, d, e, f, g)) {
+  let dump_named = list.map(dump_named, fn(dn) {#(dn.0, dn.1, dn.2, False)})
   use #(on_change, _) <- on.ok(extract_all_on_change_and_forced_steps_from_named_ranges(dump_named, decorateds))
   assert list.length(on_change) >= list.length(dump_named)
   list.index_map(decorateds, fn(decorated, i) {
@@ -1363,7 +1395,7 @@ fn list_int_cleaner(ze_list: List(Int)) -> List(Int) {
 fn extract_on_change_and_forced_steps_from_name_and_pipeline(
   params: #(String, Int, Int, Bool),
   pipeline: List(DecoratedDesugarer),
-) -> Result(#(List(Int), List(Int)), RendererError(a, b, c, d, e, f)) {
+) -> Result(#(List(Int), List(Int)), RendererError(a, b, c, d, e, f, g)) {
   let #(name, lo, hi, forced) = params
   let indices = list.index_fold(
     pipeline,
@@ -1410,22 +1442,22 @@ fn extract_on_change_and_forced_steps_from_name_and_pipeline(
 fn extract_all_on_change_and_forced_steps_from_named_ranges(
   named_ranges: List(#(String, Int, Int, Bool)),
   pipeline: List(DecoratedDesugarer),
-) -> Result(#(List(Int), List(Int)), RendererError(a, b, c, d, e, f)) {
-  use #(oa, f) <- on.ok(list.try_fold(
+) -> Result(#(List(Int), List(Int)), RendererError(a, b, c, d, e, f, g)) {
+  use #(oa, fo) <- on.ok(list.try_fold(
     named_ranges,
     #([], []),
     fn(acc, named_range) {
-      use #(oa, f) <- on.ok(extract_on_change_and_forced_steps_from_name_and_pipeline(named_range, pipeline))
-      #(list.append(acc.0, oa), list.append(acc.1, f)) |> Ok
+      use #(oa, fo) <- on.ok(extract_on_change_and_forced_steps_from_name_and_pipeline(named_range, pipeline))
+      #(list.append(acc.0, oa), list.append(acc.1, fo)) |> Ok
     }
   ))
-  #(oa |> list_int_cleaner, f |> list_int_cleaner) |> Ok
+  #(oa |> list_int_cleaner, fo |> list_int_cleaner) |> Ok
 }
 
 fn apply_pipeline_tracking_modifier(
   decorateds: List(DecoratedDesugarer),
   tracker: Option(Tracker),
-) -> Result(List(DecoratedDesugarer), RendererError(a, b, c, d, e, f)) {
+) -> Result(List(DecoratedDesugarer), RendererError(a, b, c, d, e, f, g)) {
   // if mod is None return the pipeline
   use tracker <- on.eager_none_some(tracker, Ok(decorateds))
   // else...
@@ -1792,21 +1824,21 @@ fn create_dirs_on_path_to_file(path_to_file: String) -> Result(Nil, simplifile.F
 // run_renderer return type(s)
 // ************************************************************
 
-pub type ThreePossibilities(f, g, h) {
-  P1(f)
-  P2(g)
-  P3(h)
+pub type ThreePossibilities(e, f, g) {
+  P1(e)
+  P2(f)
+  P3(g)
 }
 
-pub type RendererError(a, b, e, f, g, h) {
+pub type RendererError(a, b, c, d, e, f, g) {
   FileOrParseError(a)
   SourceParserError(Blame, b)
-  KeyValueFiltrationError(Blame, String)
+  FiltrationError(c)
   DesugarerNameNotFoundError(String)
   PipelineError(InSituDesugaringError)
   UserExitError(Int)
-  SplitterError(e)
-  EmittingOrWritingOrPrettifyingErrors(List(ThreePossibilities(f, g, h)))
+  SplitterError(d)
+  EmittingOrWritingOrPrettifyingErrors(List(ThreePossibilities(e, f, g)))
 }
 
 // ************************************************************
@@ -1814,10 +1846,10 @@ pub type RendererError(a, b, e, f, g, h) {
 // ************************************************************
 
 pub fn run_renderer(
-  renderer: Renderer(a, b, e, f, g, h, z),
+  renderer: Renderer(a, b, c, d, e, f, g, z),
   parameters: RendererParameters,
   options: RendererOptions(z),
-) -> Result(List(String), RendererError(a, b, e, f, g, h)) {
+) -> Result(List(String), RendererError(a, b, c, d, e, f, g)) {
   let parameters = sanitize_input_output_dirs(parameters)
 
   let RendererParameters(
@@ -1905,41 +1937,53 @@ pub fn run_renderer(
     }
   }
 
-  use #(filtered, filtration_warnings) <- on.error_ok(
-    dl.filter_nodes_by_key_values(options.only_key_vals).transform(parsed),
-    on_error: fn(error) {
-      let infra.DesugaringError(blame, msg) = error
-      io.println("  ...key-value filtration error:")
+  use filtered <- on.error_ok(
+    renderer.filterer(parsed),
+    fn (c) {
+      io.println("  ...filtration error:")
       io.println("")
       [
-        #(" blame:", pr.our_blame_digest(blame)),
-        #(" error: ", ins(msg) |> pr.strip_quotes),
+        #("", ins(c) |> pr.strip_quotes),
       ]
       |> pr.two_column_error_announcer(0, 70, "💥", 2, "/ filtration error /")
       |> io.println
-      Error(KeyValueFiltrationError(blame, msg))
-    },
+      Error(FiltrationError(c))
+    }
   )
 
-  assert filtration_warnings == []
+  // use #(filtered, filtration_warnings) <- on.error_ok(
+  //   dl.filter_nodes_by_key_values(options.only_key_vals).transform(parsed),
+  //   on_error: fn(error) {
+  //     let infra.DesugaringError(blame, msg) = error
+  //     io.println("  ...key-value filtration error:")
+  //     io.println("")
+  //     [
+  //       #("", ins(msg) |> pr.strip_quotes),
+  //     ]
+  //     |> pr.two_column_error_announcer(0, 70, "💥", 2, "/ filtration error /")
+  //     |> io.println
+  //     Error(KeyValueFiltrationError(blame, msg))
+  //   },
+  // )
 
-  use #(filtered, filtration_warnings) <- on.error_ok(
-    dl.filter_nodes_by_path_key_values(options.only_path_key_vals).transform(filtered),
-    on_error: fn(error) {
-      let infra.DesugaringError(blame, msg) = error
-      io.println("  ...path-key-value filtration error:")
-      io.println("")
-      [
-        #(" blame:", pr.our_blame_digest(blame)),
-        #(" error: ", ins(msg) |> pr.strip_quotes),
-      ]
-      |> pr.two_column_error_announcer(0, 70, "💥", 2, "/ filtration error /")
-      |> io.println
-      Error(KeyValueFiltrationError(blame, msg))
-    },
-  )
+  // assert filtration_warnings == []
 
-  assert filtration_warnings == []
+  // use #(filtered, filtration_warnings) <- on.error_ok(
+  //   dl.filter_nodes_by_path_key_values(options.only_path_key_vals).transform(filtered),
+  //   on_error: fn(error) {
+  //     let infra.DesugaringError(blame, msg) = error
+  //     io.println("  ...path-key-value filtration error:")
+  //     io.println("")
+  //     [
+  //       #("", ins(msg) |> pr.strip_quotes),
+  //     ]
+  //     |> pr.two_column_error_announcer(0, 70, "💥", 2, "/ filtration error /")
+  //     |> io.println
+  //     Error(KeyValueFiltrationError(blame, msg))
+  //   },
+  // )
+
+  // assert filtration_warnings == []
 
   case options.echo_filtered_vxml {
     False -> Nil
@@ -2067,7 +2111,7 @@ pub fn run_renderer(
 
   use fragments <- on.error_ok(
     renderer.splitter(desugared),
-    on_error: fn(error: e) {
+    on_error: fn(error) {
       io.println("  ...splitter error:")
       io.println("")
       [

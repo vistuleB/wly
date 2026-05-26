@@ -71,7 +71,6 @@ import desugarers/delete_first_child_occurrences_of_and_recurse
 import desugarers/delete_if_empty
 import desugarers/delete_if_empty__batch
 import desugarers/delete_outside_subtrees
-import desugarers/delete_outside_subtrees_v2
 import desugarers/delete_text_nodes_with_singleton_empty_line
 import desugarers/detokenize_all
 import desugarers/detokenize_href_surroundings
@@ -85,7 +84,9 @@ import desugarers/expand_info_attribute
 import desugarers/expel_initial_last_backward_forward
 import desugarers/extract_starting_and_ending_spaces
 import desugarers/filter_nodes_by_key_values
+import desugarers/filter_nodes_by_key_values_while_saving
 import desugarers/filter_nodes_by_path_key_values
+import desugarers/filter_nodes_by_path_key_values_while_saving
 import desugarers/find_replace__batch__outside
 import desugarers/find_replace__outside
 import desugarers/find_replace_if_has_ancestor_else
@@ -126,7 +127,6 @@ import desugarers/insert_text_start_end
 import desugarers/insert_text_start_end_if_else
 import desugarers/insert_text_start_end_if_unique_attr
 import desugarers/insert_word_joiner_into_adjacent_text_nodes
-import desugarers/keep_only_subtrees_and_ancestors_of_nodes_matching_a_key_value_pair
 import desugarers/last_to_first_concatenate_text_nodes
 import desugarers/lbp_adorn_img_with_3003_spans
 import desugarers/lbp_adorn_with_3003_spans
@@ -172,9 +172,9 @@ import desugarers/prepend_text_node__outside
 import desugarers/prepend_text_node_if_fancy
 import desugarers/prepend_text_node_if_has_ancestor_else__batch
 import desugarers/rearrange_links
+import desugarers/rearrange_links__batch
 import desugarers/rearrange_links_4_pre_tokenized_src
 import desugarers/rearrange_links_4_pre_tokenized_src__batch
-import desugarers/rearrange_links__batch
 import desugarers/reassign_text_node_blame_to_blame_of_first_nonempty_line_in_text_node
 import desugarers/regex_split_and_replace__batch__outside
 import desugarers/regex_split_and_replace__outside
@@ -344,7 +344,6 @@ pub const delete_first_child_occurrences_of_and_recurse = delete_first_child_occ
 pub const delete_if_empty = delete_if_empty.constructor
 pub const delete_if_empty__batch = delete_if_empty__batch.constructor
 pub const delete_outside_subtrees = delete_outside_subtrees.constructor
-pub const delete_outside_subtrees_v2 = delete_outside_subtrees_v2.constructor
 pub const delete_text_nodes_with_singleton_empty_line = delete_text_nodes_with_singleton_empty_line.constructor
 pub const detokenize_all = detokenize_all.constructor
 pub const detokenize_href_surroundings = detokenize_href_surroundings.constructor
@@ -358,7 +357,9 @@ pub const expand_info_attribute = expand_info_attribute.constructor
 pub const expel_initial_last_backward_forward = expel_initial_last_backward_forward.constructor
 pub const extract_starting_and_ending_spaces = extract_starting_and_ending_spaces.constructor
 pub const filter_nodes_by_key_values = filter_nodes_by_key_values.constructor
+pub const filter_nodes_by_key_values_while_saving = filter_nodes_by_key_values_while_saving.constructor
 pub const filter_nodes_by_path_key_values = filter_nodes_by_path_key_values.constructor
+pub const filter_nodes_by_path_key_values_while_saving = filter_nodes_by_path_key_values_while_saving.constructor
 pub const find_replace__batch__outside = find_replace__batch__outside.constructor
 pub const find_replace__outside = find_replace__outside.constructor
 pub const find_replace_if_has_ancestor_else = find_replace_if_has_ancestor_else.constructor
@@ -399,7 +400,6 @@ pub const insert_text_start_end = insert_text_start_end.constructor
 pub const insert_text_start_end_if_else = insert_text_start_end_if_else.constructor
 pub const insert_text_start_end_if_unique_attr = insert_text_start_end_if_unique_attr.constructor
 pub const insert_word_joiner_into_adjacent_text_nodes = insert_word_joiner_into_adjacent_text_nodes.constructor
-pub const keep_only_subtrees_and_ancestors_of_nodes_matching_a_key_value_pair = keep_only_subtrees_and_ancestors_of_nodes_matching_a_key_value_pair.constructor
 pub const last_to_first_concatenate_text_nodes = last_to_first_concatenate_text_nodes.constructor
 pub const lbp_adorn_img_with_3003_spans = lbp_adorn_img_with_3003_spans.constructor
 pub const lbp_adorn_with_3003_spans = lbp_adorn_with_3003_spans.constructor
@@ -445,9 +445,9 @@ pub const prepend_text_node__outside = prepend_text_node__outside.constructor
 pub const prepend_text_node_if_fancy = prepend_text_node_if_fancy.constructor
 pub const prepend_text_node_if_has_ancestor_else__batch = prepend_text_node_if_has_ancestor_else__batch.constructor
 pub const rearrange_links = rearrange_links.constructor
+pub const rearrange_links__batch = rearrange_links__batch.constructor
 pub const rearrange_links_4_pre_tokenized_src = rearrange_links_4_pre_tokenized_src.constructor
 pub const rearrange_links_4_pre_tokenized_src__batch = rearrange_links_4_pre_tokenized_src__batch.constructor
-pub const rearrange_links__batch = rearrange_links__batch.constructor
 pub const reassign_text_node_blame_to_blame_of_first_nonempty_line_in_text_node = reassign_text_node_blame_to_blame_of_first_nonempty_line_in_text_node.constructor
 pub const regex_split_and_replace__batch__outside = regex_split_and_replace__batch__outside.constructor
 pub const regex_split_and_replace__outside = regex_split_and_replace__outside.constructor
@@ -618,7 +618,6 @@ pub const assertive_tests : List(fn() -> infra.AssertiveTestCollection) = [
   delete_if_empty.assertive_tests,
   delete_if_empty__batch.assertive_tests,
   delete_outside_subtrees.assertive_tests,
-  delete_outside_subtrees_v2.assertive_tests,
   delete_text_nodes_with_singleton_empty_line.assertive_tests,
   detokenize_all.assertive_tests,
   detokenize_href_surroundings.assertive_tests,
@@ -632,7 +631,9 @@ pub const assertive_tests : List(fn() -> infra.AssertiveTestCollection) = [
   expel_initial_last_backward_forward.assertive_tests,
   extract_starting_and_ending_spaces.assertive_tests,
   filter_nodes_by_key_values.assertive_tests,
+  filter_nodes_by_key_values_while_saving.assertive_tests,
   filter_nodes_by_path_key_values.assertive_tests,
+  filter_nodes_by_path_key_values_while_saving.assertive_tests,
   find_replace__batch__outside.assertive_tests,
   find_replace__outside.assertive_tests,
   find_replace_if_has_ancestor_else.assertive_tests,
@@ -673,7 +674,6 @@ pub const assertive_tests : List(fn() -> infra.AssertiveTestCollection) = [
   insert_text_start_end_if_else.assertive_tests,
   insert_text_start_end_if_unique_attr.assertive_tests,
   insert_word_joiner_into_adjacent_text_nodes.assertive_tests,
-  keep_only_subtrees_and_ancestors_of_nodes_matching_a_key_value_pair.assertive_tests,
   last_to_first_concatenate_text_nodes.assertive_tests,
   lbp_adorn_img_with_3003_spans.assertive_tests,
   lbp_adorn_with_3003_spans.assertive_tests,
@@ -719,9 +719,9 @@ pub const assertive_tests : List(fn() -> infra.AssertiveTestCollection) = [
   prepend_text_node_if_fancy.assertive_tests,
   prepend_text_node_if_has_ancestor_else__batch.assertive_tests,
   rearrange_links.assertive_tests,
+  rearrange_links__batch.assertive_tests,
   rearrange_links_4_pre_tokenized_src.assertive_tests,
   rearrange_links_4_pre_tokenized_src__batch.assertive_tests,
-  rearrange_links__batch.assertive_tests,
   reassign_text_node_blame_to_blame_of_first_nonempty_line_in_text_node.assertive_tests,
   regex_split_and_replace__batch__outside.assertive_tests,
   regex_split_and_replace__outside.assertive_tests,

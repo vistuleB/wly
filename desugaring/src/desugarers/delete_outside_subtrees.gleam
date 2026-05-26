@@ -1,54 +1,72 @@
+import gleam/function
 import gleam/list
 import gleam/string.{inspect as ins}
-import gleam/option
+import gleam/option.{type Option, Some, None}
 import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as infra
 import nodemaps_2_desugarer_transforms as n2t
-import vxml.{type VXML, T, V}
+import vxml.{type VXML}
 
-fn nodemap(
+fn v_before(
   vxml: VXML,
-  ancestors: List(VXML),
-  _: List(VXML),
-  _: List(VXML),
-  _: List(VXML),
+  state: State,
   inner: InnerParam,
-) -> List(VXML) {
-  case vxml {
-    T(_, _) ->
-      case list.any(ancestors, inner) {
-        True -> [vxml]
-        False -> []
-      }
-    V(_, _, _, children) -> {
-      case
-        !list.is_empty(children) || list.any(ancestors, inner) || inner(vxml)
-      {
-        True -> [vxml]
-        False -> []
-      }
-    }
+) -> #(Option(VXML), State, infra.TrafficLight) {
+  assert !state
+  case inner(vxml) {
+    True -> #(Some(vxml), True, infra.GoBack)
+    False -> #(Some(vxml), False, infra.Continue)
   }
 }
 
-fn nodemap_factory(inner: InnerParam) -> n2t.FancyOneToManyNoErrorNodemap {
-  fn(vxml, a, s1, s2, s3) { nodemap(vxml, a, s1, s2, s3, inner) }
+fn v_after(
+  vxml: VXML,
+  original_state: State,
+  children_states: List(State),
+) -> #(Option(VXML), State) {
+  assert !original_state
+  case list.any(children_states, function.identity) {
+    True -> #(Some(vxml), True)
+    False -> #(None, False)
+  }
+}
+
+fn t_transform(
+  vxml: VXML,
+  state: State,
+  inner: InnerParam,
+) -> #(Option(VXML), State) {
+  assert !state
+  case inner(vxml) {
+    True -> #(Some(vxml), True)
+    False -> #(None, False)
+  }
+}
+
+fn nodemap_factory(inner: InnerParam) -> n2t.EarlyReturnOneToOptionNoErrorBeforeAndAfterV2StatefulNodemap(State) {
+  n2t.EarlyReturnOneToOptionNoErrorBeforeAndAfterV2StatefulNodemap(
+    fn(v, s) { v_before(v, s, inner) }, 
+    v_after, 
+    fn(v, s) { t_transform(v, s, inner) }, 
+  )
 }
 
 fn transform_factory(inner: InnerParam) -> DesugarerTransform {
   nodemap_factory(inner)
-  |> n2t.fancy_one_to_many_no_error_nodemap_2_desugarer_transform()
+  |> n2t.early_return_one_to_option_no_error_before_and_after_v2_stateful_nodemap_2_desugarer_transform(False)
 }
 
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
   Ok(param)
 }
 
+type State = Bool
+
 type Param = fn(VXML) -> Bool
-//             ↖
-//             a node is saved
-//             iff one of its
-//             ancestors fulfills
-//             this condition
+//           ↖
+//           a node is saved
+//           iff it or one of its
+//           ancestors fulfills
+//           this condition
 type InnerParam = Param
 
 pub const name = "delete_outside_subtrees"

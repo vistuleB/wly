@@ -28,18 +28,6 @@ pub fn run_renderer_test() {
     fn() { io.println("test_renderer exiting on '--help' option") },
   )
 
-  let renderer =
-    ds.Renderer(
-      assembler: ds.default_writerly_assembler(_, amendments.only_paths),
-      parser: ds.default_writerly_parser,
-      pipeline: pipeline(),
-      splitter: ds.stub_splitter(".tsx"),
-      emitter: ds.stub_jsx_emitter,
-      writer: ds.default_writer,
-      prettifier: ds.default_prettier_prettifier,
-    )
-    |> ds.amend_renderer_by_command_line_amendments(amendments)
-
   let parameters =
     ds.RendererParameters(
       input_dir: "samples/sample.wly",
@@ -48,10 +36,22 @@ pub fn run_renderer_test() {
     )
     |> ds.amend_renderer_paramaters_by_command_line_amendments(amendments)
 
-
   let options =
     ds.vanilla_options()
     |> ds.amend_renderer_options_by_command_line_amendments(amendments)
+
+  let renderer =
+    ds.Renderer(
+      assembler: ds.default_writerly_assembler(_, options),
+      filterer: ds.default_filterer(_, options, []),
+      parser: ds.default_writerly_parser,
+      pipeline: pipeline(),
+      splitter: ds.stub_splitter(".tsx"),
+      emitter: ds.stub_jsx_emitter,
+      writer: ds.default_writer,
+      prettifier: ds.default_prettier_prettifier,
+    )
+    |> ds.amend_renderer_by_command_line_amendments(amendments)
 
   let _ = ds.run_renderer(renderer, parameters, options)
 
