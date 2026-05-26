@@ -93,8 +93,22 @@ type SectionInfo {
 type ChapterInfo {
   ChapterInfo(
     title: Title,
-    sections: List(SectionInfo)
+    has_content: Bool,
+    sections: List(SectionInfo),
   )
+}
+
+// A Chapter has content when there are nodes between its optional ChapterTitle
+// and its first Section child.
+fn chapter_has_content(vxml: VXML) -> Bool {
+  let assert V(_, "Chapter", _, children) = vxml
+  case children {
+    [] -> False
+    [V(_, "ChapterTitle", _, _)] -> False
+    [V(_, "Section", _, _), ..] -> False
+    [V(_, "ChapterTitle", _, _), V(_, "Section", _, _), ..] -> False
+    _ -> True
+  }
 }
 
 type ChapterOrSection {
@@ -122,19 +136,19 @@ fn gather_title(
   }
 }
 
-fn add_chapter_with_title_to_state(
+fn add_chapter_to_state(
   state: List(ChapterInfo),
   title: Title,
+  has_content: Bool,
 ) -> List(ChapterInfo) {
-  let chapter = ChapterInfo(title, [])
-  [chapter, ..state]
+  [ChapterInfo(title, has_content, []), ..state]
 }
 
 fn add_section_with_title_to_state(
   state: List(ChapterInfo),
   title: Title,
 ) -> List(ChapterInfo) {
-  let assert [ChapterInfo(_, sections) as first, ..rest] = state
+  let assert [ChapterInfo(_, _, sections) as first, ..rest] = state
   let first = ChapterInfo(..first, sections: [SectionInfo(title, []), ..sections])
   [first, ..rest]
 }
@@ -143,7 +157,7 @@ fn add_subsection_with_title_to_state(
   state: List(ChapterInfo),
   title: Title,
 ) -> List(ChapterInfo) {
-  let assert [ChapterInfo(_, [SectionInfo(_, subsections) as section, ..sections]) as chapter, ..rest] = state
+  let assert [ChapterInfo(_, _, [SectionInfo(_, subsections) as section, ..sections]) as chapter, ..rest] = state
   let section = SectionInfo(..section, subsections: [SubSectionInfo(title), ..subsections])
   let chapter = ChapterInfo(..chapter, sections: [section, ..sections])
   [chapter, ..rest]
@@ -158,8 +172,12 @@ fn chapter_info_information_collector(
       Ok(#(state, Continue))
 
     V(_, "Chapter", _, _) -> {
-      use title <- on.ok(gather_title(vxml, Chapter))
-      Ok(#(state |> add_chapter_with_title_to_state(title), Continue))
+      let title = case gather_title(vxml, Chapter) {
+        Ok(t) -> t
+        Error(_) -> []
+      }
+      let has_content = chapter_has_content(vxml)
+      Ok(#(state |> add_chapter_to_state(title, has_content), Continue))
     }
 
     V(_, "Section", _, _) -> {
@@ -254,7 +272,7 @@ fn chapter_item(
   chapter: ChapterInfo,
 ) -> VXML {
   let b = desugarer_blame(256)
-  let ChapterInfo(title, sections) = chapter
+  let ChapterInfo(title, has_content, sections) = chapter
   let sections_ol = case sections {
     [] -> []
     _ -> [
@@ -267,21 +285,17 @@ fn chapter_item(
     ]
   }
 
-  let link = V(
-    b,
-    "a",
-    [
-      Attr(b, "href", href(ch_no, 0, 0)),
-    ],
-    title,
-  )
+  let heading = case has_content {
+    True -> V(b, "a", [Attr(b, "href", href(ch_no, 0, 0))], title)
+    False -> V(b, "span", [], title)
+  }
 
   V(
     b,
     "li",
     [],
     [
-      link,
+      heading,
       ..sections_ol,
     ],
   )
