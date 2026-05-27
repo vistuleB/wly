@@ -76,7 +76,7 @@ import desugarers/detokenize_all
 import desugarers/detokenize_href_surroundings
 import desugarers/dr_create_index
 import desugarers/dr_create_menu
-import desugarers/dr_generate_js_course_235a
+import desugarers/dr_generate_js_course
 import desugarers/echo_v_if_see_text
 import desugarers/ensure_attribute_value_starts_with
 import desugarers/ensure_attribute_value_starts_with_prefix
@@ -172,9 +172,9 @@ import desugarers/prepend_text_node__outside
 import desugarers/prepend_text_node_if_fancy
 import desugarers/prepend_text_node_if_has_ancestor_else__batch
 import desugarers/rearrange_links
-import desugarers/rearrange_links__batch
 import desugarers/rearrange_links_4_pre_tokenized_src
 import desugarers/rearrange_links_4_pre_tokenized_src__batch
+import desugarers/rearrange_links__batch
 import desugarers/reassign_text_node_blame_to_blame_of_first_nonempty_line_in_text_node
 import desugarers/regex_split_and_replace__batch__outside
 import desugarers/regex_split_and_replace__outside
@@ -349,7 +349,7 @@ pub const detokenize_all = detokenize_all.constructor
 pub const detokenize_href_surroundings = detokenize_href_surroundings.constructor
 pub const dr_create_index = dr_create_index.constructor
 pub const dr_create_menu = dr_create_menu.constructor
-pub const dr_generate_js_course_235a = dr_generate_js_course_235a.constructor
+pub const dr_generate_js_course = dr_generate_js_course.constructor
 pub const echo_v_if_see_text = echo_v_if_see_text.constructor
 pub const ensure_attribute_value_starts_with = ensure_attribute_value_starts_with.constructor
 pub const ensure_attribute_value_starts_with_prefix = ensure_attribute_value_starts_with_prefix.constructor
@@ -445,9 +445,9 @@ pub const prepend_text_node__outside = prepend_text_node__outside.constructor
 pub const prepend_text_node_if_fancy = prepend_text_node_if_fancy.constructor
 pub const prepend_text_node_if_has_ancestor_else__batch = prepend_text_node_if_has_ancestor_else__batch.constructor
 pub const rearrange_links = rearrange_links.constructor
-pub const rearrange_links__batch = rearrange_links__batch.constructor
 pub const rearrange_links_4_pre_tokenized_src = rearrange_links_4_pre_tokenized_src.constructor
 pub const rearrange_links_4_pre_tokenized_src__batch = rearrange_links_4_pre_tokenized_src__batch.constructor
+pub const rearrange_links__batch = rearrange_links__batch.constructor
 pub const reassign_text_node_blame_to_blame_of_first_nonempty_line_in_text_node = reassign_text_node_blame_to_blame_of_first_nonempty_line_in_text_node.constructor
 pub const regex_split_and_replace__batch__outside = regex_split_and_replace__batch__outside.constructor
 pub const regex_split_and_replace__outside = regex_split_and_replace__outside.constructor
@@ -623,7 +623,7 @@ pub const assertive_tests : List(fn() -> infra.AssertiveTestCollection) = [
   detokenize_href_surroundings.assertive_tests,
   dr_create_index.assertive_tests,
   dr_create_menu.assertive_tests,
-  dr_generate_js_course_235a.assertive_tests,
+  dr_generate_js_course.assertive_tests,
   echo_v_if_see_text.assertive_tests,
   ensure_attribute_value_starts_with.assertive_tests,
   ensure_attribute_value_starts_with_prefix.assertive_tests,
@@ -719,9 +719,9 @@ pub const assertive_tests : List(fn() -> infra.AssertiveTestCollection) = [
   prepend_text_node_if_fancy.assertive_tests,
   prepend_text_node_if_has_ancestor_else__batch.assertive_tests,
   rearrange_links.assertive_tests,
-  rearrange_links__batch.assertive_tests,
   rearrange_links_4_pre_tokenized_src.assertive_tests,
   rearrange_links_4_pre_tokenized_src__batch.assertive_tests,
+  rearrange_links__batch.assertive_tests,
   reassign_text_node_blame_to_blame_of_first_nonempty_line_in_text_node.assertive_tests,
   regex_split_and_replace__batch__outside.assertive_tests,
   regex_split_and_replace__outside.assertive_tests,
