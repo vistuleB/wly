@@ -27,11 +27,11 @@ type PageAddr {
 fn page_href(addr: PageAddr) -> String {
   case addr {
     ChapterAddr(ch) ->
-      "/" <> int.to_string(ch) <> "-0.html"
+      "./" <> int.to_string(ch) <> "-0.html"
     SectionAddr(ch, sec) ->
-      "/" <> int.to_string(ch) <> "-" <> int.to_string(sec) <> ".html"
+      "./" <> int.to_string(ch) <> "-" <> int.to_string(sec) <> ".html"
     SubSectionAddr(ch, sec, sub) ->
-      "/"
+      "./"
       <> int.to_string(ch)
       <> "-"
       <> int.to_string(sec)
@@ -143,7 +143,7 @@ fn build_nav_dict(
   pages: List(PageAddr),
 ) -> Dict(PageAddr, #(Option(String), Option(String))) {
   let hrefs = list.map(pages, page_href)
-  build_nav_entries(pages, hrefs, Some("/"))
+  build_nav_entries(pages, hrefs, Some("./index.html"))
   |> dict.from_list
 }
 
