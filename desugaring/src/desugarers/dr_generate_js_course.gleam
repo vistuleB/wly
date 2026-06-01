@@ -114,7 +114,7 @@ fn transform_factory(inner: InnerParam) -> DesugarerTransform {
 }
 
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
-  Ok(param |> infra.drop_suffix("/"))
+  Ok(param |> infra.drop_suffix("/") <> "/public")
 }
 
 type Param = String
@@ -127,9 +127,9 @@ fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
 // 🏖️🏖️ Desugarer 🏖️🏖️
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 //------------------------------------------------53
-/// walks the Document tree and generates course.js at the
-/// given path containing a chapterMap where each key is a
-/// chapter number (1-based) and the value is:
+/// takes a course name (e.g. "235A") and writes course.js to
+/// <course_name>/public/course.js containing a chapterMap where
+/// each key is a chapter number (1-based) and the value is:
 ///   0  – the chapter has content (url points to the chapter itself)
 ///   1  – the chapter has no content but has a Section child
 ///         (url points to the first section)
