@@ -14,7 +14,7 @@ fn ensure_has_id_attr(
     Some(attr) -> #(vxml, counter, attr.val)
     None -> {
       let counter = counter + 1
-      let id = "_" <> ins(counter) <> "_hgi_"
+      let id = "_" <> ins(counter) <> "_h.a.i_"
       let attrs = list.append(
         vxml.attrs,
         [Attr(vxml.blame, "id", id)]

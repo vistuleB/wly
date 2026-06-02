@@ -3221,9 +3221,10 @@ fn bring_to_bystander_level(line: SLine) -> SLine {
   }
 }
 
-fn is_v_s_line(line: SLine) -> Bool {
+fn is_v_or_t_s_line(line: SLine) -> Bool {
   case line {
     VSLine(_, _, _, _, _) -> True
+    TSLine(_, _, _, _) -> True
     _ -> False
   }
 }
@@ -3283,9 +3284,9 @@ pub fn extend_selection_up(
 
 pub fn extend_selection_to_ancestors(
   lines: List(SLine),
-  with_elder_siblings w_s: Bool,
-  with_ancestor_attrs w_a_a: Bool,
-  with_elder_sibling_attrs w_e_a: Bool,
+  with_elder_siblings w1: Bool,
+  with_ancestor_attrs w2: Bool,
+  with_elder_sibling_attrs w3: Bool,
 ) -> List(SLine) {
   lines
   |> list.reverse
@@ -3293,20 +3294,20 @@ pub fn extend_selection_to_ancestors(
     #(-1, []),
     fn (acc, line) {
       let #(indent, lines) = acc
-      let is_v = is_v_s_line(line)
+      let is_v_or_t = is_v_or_t_s_line(line)
       let is_a = is_a_s_line(line)
       let line = case {
         line.indent < indent
       } || {
-        line.indent == indent && { {is_v && w_s} || {is_a && w_a_a} }
+        line.indent == indent && {{ is_v_or_t && w1 } || { is_a && w2 }}
       } || {
-        line.indent == indent + 2 && w_s && is_a && w_e_a
+        line.indent == indent + 2 && w1 && is_a && w3
       } {
         True -> line |> bring_to_bystander_level
         False -> line
       }
       let indent = case {
-        line.indent < indent && is_v
+        line.indent < indent && is_v_or_t
       } || {
         line.indent > indent && is_og(line)
       } {
@@ -3343,14 +3344,17 @@ pub fn extend_selector_down(
 
 pub fn extend_selector_to_ancestors(
   f: Selector,
-  with_elder_siblings with_siblings: Bool,
-  with_ancestor_attrs w_a_a: Bool,
-  with_elder_sibling_attrs w_e_a: Bool,
+  with_elder_siblings w1: Bool,
+  with_ancestor_attrs w2: Bool,
+  with_elder_sibling_attrs w3: Bool,
 ) -> Selector {
+  echo w1
+  echo w2
+  echo w3
   fn (lines) {
     lines
     |> f
-    |> extend_selection_to_ancestors(with_siblings, w_a_a, w_e_a)
+    |> extend_selection_to_ancestors(w1, w2, w3)
   }
 }
 
@@ -3484,3 +3488,32 @@ pub fn s_lines_table(
 // ************************************************************
 
 pub type Pipeline = List(Desugarer)
+
+// some debugging utils
+
+fn first_difference_acc(
+  list1: List(String),
+  list2: List(String),
+  index: Int,
+) -> Result(#(Int, String, String), Nil) {
+  case list1, list2 {
+    [h1, ..], [h2, ..] if h1 != h2 -> {
+      // Point of difference found
+      Ok(#(index, h1, h2))
+    }
+    [_, ..t1], [_, ..t2] -> {
+      // Characters match, continue to next index
+      first_difference_acc(t1, t2, index + 1)
+    }
+    _, _ -> {
+      // No differences found (e.g., strings are identical or one is a perfect prefix of the other)
+      Error(Nil)
+    }
+  }
+}
+
+pub fn string_first_difference(str1: String, str2: String) -> Result(#(Int, String, String), Nil) {
+  let list1 = string.to_graphemes(str1)
+  let list2 = string.to_graphemes(str2)
+  first_difference_acc(list1, list2, 0)
+}
