@@ -288,7 +288,7 @@ pub type Prettifier(z, g) =
   fn(String, GhostOfOutputFragment(z), Option(String)) -> Result(String, g)
 
 pub fn run_prettier(in: String, path: String, check: Bool) -> Result(String, #(Int, String)) {
-  shellout.command(
+  let result = shellout.command(
     run: "prettier",
     in: in,
     with: [
@@ -301,6 +301,27 @@ pub fn run_prettier(in: String, path: String, check: Bool) -> Result(String, #(I
     ],
     opt: [],
   )
+  let output = case result {
+    Ok(s) -> s
+    Error(#(_, s)) -> s
+  }
+  let error_lines =
+    output
+    |> string.split("\n")
+    |> list.filter(fn(line) { string.starts_with(line, "[error]") })
+  list.each(error_lines, io.println)
+  case result {
+    Ok(_) -> Ok("")
+    Error(#(code, _)) ->
+      case error_lines {
+        [] ->
+          case check {
+            True -> Ok("")
+            False -> Error(#(code, ""))
+          }
+        _ -> Error(#(code, string.join(error_lines, "\n")))
+      }
+  }
 }
 
 pub fn default_prettier_prettifier(
@@ -327,8 +348,8 @@ pub fn default_prettier_prettifier(
     }
     None -> {
       run_prettier(".", source_path, True)
-      |> result.map(fn(msg) {
-        msg <> " for [" <> output_dir <> "/]" <> ghost.path
+      |> result.map(fn(_) {
+        "checked [" <> output_dir <> "/]" <> ghost.path
       })
     }
   }
@@ -375,7 +396,7 @@ pub type Renderer(
 pub type PrettifierMode {
   PrettifierOff
   PrettifierOverwriteOutputDir
-  PrettifierToBespokeDir(String)
+  PrettifierToBespokeDir(Option(String))
 }
 
 pub type RendererParameters {
@@ -731,7 +752,7 @@ pub fn process_command_line_arguments(
 
         "--prettier" ->
           case values {
-            [dir] -> Ok(CommandLineAmendments(..amendments, prettier: Some(PrettifierToBespokeDir(dir))))
+            [dir] -> Ok(CommandLineAmendments(..amendments, prettier: Some(PrettifierToBespokeDir(Some(dir)))))
             [] -> Ok(CommandLineAmendments(..amendments, prettier: Some(PrettifierOverwriteOutputDir)))
             _ -> Error(UnexpectedArgumentsToOption("--prettier2"))
           }
@@ -2299,7 +2320,7 @@ pub fn run_renderer(
       use dest_dir <- on.stay(case prettifier_mode {
         PrettifierOff -> on.Return(result)
         PrettifierOverwriteOutputDir -> on.Stay(Some(output_dir))
-        PrettifierToBespokeDir(dir) -> on.Stay(Some(dir))
+        PrettifierToBespokeDir(dir) -> on.Stay(dir)
       })
       case renderer.prettifier(output_dir, fr, dest_dir) {
         Error(e) -> {
