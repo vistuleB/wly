@@ -599,10 +599,11 @@ pub fn basic_cli_usage(header: String) {
   io.println(margin <> "          • <n> to fast-forward past n next outputs;")
   io.println(margin <> "          • 'c' to cancel the desugaring entirely;")
   io.println("")
-  io.println(margin <> "--prettier [<dir>]")
-  io.println(margin <> "  -> turn the prettifier on and have the prettifier output to")
-  io.println(margin <> "     <dir>; if absent, <dir> defaults to")
-  io.println(margin <> "     renderer_parameters.output_dir")
+  io.println(margin <> "--prettier [check | <dir>]")
+  io.println(margin <> "  -> run prettier on the output files;")
+  io.println(margin <> "     'check'  : check formatting without modifying files (prettier --check)")
+  io.println(margin <> "     <dir>    : write prettified output to <dir>")
+  io.println(margin <> "     (absent) : write in place to renderer_parameters.output_dir")
   io.println("")
   io.println(margin <> "--verbose")
   io.println(margin <> "  -> verbose renderer output")
@@ -751,6 +752,7 @@ pub fn process_command_line_arguments(
 
         "--prettier" ->
           case values {
+            ["check"] -> Ok(CommandLineAmendments(..amendments, prettier: Some(PrettifierToBespokeDir(None))))
             [dir] -> Ok(CommandLineAmendments(..amendments, prettier: Some(PrettifierToBespokeDir(Some(dir)))))
             [] -> Ok(CommandLineAmendments(..amendments, prettier: Some(PrettifierOverwriteOutputDir)))
             _ -> Error(UnexpectedArgumentsToOption("--prettier2"))
