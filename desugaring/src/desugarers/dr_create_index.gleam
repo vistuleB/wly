@@ -313,23 +313,51 @@ fn chapter_ol(chapters: List(ChapterInfo)) -> VXML {
   )
 }
 
+// 🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸
+// 🌸 index navigation~~ 🌸
+// 🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸
+
+fn anchor(id: String, href_val: String) -> VXML {
+  let b = desugarer_blame(300)
+  V(b, "a", [Attr(b, "id", id), Attr(b, "href", href_val)], [])
+}
+
+fn index_next_page_href(root: VXML) -> option.Option(String) {
+  let assert V(_, "Document", _, children) = root
+  case list.find(children, fn(v) {
+    case v { V(_, "Chapter", _, _) -> True _ -> False }
+  }) {
+    Error(_) -> option.None
+    Ok(first_chapter) ->
+      case chapter_has_content(first_chapter) {
+        True -> option.Some(href(1, 0, 0))
+        False -> option.Some(href(1, 1, 0))
+      }
+  }
+}
+
 // 🌸🌸🌸🌸🌸🌸🌸
 // 🌸 main~~ 🌸
 // 🌸🌸🌸🌸🌸🌸🌸
 
 fn index(root: VXML) -> Result(VXML, DesugaringError) {
   use chapter_infos <- on.ok(gather_chapter_infos(root))
+  let b = desugarer_blame(330)
+
+  let nav = case index_next_page_href(root) {
+    option.None -> []
+    option.Some(next_href) -> [
+      V(b, "Navigation", [Attr(b, "class", "nav")], [anchor("next-page", next_href)]),
+    ]
+  }
 
   Ok(V(
-    desugarer_blame(310),
+    b,
     "Index",
     [
-      Attr(desugarer_blame(313), "path", "./index.html"),
+      Attr(desugarer_blame(343), "path", "./index.html"),
     ],
-    [
-      header(root),
-      chapter_ol(chapter_infos),
-    ],
+    list.flatten([nav, [header(root), chapter_ol(chapter_infos)]]),
   ))
 }
 
