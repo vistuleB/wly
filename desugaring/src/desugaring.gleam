@@ -292,7 +292,6 @@ pub fn run_prettier(in: String, path: String, check: Bool) -> Result(String, #(I
     run: "prettier",
     in: in,
     with: [
-      "",
       case check {
         True -> "--check"
         False -> "--write"
