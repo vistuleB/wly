@@ -462,7 +462,7 @@ pub fn vanilla_options() -> RendererOptions(z) {
     steps_table: False,
     profiling_table: None,
     interactive_mode: False,
-    warnings: True,
+    warnings: False,
     only_paths: [],
     only_key_vals: [],
     only_path_key_vals: [],
@@ -658,7 +658,7 @@ pub fn advanced_cli_usage(header: String) {
   io.println(margin <> "  -> run prettier --write, outputting to <dir> instead of output_dir")
   io.println("")
   io.println(margin <> "--warnings/--no-warnings")
-  io.println(margin <> "  -> force/suppress long-form printout of desugaring warnings")
+  io.println(margin <> "  -> force/suppress long-form printout of warnings")
   io.println("")
   io.println(margin <> "--echo-assembled")
   io.println(margin <> "  -> print the assembled input lines of source")
@@ -2374,8 +2374,8 @@ pub fn run_renderer(
           io.print("  prettify-checking [" <> output_dir <> "]" <> fr.path <> "...")
         Some(dir) ->
           io.print(
-            "  prettifying [" <> output_dir <> "]" <> fr.path
-            <> " -> [" <> dir <> "]" <> fr.path <> "...",
+            "  prettifying [" <> output_dir <> "/]" <> fr.path
+            <> " -> [" <> dir <> "/]" <> fr.path <> "...",
           )
       }
       case renderer.prettifier(output_dir, fr, dest_dir) {
