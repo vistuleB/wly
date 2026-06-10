@@ -304,32 +304,20 @@ pub fn run_prettier(in: String, path: String, check: Bool) -> PrettifierFeedback
     Error(#(_, s)) -> s
   }
   let lines = string.split(output, "\n")
-  let strip_prefix = fn(line: String, prefix: String) -> String {
-    let trimmed = case string.starts_with(line, prefix <> " ") {
-      True -> string.drop_start(line, string.length(prefix) + 1)
-      False -> case string.starts_with(line, prefix) {
-        True -> string.drop_start(line, string.length(prefix))
-        False -> line
-      }
-    }
-    string.trim(trimmed)
-  }
   let warnings =
     lines
     |> list.filter(fn(l) { string.starts_with(l, "[warn]") })
-    |> list.map(strip_prefix(_, "[warn]"))
-    |> list.filter(fn(l) { l != "" })
+    |> list.map(fn (s) { string.drop_start(s, 6) |> string.trim })
   let error_lines =
     lines
     |> list.filter(fn(l) { string.starts_with(l, "[error]") })
-    |> list.map(strip_prefix(_, "[error]"))
-    |> list.filter(fn(l) { l != "" })
+    |> list.map(fn (s) { string.drop_start(s, 7) |> string.trim })
   let errors = case result {
     Ok(_) -> error_lines
     Error(#(_, _)) ->
       case error_lines {
         [_, ..] -> error_lines
-        [] ->
+        [] -> {
           case check {
             True -> []
             False ->
@@ -338,6 +326,7 @@ pub fn run_prettier(in: String, path: String, check: Bool) -> PrettifierFeedback
                 s -> [s]
               }
           }
+        }
       }
   }
   PrettifierFeedback(warnings: warnings, errors: errors)
@@ -2368,7 +2357,7 @@ pub fn run_renderer(
   // 🌸 prettifying 🌸
 
   case prettifier_mode != PrettifierOff {
-    True -> io.println("• prettifying")
+    True -> io.println("• prettifying:")
     False -> Nil
   }
   let fragments =
