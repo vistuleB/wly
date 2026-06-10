@@ -347,6 +347,7 @@ pub fn default_prettier_prettifier(
   use #(dest_path, check) <- on.stay(
     case prettier_dir {
       None -> on.Stay(#(source_path, True))
+
       Some(dir) -> {
         let dest_path = dir <> "/" <> ghost.path
         use <- on.true_false(
@@ -380,7 +381,7 @@ pub fn default_prettier_prettifier(
     }
   )
 
-  Some(run_prettier(".", dest_path, check))
+  run_prettier(".", dest_path, check) |> Some
 }
 
 pub fn empty_prettifier(
