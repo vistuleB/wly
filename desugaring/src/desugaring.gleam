@@ -337,47 +337,50 @@ pub fn default_prettier_prettifier(
   ghost: GhostOfOutputFragment(z),
   prettier_dir: Option(String),
 ) -> Option(PrettifierFeedback) {
-  case
-    string.ends_with(ghost.path, ".html")
-    || string.ends_with(ghost.path, ".tsx")
-  {
-    False -> None
-    True -> {
-      let source_path = output_dir <> "/" <> ghost.path
-      let feedback = case prettier_dir {
-        Some(dir) -> {
-          let dest_path = dir <> "/" <> ghost.path
-          case create_dirs_on_path_to_file(dest_path) {
-            Error(e) ->
-              PrettifierFeedback(
-                warnings: [],
-                errors: ["could not create directories on path " <> ins(e)],
-              )
-            Ok(_) -> {
-              case
-                case source_path != dest_path {
-                  True ->
-                    shellout.command(
-                      run: "cp",
-                      in: ".",
-                      with: [source_path, dest_path],
-                      opt: [],
-                    )
-                  False -> Ok("")
-                }
-              {
-                Error(#(_, msg)) ->
-                  PrettifierFeedback(warnings: [], errors: [string.trim(msg)])
-                Ok(_) -> run_prettier(".", dest_path, False)
-              }
-            }
+  use <- on.eager_false_true(
+    list.any([".html", ".tsx"], string.ends_with(ghost.path, _)),
+    None
+  )
+
+  let source_path = output_dir <> "/" <> ghost.path
+
+  use #(dest_path, check) <- on.stay(
+    case prettier_dir {
+      None -> on.Stay(#(source_path, True))
+      Some(dir) -> {
+        let dest_path = dir <> "/" <> ghost.path
+        use <- on.true_false(
+          source_path == dest_path,
+          fn() { on.Stay(#(dest_path, False)) }
+        )
+        use _ <- on.error_ok(
+          create_dirs_on_path_to_file(dest_path),
+          fn(e) {
+            on.Return(Some(PrettifierFeedback(
+              warnings: [],
+              errors: ["could not create directories on path " <> ins(e)]
+            )))
           }
+        )
+        case shellout.command(
+          run: "cp",
+          in: ".",
+          with: [source_path, dest_path],
+          opt: [],
+        ) {
+          Error(#(_, msg)) -> {
+            on.Return(Some(PrettifierFeedback(
+              warnings: [],
+              errors: ["unable to copy '" <> source_path <> "' to '" <> dest_path <> "':" <> string.trim(msg)])
+            ))
+          }
+          _ -> on.Stay(#(dest_path, False))
         }
-        None -> run_prettier(".", source_path, True)
       }
-      Some(feedback)
     }
-  }
+  )
+
+  Some(run_prettier(".", dest_path, check))
 }
 
 pub fn empty_prettifier(
@@ -2356,62 +2359,62 @@ pub fn run_renderer(
 
   // 🌸 prettifying 🌸
 
-  case prettifier_mode != PrettifierOff {
-    True -> io.println("• prettifying:")
-    False -> Nil
+  let run_prettification = fn(result, dest_dir) {
+    use fr: GhostOfOutputFragment(z) <- on.eager_error_ok(result, Nil)
+    case dest_dir {
+      None ->
+        io.print("  prettify-checking [" <> output_dir <> "]" <> fr.path <> "...")
+      Some(dir) ->
+        io.print(
+          "  prettifying [" <> output_dir <> "/]" <> fr.path
+          <> " -> [" <> dir <> "/]" <> fr.path <> "...",
+        )
+    }
+    case renderer.prettifier(output_dir, fr, dest_dir) {
+      None -> {
+        io.println("skipped")
+      }
+      Some(PrettifierFeedback(warnings: warns, errors: errs)) -> {
+        let x = list.length(warns)
+        let y = list.length(errs)
+        let warn_suffix = case x > 0 && !options.warnings {
+          True -> " (use '--warnings' to see)"
+          False -> ","
+        }
+        let end = case y > 0 || { x > 0 && options.warnings } {
+          True -> ":\n"
+          False -> "\n"
+        }
+        io.print(
+          " " <> ins(x) <> " warnings" <> warn_suffix
+          <> " " <> ins(y) <> " errors" <> end,
+        )
+        case options.warnings {
+          True ->
+            list.each(warns, fn(w) {
+              io.println("  👾👾--- warning ---👾👾: " <> w)
+            })
+          False -> Nil
+        }
+        list.each(errs, fn(e) {
+          io.println("  🍄🍄--- error ---🍄🍄: " <> e)
+        })
+      }
+    }
   }
-  let fragments =
-    fragments
-    |> list.map(fn(result) {
-      use fr <- on.ok(result)
-      use dest_dir <- on.stay(case prettifier_mode {
-        PrettifierOff -> on.Return(result)
-        PrettifierOverwriteOutputDir -> on.Stay(Some(output_dir))
-        PrettifierToBespokeDir(dir) -> on.Stay(dir)
-      })
-      case dest_dir {
-        None ->
-          io.print("  prettify-checking [" <> output_dir <> "]" <> fr.path <> "...")
-        Some(dir) ->
-          io.print(
-            "  prettifying [" <> output_dir <> "/]" <> fr.path
-            <> " -> [" <> dir <> "/]" <> fr.path <> "...",
-          )
+
+  case prettifier_mode {
+    PrettifierOff -> Nil
+    _ -> {
+      io.println("• prettifying:")
+      let dest_dir = case prettifier_mode {
+        PrettifierOverwriteOutputDir -> Some(output_dir)
+        PrettifierToBespokeDir(dir) -> dir
+        _ -> panic
       }
-      case renderer.prettifier(output_dir, fr, dest_dir) {
-        None -> {
-          io.println("skipped")
-          result
-        }
-        Some(PrettifierFeedback(warnings: warns, errors: errs)) -> {
-          let x = list.length(warns)
-          let y = list.length(errs)
-          let warn_suffix = case x > 0 && !options.warnings {
-            True -> " (use '--warnings' to see)"
-            False -> ","
-          }
-          let end = case y > 0 || { x > 0 && options.warnings } {
-            True -> ":\n"
-            False -> "\n"
-          }
-          io.print(
-            " " <> ins(x) <> " warnings" <> warn_suffix
-            <> " " <> ins(y) <> " errors" <> end,
-          )
-          case options.warnings {
-            True ->
-              list.each(warns, fn(w) {
-                io.println("  👾👾--- warning ---👾👾: " <> w)
-              })
-            False -> Nil
-          }
-          list.each(errs, fn(e) {
-            io.println("  🍄🍄--- error ---🍄🍄: " <> e)
-          })
-          result
-        }
-      }
-    })
+      list.each(fragments, run_prettification(_, dest_dir))
+    }
+  }
 
   fragments
   |> list.each(fn(result) {

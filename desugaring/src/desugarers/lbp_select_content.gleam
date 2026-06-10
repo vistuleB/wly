@@ -178,7 +178,7 @@ fn at_root(
   use chapter_selection_node <- on.eager_error_ok(
     list.find(others, infra.is_v_and_tag_equals(_, "ChapterSelection")),
     Error(DesugaringError(
-      desugarer_blame(179),
+      desugarer_blame(181),
       "'ChapterSelection' node not found",
     )),
   )
@@ -202,14 +202,14 @@ fn at_root(
       use chapter <- on.error_ok(
         dict.get(handle_2_chapter_dict, handle),
         on_error: fn(_) {
-          let warning = DesugaringWarning(desugarer_blame(206), "found no chapter with handle '" <> handle <> "'")
+          let warning = DesugaringWarning(desugarer_blame(205), "found no chapter with handle '" <> handle <> "'")
           Ok(#(acc.0, [warning, ..acc.1]))
         }
       )
       use in_elt <- on.error_ok(
         dict.get(handle_2_in_elts_dict, handle),
         on_error: fn(_) {
-            let warning = DesugaringWarning(desugarer_blame(216), "no '|> In' exercise list found for chapter '" <> handle <> "'")
+            let warning = DesugaringWarning(desugarer_blame(212), "no '|> In' exercise list found for chapter '" <> handle <> "'")
             Ok(#([chapter, ..acc.0], [warning, ..acc.1]))
         }
       )

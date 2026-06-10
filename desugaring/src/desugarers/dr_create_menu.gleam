@@ -150,7 +150,7 @@ fn build_nav_dict(
 // ---- Navigation node construction ----
 
 fn anchor(id: String, href: String) -> VXML {
-  let b = desugarer_blame(120)
+  let b = desugarer_blame(153)
   V(b, "a", [Attr(b, "id", id), Attr(b, "href", href)], [])
 }
 
@@ -158,7 +158,7 @@ fn make_navigation(
   prev_href: Option(String),
   next_href: Option(String),
 ) -> VXML {
-  let b = desugarer_blame(128)
+  let b = desugarer_blame(161)
   let links =
     [
       prev_href |> option.map(fn(h) { anchor("prev-page", h) }),
