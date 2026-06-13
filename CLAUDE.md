@@ -2,12 +2,23 @@
 
 NOTE: All paths mentioned at the top-level (outside a section) are relative to the project root. All paths inside a section that caters to a library are relative to that library's directory.
 
-This is a Writerly (repo named `wly`) project.
-Writerly has three libraries written in Gleam.
+This repo is a library to help parse and process a novel lightweight markup language named Writerly.
 
-1. `vxml`
-2. `writerly`
-3. `desugaring`
+Writerly shares many features with XML, defining a nested sequence of tags with key-value attributes and leaves with text payloads. Like XML, Writerly is also a semantics-agnostics language, meaning that it ascribes no _a priori_ meaning to the tags or attributes of its nodes. As a first approximation, one can conceptualize Writerly as a more ergonomic version of XML that is indentation-based and where blank-line-separated paragraphs of text are first-class citizens of the language.
+
+The workflow for working with a Writerly document is to first parse the Writerly document into an XML-like AST (Abstract Syntax Tree) whose specific format is known as VXML (for "vanilla XML") and then to process the VXML AST over a sequence of many steps according to application-specific needs, before finally obtaining a format in which the VXML is ready to be directly output a more common standard such as HTML, JSX, a LaTeX document, etc. Note that the specific target format will depend on the application.
+
+The process of applying changes to the VXML AST over many small atomic steps is known as _desugaring_. A single step within this process, which is namely a step that maps the VXML AST to a new VXML AST, is known as a _desugaring step_, and the function that implements such a step is called a _desugarer_. Thus, processing a Writerly document entails choosing a specific sequence of desugarers. One also needs to specify an _emitter_, which is the function that turns the final VXML tree into the target format such as HTML or JSX. Note that a sequence of desugarers is known as a _pipeline_, or _desugaring pipeline_.
+
+Note that the repo actually encompasses three separate Gleam projects, contained in three folders whose names are also those of the Gleam projects. These are namely:
+
+1. `./vxml` -- defines the VXML AST datatype, includes functions for serializing and parsing VXML; also includes utilities for parsing certain subsets of HTML and XML to VXML, as well as for outputting fragments of HTML, XML and JSX from VXML
+2. `./writerly` -- contains utilities for assembling a single Writerly document from a directory tree containing Writerly (extension: `.wly`) files according to a Writerly-specific standard as well as for parsing and converting Writerly to and from VXML; the parser that turns Writerly into VXML is considered the "reference parser" for Writerly
+3. `./desugaring` -- contains a large collection of desugarers (that, to recall, are functions that map VXML to itself) as well as a set of utilities to make working with desugaring pipelines easier, including debugging and introspection utilities, etc; this project contains the majority of the public-facing endpoints that users of the WLY will interact with, in order to specify how their WLY document should be processed
+
+Note that the `writerly` depends on `vxml`. Also, `desugaring` depends on both `writerly` and `vxml`.
+
+Note that VXML attaches a `Blame` datatype to each fragment of the tree, to help trace pieces of the tree back to their provenance in an original document. 
 
 The overall data-flow pipeline is:
 
