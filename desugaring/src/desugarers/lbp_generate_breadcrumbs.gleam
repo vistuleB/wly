@@ -90,7 +90,7 @@ fn construct_breadcrumb(
     [
       V(
         desugarer_blame(73),
-        "InChapterLink",
+        "ThisPageLink",
         [Attr(desugarer_blame(75), "href", "?id=" <> target_id)],
         children |> cleanup_children,
       ),

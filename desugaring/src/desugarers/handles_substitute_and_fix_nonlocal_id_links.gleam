@@ -613,7 +613,7 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
     infra.AssertiveTestData(
       param: #(
         "path",
-        "InChapterLink",
+        "ThisPageLink",
         "a",
         [#("class", "handle-in-chapter-link")],
         [#("class", "handle-out-chapter-link")],
@@ -637,7 +637,7 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
                     path=./ch1.html
                     <>
                       'some text with '
-                    <> InChapterLink
+                    <> ThisPageLink
                       href=./ch1.html#_23-super-id
                       class=handle-in-chapter-link
                       <>
@@ -707,7 +707,7 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
     infra.AssertiveTestData(
       param: #(
         "path",
-        "InChapterLink",
+        "ThisPageLink",
         "a",
         [#("class", "handle-in-chapter-link")],
         [#("class", "handle-out-chapter-link")],
@@ -732,14 +732,14 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
                     path=./ch1.html
                     <>
                       'Reference to '
-                    <> InChapterLink
+                    <> ThisPageLink
                       href=./ch1.html#_25-dash-id
                       class=handle-in-chapter-link
                       <>
                         'Cardinal Number'
                     <>
                       ' and '
-                    <> InChapterLink
+                    <> ThisPageLink
                       href=./ch1.html#_26-caret-id
                       class=handle-in-chapter-link
                       <>
@@ -754,7 +754,7 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
     infra.AssertiveTestData(
       param: #(
         "path",
-        "InChapterLink",
+        "ThisPageLink",
         "a",
         [#("class", "handle-in-chapter-link")],
         [#("class", "handle-out-chapter-link")],
@@ -776,14 +776,14 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
                     path=./ch1.html
                     <>
                       'link to '
-                    <> InChapterLink
+                    <> ThisPageLink
                       href=./ch1.html
                       class=handle-in-chapter-link
                       <>
                         'AA'
                     <>
                       ' and link to '
-                    <> InChapterLink
+                    <> ThisPageLink
                       href=./ch1.html
                       class=handle-in-chapter-link
                       <>
@@ -795,7 +795,7 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
     infra.AssertiveTestData(
       param: #(
         "path",
-        "InChapterLink",
+        "ThisPageLink",
         "a",
         [#("class", "handle-in-chapter-link")],
         [#("class", "handle-out-chapter-link")],
@@ -828,7 +828,7 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
     infra.AssertiveTestData(
       param: #(
         "path",
-        "InChapterLink",
+        "ThisPageLink",
         "OutChapterLink",
         [#("class", "handle-in-chapter-link")],
         [#("class", "handle-out-chapter-link")],
@@ -867,7 +867,7 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
     infra.AssertiveTestData(
       param: #(
         "path",
-        "InChapterLink",
+        "ThisPageLink",
         "OutChapterLink",
         [#("class", "handle-in-chapter-link")],
         [#("class", "handle-out-chapter-link")],

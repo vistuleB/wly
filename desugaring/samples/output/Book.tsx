@@ -4,14 +4,10 @@ const OurSuperComponent = () => {
   return (
     <>
       <Chapter>
-        <WriterlyBlankLine />
-        {" "}{" "}
-        <InChapterLink
-          href="rr"
-          class=""
-        >
+        <WriterlyBlankLine />{" "}
+        <ThisPageLink href="rr" class="">
           Theorem 1.2
-        </InChapterLink>
+        </ThisPageLink>
       </Chapter>
     </>
   );
