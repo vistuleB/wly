@@ -75,7 +75,7 @@ fn v_before_1(state: State, vxml: VXML) -> Result(
 
   // we're getting cut:
   let attr1 = Attr(..attr, val: handle_name)
-  let attr2 = Attr(desugarer_blame(73), "chapter", chapter_handle)
+  let attr2 = Attr(desugarer_blame(78), "chapter", chapter_handle)
   let vxml = V(..vxml, attrs: [attr1, attr2, ..attrs])
   Ok(#(state, Error(vxml), [], infra.GoBack))
 }

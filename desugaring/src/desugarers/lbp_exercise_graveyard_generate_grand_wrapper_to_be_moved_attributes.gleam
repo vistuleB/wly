@@ -20,7 +20,7 @@ fn harvest_handle_attrs_from_line(line: Line) -> Result(Attr, DesugaringWarning)
       let stuff = string.trim(stuff)
       case string.contains(stuff, " ") || string.contains(stuff, ">") {
         True -> Error(DesugaringWarning(line.blame, "handle contains space or '>': " <> stuff))
-        False -> Ok(Attr(desugarer_blame(24), "to-be-moved", ">>" <> stuff))
+        False -> Ok(Attr(desugarer_blame(23), "to-be-moved", ">>" <> stuff))
       }
     }
     _ -> Error(DesugaringWarning(line.blame, "'>>' not found in text node"))

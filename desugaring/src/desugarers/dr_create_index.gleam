@@ -214,7 +214,7 @@ fn href(chapter_no: Int, section_no: Int, subsection_no: Int) -> String {
 }
 
 fn subsection_item(ch_no: Int, section_no: Int, subsection_no: Int, subsection: SubSectionInfo) -> VXML {
-  let b = desugarer_blame(199)
+  let b = desugarer_blame(217)
   let SubSectionInfo(title) = subsection
   
   V(
@@ -235,7 +235,7 @@ fn subsection_item(ch_no: Int, section_no: Int, subsection_no: Int, subsection: 
 }
 
 fn section_item(ch_no: Int, section_no: Int, section: SectionInfo) -> VXML {
-  let b = desugarer_blame(220)
+  let b = desugarer_blame(238)
   let SectionInfo(title, subsections) = section
   let subsections_ol = case subsections {
     [] -> []
@@ -271,7 +271,7 @@ fn chapter_item(
   ch_no: Int,
   chapter: ChapterInfo,
 ) -> VXML {
-  let b = desugarer_blame(256)
+  let b = desugarer_blame(274)
   let ChapterInfo(title, has_content, sections) = chapter
   let sections_ol = case sections {
     [] -> []
@@ -302,7 +302,7 @@ fn chapter_item(
 }
 
 fn chapter_ol(chapters: List(ChapterInfo)) -> VXML {
-  let b = desugarer_blame(291)
+  let b = desugarer_blame(305)
   V(
     b,
     "ol",
@@ -313,23 +313,51 @@ fn chapter_ol(chapters: List(ChapterInfo)) -> VXML {
   )
 }
 
+// 🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸
+// 🌸 index navigation~~ 🌸
+// 🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸
+
+fn anchor(id: String, href_val: String) -> VXML {
+  let b = desugarer_blame(321)
+  V(b, "a", [Attr(b, "id", id), Attr(b, "href", href_val)], [])
+}
+
+fn index_next_page_href(root: VXML) -> option.Option(String) {
+  let assert V(_, "Document", _, children) = root
+  case list.find(children, fn(v) {
+    case v { V(_, "Chapter", _, _) -> True _ -> False }
+  }) {
+    Error(_) -> option.None
+    Ok(first_chapter) ->
+      case chapter_has_content(first_chapter) {
+        True -> option.Some(href(1, 0, 0))
+        False -> option.Some(href(1, 1, 0))
+      }
+  }
+}
+
 // 🌸🌸🌸🌸🌸🌸🌸
 // 🌸 main~~ 🌸
 // 🌸🌸🌸🌸🌸🌸🌸
 
 fn index(root: VXML) -> Result(VXML, DesugaringError) {
   use chapter_infos <- on.ok(gather_chapter_infos(root))
+  let b = desugarer_blame(345)
+
+  let nav = case index_next_page_href(root) {
+    option.None -> []
+    option.Some(next_href) -> [
+      V(b, "Navigation", [Attr(b, "class", "nav")], [anchor("next-page", next_href)]),
+    ]
+  }
 
   Ok(V(
-    desugarer_blame(310),
+    b,
     "Index",
     [
-      Attr(desugarer_blame(313), "path", "./index.html"),
+      Attr(desugarer_blame(358), "path", "./index.html"),
     ],
-    [
-      header(root),
-      chapter_ol(chapter_infos),
-    ],
+    list.flatten([nav, [header(root), chapter_ol(chapter_infos)]]),
   ))
 }
 

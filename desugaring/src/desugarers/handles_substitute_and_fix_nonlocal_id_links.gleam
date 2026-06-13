@@ -23,6 +23,7 @@ fn extract_handle_and_page_and_decoy(match: Match) -> #(String, Bool, Option(Str
     Ok(#(before, after)) -> #(before, option.Some(after))
     _ -> #(handle_name, None)
   }
+  let handle_name = string.remove_suffix(handle_name, "##")
   #(handle_name, page, decoy)
 }
 
@@ -66,13 +67,13 @@ fn hyperlink_constructor(
 
 fn warning_element(handle_name: String, blame: Blame) -> VXML {
   V(
-    desugarer_blame(67),
+    desugarer_blame(70),
     "InTextWarning",
     [],
     [
-      T(desugarer_blame(71), [
+      T(desugarer_blame(74), [
         Line(
-          desugarer_blame(73),
+          desugarer_blame(76),
           "undefined handle at "
             <> bl.blame_digest(blame)
             <> ": "
@@ -107,7 +108,7 @@ fn hyperlink_maybe(
   })
 
   let actual_warning = DesugaringWarning(
-    desugarer_blame(108),
+    blame,
     "handle '" <> handle_name <> "' is not assigned",
   )
 
@@ -170,9 +171,9 @@ fn process_line(
   inner: InnerParam,
 ) -> Result(#(List(VXML), List(DesugaringWarning)), DesugaringError) {
   let Line(blame, content) = line
-  case regexp.scan(inner.5, content) {
+  case regexp.scan(inner.6, content) {
     [_, ..] as matches -> {
-      let splits = regexp.split(inner.5, content)
+      let splits = regexp.split(inner.6, content)
       use #(hyperlinks, warnings) <- on.ok(matches_2_hyperlinks(
         matches,
         blame,
@@ -364,7 +365,7 @@ fn substitute_hrefs_in_a(
         case acc.0, href_type {
           _, NotAnHref -> Ok(acc.0)
           None, _ -> Ok(Some(href_type))
-          _, _ -> Error(DesugaringError(desugarer_blame(365), "duplicate 'href' attribute"))
+          _, _ -> Error(DesugaringError(desugarer_blame(368), "duplicate 'href' attribute"))
         }
       )
       Ok(#(attr, #(acc0, list.append(warnings, acc.1))))
@@ -400,7 +401,7 @@ fn v_before_transform(
     "GrandWrapper" -> grand_wrapper_load(state, attrs)
     _ -> update_state_path(state, vxml, inner)
   }
-  let state = case state.inside_a_link_tag || !list.contains(inner.6, tag) {
+  let state = case state.inside_a_link_tag || !list.contains(inner.5, tag) {
     True -> state
     False -> State(..state, inside_a_link_tag: True)
   }
@@ -461,16 +462,16 @@ fn transform_factory(inner: InnerParam) -> DesugarerTransform {
 
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
   let assert Ok(handles_regexp) =
-    regexp.from_string("(>>)([\\w\\.\\^+%-]+[\\w\\^+%-](?:#page)?(?:#decoy:[0-9]+)?)")
+    regexp.from_string("(>>)([\\w^.:-]+[\\w](?:#page)?(?:#decoy:[0-9]+)?(?:##)?)")
 
   #(
     param.0,
     param.1,
     param.2,
-    param.3 |> infra.string_pairs_2_attrs(desugarer_blame(468)),
-    param.4 |> infra.string_pairs_2_attrs(desugarer_blame(469)),
-    handles_regexp,
+    param.3 |> infra.string_pairs_2_attrs(desugarer_blame(471)),
+    param.4 |> infra.string_pairs_2_attrs(desugarer_blame(472)),
     param.5,
+    handles_regexp,
   )
   |> Ok
 }
@@ -501,7 +502,7 @@ type Param = #(String,            String,                 String,               
 //             to update the      when handle path        when handle path       key-value pairs for        key-value pairs for        "already being inside a link"
 //             local path         equals local path       !equals local path     former case                latter case 
 //                                at point of insertion   at point of insertion
-type InnerParam = #(String, String, String, List(Attr), List(Attr), Regexp, List(String))
+type InnerParam = #(String, String, String, List(Attr), List(Attr), List(String), Regexp)
 
 pub const name = "handles_substitute_and_fix_nonlocal_id_links"
 

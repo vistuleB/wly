@@ -272,27 +272,25 @@ pub fn default_writer(
 }
 
 // ************************************************************
-// Prettifier(z, g)                                            // 'z' is fragment classifier, 'g' is prettifier error type
-// String, GhostOfOutputFragment(z), Option(String) -> Result(String, g)
-// ☝                                 ☝                        ☝
-// output_dir                        optional                 on_success
-//                                   'prettified dir'         report-back message
-//                                   (else use output_dir)
+// PrettifierFeedback, Prettifier(z)
 // ************************************************************
 
 pub type GhostOfOutputFragment(z) {
   GhostOfOutputFragment(classifier: z, path: String)
 }
 
-pub type Prettifier(z, g) =
-  fn(String, GhostOfOutputFragment(z), Option(String)) -> Result(String, g)
+pub type PrettifierFeedback {
+  PrettifierFeedback(warnings: List(String), errors: List(String))
+}
 
-pub fn run_prettier(in: String, path: String, check: Bool) -> Result(String, #(Int, String)) {
-  shellout.command(
+pub type Prettifier(z) =
+  fn(String, GhostOfOutputFragment(z), Option(String)) -> Option(PrettifierFeedback)
+
+pub fn run_prettier(in: String, path: String, check: Bool) -> PrettifierFeedback {
+  let result = shellout.command(
     run: "prettier",
     in: in,
     with: [
-      "",
       case check {
         True -> "--check"
         False -> "--write"
@@ -301,49 +299,101 @@ pub fn run_prettier(in: String, path: String, check: Bool) -> Result(String, #(I
     ],
     opt: [],
   )
+  let output = case result {
+    Ok(s) -> s
+    Error(#(_, s)) -> s
+  }
+  let lines = string.split(output, "\n")
+  let warnings =
+    lines
+    |> list.filter(fn(l) { string.starts_with(l, "[warn]") })
+    |> list.map(fn (s) { string.drop_start(s, 6) |> string.trim })
+  let error_lines =
+    lines
+    |> list.filter(fn(l) { string.starts_with(l, "[error]") })
+    |> list.map(fn (s) { string.drop_start(s, 7) |> string.trim })
+  let errors = case result {
+    Ok(_) -> error_lines
+    Error(#(_, _)) ->
+      case error_lines {
+        [_, ..] -> error_lines
+        [] -> {
+          case check {
+            True -> []
+            False ->
+              case string.trim(output) {
+                "" -> []
+                s -> [s]
+              }
+          }
+        }
+      }
+  }
+  PrettifierFeedback(warnings: warnings, errors: errors)
 }
 
 pub fn default_prettier_prettifier(
   output_dir: String,
   ghost: GhostOfOutputFragment(z),
   prettier_dir: Option(String),
-) -> Result(String, #(Int, String)) {
+) -> Option(PrettifierFeedback) {
+  use <- on.eager_false_true(
+    list.any([".html", ".tsx"], string.ends_with(ghost.path, _)),
+    None
+  )
+
   let source_path = output_dir <> "/" <> ghost.path
-  case prettier_dir {
-    Some(dir) -> {
-      let dest_path = dir <> "/" <> ghost.path
-      use _ <- on.error_ok(
-        create_dirs_on_path_to_file(dest_path),
-        fn(e) {Error(#(0, "error creating directories on path: " <> ins(e)))},
-      )
-      use _ <- on.ok(
-        case source_path != dest_path {
-          True -> shellout.command(run: "cp", in: ".", with: [source_path, dest_path], opt: [])
-          False -> Ok("")
+
+  use #(dest_path, check) <- on.stay(
+    case prettier_dir {
+      None -> on.Stay(#(source_path, True))
+
+      Some(dir) -> {
+        let dest_path = dir <> "/" <> ghost.path
+        use <- on.true_false(
+          source_path == dest_path,
+          fn() { on.Stay(#(dest_path, False)) }
+        )
+        use _ <- on.error_ok(
+          create_dirs_on_path_to_file(dest_path),
+          fn(e) {
+            on.Return(Some(PrettifierFeedback(
+              warnings: [],
+              errors: ["could not create directories on path " <> ins(e)]
+            )))
+          }
+        )
+        case shellout.command(
+          run: "cp",
+          in: ".",
+          with: [source_path, dest_path],
+          opt: [],
+        ) {
+          Error(#(_, msg)) -> {
+            on.Return(Some(PrettifierFeedback(
+              warnings: [],
+              errors: ["unable to copy '" <> source_path <> "' to '" <> dest_path <> "':" <> string.trim(msg)])
+            ))
+          }
+          _ -> on.Stay(#(dest_path, False))
         }
-      )
-      run_prettier(".", dest_path, False)
-      |> result.map(fn(_) {"prettified [" <> dir <> "/]" <> ghost.path})
+      }
     }
-    None -> {
-      run_prettier(".", source_path, True)
-      |> result.map(fn(msg) {
-        msg <> " for [" <> output_dir <> "/]" <> ghost.path
-      })
-    }
-  }
+  )
+
+  run_prettier(".", dest_path, check) |> Some
 }
 
 pub fn empty_prettifier(
   _: String,
   _: GhostOfOutputFragment(z),
-  _: Option(String)
-) -> Result(String, #(Int, String)) {
-  Ok("")
+  _: Option(String),
+) -> Option(PrettifierFeedback) {
+  Some(PrettifierFeedback(warnings: [], errors: []))
 }
 
 // ************************************************************
-// Renderer(a, b, c, d, e, f, g, z)
+// Renderer(a, b, c, d, e, f, z)
 // ************************************************************
 
 pub type Renderer(
@@ -353,18 +403,17 @@ pub type Renderer(
   d, // Splitter error
   e, // Emitter error
   f, // Writer error
-  g, // Prettifier error
   z, // VXML Fragment enum
 ) {
   Renderer(
-    assembler: Assembler(a),          // file/directory -> List(InputLine)                                    Result w/ error type a
-    parser: Parser(b),                // List(InputLine) -> VXML                                              Result w/ error type b
-    filterer: Filterer(c),            // VXML -> VXML                                                         Result w/ error type c
-    pipeline: Pipeline,               // VXML -> ... -> VXML                                                  Result w/ error type InSituDesugaringError
-    splitter: Splitter(z, d),         // VXML -> List(OutputFragment(z, VXML))                                Result w/ error type d
-    emitter: Emitter(z, e),           // OutputFragment(z, VXML) -> OutputFragment(z, String)                 Result w/ error type e
-    writer: Writer(z, f),             // output_dir, OutputFragment(z, String) -> GhostOfOutputFragment(z)    Result w/ error type f
-    prettifier: Prettifier(z, g),     // output_dir, GhostOfOutputFragment(z), Option(prettifier_dir) -> Nil  Result w/ error type g
+    assembler: Assembler(a),
+    parser: Parser(b),
+    filterer: Filterer(c),
+    pipeline: Pipeline,
+    splitter: Splitter(z, d),
+    emitter: Emitter(z, e),
+    writer: Writer(z, f),
+    prettifier: Prettifier(z),
   )
 }
 
@@ -375,7 +424,7 @@ pub type Renderer(
 pub type PrettifierMode {
   PrettifierOff
   PrettifierOverwriteOutputDir
-  PrettifierToBespokeDir(String)
+  PrettifierToBespokeDir(Option(String))
 }
 
 pub type RendererParameters {
@@ -393,7 +442,7 @@ pub type RendererOptions(z) {
     steps_table: Bool,
     profiling_table: Option(Int),
     interactive_mode: Bool,
-    suppress_warnings: Bool,
+    warnings: Bool,
     only_paths: List(String),
     only_key_vals: List(#(String, String)),
     only_path_key_vals: List(#(String, String, String)),
@@ -417,7 +466,7 @@ pub fn vanilla_options() -> RendererOptions(z) {
     steps_table: False,
     profiling_table: None,
     interactive_mode: False,
-    suppress_warnings: False,
+    warnings: False,
     only_paths: [],
     only_key_vals: [],
     only_path_key_vals: [],
@@ -579,11 +628,6 @@ pub fn basic_cli_usage(header: String) {
   io.println(margin <> "          • <n> to fast-forward past n next outputs;")
   io.println(margin <> "          • 'c' to cancel the desugaring entirely;")
   io.println("")
-  io.println(margin <> "--prettier [<dir>]")
-  io.println(margin <> "  -> turn the prettifier on and have the prettifier output to")
-  io.println(margin <> "     <dir>; if absent, <dir> defaults to")
-  io.println(margin <> "     renderer_parameters.output_dir")
-  io.println("")
   io.println(margin <> "--verbose")
   io.println(margin <> "  -> verbose renderer output")
   io.println("")
@@ -605,8 +649,20 @@ pub fn advanced_cli_usage(header: String) {
     "" -> Nil
     _ -> io.println(header <> "\n")
   }
+  io.println(margin <> "--prettier-off")
+  io.println(margin <> "  -> disable the prettifier")
+  io.println("")
+  io.println(margin <> "--prettier-on")
+  io.println(margin <> "  -> run prettier --write on each output file in place")
+  io.println("")
+  io.println(margin <> "--prettier-check")
+  io.println(margin <> "  -> run prettier --check on each output file (read-only)")
+  io.println("")
+  io.println(margin <> "--prettier <dir>")
+  io.println(margin <> "  -> run prettier --write, outputting to <dir> instead of output_dir")
+  io.println("")
   io.println(margin <> "--warnings/--no-warnings")
-  io.println(margin <> "  -> force/suppress long-form printout of desugaring warnings")
+  io.println(margin <> "  -> force/suppress long-form printout of warnings")
   io.println("")
   io.println(margin <> "--echo-assembled")
   io.println(margin <> "  -> print the assembled input lines of source")
@@ -729,11 +785,28 @@ pub fn process_command_line_arguments(
             False -> Error(UnexpectedArgumentsToOption("--no-table"))
           }
 
+        "--prettier-off" ->
+          case values {
+            [] -> Ok(CommandLineAmendments(..amendments, prettier: Some(PrettifierOff)))
+            _ -> Error(UnexpectedArgumentsToOption("--prettier-off"))
+          }
+
+        "--prettier-on" ->
+          case values {
+            [] -> Ok(CommandLineAmendments(..amendments, prettier: Some(PrettifierOverwriteOutputDir)))
+            _ -> Error(UnexpectedArgumentsToOption("--prettier-on"))
+          }
+
+        "--prettier-check" ->
+          case values {
+            [] -> Ok(CommandLineAmendments(..amendments, prettier: Some(PrettifierToBespokeDir(None))))
+            _ -> Error(UnexpectedArgumentsToOption("--prettier-check"))
+          }
+
         "--prettier" ->
           case values {
-            [dir] -> Ok(CommandLineAmendments(..amendments, prettier: Some(PrettifierToBespokeDir(dir))))
-            [] -> Ok(CommandLineAmendments(..amendments, prettier: Some(PrettifierOverwriteOutputDir)))
-            _ -> Error(UnexpectedArgumentsToOption("--prettier2"))
+            [dir] -> Ok(CommandLineAmendments(..amendments, prettier: Some(PrettifierToBespokeDir(Some(dir)))))
+            _ -> Error(UnexpectedArgumentsToOption("--prettier"))
           }
 
         "--track" -> {
@@ -1274,9 +1347,9 @@ fn exists_match(
 }
 
 pub fn amend_renderer_by_command_line_amendments(
-  renderer: Renderer(a, b, c, d, e, f, g, z),
+  renderer: Renderer(a, b, c, d, e, f, z),
   _amendments: CommandLineAmendments,
-) -> Renderer(a, b, c, d, e, f, g, z) {
+) -> Renderer(a, b, c, d, e, f, z) {
   renderer
 }
 
@@ -1293,7 +1366,7 @@ pub fn amend_renderer_options_by_command_line_amendments(
       options.interactive_mode ||
       option.map(amendments.tracker, fn(x){x.interactive_mode}) |> option.unwrap(False)
     },
-    suppress_warnings: !option.unwrap(amendments.warnings, !options.suppress_warnings),
+    warnings: option.unwrap(amendments.warnings, options.warnings),
     only_paths: list.append(options.only_paths, amendments.only_paths),
     only_key_vals: list.append(options.only_key_vals, amendments.only_key_vals),
     only_path_key_vals: list.append(options.only_path_key_vals, amendments.only_path_key_vals),
@@ -1344,7 +1417,7 @@ pub fn amend_renderer_options_by_command_line_amendments(
 fn apply_dump_named(
   decorateds: List(DecoratedDesugarer),
   dump_named: List(#(String, Int, Int))
-) -> Result(List(DecoratedDesugarer), RendererError(a, b, c, d, e, f, g)) {
+) -> Result(List(DecoratedDesugarer), RendererError(a, b, c, d, e, f)) {
   let dump_named = list.map(dump_named, fn(dn) {#(dn.0, dn.1, dn.2, False)})
   use #(on_change, _) <- on.ok(extract_all_on_change_and_forced_steps_from_named_ranges(dump_named, decorateds))
   assert list.length(on_change) >= list.length(dump_named)
@@ -1395,7 +1468,7 @@ fn list_int_cleaner(ze_list: List(Int)) -> List(Int) {
 fn extract_on_change_and_forced_steps_from_name_and_pipeline(
   params: #(String, Int, Int, Bool),
   pipeline: List(DecoratedDesugarer),
-) -> Result(#(List(Int), List(Int)), RendererError(a, b, c, d, e, f, g)) {
+) -> Result(#(List(Int), List(Int)), RendererError(a, b, c, d, e, f)) {
   let #(name, lo, hi, forced) = params
   let indices = list.index_fold(
     pipeline,
@@ -1442,7 +1515,7 @@ fn extract_on_change_and_forced_steps_from_name_and_pipeline(
 fn extract_all_on_change_and_forced_steps_from_named_ranges(
   named_ranges: List(#(String, Int, Int, Bool)),
   pipeline: List(DecoratedDesugarer),
-) -> Result(#(List(Int), List(Int)), RendererError(a, b, c, d, e, f, g)) {
+) -> Result(#(List(Int), List(Int)), RendererError(a, b, c, d, e, f)) {
   use #(oa, fo) <- on.ok(list.try_fold(
     named_ranges,
     #([], []),
@@ -1457,7 +1530,7 @@ fn extract_all_on_change_and_forced_steps_from_named_ranges(
 fn apply_pipeline_tracking_modifier(
   decorateds: List(DecoratedDesugarer),
   tracker: Option(Tracker),
-) -> Result(List(DecoratedDesugarer), RendererError(a, b, c, d, e, f, g)) {
+) -> Result(List(DecoratedDesugarer), RendererError(a, b, c, d, e, f)) {
   // if mod is None return the pipeline
   use tracker <- on.eager_none_some(tracker, Ok(decorateds))
   // else...
@@ -1824,13 +1897,12 @@ fn create_dirs_on_path_to_file(path_to_file: String) -> Result(Nil, simplifile.F
 // run_renderer return type(s)
 // ************************************************************
 
-pub type ThreePossibilities(e, f, g) {
+pub type TwoPossibilities(e, f) {
   P1(e)
   P2(f)
-  P3(g)
 }
 
-pub type RendererError(a, b, c, d, e, f, g) {
+pub type RendererError(a, b, c, d, e, f) {
   FileOrParseError(a)
   SourceParserError(Blame, b)
   FiltrationError(c)
@@ -1838,7 +1910,7 @@ pub type RendererError(a, b, c, d, e, f, g) {
   PipelineError(InSituDesugaringError)
   UserExitError(Int)
   SplitterError(d)
-  EmittingOrWritingOrPrettifyingErrors(List(ThreePossibilities(e, f, g)))
+  EmittingOrWritingErrors(List(TwoPossibilities(e, f)))
 }
 
 // ************************************************************
@@ -1846,10 +1918,10 @@ pub type RendererError(a, b, c, d, e, f, g) {
 // ************************************************************
 
 pub fn run_renderer(
-  renderer: Renderer(a, b, c, d, e, f, g, z),
+  renderer: Renderer(a, b, c, d, e, f, z),
   parameters: RendererParameters,
   options: RendererOptions(z),
-) -> Result(List(String), RendererError(a, b, c, d, e, f, g)) {
+) -> Result(List(String), RendererError(a, b, c, d, e, f)) {
   let parameters = sanitize_input_output_dirs(parameters)
 
   let RendererParameters(
@@ -2288,30 +2360,62 @@ pub fn run_renderer(
 
   // 🌸 prettifying 🌸
 
-  case prettifier_mode != PrettifierOff {
-    True -> io.println("• prettifying")
-    False -> Nil
-  }
-  let fragments =
-    fragments
-    |> list.map(fn(result) {
-      use fr <- on.ok(result)
-      use dest_dir <- on.stay(case prettifier_mode {
-        PrettifierOff -> on.Return(result)
-        PrettifierOverwriteOutputDir -> on.Stay(Some(output_dir))
-        PrettifierToBespokeDir(dir) -> on.Stay(Some(dir))
-      })
-      case renderer.prettifier(output_dir, fr, dest_dir) {
-        Error(e) -> {
-          io.println("  prettifying error: " <> ins(e))
-          Error(P3(e))
-        }
-        Ok(message) -> {
-          io.println("  " <> message)
-          result
-        }
+  let run_prettification = fn(result, dest_dir) {
+    use fr: GhostOfOutputFragment(z) <- on.eager_error_ok(result, Nil)
+    case dest_dir {
+      None ->
+        io.print("  prettify-checking [" <> output_dir <> "]" <> fr.path <> "...")
+      Some(dir) ->
+        io.print(
+          "  prettifying [" <> output_dir <> "/]" <> fr.path
+          <> " -> [" <> dir <> "/]" <> fr.path <> "...",
+        )
+    }
+    case renderer.prettifier(output_dir, fr, dest_dir) {
+      None -> {
+        io.println("skipped")
       }
-    })
+      Some(PrettifierFeedback(warnings: warns, errors: errs)) -> {
+        let x = list.length(warns)
+        let y = list.length(errs)
+        let warn_suffix = case x > 0 && !options.warnings {
+          True -> " (use '--warnings' to see)"
+          False -> ","
+        }
+        let end = case y > 0 || { x > 0 && options.warnings } {
+          True -> ":\n"
+          False -> "\n"
+        }
+        io.print(
+          " " <> ins(x) <> " warnings" <> warn_suffix
+          <> " " <> ins(y) <> " errors" <> end,
+        )
+        case options.warnings {
+          True ->
+            list.each(warns, fn(w) {
+              io.println("  👾👾--- warning ---👾👾: " <> w)
+            })
+          False -> Nil
+        }
+        list.each(errs, fn(e) {
+          io.println("  🍄🍄--- error ---🍄🍄: " <> e)
+        })
+      }
+    }
+  }
+
+  case prettifier_mode {
+    PrettifierOff -> Nil
+    _ -> {
+      io.println("• prettifying:")
+      let dest_dir = case prettifier_mode {
+        PrettifierOverwriteOutputDir -> Some(output_dir)
+        PrettifierToBespokeDir(dir) -> dir
+        _ -> panic
+      }
+      list.each(fragments, run_prettification(_, dest_dir))
+    }
+  }
 
   fragments
   |> list.each(fn(result) {
@@ -2344,17 +2448,17 @@ pub fn run_renderer(
   case list.length(warnings) {
     0 -> Nil
     _ -> {
-      case options.suppress_warnings{
-        False ->
-          io.println("\n👉 " <> pr.how_many("warning", "warnings", list.length(warnings)) <> ":")
+      case options.warnings {
         True ->
+          io.println("\n👉 " <> pr.how_many("warning", "warnings", list.length(warnings)) <> ":")
+        False ->
           io.println("\n[" <> pr.how_many("suppressed warning", "suppressed warnings", list.length(warnings)) <> " (use '--warnings' option to see)]")
       }
     }
   }
 
-  case options.suppress_warnings {
-    False -> 
+  case options.warnings {
+    True ->
       list.each(
         warnings,
         fn (w) {
@@ -2369,13 +2473,13 @@ pub fn run_renderer(
           |> io.println
         }
       )
-    True -> Nil
+    False -> Nil
   }
 
   let #(oks, errors) = result.partition(fragments)
 
   case errors {
     [] -> Ok(oks |> list.map(fn(ghost) { ghost.path }))
-    _ -> Error(EmittingOrWritingOrPrettifyingErrors(errors))
+    _ -> Error(EmittingOrWritingErrors(errors))
   }
 }

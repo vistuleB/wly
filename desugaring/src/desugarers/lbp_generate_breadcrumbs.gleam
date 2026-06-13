@@ -84,14 +84,14 @@ fn construct_breadcrumb(
   index: Int,
 ) -> VXML {
   V(
-    desugarer_blame(68),
+    desugarer_blame(87),
     "BreadcrumbItem",
-    [Attr(desugarer_blame(70), "id", "breadcrumb-" <> ins(index))],
+    [Attr(desugarer_blame(89), "id", "breadcrumb-" <> ins(index))],
     [
       V(
-        desugarer_blame(73),
+        desugarer_blame(92),
         "ThisPageLink",
-        [Attr(desugarer_blame(75), "href", "?id=" <> target_id)],
+        [Attr(desugarer_blame(94), "href", "?id=" <> target_id)],
         children |> cleanup_children,
       ),
     ],
@@ -137,7 +137,7 @@ fn generate_sections_list(
   }
 
   Ok(V(
-    desugarer_blame(117),
+    desugarer_blame(140),
     "SectionsBreadcrumbs",
     [],
     list.flatten([sections_nodes, exercises_node]),

@@ -100,7 +100,7 @@ fn at_root(
   let path = inner <> "/course.js"
   use error <- on.error(simplifile.write(path, content))
   Error(DesugaringError(
-    desugarer_blame(92),
+    desugarer_blame(103),
     "failed to write course.js to '"
       <> path
       <> "': "
