@@ -2,6 +2,6 @@
     |> Chapter
 
         Theorem 
-        |> InChapterLink
+        |> ThisPageLink
             href=rr
             1.2
