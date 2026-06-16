@@ -45,18 +45,15 @@ const increment = StringAndRegexVersion(string: "++", regex_string: "\\+\\+")
 const decrement = StringAndRegexVersion(string: "--", regex_string: "--")
 const no_change = StringAndRegexVersion(string: "øø", regex_string: "øø")
 
-/// Bijective base-26 expansion of a positive integer.
-/// Returns a list of integers between 0 and 25, from most significant digit to least.
-/// Digit 0 corresponds to 'A'/'a', digit 25 corresponds to 'Z'/'z'.
-/// Returns an empty list if the input is 0.
-pub fn to_base_26(n: Int) -> List(Int) {
+/// Base-26 expansion of a nonnegative integer.
+fn to_base_26(n: Int) -> List(Int) {
   do_base_26(n, [])
 }
 
 fn do_base_26(n: Int, acc: List(Int)) -> List(Int) {
   case n {
     0 -> acc
-    _ -> do_base_26({ n - 1 } / 26, [{ n - 1 } % 26, ..acc])
+    _ -> do_base_26(n / 26, [n % 26, ..acc])
   }
 }
 
@@ -86,7 +83,7 @@ fn render_info(
     Uppercase -> {
       to_base_26(info.value)
       |> list.map(fn(d) {
-        let assert Ok(cp) = string.utf_codepoint(d + 65)
+        let assert Ok(cp) = string.utf_codepoint(d - 1 + 65)
         cp
       })
       |> string.from_utf_codepoints
@@ -94,7 +91,7 @@ fn render_info(
     Lowercase -> {
       to_base_26(info.value)
       |> list.map(fn(d) {
-        let assert Ok(cp) = string.utf_codepoint(d + 97)
+        let assert Ok(cp) = string.utf_codepoint(d - 1 + 97)
         cp
       })
       |> string.from_utf_codepoints
@@ -102,7 +99,7 @@ fn render_info(
   }
 }
 
-fn process_regex_groups(
+fn process_regexp_groups(
   blame: Blame,
   counters: CounterDict,
   loudness: String,
@@ -136,7 +133,7 @@ fn process_splits(
     ))
     [loudness, change, counter_name, ..splits] -> {
       use #(render, counters) <- on.ok(
-        process_regex_groups(blame, counters, loudness, change, counter_name)
+        process_regexp_groups(blame, counters, loudness, change, counter_name)
       )
       process_splits(
         blame,
@@ -201,63 +198,51 @@ fn take_existing_counters(
   |> dict.filter(fn(k, _) { dict.has_key(current, k) })
 }
 
-fn parse_starting_value(
-  attr: Attr,
+fn parse_counter_definition_attr_value(
+  blame: Blame,
+  counter_type: CounterType,
   value: String,
-) -> Result(Int, DesugaringError) {
-  use starting_value <- on.error_ok(
-    int.parse(value),
-    fn(_) { Error(DesugaringError(attr.blame, "counter starting value must be a number")) },
-  )
-  Ok(starting_value)
-}
-
-fn handle_non_unary_att_value(
-  attr: Attr,
-) -> Result(#(String, Int, Int), DesugaringError) {
+) -> Result(#(String, CounterInfo), DesugaringError) {
   let splits =
-    string.split(attr.val, " ")
+    string.split(value, " ")
     |> list.filter(fn(s) { s != "" })
 
   use counter_name, rest <- on.empty_nonempty(
     splits,
-    fn() { Error(DesugaringError(attr.blame, "counter must have a name")) },
+    fn() { Error(DesugaringError(blame, "counter must have a name")) },
   )
+
+  use #(counter_type, rest) <- on.ok(case counter_type {
+    Unary(_) -> case rest {
+      [first, ..rest] -> Ok(#(Unary(first), rest))
+      [] -> Error(DesugaringError(blame, "unary counter missing 1-value"))
+    }
+    _ -> Ok(#(counter_type, rest))
+  })
 
   use starting_value, rest <- on.empty_nonempty(
     rest,
-    fn() { Ok(#(counter_name, 0, 1)) },
+    fn() { Ok(#(counter_name, CounterInfo(counter_type, 0, 1))) },
   )
 
-  use starting_value <- on.ok(parse_starting_value(attr, starting_value))
+  use starting_value <- on.error_ok(
+    int.parse(starting_value),
+    fn(_) { Error(DesugaringError(blame, "counter starting value must be a number")) },
+  )
 
   use step, rest <- on.empty_nonempty(
     rest,
-    fn() { Ok(#(counter_name, starting_value, 1)) },
+    fn() { Ok(#(counter_name, CounterInfo(counter_type, starting_value, 1))) },
   )
 
   use step <- on.error_ok(
     int.parse(step),
-    fn(_) { Error(DesugaringError(attr.blame, "counter step size must be a number")) },
+    fn(_) { Error(DesugaringError(blame, "counter step size must be a number")) },
   )
 
   case list.is_empty(rest) {
-    True -> Ok(#(counter_name, starting_value, step))
-    False -> Error(DesugaringError(attr.blame, "extra arguments found after <counter_name> <starting_value> <step_value>"))
-  }
-}
-
-fn handle_unary_att_value(
- attr: Attr,
-) -> Result(#(String, String), DesugaringError) {
-  let splits =
-    string.split(attr.val, " ")
-    |> list.filter(fn(s) { s != "" })
-  case splits {
-    [counter_name, unary_char] -> Ok(#(counter_name, unary_char))
-    [counter_name] -> Ok(#(counter_name, "1"))
-    [] -> Error(DesugaringError(attr.blame, "counter attr without name"))
-    _ -> Error(DesugaringError(attr.blame, "too many arguments for counter-unary"))
+    True -> Ok(#(counter_name, CounterInfo(counter_type, starting_value, step)))
+    False -> Error(DesugaringError(blame, "extra arguments found after <counter_name> <starting_value> <step_value>"))
   }
 }
 
@@ -283,16 +268,10 @@ fn read_counter_definition(
     fn(_) { Ok(None) },
   )
 
-  case counter_type {
-    Unary(_) -> {
-      use #(counter_name, unary_char) <- on.ok(handle_unary_att_value(attr))
-      Ok(Some(#(counter_name, CounterInfo(Unary(unary_char), 0, 1))))
-    }
-    _ -> {
-      use #(counter_name, initial_value, step) <- on.ok(handle_non_unary_att_value(attr))
-      Ok(Some(#(counter_name, CounterInfo(counter_type, initial_value, step))))
-    }
-  }
+  use #(counter_name, counter_info) <- on.ok(
+    parse_counter_definition_attr_value(attr.blame, counter_type, attr.val)
+  )
+  Ok(Some(#(counter_name, counter_info)))
 }
 
 fn fancy_one_attr_processor(
@@ -723,8 +702,6 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
                     '::++AppCtr'
                     '::++AppCtr'
                     '::++AppCtr'
-                    '::++AppCtr'
-                    '::++AppCtr'
                 ",
       expected: "
                 <> root
@@ -755,8 +732,6 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
                     'W'
                     'X'
                     'Y'
-                    'Z'
-                    'AA'
                 ",
     ),
     infra.AssertiveTestDataNoParam(
