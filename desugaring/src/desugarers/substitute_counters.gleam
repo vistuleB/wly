@@ -251,29 +251,29 @@ fn parse_counter_definition_attr_value(
 
 fn attr_key_is_counter(
   key: String
-) -> Result(CounterType, Nil) {
+) -> Result(Option(_), CounterType) {
   case key {
-    "counter" -> Ok(Arabic)
-    "counter-lowercase" -> Ok(Lowercase)
-    "counter-uppercase" -> Ok(Uppercase)
-    "counter-roman-lowercase" -> Ok(LowercaseRoman)
-    "counter-roman-uppercase" -> Ok(UppercaseRoman)
-    "counter-unary" -> Ok(Unary(""))
-    _ -> Error(Nil)
+    "counter" -> Error(Arabic)
+    "counter-lowercase" -> Error(Lowercase)
+    "counter-uppercase" -> Error(Uppercase)
+    "counter-roman-lowercase" -> Error(LowercaseRoman)
+    "counter-roman-uppercase" -> Error(UppercaseRoman)
+    "counter-unary" -> Error(Unary(""))
+    _ -> Ok(None)
   }
 }
 
 fn read_counter_definition(
   attr: Attr,
 ) -> Result(Option(#(String, CounterInfo)), DesugaringError) {
-  use counter_type <- on.error_ok(
+  use counter_type <- on.error(
     attr_key_is_counter(attr.key),
-    fn(_) { Ok(None) },
   )
 
   use #(counter_name, counter_info) <- on.ok(
     parse_counter_definition_attr_value(attr.blame, counter_type, attr.val)
   )
+
   Ok(Some(#(counter_name, counter_info)))
 }
 
