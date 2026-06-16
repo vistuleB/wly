@@ -146,7 +146,7 @@ fn param_to_inner_param(_param: Param) -> Result(InnerParam, DesugaringError) {
   // Handle chars:    letters, digits, _, ., :, -, ^
   // Handle end chars: letters, digits, _
   // Decorator chars:  same minus . and ^
-  let in_text_def_pattern = "([ \\(\\[])([a-zA-Z0-9_.:\\-\\^]*[a-zA-Z0-9_](?:#[a-zA-Z0-9_:\\-]+)*)##<<"
+  let in_text_def_pattern = "([ {\\(\\[])([a-zA-Z0-9_.:\\-\\^]*[a-zA-Z0-9_](?:#[a-zA-Z0-9_:\\-]+)*)##<<"
   let assert Ok(re) = regexp.compile(
     in_text_def_pattern,
     regexp.Options(case_insensitive: False, multi_line: False),
