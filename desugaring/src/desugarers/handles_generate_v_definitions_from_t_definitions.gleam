@@ -530,6 +530,21 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
             '##<<value rest'
         ",
     ),
+
+    // Test 21: handle preceded by '{' (LaTeX \tag{handle##<<value} pattern)
+    infra.AssertiveTestDataNoParam(
+      source: "
+        <> root
+          <>
+            '\\\\tag{eq:firstline##<<(A)}'
+        ",
+      expected: "
+        <> root
+          handle=eq:firstline (A)
+          <>
+            '\\\\tag{(A)}'
+        ",
+    ),
   ]
 }
 
