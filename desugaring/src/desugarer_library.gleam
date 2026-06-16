@@ -105,6 +105,7 @@ import desugarers/grand_wrapper_move_nodes_to_wrapper
 import desugarers/group_consecutive_children__outside
 import desugarers/handles_add_ids
 import desugarers/handles_generate_dictionary_and_id_list
+import desugarers/handles_generate_v_definitions_from_t_definitions
 import desugarers/handles_setup_grand_wrapper
 import desugarers/handles_substitute_and_fix_nonlocal_id_links
 import desugarers/identity
@@ -172,9 +173,9 @@ import desugarers/prepend_text_node__outside
 import desugarers/prepend_text_node_if_fancy
 import desugarers/prepend_text_node_if_has_ancestor_else__batch
 import desugarers/rearrange_links
-import desugarers/rearrange_links__batch
 import desugarers/rearrange_links_4_pre_tokenized_src
 import desugarers/rearrange_links_4_pre_tokenized_src__batch
+import desugarers/rearrange_links__batch
 import desugarers/reassign_text_node_blame_to_blame_of_first_nonempty_line_in_text_node
 import desugarers/regex_split_and_replace__batch__outside
 import desugarers/regex_split_and_replace__outside
@@ -378,6 +379,7 @@ pub const grand_wrapper_move_nodes_to_wrapper = grand_wrapper_move_nodes_to_wrap
 pub const group_consecutive_children__outside = group_consecutive_children__outside.constructor
 pub const handles_add_ids = handles_add_ids.constructor
 pub const handles_generate_dictionary_and_id_list = handles_generate_dictionary_and_id_list.constructor
+pub const handles_generate_v_definitions_from_t_definitions = handles_generate_v_definitions_from_t_definitions.constructor
 pub const handles_setup_grand_wrapper = handles_setup_grand_wrapper.constructor
 pub const handles_substitute_and_fix_nonlocal_id_links = handles_substitute_and_fix_nonlocal_id_links.constructor
 pub const identity = identity.constructor
@@ -445,9 +447,9 @@ pub const prepend_text_node__outside = prepend_text_node__outside.constructor
 pub const prepend_text_node_if_fancy = prepend_text_node_if_fancy.constructor
 pub const prepend_text_node_if_has_ancestor_else__batch = prepend_text_node_if_has_ancestor_else__batch.constructor
 pub const rearrange_links = rearrange_links.constructor
-pub const rearrange_links__batch = rearrange_links__batch.constructor
 pub const rearrange_links_4_pre_tokenized_src = rearrange_links_4_pre_tokenized_src.constructor
 pub const rearrange_links_4_pre_tokenized_src__batch = rearrange_links_4_pre_tokenized_src__batch.constructor
+pub const rearrange_links__batch = rearrange_links__batch.constructor
 pub const reassign_text_node_blame_to_blame_of_first_nonempty_line_in_text_node = reassign_text_node_blame_to_blame_of_first_nonempty_line_in_text_node.constructor
 pub const regex_split_and_replace__batch__outside = regex_split_and_replace__batch__outside.constructor
 pub const regex_split_and_replace__outside = regex_split_and_replace__outside.constructor
@@ -652,6 +654,7 @@ pub const assertive_tests : List(fn() -> infra.AssertiveTestCollection) = [
   group_consecutive_children__outside.assertive_tests,
   handles_add_ids.assertive_tests,
   handles_generate_dictionary_and_id_list.assertive_tests,
+  handles_generate_v_definitions_from_t_definitions.assertive_tests,
   handles_setup_grand_wrapper.assertive_tests,
   handles_substitute_and_fix_nonlocal_id_links.assertive_tests,
   identity.assertive_tests,
@@ -719,9 +722,9 @@ pub const assertive_tests : List(fn() -> infra.AssertiveTestCollection) = [
   prepend_text_node_if_fancy.assertive_tests,
   prepend_text_node_if_has_ancestor_else__batch.assertive_tests,
   rearrange_links.assertive_tests,
-  rearrange_links__batch.assertive_tests,
   rearrange_links_4_pre_tokenized_src.assertive_tests,
   rearrange_links_4_pre_tokenized_src__batch.assertive_tests,
+  rearrange_links__batch.assertive_tests,
   reassign_text_node_blame_to_blame_of_first_nonempty_line_in_text_node.assertive_tests,
   regex_split_and_replace__batch__outside.assertive_tests,
   regex_split_and_replace__outside.assertive_tests,
