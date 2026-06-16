@@ -12,20 +12,6 @@ import nodemaps_2_desugarer_transforms as n2t
 import vxml.{type Attr, type Line, type VXML, Attr, Line, T, V}
 import blame.{type Blame}
 
-// Matches: (space | '(' | '[')(handleName[#decorator]*)##<<
-// Handle chars:    letters, digits, _, ., :, -, ^
-// Handle end chars: letters, digits, _
-// Decorator chars:  same minus . and ^
-const in_text_def_pattern = "([ \\(\\[])([a-zA-Z0-9_.:\\-\\^]*[a-zA-Z0-9_](?:#[a-zA-Z0-9_:\\-]+)*)##<<"
-
-fn compile_regex() -> Regexp {
-  let assert Ok(re) = regexp.compile(
-    in_text_def_pattern,
-    regexp.Options(case_insensitive: False, multi_line: False),
-  )
-  re
-}
-
 // Extract the value token after ##<<:
 //   - stops at the first space when not inside a bracket
 //   - stops at an unmatched closing bracket (depth would go negative)
@@ -156,7 +142,16 @@ fn transform_factory(inner: InnerParam) -> DesugarerTransform {
 }
 
 fn param_to_inner_param(_param: Param) -> Result(InnerParam, DesugaringError) {
-  Ok(compile_regex())
+  // Matches: (space | '(' | '[')(handleName[#decorator]*)##<<
+  // Handle chars:    letters, digits, _, ., :, -, ^
+  // Handle end chars: letters, digits, _
+  // Decorator chars:  same minus . and ^
+  let in_text_def_pattern = "([ \\(\\[])([a-zA-Z0-9_.:\\-\\^]*[a-zA-Z0-9_](?:#[a-zA-Z0-9_:\\-]+)*)##<<"
+  let assert Ok(re) = regexp.compile(
+    in_text_def_pattern,
+    regexp.Options(case_insensitive: False, multi_line: False),
+  )
+  Ok(re)
 }
 
 type Param =
@@ -184,6 +179,7 @@ pub const name = "handles_generate_v_definitions_from_t_definitions"
 /// end of string, or unmatched closing bracket.
 ///
 /// For each match found, the desugarer:
+/// 
 ///   1. Replaces the matched span with just
 ///      PRECEDING_CHAR + VALUE in the text.
 ///   2. Adds a 'handle=handleName VALUE' attribute
