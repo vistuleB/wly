@@ -293,16 +293,16 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
                         class=nav
                         <> a
                           id=prev-page
-                          href=/
+                          href=./index.html
                         <> a
                           id=next-page
-                          href=/1-2.html
+                          href=./1-2.html
                     <> Section
                       <> Navigation
                         class=nav
                         <> a
                           id=prev-page
-                          href=/1-1.html
+                          href=./1-1.html
                 ",
     ),
     infra.AssertiveTestDataNoParam(
@@ -328,72 +328,72 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
                         class=nav
                         <> a
                           id=prev-page
-                          href=/
+                          href=./index.html
                         <> a
                           id=next-page
-                          href=/1-2.html
+                          href=./1-2.html
                     <> Section
                       <> Navigation
                         class=nav
                         <> a
                           id=prev-page
-                          href=/1-1.html
+                          href=./1-1.html
                         <> a
                           id=next-page
-                          href=/2-1.html
+                          href=./2-1.html
                   <> Chapter
                     <> Section
                       <> Navigation
                         class=nav
                         <> a
                           id=prev-page
-                          href=/1-2.html
+                          href=./1-2.html
                         <> a
                           id=next-page
-                          href=/2-2.html
+                          href=./2-2.html
                     <> Section
                       <> Navigation
                         class=nav
                         <> a
                           id=prev-page
-                          href=/2-1.html
+                          href=./2-1.html
                         <> a
                           id=next-page
-                          href=/2-2-1.html
+                          href=./2-2-1.html
                       <> SubSection
                         <> Navigation
                           class=nav
                           <> a
                             id=prev-page
-                            href=/2-2.html
+                            href=./2-2.html
                           <> a
                             id=next-page
-                            href=/2-2-2.html
+                            href=./2-2-2.html
                       <> SubSection
                         <> Navigation
                           class=nav
                           <> a
                             id=prev-page
-                            href=/2-2-1.html
+                            href=./2-2-1.html
                           <> a
                             id=next-page
-                            href=/2-2-3.html
+                            href=./2-2-3.html
                       <> SubSection
                         <> Navigation
                           class=nav
                           <> a
                             id=prev-page
-                            href=/2-2-2.html
+                            href=./2-2-2.html
                           <> a
                             id=next-page
-                            href=/3-1.html
+                            href=./3-1.html
                   <> Chapter
                     <> Section
                       <> Navigation
                         class=nav
                         <> a
                           id=prev-page
-                          href=/2-2-3.html
+                          href=./2-2-3.html
                 ",
     ),
     infra.AssertiveTestDataNoParam(
@@ -413,36 +413,36 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
                       class=nav
                       <> a
                         id=prev-page
-                        href=/
+                        href=./index.html
                       <> a
                         id=next-page
-                        href=/1-1.html
+                        href=./1-1.html
                     <> SomeContent
                     <> Section
                       <> Navigation
                         class=nav
                         <> a
                           id=prev-page
-                          href=/1-0.html
+                          href=./1-0.html
                         <> a
                           id=next-page
-                          href=/1-2.html
+                          href=./1-2.html
                     <> Section
                       <> Navigation
                         class=nav
                         <> a
                           id=prev-page
-                          href=/1-1.html
+                          href=./1-1.html
                         <> a
                           id=next-page
-                          href=/2-1.html
+                          href=./2-1.html
                   <> Chapter
                     <> Section
                       <> Navigation
                         class=nav
                         <> a
                           id=prev-page
-                          href=/1-2.html
+                          href=./1-2.html
                 ",
     ),
     infra.AssertiveTestDataNoParam(
@@ -465,19 +465,19 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
                         class=nav
                         <> a
                           id=prev-page
-                          href=/
+                          href=./index.html
                         <> a
                           id=next-page
-                          href=/2-0.html
+                          href=./2-0.html
                   <> Chapter
                     <> Navigation
                       class=nav
                       <> a
                         id=prev-page
-                        href=/1-1.html
+                        href=./1-1.html
                       <> a
                         id=next-page
-                        href=/2-1.html
+                        href=./2-1.html
                     <> ChapterTitle
                     <> SomeContent
                     <> Section
@@ -485,7 +485,7 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
                         class=nav
                         <> a
                           id=prev-page
-                          href=/2-0.html
+                          href=./2-0.html
                 ",
     ),
   ]
