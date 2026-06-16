@@ -324,7 +324,9 @@ fn take_existing_counters(
 fn handle_non_unary_att_value(
   attr: Attr,
 ) -> Result(#(String, Int, Int), DesugaringError) {
-  let splits = string.split(attr.val, " ")
+  let splits =
+    string.split(attr.val, " ")
+    |> list.filter(fn(s) { s != "" })
 
   use counter_name, rest <- on.empty_nonempty(
     splits,
@@ -360,12 +362,14 @@ fn handle_non_unary_att_value(
 fn handle_unary_att_value(
  attr: Attr,
 ) -> Result(#(String, String), DesugaringError) {
-  let splits = string.split(attr.val, " ")
+  let splits =
+    string.split(attr.val, " ")
+    |> list.filter(fn(s) { s != "" })
   case splits {
     [counter_name, unary_char] -> Ok(#(counter_name, unary_char))
     [counter_name] -> Ok(#(counter_name, "1"))
     [] -> Error(DesugaringError(attr.blame, "counter attr without name"))
-    _ -> Error(DesugaringError(attr.blame, "too many arguments for unary-counter"))
+    _ -> Error(DesugaringError(attr.blame, "too many arguments for counter-unary"))
   }
 }
 
@@ -374,8 +378,8 @@ fn attr_key_is_counter(
 ) -> Result(CounterType, Nil) {
   case key {
     "counter" -> Ok(Arabic)
-    "roman-counter" -> Ok(Roman)
-    "unary-counter" -> Ok(Unary(""))
+    "counter-roman-uppercase" -> Ok(Roman)
+    "counter-unary" -> Ok(Unary(""))
     _ -> Error(Nil)
   }
 }
