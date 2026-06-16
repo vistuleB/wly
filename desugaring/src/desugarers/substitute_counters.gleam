@@ -47,7 +47,10 @@ const no_change = StringAndRegexVersion(string: "øø", regex_string: "øø")
 
 /// Base-26 expansion of a nonnegative integer.
 fn to_base_26(n: Int) -> List(Int) {
-  do_base_26(n, [])
+  case n {
+    0 -> [0]
+    _ -> do_base_26(n, [])
+  }
 }
 
 fn do_base_26(n: Int, acc: List(Int)) -> List(Int) {
@@ -81,17 +84,17 @@ fn render_info(
     LowercaseRoman -> roman.int_to_roman(info.value) |> option.unwrap([]) |> roman.roman_to_string()
     Unary(c) -> string.repeat(c, info.value)
     Uppercase -> {
-      to_base_26(info.value)
+      to_base_26(info.value - 1)
       |> list.map(fn(d) {
-        let assert Ok(cp) = string.utf_codepoint(d - 1 + 65)
+        let assert Ok(cp) = string.utf_codepoint(d + 65)
         cp
       })
       |> string.from_utf_codepoints
     }
     Lowercase -> {
-      to_base_26(info.value)
+      to_base_26(info.value - 1)
       |> list.map(fn(d) {
-        let assert Ok(cp) = string.utf_codepoint(d - 1 + 97)
+        let assert Ok(cp) = string.utf_codepoint(d + 97)
         cp
       })
       |> string.from_utf_codepoints
