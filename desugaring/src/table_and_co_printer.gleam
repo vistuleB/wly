@@ -111,8 +111,12 @@ pub fn three_column_table(
         "│"
       }
       Or(x) -> {
-        let c = string.slice(x, string.length(x) - 1, 1)
-        x <> string.repeat(c, total_width - string.length(x))
+        let len = string.length(x)
+        let left_width = { total_width - len } / 2
+        let right_width = { total_width + 1 - len } / 2
+        string.repeat(string.slice(x, 0, 1), left_width)
+        <> x
+        <> string.repeat(string.slice(x, len - 1, 1), right_width)
       }
     }
   }
@@ -177,8 +181,12 @@ pub fn four_column_table(
         "│"
       }
       Or(x) -> {
-        let c = string.slice(x, string.length(x) - 1, 1)
-        x <> string.repeat(c, total_width - string.length(x))
+        let len = string.length(x)
+        let left_width = { total_width - len } / 2
+        let right_width = { total_width + 1 - len } / 2
+        string.repeat(string.slice(x, 0, 1), left_width)
+        <> x
+        <> string.repeat(string.slice(x, len - 1, 1), right_width)
       }
     }
   }
@@ -361,7 +369,7 @@ fn desugarer_to_list_lines(
   none_string: String,
 ) -> List(EitherOr(#(String, String, String, String), String)) {
   case desugarer.name {
-    "table_marker" -> [Or("% table.marker %")]
+    "table_marker" -> [Or("% table_marker %")]
     "table_section_header" -> {
       let assert Some(header) = desugarer.stringified_param
       [Or("~ " <> header <> " ~")]

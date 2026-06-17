@@ -1,18 +1,6 @@
 import gleam/option
-import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as infra
-
-fn transform_factory(_inner: InnerParam) -> DesugarerTransform {
-  fn(vxml) {
-    Ok(#(vxml, []))
-  }
-}
-
-fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
-  Ok(param)
-}
-
-type Param = Nil
-type InnerParam = Nil
+import infrastructure.{type Desugarer, Desugarer} as infra
+import nodemaps_2_desugarer_transforms as n2t
 
 pub const name = "table_marker"
 
@@ -27,10 +15,7 @@ pub fn constructor() -> Desugarer {
     name: name,
     stringified_param: option.None,
     stringified_outside: option.None,
-    transform: case param_to_inner_param(Nil) {
-      Error(error) -> fn(_) { Error(error) }
-      Ok(inner) -> transform_factory(inner)
-    },
+    transform: n2t.identity_transform,
   )
 }
 
