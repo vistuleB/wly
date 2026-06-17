@@ -26,6 +26,7 @@ import gleam/erlang/process.{type Subject, spawn, send, receive}
 import dirtree.{type DirTree} as dt
 import gleam/regexp
 import splitter
+import either_or.{Either, Or}
 
 const default_times_table_char_width = 90 // MacBook 16' can take 140
 
@@ -2172,11 +2173,20 @@ pub fn run_renderer(
         list.zip(renderer.pipeline, all_seconds),
         fn (pair, i) {
           let #(desugarer, seconds) = pair
-          let num_bars = float.round(seconds *. 100.0 *. one_hundreth_seconds_num_bars)
-          #(ins(i + 1) <> ".", desugarer.name, pr.blocks(num_bars))
+          case desugarer.name {
+            "table_marker" -> Or("% table.marker %")
+            "table_section_header" -> {
+              let assert Some(header) = desugarer.stringified_param
+              Or("~ " <> header <> " ~")
+            }
+            _ -> {
+              let num_bars = float.round(seconds *. 100.0 *. one_hundreth_seconds_num_bars)
+              Either(#(ins(i + 1) <> ".", desugarer.name, pr.blocks(num_bars)))
+            }
+          }
         }
       )
-      pr.three_column_table([#("#.", "name", scale), ..bars])
+      pr.three_column_table([Either(#("#.", "name", scale)), ..bars])
       |> pr.print_lines_at_indent(2)
       io.println("  ...ended pipeline in " <> ins(seconds) <> "s")
     }
