@@ -5,6 +5,7 @@ import gleam/option.{None, Some}
 import gleam/string.{inspect as ins}
 import infrastructure.{type Desugarer}
 import blame.{type Blame} as bl
+import either_or.{type EitherOr, Either, Or} as eo
 import on
 
 pub fn dashes(num: Int) -> String { string.repeat("-", num) }
@@ -80,10 +81,10 @@ pub fn two_column_table(
 // **********************
 
 pub fn three_column_maxes(
-  lines: List(#(String, String, String))
+  lines: List(EitherOr(#(String, String, String), String))
 ) -> #(Int, Int, Int) {
   list.fold(
-    lines,
+    lines |> eo.remove_ors_unwrap_eithers,
     #(0, 0, 0),
     fn(acc, triple) {
       #(
@@ -96,27 +97,22 @@ pub fn three_column_maxes(
 }
 
 pub fn three_column_table(
-  lines: List(#(String, String, String)),
+  lines: List(EitherOr(#(String, String, String), String)),
 ) -> List(String) {
   let maxes = three_column_maxes(lines)
   let padding = #(1, 2, 1)
   let total_width = maxes.0 + maxes.1 + maxes.2 + padding.0 + padding.1 + padding.2 + 7
-  let one_line = fn(cols: #(String, String, String)) -> String {
-    case string.starts_with(cols.1, "table_marker") {
-      True -> {
-        let block = "er%%%%%%%%%%%%%%%%%dl.table_mark"
-        // let block = "████dl.tmable_marker█████████"
-        let block_length = block |> string.length
-        let num_blocks = { total_width + block_length - 1 } / block_length
-        block
-        |> string.repeat(num_blocks)
-        |> string.drop_end(num_blocks * block_length - total_width)
-      }
-      False -> {
+  let one_line = fn(item: EitherOr(#(String, String, String), String)) -> String {
+    case item {
+      Either(cols) -> {
         "│ " <> cols.0 <> spaces(maxes.0 - string.length(cols.0) + padding.0) <>
         "│ " <> cols.1 <> spaces(maxes.1 - string.length(cols.1) + padding.1) <>
         "│ " <> cols.2 <> spaces(maxes.2 - string.length(cols.2) + padding.2) <>
         "│"
+      }
+      Or(x) -> {
+        let c = string.slice(x, string.length(x) - 1, 1)
+        x <> string.repeat(c, total_width - string.length(x))
       }
     }
   }
@@ -145,10 +141,10 @@ pub fn three_column_table(
 // **********************
 
 pub fn four_column_maxes(
-  lines: List(#(String, String, String, String))
+  lines: List(EitherOr(#(String, String, String, String), String))
 ) -> #(Int, Int, Int, Int) {
   list.fold(
-    lines,
+    lines |> eo.remove_ors_unwrap_eithers,
     #(0, 0, 0, 0),
     fn(acc, pair) {
       #(
@@ -162,22 +158,14 @@ pub fn four_column_maxes(
 }
 
 pub fn four_column_table(
-  lines: List(#(String, String, String, String)),
+  lines: List(EitherOr(#(String, String, String, String), String)),
 ) -> List(String) {
   let maxes = four_column_maxes(lines)
   let padding = #(1, 2, 1, 1)
   let total_width = 9 + maxes.0 + padding.0 + maxes.1 + padding.1 + maxes.2 + padding.2 + maxes.3 + padding.3
-  let one_line = fn(tuple: #(String, String, String, String), index: Int) -> String {
-    case string.starts_with(tuple.1, "table_marker") {
-      True -> {
-        let block = "er%%%%%%%%%%%%%%%%%dl.table_mark"
-        let block_length = block |> string.length
-        let num_blocks = { total_width + block_length - 1 } / block_length
-        block
-        |> string.repeat(num_blocks)
-        |> string.drop_end(num_blocks * block_length - total_width)
-      }
-      False -> {
+  let one_line = fn(item: EitherOr(#(String, String, String, String), String), index: Int) -> String {
+    case item {
+      Either(tuple) -> {
         "│ " <> tuple.0 <> spaces(maxes.0 - string.length(tuple.0) + padding.0) <>
         "│ " <> tuple.1 <> case index % 2 {
           1 -> dots(maxes.1 - string.length(tuple.1) + padding.1)
@@ -187,6 +175,10 @@ pub fn four_column_table(
         "│ " <> tuple.2 <> spaces(maxes.2 - string.length(tuple.2) + padding.2) <>
         "│ " <> tuple.3 <> spaces(maxes.3 - string.length(tuple.3) + padding.3) <>
         "│"
+      }
+      Or(x) -> {
+        let c = string.slice(x, string.length(x) - 1, 1)
+        x <> string.repeat(c, total_width - string.length(x))
       }
     }
   }
@@ -367,27 +359,36 @@ fn desugarer_to_list_lines(
   max_param_cols: Int,
   max_outside_cols: Int,
   none_string: String,
-) -> List(#(String, String, String, String)) {
-  let number = ins(index + 1) <> "."
-  let name = desugarer.name
-  let param_lines = case desugarer.stringified_param {
-    None -> [none_string]
-    Some(thing) ->
-      case string.split(thing, "\n") {
-        [] -> panic as "stringified param is empty string?"
-        lines -> lines |> list.map(ddd_truncate(_, max_param_cols))
-      }
-  }
-  let outside = case desugarer.stringified_outside {
-    None -> none_string
-    Some(thing) -> thing |> ddd_truncate(max_outside_cols)
-  }
-  list.index_map(param_lines, fn(p, i) {
-    case i == 0 {
-      True -> #(number, name, p, outside)
-      False -> #("", spaces(string.length(name)), p, "⋮")
+) -> List(EitherOr(#(String, String, String, String), String)) {
+  case desugarer.name {
+    "table_marker" -> [Or("% table.marker %")]
+    "table_section_header" -> {
+      let assert Some(header) = desugarer.stringified_param
+      [Or("~ " <> header <> " ~")]
     }
-  })
+    _ -> {
+      let number = ins(index + 1) <> "."
+      let name = desugarer.name
+      let param_lines = case desugarer.stringified_param {
+        None -> [none_string]
+        Some(thing) ->
+          case string.split(thing, "\n") {
+            [] -> panic as "stringified param is empty string?"
+            lines -> lines |> list.map(ddd_truncate(_, max_param_cols))
+          }
+      }
+      let outside = case desugarer.stringified_outside {
+        None -> none_string
+        Some(thing) -> thing |> ddd_truncate(max_outside_cols)
+      }
+      list.index_map(param_lines, fn(p, i) {
+        case i == 0 {
+          True -> Either(#(number, name, p, outside))
+          False -> Either(#("", spaces(string.length(name)), p, "⋮"))
+        }
+      })
+    }
+  }
 }
 
 pub fn print_pipeline(desugarers: List(Desugarer)) {
@@ -410,7 +411,7 @@ pub fn print_pipeline(desugarers: List(Desugarer)) {
 
   io.println("• pipeline:")
 
-  [#("#.", "name", "param", "outside"), ..lines]
+  [Either(#("#.", "name", "param", "outside")), ..lines]
   |> four_column_table
   |> print_lines_at_indent(2)
 }
