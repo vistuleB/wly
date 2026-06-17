@@ -84,7 +84,7 @@ pub fn three_column_maxes(
   lines: List(EitherOr(#(String, String, String), String))
 ) -> #(Int, Int, Int) {
   list.fold(
-    lines |> eo.remove_ors_unwrap_eithers,
+    lines |> eo.keep_eithers,
     #(0, 0, 0),
     fn(acc, triple) {
       #(
@@ -148,7 +148,7 @@ pub fn four_column_maxes(
   lines: List(EitherOr(#(String, String, String, String), String))
 ) -> #(Int, Int, Int, Int) {
   list.fold(
-    lines |> eo.remove_ors_unwrap_eithers,
+    lines |> eo.keep_eithers,
     #(0, 0, 0, 0),
     fn(acc, pair) {
       #(

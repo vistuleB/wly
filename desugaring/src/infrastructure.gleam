@@ -1310,7 +1310,7 @@ fn nonempty_list_t_plain_concatenation(nodes: List(VXML)) -> VXML {
 
 pub fn plain_concatenation_in_list(nodes: List(VXML)) -> List(VXML) {
   nodes
-  |> eo.map_from_condition(is_t)
+  |> eo.discriminate(is_t)
   |> eo.group_eithers
   |> eo.map_resolve(
     fn(either: List(VXML)) -> VXML { nonempty_list_t_plain_concatenation(either) },
