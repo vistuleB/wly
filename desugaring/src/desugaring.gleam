@@ -2174,18 +2174,19 @@ pub fn run_renderer(
         fn (pair, i) {
           let #(desugarer, seconds) = pair
           case desugarer.name {
-            "table_marker" -> Or("% table_marker %")
+            "table_marker" -> ["%", "% table_marker %", "%"] |> list.map(Or)
             "table_section_header" -> {
               let assert Some(header) = desugarer.stringified_param
-              Or("~ " <> header <> " ~")
+              ["~", "~ " <> header <> " ~", "~"] |> list.map(Or)
             }
             _ -> {
               let num_bars = float.round(seconds *. 100.0 *. one_hundreth_seconds_num_bars)
-              Either(#(ins(i + 1) <> ".", desugarer.name, pr.blocks(num_bars)))
+              [Either(#(ins(i + 1) <> ".", desugarer.name, pr.blocks(num_bars)))]
             }
           }
         }
       )
+      |> list.flatten
       pr.three_column_table([Either(#("#.", "name", scale)), ..bars])
       |> pr.print_lines_at_indent(2)
       io.println("  ...ended pipeline in " <> ins(seconds) <> "s")
