@@ -9,7 +9,7 @@ import infrastructure.{
   Desugarer,
 } as infra
 import nodemaps_2_desugarer_transforms as n2t
-import vxml.{type VXML, Line, T, V}
+import vxml.{Line, T, V}
 
 fn replace_labels_in_content(
   content: String,
@@ -37,24 +37,23 @@ fn replace_labels_in_content(
   }
 }
 
-fn nodemap(
-  vxml: VXML,
-  ancestors: List(VXML),
-  _: List(VXML),
-  _: List(VXML),
-  _: List(VXML),
-  inner: InnerParam,
-) -> VXML {
+type State = Bool
+
+fn nodemap_factory(inner: InnerParam) -> n2t.OneToOneNoErrorBeforeAndAfterStatefulNodemap(State) {
   let #(ancestor_tag, counter_expr, re) = inner
-  case vxml {
-    V(_, _, _, _) -> vxml
-    T(blame, lines) ->
-      case
-        ancestor_tag == ""
-        || list.any(ancestors, fn(a) { infra.v_get_tag(a) == ancestor_tag })
-      {
-        False -> vxml
+  n2t.OneToOneNoErrorBeforeAndAfterStatefulNodemap(
+    v_before_transforming_children: fn(vxml, state) {
+      let assert V(_, tag, _, _) = vxml
+      #(vxml, state || tag == ancestor_tag)
+    },
+    v_after_transforming_children: fn(vxml, original_state, _latest_state) {
+      #(vxml, original_state)
+    },
+    t_nodemap: fn(vxml, state) {
+      case state {
+        False -> #(vxml, state)
         True -> {
+          let assert T(blame, lines) = vxml
           let new_lines =
             list.map(lines, fn(line) {
               Line(
@@ -62,20 +61,19 @@ fn nodemap(
                 content: replace_labels_in_content(line.content, re, counter_expr),
               )
             })
-          T(blame, new_lines)
+          #(T(blame, new_lines), state)
         }
       }
-  }
-}
-
-fn nodemap_factory(inner: InnerParam) -> n2t.FancyOneToOneNoErrorNodemap {
-  fn(vxml, ancestors, s1, s2, s3) {
-    nodemap(vxml, ancestors, s1, s2, s3, inner)
-  }
+    },
+  )
 }
 
 fn transform_factory(inner: InnerParam) -> DesugarerTransform {
-  n2t.fancy_one_to_one_no_error_nodemap_2_desugarer_transform(nodemap_factory(inner))
+  let #(ancestor_tag, _, _) = inner
+  n2t.one_to_one_no_error_before_and_after_stateful_nodemap_2_desugarer_transform(
+    nodemap_factory(inner),
+    ancestor_tag == "",
+  )
 }
 
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
