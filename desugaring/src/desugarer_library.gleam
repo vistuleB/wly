@@ -24,6 +24,7 @@ import desugarers/append_attribute_if_child_of__batch
 import desugarers/append_attribute_if_fancy
 import desugarers/append_attribute_to_second_of_kind
 import desugarers/append_attribute_to_second_of_kind__outside
+import desugarers/append_attributes
 import desugarers/append_class
 import desugarers/append_class__batch
 import desugarers/append_class_to_child_if
@@ -300,6 +301,7 @@ pub const append_attribute_if_child_of__batch = append_attribute_if_child_of__ba
 pub const append_attribute_if_fancy = append_attribute_if_fancy.constructor
 pub const append_attribute_to_second_of_kind = append_attribute_to_second_of_kind.constructor
 pub const append_attribute_to_second_of_kind__outside = append_attribute_to_second_of_kind__outside.constructor
+pub const append_attributes = append_attributes.constructor
 pub const append_class = append_class.constructor
 pub const append_class__batch = append_class__batch.constructor
 pub const append_class_to_child_if = append_class_to_child_if.constructor
@@ -577,6 +579,7 @@ pub const assertive_tests : List(fn() -> infra.AssertiveTestCollection) = [
   append_attribute_if_fancy.assertive_tests,
   append_attribute_to_second_of_kind.assertive_tests,
   append_attribute_to_second_of_kind__outside.assertive_tests,
+  append_attributes.assertive_tests,
   append_class.assertive_tests,
   append_class__batch.assertive_tests,
   append_class_to_child_if.assertive_tests,
