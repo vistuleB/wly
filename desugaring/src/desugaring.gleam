@@ -2174,10 +2174,10 @@ pub fn run_renderer(
         fn (pair, i) {
           let #(desugarer, seconds) = pair
           case desugarer.name {
-            "table_marker" -> ["%", "% table_marker %", "%"] |> list.map(Or)
+            "table_marker" -> [" ", "% table_marker %", " "] |> list.map(Or)
             "table_section_header" -> {
               let assert Some(header) = desugarer.stringified_param
-              ["~", "~ " <> header <> " ~", "~"] |> list.map(Or)
+              ["/", "/ " <> header <> " /", "/"] |> list.map(Or)
             }
             _ -> {
               let num_bars = float.round(seconds *. 100.0 *. one_hundreth_seconds_num_bars)
