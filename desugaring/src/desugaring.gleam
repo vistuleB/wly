@@ -2174,7 +2174,7 @@ pub fn run_renderer(
         fn (pair, i) {
           let #(desugarer, seconds) = pair
           case desugarer.name {
-            "table_marker" -> Or("% table.marker %")
+            "table_marker" -> Or("% table_marker %")
             "table_section_header" -> {
               let assert Some(header) = desugarer.stringified_param
               Or("~ " <> header <> " ~")
