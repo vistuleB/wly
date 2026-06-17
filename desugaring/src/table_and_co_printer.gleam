@@ -369,10 +369,10 @@ fn desugarer_to_list_lines(
   none_string: String,
 ) -> List(EitherOr(#(String, String, String, String), String)) {
   case desugarer.name {
-    "table_marker" -> [Or("% table_marker %")]
+    "table_marker" -> [" ", "% table_marker %", " "] |> list.map(Or)
     "table_section_header" -> {
       let assert Some(header) = desugarer.stringified_param
-      [Or("~ " <> header <> " ~")]
+      ["~", "~ " <> header <> " ~", "~"] |> list.map(Or)
     }
     _ -> {
       let number = ins(index + 1) <> "."
@@ -403,7 +403,6 @@ pub fn print_pipeline(desugarers: List(Desugarer)) {
   let none_string = "--"
   let max_param_cols = 65
   let max_outside_cols = 45
-
   let lines =
     desugarers
     |> list.index_map(fn(d, i) {
