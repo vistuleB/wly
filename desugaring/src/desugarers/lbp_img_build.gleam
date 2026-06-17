@@ -25,6 +25,7 @@ import on
 import shellout
 import simplifile
 import table_and_co_printer as pr
+import either_or.{Either}
 import vxml.{
   type VXML,
   type Attr,
@@ -572,10 +573,10 @@ fn v_after(
         [] -> Nil
         _ -> {
           io.println("  lbp_img_build image report:")
-          pr.three_column_table([
-            #("Original path", "Original size", "Compressed size"),
-            ..table_rows
-          ])
+          pr.three_column_table(
+            [Either(#("Original path", "Original size", "Compressed size")),
+             ..list.map(table_rows, Either)]
+          )
           |> pr.print_lines_at_indent(2)
         }
       }
