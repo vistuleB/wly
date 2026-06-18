@@ -7,6 +7,7 @@ import gleam/result
 import gleam/string.{inspect as ins}
 import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError, DesugaringError} as infra
 import nodemaps_2_desugarer_transforms as n2t
+import splitter.{type Splitter}
 import vxml.{type VXML, T, V, Attr, type Line, Line}
 import blame.{type Blame} as bl
 import on
@@ -366,37 +367,66 @@ fn end_node(blame: Blame) {
 }
 
 fn tokenize_string_acc(
+  opening_punctuation_splitter: Splitter,
   past_tokens: List(VXML),
   current_blame: Blame,
   leftover: String,
 ) -> List(VXML) {
-  case string.split_once(leftover, " ") {
-    Ok(#("", after)) -> tokenize_string_acc(
-      [space_node(current_blame), ..past_tokens],
-      bl.advance(current_blame, 1),
-      after,
-    )
-    Ok(#(before, after)) -> tokenize_string_acc(
-      [space_node(current_blame), word_node(current_blame, before), ..past_tokens],
-      bl.advance(current_blame, string.length(before) + 1),
-      after,
-    )
-    Error(Nil) -> case leftover == "" {
-      True -> past_tokens |> list.reverse
-      False -> [word_node(current_blame, leftover), ..past_tokens] |> list.reverse
-    }
+  case splitter.split(opening_punctuation_splitter, leftover) {
+    #(_, "", _) ->
+      case leftover == "" {
+        True -> past_tokens |> list.reverse
+        False ->
+          [word_node(current_blame, leftover), ..past_tokens] |> list.reverse
+      }
+    #("", " ", after) ->
+      tokenize_string_acc(
+        opening_punctuation_splitter,
+        [space_node(current_blame), ..past_tokens],
+        bl.advance(current_blame, 1),
+        after,
+      )
+    #(before, " ", after) ->
+      tokenize_string_acc(
+        opening_punctuation_splitter,
+        [
+          space_node(current_blame),
+          word_node(current_blame, before),
+          ..past_tokens
+        ],
+        bl.advance(current_blame, string.length(before) + 1),
+        after,
+      )
+    #("", non_space_punctuation, after) ->
+      tokenize_string_acc(
+        opening_punctuation_splitter,
+        [
+          word_node(current_blame, non_space_punctuation),
+          ..past_tokens
+        ],
+        bl.advance(current_blame, 1),
+        after,
+      )
+    #(before, non_space_punctuation, after) ->
+      tokenize_string_acc(
+        opening_punctuation_splitter,
+        [
+          word_node(current_blame, before),
+          word_node(current_blame, non_space_punctuation),
+          ..past_tokens
+        ],
+        bl.advance(current_blame, string.length(before) + 1),
+        after,
+      )
   }
 }
 
 fn tokenize_t(vxml: VXML) -> List(VXML) {
+  let opening_punctuation_splitter: Splitter = splitter.new([" ", "(", "[", "—"])
   let assert T(blame, lines) = vxml
   lines
   |> list.index_map(fn(line, i) {
-    tokenize_string_acc(
-      [],
-      line.blame,
-      line.content,
-    )
+    tokenize_string_acc(opening_punctuation_splitter, [], line.blame, line.content)
     |> list.prepend(case i == 0 {
       True -> start_node(line.blame)
       False -> newline_node(line.blame)
@@ -902,7 +932,134 @@ pub fn constructor(param: Param) -> Desugarer {
 // 🌊🌊🌊 tests 🌊🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
 fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
-  []
+  [
+    infra.AssertiveTestData(
+      param: [#("here <a href=1>link</a>", "<a href=1>here link</a>")],
+      source: "
+            <> p
+              <>
+                'see here '
+              <> a
+                href=some-url
+                <>
+                  'link'
+      ",
+      expected: "
+            <> p
+              <>
+                'see '
+              <> a
+                href=some-url
+                class=
+                <>
+                  'here link'
+      ",
+    ),
+    infra.AssertiveTestData(
+      param: [#("here <a href=1>link</a>", "<a href=1>here link</a>")],
+      source: "
+            <> p
+              <>
+                '(here '
+              <> a
+                href=some-url
+                <>
+                  'link'
+      ",
+      expected: "
+            <> p
+              <>
+                '('
+              <> a
+                href=some-url
+                class=
+                <>
+                  'here link'
+      ",
+    ),
+    infra.AssertiveTestData(
+      param: [#("note <a href=1>link</a>", "<a href=1>note link</a>")],
+      source: "
+            <> p
+              <>
+                '[note '
+              <> a
+                href=some-url
+                <>
+                  'link'
+      ",
+      expected: "
+            <> p
+              <>
+                '['
+              <> a
+                href=some-url
+                class=
+                <>
+                  'note link'
+      ",
+    ),
+    infra.AssertiveTestData(
+      param: [
+        #("go <a href=1>here</a>", "<a href=1>go here</a>"),
+        #("come <a href=2>there</a>", "<a href=2>come there</a>"),
+      ],
+      source: "
+            <> p
+              <>
+                'see go '
+              <> a
+                href=url1
+                <>
+                  'here'
+              <>
+                ', and come '
+              <> b
+                href=url2
+                <>
+                  'there'
+      ",
+      expected: "
+            <> p
+              <>
+                'see '
+              <> a
+                href=url1
+                class=
+                <>
+                  'go here'
+              <>
+                ', and '
+              <> b
+                href=url2
+                class=
+                <>
+                  'come there'
+      ",
+    ),
+    infra.AssertiveTestData(
+      param: [#("note <a href=1>link</a>", "<a href=1>note link</a>")],
+      source: "
+            <> p
+              <>
+                '(note '
+              <> a
+                href=some-url
+                <>
+                  'link'
+      ",
+      expected: "
+            <> p
+              <>
+                '('
+              <> a
+                href=some-url
+                class=
+                <>
+                  'note link'
+      ",
+    ),
+  ]
 }
 
 pub fn assertive_tests() {

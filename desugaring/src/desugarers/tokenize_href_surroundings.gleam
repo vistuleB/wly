@@ -9,6 +9,7 @@ import infrastructure.{
   Desugarer,
 } as infra
 import nodemaps_2_desugarer_transforms as n2t
+import splitter.{type Splitter}
 import vxml.{type VXML, Attr, T, V}
 
 const had_href_child = Attr(bl.Des([], name, 9), "had_href_child", "true")
@@ -33,42 +34,69 @@ fn end_node(blame: Blame) {
   V(blame, "__EndTokenizedT", [], [])
 }
 
+
 fn tokenize_string_acc(
+  opening_parenthesis_splitter: Splitter,
   past_tokens: List(VXML),
   current_blame: Blame,
   leftover: String,
 ) -> List(VXML) {
-  case string.split_once(leftover, " ") {
-    Ok(#("", after)) ->
+  case splitter.split(opening_parenthesis_splitter, leftover) {
+    #(_, "", _) -> 
+      case leftover == "" {
+        True -> past_tokens |> list.reverse
+        False ->
+          [word_node(current_blame, leftover), ..past_tokens] |> list.reverse
+      }
+    #("", " ", after) -> 
       tokenize_string_acc(
+        opening_parenthesis_splitter,
         [space_node(current_blame), ..past_tokens],
         bl.advance(current_blame, 1),
         after,
       )
-    Ok(#(before, after)) ->
+    #(before, " ", after) ->
       tokenize_string_acc(
-        [
-          space_node(current_blame),
+        opening_parenthesis_splitter,
+        [ space_node(current_blame),
           word_node(current_blame, before),
           ..past_tokens
         ],
         bl.advance(current_blame, string.length(before) + 1),
         after,
       )
-    Error(Nil) ->
-      case leftover == "" {
-        True -> past_tokens |> list.reverse
-        False ->
-          [word_node(current_blame, leftover), ..past_tokens] |> list.reverse
-      }
+    #("", non_space_puncutation, after) -> {
+      tokenize_string_acc(
+        opening_parenthesis_splitter,
+        [
+          word_node(current_blame, non_space_puncutation),
+          ..past_tokens
+        ],
+        bl.advance(current_blame, 1),
+        after,
+      )
+    }
+    #(before, non_space_punctuation, after) -> 
+      tokenize_string_acc(
+        opening_parenthesis_splitter,
+        [
+          word_node(current_blame, before),
+          word_node(current_blame, non_space_punctuation),
+          ..past_tokens
+        ],
+        bl.advance(current_blame, string.length(before) + 1),
+        after,
+      )
   }
 }
 
+
 fn tokenize_t(vxml: VXML) -> List(VXML) {
+  let opening_parenthesis_splitter: Splitter = splitter.new([" ", "(", "[", "—"])
   let assert T(blame, lines) = vxml
   lines
   |> list.index_map(fn(line, i) {
-    tokenize_string_acc([], line.blame, line.content)
+    tokenize_string_acc(opening_parenthesis_splitter, [], line.blame, line.content)
     |> list.prepend(case i == 0 {
       True -> start_node(line.blame)
       False -> newline_node(line.blame)
@@ -235,6 +263,82 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
                 <> __OneSpace
                 <> __OneWord
                   val=line
+                <> __EndTokenizedT
+      ",
+    ),
+    infra.AssertiveTestDataNoParam(
+      source: "
+            <> testing
+              <> zz
+                href=cx
+                <>
+                  '(Note'
+                  ''
+                  'third line'
+      ",
+      expected: "
+            <> testing
+              had_href_child=true
+              <> zz
+                href=cx
+                <> __StartTokenizedT
+                <> __OneWord
+                  val=(
+                <> __OneWord
+                  val=Note
+                <> __OneNewLine
+                <> __OneNewLine
+                <> __OneWord
+                  val=third
+                <> __OneSpace
+                <> __OneWord
+                  val=line
+                <> __EndTokenizedT
+      ",
+    ),
+    infra.AssertiveTestDataNoParam(
+      source: "
+            <> testing
+              <> zz
+                href=cx
+                <>
+                  '[Note'
+                  ''
+      ",
+      expected: "
+            <> testing
+              had_href_child=true
+              <> zz
+                href=cx
+                <> __StartTokenizedT
+                <> __OneWord
+                  val=[
+                <> __OneWord
+                  val=Note
+                <> __OneNewLine
+                <> __EndTokenizedT
+      ",
+    ),
+    infra.AssertiveTestDataNoParam(
+      source: "
+            <> testing
+              <> zz
+                href=cx
+                <>
+                  '—Note'
+                  ''
+      ",
+      expected: "
+            <> testing
+              had_href_child=true
+              <> zz
+                href=cx
+                <> __StartTokenizedT
+                <> __OneWord
+                  val=—
+                <> __OneWord
+                  val=Note
+                <> __OneNewLine
                 <> __EndTokenizedT
       ",
     ),
