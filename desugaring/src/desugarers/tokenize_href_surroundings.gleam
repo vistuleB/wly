@@ -34,7 +34,6 @@ fn end_node(blame: Blame) {
   V(blame, "__EndTokenizedT", [], [])
 }
 
-
 fn tokenize_string_acc(
   opening_parenthesis_splitter: Splitter,
   past_tokens: List(VXML),
@@ -89,7 +88,6 @@ fn tokenize_string_acc(
       )
   }
 }
-
 
 fn tokenize_t(vxml: VXML) -> List(VXML) {
   let opening_parenthesis_splitter: Splitter = splitter.new([" ", "(", "[", "—"])
