@@ -42,6 +42,19 @@ fn replace_labels_in_content(
             }
           }
         }
+        [option.None, option.None, option.None, option.Some(bare_name)] -> {
+          case string.split_once(content, first_match.content) {
+            Error(_) -> content
+            Ok(#(before, after)) ->
+              before
+              <> "\\tag{"
+              <> bare_name
+              <> "##<<"
+              <> counter_expr
+              <> "}"
+              <> replace_labels_in_content(after, re, counter_expr)
+          }
+        }
         _ -> content
       }
   }
@@ -88,7 +101,8 @@ fn transform_factory(inner: InnerParam) -> DesugarerTransform {
 
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
   let #(ancestor_tag, counter_expr) = param
-  let pattern = "\\\\(label|tag)\\{([a-zA-Z0-9_.:^\\-]+)##<<([^}]*)\\}"
+  let pattern =
+    "\\\\(label|tag)\\{([a-zA-Z0-9_.:^\\-]+)##<<([^}]*)\\}|([a-zA-Z0-9_.:^\\-]+)##<<"
   let assert Ok(re) =
     regexp.compile(
       pattern,
@@ -118,12 +132,14 @@ pub const name = "math_label_to_tag_handle"
 /// Inside T nodes that are descendants of
 /// `ancestor_tag` (or all T nodes when
 /// `ancestor_tag` is `""`), processes occurrences
-/// of `\label{name##<<…}` and `\tag{name##<<…}`:
+/// of `\label{name##<<…}`, `\tag{name##<<…}`, and
+/// bare `name##<<` (without any LaTeX wrapper):
 ///
 ///   \label{name##<<}   → \tag{name##<<counter_expr}
 ///   \tag{name##<<}     → \tag{name##<<counter_expr}
 ///   \label{name##<<v}  → \tag{name##<<v}  (keep value)
 ///   \tag{name##<<v}    → unchanged
+///   name##<<           → \tag{name##<<counter_expr}
 ///
 /// `\label{name}` (without `##<<`) is not matched
 /// and is left untouched (treated as a vanilla
@@ -314,6 +330,72 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
           <> MathBlock
             <>
               'a = b \\label{eq:foo}'
+        ",
+    ),
+
+    // Test 11: bare name##<< inside MathBlock → fills counter
+    infra.AssertiveTestData(
+      param: #("MathBlock", "::++EqCounter"),
+      source: "
+        <> root
+          <> MathBlock
+            <>
+              'a = b eq:lebesgue##<<'
+        ",
+      expected: "
+        <> root
+          <> MathBlock
+            <>
+              'a = b \\tag{eq:lebesgue##<<::++EqCounter}'
+        ",
+    ),
+
+    // Test 12: bare name##<< outside ancestor tag → no change
+    infra.AssertiveTestData(
+      param: #("MathBlock", "::++EqCounter"),
+      source: "
+        <> root
+          <>
+            'a = b eq:lebesgue##<<'
+        ",
+      expected: "
+        <> root
+          <>
+            'a = b eq:lebesgue##<<'
+        ",
+    ),
+
+    // Test 13: bare name##<< with empty ancestor_tag applies to all T nodes
+    infra.AssertiveTestData(
+      param: #("", "::++EqCounter"),
+      source: "
+        <> root
+          <>
+            'a = b eq:lebesgue##<<'
+        ",
+      expected: "
+        <> root
+          <>
+            'a = b \\tag{eq:lebesgue##<<::++EqCounter}'
+        ",
+    ),
+
+    // Test 14: bare name##<< alongside \label{...} on separate lines
+    infra.AssertiveTestData(
+      param: #("MathBlock", "::++EqCounter"),
+      source: "
+        <> root
+          <> MathBlock
+            <>
+              'a = b \\label{eq:first##<<}'
+              'c = d eq:second##<<'
+        ",
+      expected: "
+        <> root
+          <> MathBlock
+            <>
+              'a = b \\tag{eq:first##<<::++EqCounter}'
+              'c = d \\tag{eq:second##<<::++EqCounter}'
         ",
     ),
   ]
