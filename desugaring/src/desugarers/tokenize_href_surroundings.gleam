@@ -89,8 +89,7 @@ fn tokenize_string_acc(
   }
 }
 
-fn tokenize_t(vxml: VXML) -> List(VXML) {
-  let opening_parenthesis_splitter: Splitter = splitter.new([" ", "(", "[", "—"])
+fn tokenize_t(opening_parenthesis_splitter: Splitter, vxml: VXML) -> List(VXML) {
   let assert T(blame, lines) = vxml
   lines
   |> list.index_map(fn(line, i) {
@@ -104,9 +103,9 @@ fn tokenize_t(vxml: VXML) -> List(VXML) {
   |> list.append([end_node(blame)])
 }
 
-fn tokenize_if_t_or_has_href_attr_and_recurse(vxml: VXML) -> List(VXML) {
+fn tokenize_if_t_or_has_href_attr_and_recurse(opening_parenthesis_splitter: Splitter, vxml: VXML) -> List(VXML) {
   case vxml {
-    T(_, _) -> tokenize_t(vxml)
+    T(_, _) -> tokenize_t(opening_parenthesis_splitter, vxml)
     V(_, _, attrs, children) ->
       case infra.attrs_have_key(attrs, "href") {
         True -> [
@@ -114,7 +113,7 @@ fn tokenize_if_t_or_has_href_attr_and_recurse(vxml: VXML) -> List(VXML) {
             ..vxml,
             children: list.flat_map(
               children,
-              tokenize_if_t_or_has_href_attr_and_recurse,
+              fn(vxml) { tokenize_if_t_or_has_href_attr_and_recurse(opening_parenthesis_splitter, vxml) },
             ),
           ),
         ]
@@ -123,7 +122,7 @@ fn tokenize_if_t_or_has_href_attr_and_recurse(vxml: VXML) -> List(VXML) {
   }
 }
 
-fn nodemap(vxml: VXML) -> VXML {
+fn nodemap(opening_parenthesis_splitter: Splitter, vxml: VXML) -> VXML {
   case vxml {
     T(_, _) -> vxml
     V(_, _, attrs, children) -> {
@@ -132,7 +131,7 @@ fn nodemap(vxml: VXML) -> VXML {
         True -> {
           let attrs = [had_href_child, ..attrs]
           let children =
-            list.flat_map(children, tokenize_if_t_or_has_href_attr_and_recurse)
+            list.flat_map(children, fn(vxml) { tokenize_if_t_or_has_href_attr_and_recurse(opening_parenthesis_splitter, vxml) })
           V(..vxml, attrs: attrs, children: children)
         }
       }
@@ -140,8 +139,8 @@ fn nodemap(vxml: VXML) -> VXML {
   }
 }
 
-fn nodemap_factory(_inner: InnerParam) -> n2t.OneToOneNoErrorNodemap {
-  nodemap
+fn nodemap_factory(inner: InnerParam) -> n2t.OneToOneNoErrorNodemap {
+  fn(vxml) { nodemap(inner, vxml) }
 }
 
 fn transform_factory(inner: InnerParam) -> DesugarerTransform {
@@ -149,15 +148,16 @@ fn transform_factory(inner: InnerParam) -> DesugarerTransform {
   |> n2t.one_to_one_no_error_nodemap_2_desugarer_transform()
 }
 
-fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
-  Ok(param)
+fn param_to_inner_param(_param: Param) -> Result(InnerParam, DesugaringError) {
+  let opening_parenthesis_splitter: Splitter = splitter.new([" ", "(", "[", "—"])
+  Ok(opening_parenthesis_splitter)
 }
 
 type Param =
   Nil
 
 type InnerParam =
-  Param
+  Splitter
 
 pub const name = "tokenize_href_surroundings"
 

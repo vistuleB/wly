@@ -423,8 +423,7 @@ fn tokenize_string_acc(
   }
 }
 
-fn tokenize_t(vxml: VXML) -> List(VXML) {
-  let opening_punctuation_splitter: Splitter = splitter.new([" ", "(", "[", "—"])
+fn tokenize_t(opening_punctuation_splitter: Splitter, vxml: VXML) -> List(VXML) {
   let assert T(blame, lines) = vxml
   lines
   |> list.index_map(fn(line, i) {
@@ -438,12 +437,12 @@ fn tokenize_t(vxml: VXML) -> List(VXML) {
   |> list.append([end_node(blame)])
 }
 
-fn tokenize_if_t_or_has_href_tag_recursive(vxml: VXML) -> List(VXML) {
+fn tokenize_if_t_or_has_href_tag_recursive(opening_punctuation_splitter: Splitter, vxml: VXML) -> List(VXML) {
   case vxml {
-    T(_, _) -> tokenize_t(vxml)
+    T(_, _) -> tokenize_t(opening_punctuation_splitter, vxml)
     V(_, _, _, children) -> case infra.v_has_attr_with_key(vxml, "href") {
       True -> {
-        let children = list.flat_map(children, tokenize_if_t_or_has_href_tag_recursive)
+        let children = list.flat_map(children, fn(vxml) {tokenize_if_t_or_has_href_tag_recursive(opening_punctuation_splitter, vxml)})
         [V(..vxml, children: children)]
       }
       False -> [vxml]
@@ -451,11 +450,11 @@ fn tokenize_if_t_or_has_href_tag_recursive(vxml: VXML) -> List(VXML) {
   }
 }
 
-fn tokenize_maybe(children: List(VXML)) -> Option(List(VXML)) {
+fn tokenize_maybe( opening_punctuation_splitter: Splitter,children: List(VXML)) -> Option(List(VXML)) {
   case list.any(children, infra.is_v_and_has_attr_with_key(_, "href")) {
     True -> {
       children
-      |> list.map(tokenize_if_t_or_has_href_tag_recursive)
+      |> list.map(fn(vxml) { tokenize_if_t_or_has_href_tag_recursive(opening_punctuation_splitter, vxml) })
       |> list.flatten
       |> Some
     }
@@ -483,7 +482,7 @@ fn nodemap(
   case vxml {
     V(_, _, _, children) -> {
       use atomized <- on.eager_none_some(
-        tokenize_maybe(children),
+        tokenize_maybe(inner.2, children),
         vxml,
       )
 
@@ -869,6 +868,7 @@ fn collect_unique_href_vars(pattern1: LinkPattern) -> Result(List(Int), Int) {
 }
 
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
+  let opening_punctuation_splitter: Splitter = splitter.new([" ", "(", "[", "—"])
   use #(pattern1, pattern2) <- on.ok(string_pair_to_link_pattern_pair(param))
 
   use unique_href_vars <- on.ok(
@@ -891,7 +891,7 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
     |> result.map_error(fn(var){ DesugaringError(desugarer_blame(861), "Target pattern " <> param.1 <> " has a declaration of unsourced content variable: " <> ins(var)) })
   )
 
-  Ok(#(pattern1, pattern2))
+  Ok(#(pattern1, pattern2, opening_punctuation_splitter))
 }
 
 type Param = #(String,   String)
@@ -899,7 +899,7 @@ type Param = #(String,   String)
 //             source    target
 //             pattern   pattern
 
-type InnerParam = #(LinkPattern, LinkPattern)
+type InnerParam = #(LinkPattern, LinkPattern, Splitter)
 
 pub const name = "rearrange_links"
 fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }

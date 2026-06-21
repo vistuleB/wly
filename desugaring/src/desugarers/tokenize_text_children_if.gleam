@@ -82,8 +82,7 @@ fn tokenize_string_acc(
   }
 }
 
-fn tokenize_t(vxml: VXML) -> List(VXML) {
-  let opening_punctuation_splitter: Splitter = splitter.new([" ", "(", "[", "—"])
+fn tokenize_t(opening_punctuation_splitter: Splitter, vxml: VXML) -> List(VXML) {
   let assert T(blame, lines) = vxml
   lines
   |> list.index_map(fn(line, i) {
@@ -97,9 +96,9 @@ fn tokenize_t(vxml: VXML) -> List(VXML) {
   |> list.append([end_node(blame)])
 }
 
-fn tokenize_if_t(vxml: VXML) -> List(VXML) {
+fn tokenize_if_t(opening_punctuation_splitter: Splitter, vxml: VXML) -> List(VXML) {
   case vxml {
-    T(_, _) -> tokenize_t(vxml)
+    T(_, _) -> tokenize_t(opening_punctuation_splitter, vxml)
     _ -> [vxml]
   }
 }
@@ -110,10 +109,10 @@ fn nodemap(
 ) -> VXML {
   case vxml {
     T(_, _) -> vxml
-    V(_, _, _, children) -> case inner(vxml) {
+    V(_, _, _, children) -> case inner.0(vxml) {
       False -> vxml
       True -> {
-        let children = list.map(children, tokenize_if_t) |> list.flatten
+        let children = list.map(children, fn(vxml) { tokenize_if_t(inner.1, vxml)} ) |> list.flatten
         V(..vxml, children: children)
       }
     }
@@ -130,11 +129,12 @@ fn transform_factory(inner: InnerParam) -> DesugarerTransform {
 }
 
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
-  Ok(param)
+  let opening_punctuation_splitter: Splitter = splitter.new([" ", "(", "[", "—"])
+  Ok(#(param, opening_punctuation_splitter))
 }
 
 type Param = fn(VXML) -> Bool
-type InnerParam = Param
+type InnerParam = #(Param, Splitter)
 
 pub const name = "tokenize_text_children_if"
 fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
