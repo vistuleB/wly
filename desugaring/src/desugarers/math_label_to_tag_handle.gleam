@@ -102,7 +102,7 @@ fn transform_factory(inner: InnerParam) -> DesugarerTransform {
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
   let #(ancestor_tag, counter_expr) = param
   let pattern =
-    "\\\\(label|tag)\\{([a-zA-Z0-9_.:^\\-]+)##<<([^}]*)\\}|([a-zA-Z0-9_.:^\\-]+)##<<"
+    "\\\\(label|tag)\\{([a-zA-Z0-9_.:^\\-]+(?:#[a-zA-Z0-9_:\\-]+)*)##<<([^}]*)\\}|([a-zA-Z0-9_.:^\\-]+(?:#[a-zA-Z0-9_:\\-]+)*)##<<"
   let assert Ok(re) =
     regexp.compile(
       pattern,
@@ -377,6 +377,106 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
         <> root
           <>
             'a = b \\tag{eq:lebesgue##<<::++EqCounter}'
+        ",
+    ),
+
+    // Test 15: bare name#decorator##<< inside MathBlock → fills counter, decorator preserved
+    infra.AssertiveTestData(
+      param: #("MathBlock", "::++EqCounter"),
+      source: "
+        <> root
+          <> MathBlock
+            <>
+              'a + b = c eq:lebesgue#page##<<'
+        ",
+      expected: "
+        <> root
+          <> MathBlock
+            <>
+              'a + b = c \\tag{eq:lebesgue#page##<<::++EqCounter}'
+        ",
+    ),
+
+    // Test 16: \label{name#decorator##<<} → converts to \tag, decorator preserved
+    infra.AssertiveTestData(
+      param: #("MathBlock", "::++EqCounter"),
+      source: "
+        <> root
+          <> MathBlock
+            <>
+              'a = b \\label{eq:foo#page##<<}'
+        ",
+      expected: "
+        <> root
+          <> MathBlock
+            <>
+              'a = b \\tag{eq:foo#page##<<::++EqCounter}'
+        ",
+    ),
+
+    // Test 17: multiple decorators on bare form
+    infra.AssertiveTestData(
+      param: #("MathBlock", "::++EqCounter"),
+      source: "
+        <> root
+          <> MathBlock
+            <>
+              'x = y eq:thm#page#glossary##<<'
+        ",
+      expected: "
+        <> root
+          <> MathBlock
+            <>
+              'x = y \\tag{eq:thm#page#glossary##<<::++EqCounter}'
+        ",
+    ),
+
+    // Test 18: \tag{name#decorator##<<} with existing value → unchanged
+    infra.AssertiveTestData(
+      param: #("MathBlock", "::++EqCounter"),
+      source: "
+        <> root
+          <> MathBlock
+            <>
+              'a = b \\tag{eq:foo#page##<<A}'
+        ",
+      expected: "
+        <> root
+          <> MathBlock
+            <>
+              'a = b \\tag{eq:foo#page##<<A}'
+        ",
+    ),
+
+    // Test 19: \label{name#decorator##<<value} → changes to \tag, preserves value and decorator
+    infra.AssertiveTestData(
+      param: #("MathBlock", "::++EqCounter"),
+      source: "
+        <> root
+          <> MathBlock
+            <>
+              'a = b \\label{eq:foo#page##<<A}'
+        ",
+      expected: "
+        <> root
+          <> MathBlock
+            <>
+              'a = b \\tag{eq:foo#page##<<A}'
+        ",
+    ),
+
+    // Test 20: bare name#decorator##<< outside MathBlock → no change
+    infra.AssertiveTestData(
+      param: #("MathBlock", "::++EqCounter"),
+      source: "
+        <> root
+          <>
+            'a + b = c eq:lebesgue#page##<<'
+        ",
+      expected: "
+        <> root
+          <>
+            'a + b = c eq:lebesgue#page##<<'
         ",
     ),
 
