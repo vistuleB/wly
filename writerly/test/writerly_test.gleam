@@ -6,7 +6,8 @@ import writerly.{type Writerly, Paragraph} as wl
 import dirtree.{Dirpath, Filepath} as _dt
 import blame.{Anchored, Movable, Src} as _bl
 import io_lines.{InputLine} as io_l
-import vxml.{Attr, Line}
+import simplifile
+import vxml.{Attr, Line, xmlm_based_html_parser}
 
 pub fn main() -> Nil {
   gleeunit.main()
@@ -102,6 +103,58 @@ pub fn path_selector_from_only_paths_test() {
   include_chapter_1_but_exclude_draft("book/chapter-1/draft/section.wly")
   |> should.be_false
   include_chapter_1_but_exclude_draft("book/chapter-2/section.wly")
+  |> should.be_false
+}
+
+pub fn sample_wly_parses_and_roundtrips_test() {
+  let assert Ok(contents) = simplifile.read("samples/sample.wly")
+  let assert Ok(writerlys) = wl.string_to_writerlys(contents, "samples/sample.wly")
+
+  writerlys
+  |> list.length
+  |> should.equal(1)
+
+  writerlys
+  |> wl.writerlys_to_string
+  |> should.equal(contents |> string.trim_end)
+}
+
+pub fn sample_contents_directory_assembles_and_parses_test() {
+  let assert Ok(#(_tree, lines)) =
+    wl.assemble_input_lines("samples/contents/ch5_ch.wly")
+
+  lines
+  |> list.length
+  |> fn(length) { length > 0 }
+  |> should.be_true
+
+  let assert Ok(writerlys) = wl.input_lines_to_writerlys(lines)
+
+  writerlys
+  |> list.length
+  |> should.equal(1)
+
+  writerlys
+  |> list.map(wl.writerly_to_vxml)
+  |> list.length
+  |> should.equal(1)
+}
+
+pub fn sample_xml_converts_to_writerly_test() {
+  let assert Ok(contents) = simplifile.read("samples/ch5_ch.xml")
+  let assert Ok(node) = xmlm_based_html_parser(contents, "samples/ch5_ch.xml")
+
+  let writerlys = wl.vxml_to_writerlys(node)
+
+  writerlys
+  |> list.length
+  |> fn(length) { length > 0 }
+  |> should.be_true
+
+  writerlys
+  |> list.map(wl.writerly_to_string)
+  |> string.concat
+  |> string.is_empty
   |> should.be_false
 }
 
