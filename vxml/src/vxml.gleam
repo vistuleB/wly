@@ -1082,22 +1082,12 @@ pub fn remove_attrs_from_closing_tags(
   })
 }
 
-fn ti2_html_bad_html_replacements(
-  content: String,
-) -> String {
-  content
-  |> string.replace("\\,<", "\\,&lt;")
-  |> string.replace(" < ", " &lt; ")
-  |> string.replace("\\rt{0.1}<", "\\rt{0.1}&lt;")
-}
-
 pub fn bad_html_pre_processor(
   content: String,
 ) -> String {
   content
   |> expand_html_boolean_attrs
   |> escape_non_entity_ampersands
-  |> ti2_html_bad_html_replacements
   |> close_html_void_tags
   |> remove_attrs_from_closing_tags
 }
