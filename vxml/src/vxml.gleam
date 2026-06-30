@@ -1025,6 +1025,39 @@ fn close_html_void_tag(content: String, tag: String) -> String {
   })
 }
 
+pub fn escape_non_entity_ampersands(
+  content: String,
+) -> String {
+  let assert Ok(re) = regexp.from_string(non_html_ampersand_re)
+
+  regexp.replace(re, content, "&amp;")
+}
+
+fn expand_html_boolean_attr(content: String, attr: String) -> String {
+  let assert Ok(re) =
+    regexp.from_string("(\\s" <> attr <> ")(\\s|>|/>)")
+
+  regexp.match_map(re, content, fn(match) {
+    let regexp.Match(_, sub) = match
+    let assert [Some(attr), Some(after)] = sub
+    attr <> "=\"\"" <> after
+  })
+}
+
+pub fn expand_html_boolean_attrs(
+  content: String,
+) -> String {
+  [
+    "allowfullscreen", "async", "autofocus", "autoplay", "checked", "controls",
+    "default", "defer", "disabled", "formnovalidate", "hidden", "inert", "ismap",
+    "loop", "multiple", "muted", "nomodule", "novalidate", "open", "playsinline",
+    "readonly", "required", "reversed", "selected",
+  ]
+  |> list.fold(content, fn(content, attr) {
+    expand_html_boolean_attr(content, attr)
+  })
+}
+
 pub fn close_html_void_tags(
   content: String,
 ) -> String {
@@ -1049,19 +1082,22 @@ pub fn remove_attrs_from_closing_tags(
   })
 }
 
+fn ti2_html_bad_html_replacements(
+  content: String,
+) -> String {
+  content
+  |> string.replace("\\,<", "\\,&lt;")
+  |> string.replace(" < ", " &lt; ")
+  |> string.replace("\\rt{0.1}<", "\\rt{0.1}&lt;")
+}
+
 pub fn bad_html_pre_processor(
   content: String,
 ) -> String {
   content
-  |> string.replace("\r\n", "\n")
-  |> string.replace("async ", "async=\"\"")
-  |> string.replace("async\n", "async=\"\"\n")
-  |> string.replace("& ", "&amp;")
-  |> string.replace("&\n", "&amp;\n")
-  |> string.replace(" &", "&amp;")
-  |> string.replace("\\,<", "\\,&lt;")
-  |> string.replace(" < ", " &lt; ")
-  |> string.replace("\\rt{0.1}<", "\\rt{0.1}&lt;")
+  |> expand_html_boolean_attrs
+  |> escape_non_entity_ampersands
+  |> ti2_html_bad_html_replacements
   |> close_html_void_tags
   |> remove_attrs_from_closing_tags
 }

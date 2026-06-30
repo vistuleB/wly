@@ -28,6 +28,12 @@ fn spaces(i: Int) -> String {
   string.repeat(" ", i)
 }
 
+pub fn normalize_line_endings(source: String) -> String {
+  source
+  |> string.replace("\r\n", "\n")
+  |> string.replace("\r", "\n")
+}
+
 // ***************************************************
 // String -> List(InputLine) & path -> List(InputLine)
 // ***************************************************
@@ -37,12 +43,13 @@ pub fn string_to_input_lines(
   path: String,
   added_indentation: Int,
 ) -> List(InputLine) {
-  string.split(source, "\n")
+  source
+  |> normalize_line_endings
+  |> string.split("\n")
   |> list.index_map(
     fn (s, i) {
       let suffix =
         string.trim_start(s)
-        |> string.replace("\r", "")
       let indent = len(s) - len(suffix)
       InputLine(
         blame: bl.Src(

@@ -12,6 +12,18 @@ pub fn close_html_void_tags_test() {
   |> should.equal("<div><img src=\"x\"/><br/><input disabled/></div>")
 }
 
+pub fn escape_non_entity_ampersands_test() {
+  "fish & chips &Gamma;"
+  |> vxml.escape_non_entity_ampersands
+  |> should.equal("fish &amp; chips &Gamma;")
+}
+
+pub fn expand_html_boolean_attrs_test() {
+  "<script async src=\"x\"></script><input disabled/>"
+  |> vxml.expand_html_boolean_attrs
+  |> should.equal("<script async=\"\" src=\"x\"></script><input disabled=\"\"/>")
+}
+
 pub fn close_html_void_tags_leaves_already_closed_tags_test() {
   "<meta charset=\"utf-8\"/><hr/>"
   |> vxml.close_html_void_tags
