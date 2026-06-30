@@ -1,9 +1,81 @@
 import gleeunit
 import gleeunit/should
+import gleam/list
+import io_lines
+import simplifile
 import vxml
+import xml_streamer
 
 pub fn main() {
   gleeunit.main()
+}
+
+pub fn parse_and_serialize_roundtrip_test() {
+  let source = "<> Book\n  title=Example\n  <>\n    'hello'\n  <> Chapter"
+
+  let assert Ok(parsed) = vxml.parse_string(source, "sample.vxml", True)
+
+  parsed
+  |> vxml.vxmls_to_string
+  |> should.equal(source)
+}
+
+pub fn parse_string_rejects_multiple_roots_when_unique_root_test() {
+  "<> One\n<> Two"
+  |> vxml.parse_string("sample.vxml", True)
+  |> should.equal(Error(vxml.VXMLParseErrorNonUniqueRoot(2)))
+}
+
+pub fn html_parser_accepts_common_html_repairs_test() {
+  "<html><body><img src=\"x\"><input disabled><p>fish & chips</p></body></html>"
+  |> vxml.xmlm_based_html_parser("sample.html")
+  |> should.be_ok
+}
+
+pub fn html_output_escapes_text_test() {
+  let assert Ok([node]) =
+    "<> p\n  <>\n    'fish & chips < ok >'"
+    |> vxml.parse_string("sample.vxml", True)
+
+  node
+  |> vxml.vxml_to_html_output_lines(0, 2)
+  |> io_lines.output_lines_to_string
+  |> should.equal("<p>\n  fish &amp; chips &lt; ok &gt;\n</p>")
+}
+
+pub fn sample_vxml_file_parses_test() {
+  let assert Ok(vxmls) = vxml.parse_file("samples/sample.vxml", False)
+
+  vxmls
+  |> list.length
+  |> should.equal(2)
+}
+
+pub fn sample_html_file_parses_and_emits_test() {
+  let assert Ok(content) = simplifile.read("samples/sample.html")
+  let assert Ok(node) = vxml.xmlm_based_html_parser(content, "samples/sample.html")
+
+  node
+  |> vxml.vxml_to_html_output_lines(0, 2)
+  |> list.length
+  |> fn(length) { length > 0 }
+  |> should.be_true
+}
+
+pub fn sample_html_streaming_parser_returns_one_root_test() {
+  let assert Ok(content) = simplifile.read("samples/sample2.html")
+
+  let assert Ok(units) =
+    content
+    |> xml_streamer.string_streamer("samples/sample2.html")
+    |> vxml.xml_streaming_logical_units
+
+  let assert Ok(_) = vxml.vxml_from_streaming_logical_units(units)
+
+  units
+  |> list.length
+  |> fn(length) { length > 0 }
+  |> should.be_true
 }
 
 pub fn close_html_void_tags_test() {
