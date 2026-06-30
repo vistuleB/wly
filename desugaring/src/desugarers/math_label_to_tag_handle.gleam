@@ -102,7 +102,7 @@ fn transform_factory(inner: InnerParam) -> DesugarerTransform {
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
   let #(ancestor_tag, counter_expr) = param
   let pattern =
-    "\\\\(label|tag)\\{([a-zA-Z0-9_.:^\\-]+(?:#[a-zA-Z0-9_:\\-]+)*)##<<([^}]*)\\}|([a-zA-Z0-9_.:^\\-]+(?:#[a-zA-Z0-9_:\\-]+)*)##<<"
+    "\\\\(label|tag)\\{([a-zA-Z0-9_.:^\\-']+(?:#[a-zA-Z0-9_:\\-]+)*)##<<([^}]*)\\}|([a-zA-Z0-9_.:^\\-']+(?:#[a-zA-Z0-9_:\\-]+)*)##<<"
   let assert Ok(re) =
     regexp.compile(
       pattern,
@@ -477,6 +477,40 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
         <> root
           <>
             'a + b = c eq:lebesgue#page##<<'
+        ",
+    ),
+
+    // Test 21: bare name with prime char (e.g. left-reduction-w')
+    infra.AssertiveTestData(
+      param: #("MathBlock", "::++EqCounter"),
+      source: "
+        <> root
+          <> MathBlock
+            <>
+              'a = b left-reduction-w'##<<'
+        ",
+      expected: "
+        <> root
+          <> MathBlock
+            <>
+              'a = b \\tag{left-reduction-w'##<<::++EqCounter}'
+        ",
+    ),
+
+    // Test 22: \\label with prime in handle name
+    infra.AssertiveTestData(
+      param: #("MathBlock", "::++EqCounter"),
+      source: "
+        <> root
+          <> MathBlock
+            <>
+              'a = b \\label{left-reduction-w'##<<}'
+        ",
+      expected: "
+        <> root
+          <> MathBlock
+            <>
+              'a = b \\tag{left-reduction-w'##<<::++EqCounter}'
         ",
     ),
 
