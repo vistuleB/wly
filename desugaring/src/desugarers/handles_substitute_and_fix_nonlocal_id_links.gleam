@@ -462,7 +462,7 @@ fn transform_factory(inner: InnerParam) -> DesugarerTransform {
 
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
   let assert Ok(handles_regexp) =
-    regexp.from_string("(>>)([\\w^.:-]+[\\w](?:#page)?(?:#decoy:[0-9]+)?(?:##)?)")
+    regexp.from_string("(>>)([\\w^.:'-]+[\\w'](?:#page)?(?:#decoy:[0-9]+)?(?:##)?)")
 
   #(
     param.0,
@@ -902,7 +902,42 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
                 <>
                   'Epilogue to Chapter 2'
       ",
-    )
+    ),
+
+    // Prime char in handle name: >>left-reduction-w' should be fully matched
+    infra.AssertiveTestData(
+      param: #(
+        "path",
+        "InChapterLink",
+        "a",
+        [#("class", "handle-in-chapter-link")],
+        [#("class", "handle-out-chapter-link")],
+        ["a"],
+      ),
+      source: "
+        <> GrandWrapper
+          handle=left-reduction-w'||7'|eq-lr-prime|./ch1.html
+          <> root
+            <> Chapter
+              path=./ch1.html
+              <>
+                'see >>left-reduction-w' here'
+      ",
+      expected: "
+        <> root
+          <> Chapter
+            path=./ch1.html
+            <>
+              'see '
+            <> InChapterLink
+              href=./ch1.html#eq-lr-prime
+              class=handle-in-chapter-link
+              <>
+                '7''
+            <>
+              ' here'
+      ",
+    ),
   ]
 }
 

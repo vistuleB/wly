@@ -146,7 +146,7 @@ fn param_to_inner_param(_param: Param) -> Result(InnerParam, DesugaringError) {
   // Handle chars:    letters, digits, _, ., :, -, ^
   // Handle end chars: letters, digits, _
   // Decorator chars:  same minus . and ^
-  let in_text_def_pattern = "([ {\\(\\[])([a-zA-Z0-9_.:\\-\\^]*[a-zA-Z0-9_](?:#[a-zA-Z0-9_:\\-]+)*)##<<"
+  let in_text_def_pattern = "([ {\\(\\[])([a-zA-Z0-9_.:\\-\\^']*[a-zA-Z0-9_'](?:#[a-zA-Z0-9_:\\-]+)*)##<<"
   let assert Ok(re) = regexp.compile(
     in_text_def_pattern,
     regexp.Options(case_insensitive: False, multi_line: False),
@@ -541,6 +541,36 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
       expected: "
         <> root
           handle=eq:firstline (A)
+          <>
+            '\\\\tag{(A)}'
+        ",
+    ),
+
+    // Test 22: handle name with prime char (e.g. left-reduction-w')
+    infra.AssertiveTestDataNoParam(
+      source: "
+        <> root
+          <>
+            'see left-reduction-w'##<<TheValue rest'
+        ",
+      expected: "
+        <> root
+          handle=left-reduction-w' TheValue
+          <>
+            'see TheValue rest'
+        ",
+    ),
+
+    // Test 23: prime at end of handle in LaTeX \tag context
+    infra.AssertiveTestDataNoParam(
+      source: "
+        <> root
+          <>
+            '\\\\tag{left-reduction-w'##<<(A)}'
+        ",
+      expected: "
+        <> root
+          handle=left-reduction-w' (A)
           <>
             '\\\\tag{(A)}'
         ",
