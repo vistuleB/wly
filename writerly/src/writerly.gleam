@@ -163,17 +163,26 @@ fn drop_slash(s: String) {
   }
 }
 
+type AssemblyInputKind {
+  DirectoryInput
+  FileInput
+}
+
+fn is_direct_relative_path(path: String) -> Bool {
+  !string.contains(path, "/")
+}
+
 fn get_dirname_and_relative_paths_of_uncommented_wly_in_dir(
   dirpath_or_filepath: String,
 ) -> Result(#(String, List(String)), AssemblyError) {
-  use #(dirname, fullpaths_including_dirname) <- on.ok(
+  use #(dirname, fullpaths_including_dirname, input_kind) <- on.ok(
     case simplifile.get_files(dirpath_or_filepath) {
       Ok(files) -> {
-        Ok(#(dirpath_or_filepath |> drop_slash, files))
+        Ok(#(dirpath_or_filepath |> drop_slash, files, DirectoryInput))
       }
       Error(simplifile.Enotdir) -> {
         let #(dirname, filepath) = dirpath_or_filepath |> path_2_dir_and_filename
-        Ok(#(dirname, [dir_and_filename_2_path(dirname, filepath)]))
+        Ok(#(dirname, [dir_and_filename_2_path(dirname, filepath)], FileInput))
       }
       Error(error) -> Error(
         ReadFileOrDirectoryError("error accessing dirpath_or_filepath:"  <> dirpath_or_filepath  <> ", " <> ins(error))
@@ -193,7 +202,13 @@ fn get_dirname_and_relative_paths_of_uncommented_wly_in_dir(
       string.drop_start(path, 1)
     })
 
-  Ok(#(dirname, relative_filepaths))
+  case input_kind {
+    DirectoryInput -> case list.any(relative_filepaths, is_direct_relative_path) {
+      True -> Ok(#(dirname, relative_filepaths))
+      False -> Error(NoFilesFound("no direct .wly files found in: " <> dirpath_or_filepath))
+    }
+    FileInput -> Ok(#(dirname, relative_filepaths))
+  }
 }
 
 fn input_lines_for_dirtree_at_depth(
