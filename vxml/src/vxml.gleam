@@ -5,7 +5,7 @@ import gleam/option.{None, Some}
 import gleam/regexp
 import gleam/result
 import gleam/string.{inspect as ins}
-import blame.{type Blame, Src, prepend_comment as pc} as bl
+import blame.{type Blame, Anchored, Movable, Src, prepend_comment as pc} as bl
 import io_lines.{type InputLine, InputLine, type OutputLine, OutputLine} as io_l
 import simplifile
 import xmlm
@@ -237,7 +237,7 @@ fn parse_nodes_at_indent(
       )
       use #(attrs, after) <- on.ok(parse_attributes_at_indent(indent + vxml_indent, rest))
       use #(children, after) <- on.ok(parse_nodes_at_indent(indent + vxml_indent, after))
-      let node = V(blame |> bl.set_proxy, tag, attrs, children)
+      let node = V(blame |> bl.set_anchored, tag, attrs, children)
       use #(nodes, after) <- on.ok(parse_nodes_at_indent(indent, after))
       Ok(#([node, ..nodes], after))
     }
@@ -1006,7 +1006,7 @@ fn xmlm_attr_to_vxml_attrs(
   line_no: Int,
   xmlm_attr: xmlm.Attribute,
 ) -> Attr {
-  let blame = Src([], filename, line_no, 0, False)
+  let blame = Src([], filename, line_no, 0, Movable)
   Attr(blame, xmlm_attr.name.local, xmlm_attr.value)
 }
 
@@ -1121,7 +1121,7 @@ pub fn xmlm_based_html_parser(
       input,
       fn(xmlm_tag, children) {
         V(
-          Src([], filename, 0, 0, True),
+          Src([], filename, 0, 0, Anchored),
           xmlm_tag.name.local,
           xmlm_tag.attributes
             |> list.map(xmlm_attr_to_vxml_attrs(filename, 0, _)),
@@ -1133,9 +1133,9 @@ pub fn xmlm_based_html_parser(
           content
           |> string.split("\n")
           |> list.map(fn(content) {
-            Line(Src([], filename, 0, 0, False), content)
+            Line(Src([], filename, 0, 0, Movable), content)
           })
-        T(Src([], filename, 0, 0, False), lines)
+        T(Src([], filename, 0, 0, Movable), lines)
       },
     )
   {

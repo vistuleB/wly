@@ -350,7 +350,7 @@ fn nonempty_suffix_encounter(
   suffix: String,
 ) -> Encounter {
   case suffix {
-    "|>" <> _ -> EncounteredTagLine(blame |> bl.set_proxy, suffix)
+    "|>" <> _ -> EncounteredTagLine(blame |> bl.set_anchored, suffix)
     "!!" <> _ -> EncounteredCommentLine(blame, suffix)
     "```" <> _ -> EncounteredCodeFence(blame, suffix)
     _ -> EncounteredTextLine(blame, suffix)

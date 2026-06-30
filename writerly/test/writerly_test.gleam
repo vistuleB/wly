@@ -4,7 +4,7 @@ import gleam/string
 import gleam/list
 import writerly.{type Writerly, Paragraph} as wl
 import dirtree.{Dirpath, Filepath} as _dt
-import blame.{Src} as _bl
+import blame.{Anchored, Movable, Src} as _bl
 import io_lines.{InputLine} as io_l
 import vxml.{Attr, Line}
 
@@ -61,10 +61,10 @@ pub fn part_1_test() {
     Ok(#(
       Dirpath("test", [Filepath("test1.wly")]),
       [
-        InputLine(Src([], "test1.wly", 1, 1, False), 0, "|> Book"),
-        InputLine(Src([], "test1.wly", 2, 5, False), 4, "bob=2"),
-        InputLine(Src([], "test1.wly", 3, 5, False), 4, "cuchua"),
-        InputLine(Src([], "test1.wly", 4, 1, False), 0, ""),
+        InputLine(Src([], "test1.wly", 1, 1, Movable), 0, "|> Book"),
+        InputLine(Src([], "test1.wly", 2, 5, Movable), 4, "bob=2"),
+        InputLine(Src([], "test1.wly", 3, 5, Movable), 4, "cuchua"),
+        InputLine(Src([], "test1.wly", 4, 1, Movable), 0, ""),
       ],
     )),
   )
@@ -74,9 +74,9 @@ pub fn part_1_test() {
     Ok(#(
       Dirpath("test/testA", [Filepath("__parent.wly"), Filepath("childA.wly")]),
       [
-        InputLine(Src([], "__parent.wly", 1, 1, False), 0, "|> Book"), 
-        InputLine(Src([], "__parent.wly", 2, 5, False), 4, "a=b"), 
-        InputLine(Src([], "childA.wly", 1, 1, False), 4, "It was a dark and stormy night."),
+        InputLine(Src([], "__parent.wly", 1, 1, Movable), 0, "|> Book"), 
+        InputLine(Src([], "__parent.wly", 2, 5, Movable), 4, "a=b"), 
+        InputLine(Src([], "childA.wly", 1, 1, Movable), 4, "It was a dark and stormy night."),
       ],
     )),
   )
@@ -90,10 +90,10 @@ pub fn part_2_test() {
   wl.string_to_writerlys(wly_doc, "doc")
   |> should.equal(Ok([
     wl.Tag(
-      Src([], "doc", 1, 1, True),
+      Src([], "doc", 1, 1, Anchored),
       "Book",
       [
-        Attr(Src([], "doc", 2, 5, False), "a", "b"),
+        Attr(Src([], "doc", 2, 5, Movable), "a", "b"),
       ],
       [],
     ),
@@ -106,16 +106,16 @@ pub fn part_2_test() {
   |> should.equal(
     Ok([
       wl.Tag(
-        Src([], "test1.wly", 1, 1, True),
+        Src([], "test1.wly", 1, 1, Anchored),
         "Book",
         [
-          Attr(Src([], "test1.wly", 2, 5, False), "bob", "2"),
+          Attr(Src([], "test1.wly", 2, 5, Movable), "bob", "2"),
         ],
         [
           Paragraph(
-            Src([], "test1.wly", 3, 5, False),
+            Src([], "test1.wly", 3, 5, Movable),
             [
-              Line(Src([], "test1.wly", 3, 5, False), "cuchua")
+              Line(Src([], "test1.wly", 3, 5, Movable), "cuchua")
             ],
           ),
         ]
@@ -129,15 +129,15 @@ pub fn part_2_test() {
   |> should.equal(
     Ok([
       wl.Tag(
-        Src([], "__parent.wly", 1, 1, True), "Book",
+        Src([], "__parent.wly", 1, 1, Anchored), "Book",
         [
-          Attr(Src([], "__parent.wly", 2, 5, False), "a", "b"),
+          Attr(Src([], "__parent.wly", 2, 5, Movable), "a", "b"),
         ],
         [
           Paragraph(
-            Src([], "childA.wly", 1, 1, False),
+            Src([], "childA.wly", 1, 1, Movable),
             [
-              Line(Src([], "childA.wly", 1, 1, False), "It was a dark and stormy night."),
+              Line(Src([], "childA.wly", 1, 1, Movable), "It was a dark and stormy night."),
             ],
           ),
         ],
@@ -158,9 +158,9 @@ pub fn part_3_test() {
   |> wl.writerly_to_vxml()
   |> should.equal(
     vxml.V(
-      Src([], "doc", 1, 1, True),
+      Src([], "doc", 1, 1, Anchored),
       "Book",
-      [Attr(Src([], "doc", 2, 5, False), "a", "b")],
+      [Attr(Src([], "doc", 2, 5, Movable), "a", "b")],
       [],
     ),
   )
@@ -182,15 +182,15 @@ pub fn part_4_test() {
   |> should.equal(
     Ok(
       wl.Tag(
-        Src([], "doc", 1, 1, True),
+        Src([], "doc", 1, 1, Anchored),
         "Book",
-        [Attr(Src([], "doc", 2, 3, False), "a", "b")],
+        [Attr(Src([], "doc", 2, 3, Movable), "a", "b")],
         [
           Paragraph(
-            Src([], "doc", 4, 5, False),
+            Src([], "doc", 4, 5, Movable),
             [
-              Line(Src([], "doc", 4, 5, False), "first"),
-              Line(Src([], "doc", 5, 5, False), "second"),
+              Line(Src([], "doc", 4, 5, Movable), "first"),
+              Line(Src([], "doc", 5, 5, Movable), "second"),
             ]
           ),
         ],
@@ -273,11 +273,11 @@ pub fn parse_ergonomic_wly_test() {
   |> parse_ergonomic_wly("doc")
   |> should.equal(
     wl.Tag(
-      Src([], "doc", 1, 1, True),
+      Src([], "doc", 1, 1, Anchored),
       "Book",
       [
-        Attr(Src([], "doc", 2, 5, False), "a", "b"),
-        Attr(Src([], "doc", 3, 5, False), "qqq", "z"),
+        Attr(Src([], "doc", 2, 5, Movable), "a", "b"),
+        Attr(Src([], "doc", 3, 5, Movable), "qqq", "z"),
       ],
       [],
     ),

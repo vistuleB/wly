@@ -2,13 +2,18 @@ import gleam/int
 import gleam/list
 import gleam/string.{inspect as ins}
 
+pub type SourceCursor {
+  Movable
+  Anchored
+}
+
 pub type Blame {
   Src(
     comments: List(String),
     path: String,
     line_no: Int,
     char_no: Int,
-    proxy: Bool,
+    cursor: SourceCursor,
   )
 
   Des(
@@ -70,24 +75,24 @@ pub fn append_comment(blame: Blame, comment: String) -> Blame {
 
 pub fn advance(blame: Blame, by: Int) -> Blame {
   case blame {
-    Src(_, _, _, _, False) -> Src(..blame, char_no: blame.char_no + by)
+    Src(_, _, _, _, Movable) -> Src(..blame, char_no: blame.char_no + by)
     _ -> blame
   }
 }
 
-pub fn set_proxy(blame: Blame) -> Blame {
+pub fn set_anchored(blame: Blame) -> Blame {
   case blame {
-    Src(..) -> Src(..blame, proxy: True)
+    Src(..) -> Src(..blame, cursor: Anchored)
     _ -> blame
   }
 }
 
 pub fn blame_digest(blame: Blame) -> String {
   case blame {
-    Src(_, path, line_no, char_no, proxy) -> {
-      case proxy {
-        False -> path <> ":" <> ins(line_no) <> ":" <> ins(char_no)
-        True -> path <> ":" <> ins(line_no) <> ":" <> ins(char_no) <> " ->"
+    Src(_, path, line_no, char_no, cursor) -> {
+      case cursor {
+        Movable -> path <> ":" <> ins(line_no) <> ":" <> ins(char_no)
+        Anchored -> path <> ":" <> ins(line_no) <> ":" <> ins(char_no) <> " ->"
       }
     }
     Des(_, name, line_no) -> name <> "♦" <> ins(line_no)
