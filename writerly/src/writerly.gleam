@@ -312,6 +312,25 @@ pub fn assemble_input_lines_with_path_selector(
   Ok(#(tree, lines))
 }
 
+pub fn path_selector_from_only_paths(
+  only_paths: List(String),
+) -> fn(String) -> Bool {
+  let #(excluded_paths, included_paths) =
+    list.partition(only_paths, string.starts_with(_, "!"))
+  let excluded_paths = list.map(excluded_paths, string.drop_start(_, 1))
+
+  case excluded_paths, included_paths {
+    [], [] -> fn(_) { True }
+    [], _ -> fn(path) { list.any(included_paths, string.contains(path, _)) }
+    _, [] -> fn(path) { !list.any(excluded_paths, string.contains(path, _)) }
+    _, _ ->
+      fn(path) {
+        list.any(included_paths, string.contains(path, _))
+        && !list.any(excluded_paths, string.contains(path, _))
+      }
+  }
+}
+
 pub fn assemble_input_lines(
   dirpath_or_filepath: String,
 ) -> Result(#(DirTree, List(InputLine)), AssemblyError) {

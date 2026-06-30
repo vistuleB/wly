@@ -71,15 +71,7 @@ pub fn default_writerly_assembler(
   dirpath_or_filepath: String,
   options: RendererOptions(_),
 ) -> Result(#(List(InputLine), Option(DirTree)), wl.AssemblyError) {
-  let only_paths = options.only_paths
-  let #(s1, s2) = list.partition(only_paths, string.starts_with(_, "!"))
-  let s1 = list.map(s1, string.drop_start(_, 1))
-  let path_selector = case s1, s2 {
-    [], [] -> fn(_) { True }
-    [], _ -> fn(path) { list.any(s2, string.contains(path, _)) }
-    _, [] -> fn(path) { !list.any(s1, string.contains(path, _)) }
-    _, _ -> fn(path) { list.any(s2, string.contains(path, _)) && !list.any(s1, string.contains(path, _)) }
-  }
+  let path_selector = wl.path_selector_from_only_paths(options.only_paths)
   use #(tree, assembled) <- on.ok(
     wl.assemble_input_lines_with_path_selector(dirpath_or_filepath, path_selector),
   )
@@ -118,7 +110,7 @@ pub fn default_xml_parser(
 pub const default_html_parser = default_xml_parser
 
 // ************************************************************
-// Filterer(c)                                                 // 'c' is parser error type
+// Filterer(c)                                                 // 'c' is filterer error type
 // VXML -> VXML
 // ************************************************************
 
