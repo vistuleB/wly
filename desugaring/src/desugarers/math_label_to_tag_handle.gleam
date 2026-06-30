@@ -11,6 +11,13 @@ import infrastructure.{
 import nodemaps_2_desugarer_transforms as n2t
 import vxml.{Line, T, V}
 
+fn base_handle_name(name: String) -> String {
+  case string.split_once(name, "#") {
+    Ok(#(before, _)) -> before
+    Error(_) -> name
+  }
+}
+
 fn replace_labels_in_content(
   content: String,
   re: Regexp,
@@ -28,12 +35,16 @@ fn replace_labels_in_content(
           case string.split_once(content, first_match.content) {
             Error(_) -> content
             Ok(#(before, after)) -> {
+              let label_suffix =
+                "\\label{" <> base_handle_name(name) <> "}"
               let replacement = case value {
-                "" -> "\\tag{" <> name <> "##<<" <> counter_expr <> "}"
+                "" ->
+                  "\\tag{" <> name <> "##<<" <> counter_expr <> "}" <> label_suffix
                 existing ->
                   case keyword {
-                    "label" -> "\\tag{" <> name <> "##<<" <> existing <> "}"
-                    _ -> first_match.content
+                    "label" ->
+                      "\\tag{" <> name <> "##<<" <> existing <> "}" <> label_suffix
+                    _ -> first_match.content <> label_suffix
                   }
               }
               before
@@ -51,6 +62,8 @@ fn replace_labels_in_content(
               <> bare_name
               <> "##<<"
               <> counter_expr
+              <> "}\\label{"
+              <> base_handle_name(bare_name)
               <> "}"
               <> replace_labels_in_content(after, re, counter_expr)
           }
@@ -165,7 +178,7 @@ pub fn constructor(param: Param) -> Desugarer {
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
 fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
   [
-    // Test 1: \label{name##<<} inside MathBlock → fills counter
+    // Test 1: \label{name##<<} inside MathBlock → fills counter + adds \label
     infra.AssertiveTestData(
       param: #("MathBlock", "::øøSectionCounter.::++EquationCounter"),
       source: "
@@ -178,7 +191,7 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
         <> root
           <> MathBlock
             <>
-              'a = b \\tag{eq:lebesgue##<<::øøSectionCounter.::++EquationCounter}'
+              'a = b \\tag{eq:lebesgue##<<::øøSectionCounter.::++EquationCounter}\\label{eq:lebesgue}'
         ",
     ),
 
@@ -211,8 +224,8 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
         <> root
           <> MathBlock
             <>
-              'a = b \\tag{eq:first##<<::øøSectionCounter.::++EquationCounter}'
-              'c = d \\tag{eq:second##<<::øøSectionCounter.::++EquationCounter}'
+              'a = b \\tag{eq:first##<<::øøSectionCounter.::++EquationCounter}\\label{eq:first}'
+              'c = d \\tag{eq:second##<<::øøSectionCounter.::++EquationCounter}\\label{eq:second}'
         ",
     ),
 
@@ -229,11 +242,11 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
         <> root
           <> MathBlock
             <>
-              'x = y \\tag{eq:sec-1:item##<<::øøSectionCounter.::++EquationCounter}'
+              'x = y \\tag{eq:sec-1:item##<<::øøSectionCounter.::++EquationCounter}\\label{eq:sec-1:item}'
         ",
     ),
 
-    // Test 5: \tag{name##<<value} with value already set → no change
+    // Test 5: \tag{name##<<value} with value already set → adds \label
     infra.AssertiveTestData(
       param: #("MathBlock", "::øøSectionCounter.::++EquationCounter"),
       source: "
@@ -246,7 +259,7 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
         <> root
           <> MathBlock
             <>
-              'a = b \\tag{eq:explicit##<<A}'
+              'a = b \\tag{eq:explicit##<<A}\\label{eq:explicit}'
         ",
     ),
 
@@ -261,7 +274,7 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
       expected: "
         <> root
           <>
-            'a = b \\tag{eq:lebesgue##<<::++EqCounter}'
+            'a = b \\tag{eq:lebesgue##<<::++EqCounter}\\label{eq:lebesgue}'
         ",
     ),
 
@@ -278,11 +291,11 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
         <> root
           <> MathBlock
             <>
-              '& a = b \\tag{eq:line1##<<::++EqCounter} & c = d \\tag{eq:line2##<<::++EqCounter}'
+              '& a = b \\tag{eq:line1##<<::++EqCounter}\\label{eq:line1} & c = d \\tag{eq:line2##<<::++EqCounter}\\label{eq:line2}'
         ",
     ),
 
-    // Test 8: \tag{name##<<} (tag form, empty value) → fills counter
+    // Test 8: \tag{name##<<} (tag form, empty value) → fills counter + adds \label
     infra.AssertiveTestData(
       param: #("MathBlock", "::++EqCounter"),
       source: "
@@ -295,11 +308,11 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
         <> root
           <> MathBlock
             <>
-              'a = b \\tag{eq:foo##<<::++EqCounter}'
+              'a = b \\tag{eq:foo##<<::++EqCounter}\\label{eq:foo}'
         ",
     ),
 
-    // Test 9: \label{name##<<value} → changes \label to \tag, preserves value
+    // Test 9: \label{name##<<value} → changes \label to \tag, preserves value, adds \label
     infra.AssertiveTestData(
       param: #("MathBlock", "::++EqCounter"),
       source: "
@@ -312,7 +325,7 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
         <> root
           <> MathBlock
             <>
-              'a = b \\tag{eq:foo##<<A}'
+              'a = b \\tag{eq:foo##<<A}\\label{eq:foo}'
         ",
     ),
 
@@ -333,7 +346,7 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
         ",
     ),
 
-    // Test 11: bare name##<< inside MathBlock → fills counter
+    // Test 11: bare name##<< inside MathBlock → fills counter + adds \label
     infra.AssertiveTestData(
       param: #("MathBlock", "::++EqCounter"),
       source: "
@@ -346,7 +359,7 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
         <> root
           <> MathBlock
             <>
-              'a = b \\tag{eq:lebesgue##<<::++EqCounter}'
+              'a = b \\tag{eq:lebesgue##<<::++EqCounter}\\label{eq:lebesgue}'
         ",
     ),
 
@@ -376,11 +389,11 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
       expected: "
         <> root
           <>
-            'a = b \\tag{eq:lebesgue##<<::++EqCounter}'
+            'a = b \\tag{eq:lebesgue##<<::++EqCounter}\\label{eq:lebesgue}'
         ",
     ),
 
-    // Test 15: bare name#decorator##<< inside MathBlock → fills counter, decorator preserved
+    // Test 15: bare name#decorator##<< inside MathBlock → fills counter, \label uses base name
     infra.AssertiveTestData(
       param: #("MathBlock", "::++EqCounter"),
       source: "
@@ -393,11 +406,11 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
         <> root
           <> MathBlock
             <>
-              'a + b = c \\tag{eq:lebesgue#page##<<::++EqCounter}'
+              'a + b = c \\tag{eq:lebesgue#page##<<::++EqCounter}\\label{eq:lebesgue}'
         ",
     ),
 
-    // Test 16: \label{name#decorator##<<} → converts to \tag, decorator preserved
+    // Test 16: \label{name#decorator##<<} → converts to \tag, \label uses base name
     infra.AssertiveTestData(
       param: #("MathBlock", "::++EqCounter"),
       source: "
@@ -410,11 +423,11 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
         <> root
           <> MathBlock
             <>
-              'a = b \\tag{eq:foo#page##<<::++EqCounter}'
+              'a = b \\tag{eq:foo#page##<<::++EqCounter}\\label{eq:foo}'
         ",
     ),
 
-    // Test 17: multiple decorators on bare form
+    // Test 17: multiple decorators on bare form → \label uses base name
     infra.AssertiveTestData(
       param: #("MathBlock", "::++EqCounter"),
       source: "
@@ -427,11 +440,11 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
         <> root
           <> MathBlock
             <>
-              'x = y \\tag{eq:thm#page#glossary##<<::++EqCounter}'
+              'x = y \\tag{eq:thm#page#glossary##<<::++EqCounter}\\label{eq:thm}'
         ",
     ),
 
-    // Test 18: \tag{name#decorator##<<} with existing value → unchanged
+    // Test 18: \tag{name#decorator##<<} with existing value → adds \label with base name
     infra.AssertiveTestData(
       param: #("MathBlock", "::++EqCounter"),
       source: "
@@ -444,11 +457,11 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
         <> root
           <> MathBlock
             <>
-              'a = b \\tag{eq:foo#page##<<A}'
+              'a = b \\tag{eq:foo#page##<<A}\\label{eq:foo}'
         ",
     ),
 
-    // Test 19: \label{name#decorator##<<value} → changes to \tag, preserves value and decorator
+    // Test 19: \label{name#decorator##<<value} → changes to \tag, \label uses base name
     infra.AssertiveTestData(
       param: #("MathBlock", "::++EqCounter"),
       source: "
@@ -461,7 +474,7 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
         <> root
           <> MathBlock
             <>
-              'a = b \\tag{eq:foo#page##<<A}'
+              'a = b \\tag{eq:foo#page##<<A}\\label{eq:foo}'
         ",
     ),
 
@@ -493,7 +506,7 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
         <> root
           <> MathBlock
             <>
-              'a = b \\tag{left-reduction-w'##<<::++EqCounter}'
+              'a = b \\tag{left-reduction-w'##<<::++EqCounter}\\label{left-reduction-w'}'
         ",
     ),
 
@@ -510,7 +523,7 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
         <> root
           <> MathBlock
             <>
-              'a = b \\tag{left-reduction-w'##<<::++EqCounter}'
+              'a = b \\tag{left-reduction-w'##<<::++EqCounter}\\label{left-reduction-w'}'
         ",
     ),
 
@@ -528,8 +541,8 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
         <> root
           <> MathBlock
             <>
-              'a = b \\tag{eq:first##<<::++EqCounter}'
-              'c = d \\tag{eq:second##<<::++EqCounter}'
+              'a = b \\tag{eq:first##<<::++EqCounter}\\label{eq:first}'
+              'c = d \\tag{eq:second##<<::++EqCounter}\\label{eq:second}'
         ",
     ),
   ]

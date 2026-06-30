@@ -209,6 +209,7 @@ import desugarers/split_first_line_after_prefix
 import desugarers/split_last_line_before_suffix
 import desugarers/strip_delimiters_inside
 import desugarers/strip_delimiters_inside_if
+import desugarers/substitute_bare_eq_refs_in_mathblock
 import desugarers/substitute_class
 import desugarers/substitute_counters
 import desugarers/supplement_class
@@ -486,6 +487,7 @@ pub const split_first_line_after_prefix = split_first_line_after_prefix.construc
 pub const split_last_line_before_suffix = split_last_line_before_suffix.constructor
 pub const strip_delimiters_inside = strip_delimiters_inside.constructor
 pub const strip_delimiters_inside_if = strip_delimiters_inside_if.constructor
+pub const substitute_bare_eq_refs_in_mathblock = substitute_bare_eq_refs_in_mathblock.constructor
 pub const substitute_class = substitute_class.constructor
 pub const substitute_counters = substitute_counters.constructor
 pub const supplement_class = supplement_class.constructor
@@ -764,6 +766,7 @@ pub const assertive_tests : List(fn() -> infra.AssertiveTestCollection) = [
   split_last_line_before_suffix.assertive_tests,
   strip_delimiters_inside.assertive_tests,
   strip_delimiters_inside_if.assertive_tests,
+  substitute_bare_eq_refs_in_mathblock.assertive_tests,
   substitute_class.assertive_tests,
   substitute_counters.assertive_tests,
   supplement_class.assertive_tests,
