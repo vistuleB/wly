@@ -1010,58 +1010,60 @@ fn xmlm_attr_to_vxml_attrs(
   Attr(blame, xmlm_attr.name.local, xmlm_attr.value)
 }
 
+fn close_html_void_tag(content: String, tag: String) -> String {
+  let assert Ok(re) =
+    regexp.from_string("(<" <> tag <> ")(\\b[^>]*)(>)")
+
+  regexp.match_map(re, content, fn(match) {
+    let regexp.Match(_, sub) = match
+    let assert [_, maybe_middle, _] = sub
+    let middle = maybe_middle |> option.unwrap("")
+    case middle |> string.trim_end |> string.ends_with("/") {
+      True -> "<" <> tag <> middle <> ">"
+      False -> "<" <> tag <> middle <> "/>"
+    }
+  })
+}
+
+pub fn close_html_void_tags(
+  content: String,
+) -> String {
+  [
+    "area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta",
+    "source", "track", "wbr",
+  ]
+  |> list.fold(content, fn(content, tag) {
+    close_html_void_tag(content, tag)
+  })
+}
+
+pub fn remove_attrs_from_closing_tags(
+  content: String,
+) -> String {
+  let assert Ok(re) = regexp.from_string("(<\\/)(\\w+)(\\s+[^>]*)(>)")
+
+  regexp.match_map(re, content, fn(match) {
+    let regexp.Match(_, sub) = match
+    let assert [_, Some(tag), _, _] = sub
+    "</" <> tag <> ">"
+  })
+}
+
 pub fn bad_html_pre_processor(
   content: String,
 ) -> String {
-  // self-explanatory
-  let content =
-    content
-    |> string.replace("\r\n", "\n")
-    |> string.replace("async ", "async=\"\"")
-    |> string.replace("async\n", "async=\"\"\n")
-    |> string.replace("& ", "&amp;")
-    |> string.replace("&\n", "&amp;\n")
-    |> string.replace(" &", "&amp;")
-    |> string.replace("\\,<", "\\,&lt;")
-    |> string.replace(" < ", " &lt; ")
-    |> string.replace("\\rt{0.1}<", "\\rt{0.1}&lt;")
-
-  // close img tags
-  let assert Ok(re) = regexp.from_string("(<img)(\\b[^>]*[^\\/])(>)")
-  let content =
-    regexp.match_map(re, content, fn(match) {
-      let regexp.Match(_, sub) = match
-      let assert [_, Some(middle), _] = sub
-      "<img" <> middle <> "/>"
-    })
-
-  // close link tags
-  let assert Ok(re) = regexp.from_string("(<link)(\\b[^>]*[^\\/])(>)")
-  let content =
-    regexp.match_map(re, content, fn(match) {
-      let regexp.Match(_, sub) = match
-      let assert [_, Some(middle), _] = sub
-      "<link" <> middle <> "/>"
-    })
-
-  // close meta tags
-  let assert Ok(re) = regexp.from_string("(<meta)(\\b[^>]*[^\\/])(>)")
-  let content =
-    regexp.match_map(re, content, fn(match) {
-      let regexp.Match(_, sub) = match
-      let assert [_, Some(middle), _] = sub
-      "<meta" <> middle <> "/>"
-    })
-
-  // remove attrs in closing tags
-  let assert Ok(re) = regexp.from_string("(<\\/)(\\w+)(\\s+[^>]*)(>)")
-  let matches = regexp.scan(re, content)
-
-  list.fold(matches, content, fn(content_str, match) {
-    let regexp.Match(_, sub) = match
-    let assert [_, Some(tag), _, _] = sub
-    regexp.replace(re, content_str, "</" <> tag <> ">")
-  })
+  content
+  |> string.replace("\r\n", "\n")
+  |> string.replace("async ", "async=\"\"")
+  |> string.replace("async\n", "async=\"\"\n")
+  |> string.replace("& ", "&amp;")
+  |> string.replace("&\n", "&amp;\n")
+  |> string.replace(" &", "&amp;")
+  |> string.replace("\\,<", "\\,&lt;")
+  |> string.replace(" < ", " &lt; ")
+  |> string.replace("\\rt{0.1}<", "\\rt{0.1}&lt;")
+  |> close_html_void_tags
+  |> remove_attrs_from_closing_tags
 }
 
 pub fn xmlm_based_html_parser(
