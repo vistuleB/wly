@@ -12,7 +12,7 @@ fn start_node(blame: Blame) {
 }
 
 fn word_node(blame: Blame, word: String) {
-  V(blame, "__OneWord", [Attr(desugarer_blame(14), "val", word)], [])
+  V(blame, "__OneWord", [Attr(desugarer_blame(15), "val", word)], [])
 }
 
 fn space_node(blame: Blame) {
