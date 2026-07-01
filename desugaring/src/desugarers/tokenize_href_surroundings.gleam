@@ -9,6 +9,7 @@ import infrastructure.{
   Desugarer,
 } as infra
 import nodemaps_2_desugarer_transforms as n2t
+import splitter.{type Splitter}
 import vxml.{type VXML, Attr, T, V}
 
 const had_href_child = Attr(bl.Des([], name, 9), "had_href_child", "true")
@@ -34,41 +35,65 @@ fn end_node(blame: Blame) {
 }
 
 fn tokenize_string_acc(
+  opening_parenthesis_splitter: Splitter,
   past_tokens: List(VXML),
   current_blame: Blame,
   leftover: String,
 ) -> List(VXML) {
-  case string.split_once(leftover, " ") {
-    Ok(#("", after)) ->
+  case splitter.split(opening_parenthesis_splitter, leftover) {
+    #(_, "", _) -> 
+      case leftover == "" {
+        True -> past_tokens |> list.reverse
+        False ->
+          [word_node(current_blame, leftover), ..past_tokens] |> list.reverse
+      }
+    #("", " ", after) -> 
       tokenize_string_acc(
+        opening_parenthesis_splitter,
         [space_node(current_blame), ..past_tokens],
         bl.advance(current_blame, 1),
         after,
       )
-    Ok(#(before, after)) ->
+    #(before, " ", after) ->
       tokenize_string_acc(
-        [
-          space_node(current_blame),
+        opening_parenthesis_splitter,
+        [ space_node(current_blame),
           word_node(current_blame, before),
           ..past_tokens
         ],
         bl.advance(current_blame, string.length(before) + 1),
         after,
       )
-    Error(Nil) ->
-      case leftover == "" {
-        True -> past_tokens |> list.reverse
-        False ->
-          [word_node(current_blame, leftover), ..past_tokens] |> list.reverse
-      }
+    #("", non_space_puncutation, after) -> {
+      tokenize_string_acc(
+        opening_parenthesis_splitter,
+        [
+          word_node(current_blame, non_space_puncutation),
+          ..past_tokens
+        ],
+        bl.advance(current_blame, 1),
+        after,
+      )
+    }
+    #(before, non_space_punctuation, after) -> 
+      tokenize_string_acc(
+        opening_parenthesis_splitter,
+        [
+          word_node(current_blame, before),
+          word_node(current_blame, non_space_punctuation),
+          ..past_tokens
+        ],
+        bl.advance(current_blame, string.length(before) + 1),
+        after,
+      )
   }
 }
 
-fn tokenize_t(vxml: VXML) -> List(VXML) {
+fn tokenize_t(opening_parenthesis_splitter: Splitter, vxml: VXML) -> List(VXML) {
   let assert T(blame, lines) = vxml
   lines
   |> list.index_map(fn(line, i) {
-    tokenize_string_acc([], line.blame, line.content)
+    tokenize_string_acc(opening_parenthesis_splitter, [], line.blame, line.content)
     |> list.prepend(case i == 0 {
       True -> start_node(line.blame)
       False -> newline_node(line.blame)
@@ -78,9 +103,9 @@ fn tokenize_t(vxml: VXML) -> List(VXML) {
   |> list.append([end_node(blame)])
 }
 
-fn tokenize_if_t_or_has_href_attr_and_recurse(vxml: VXML) -> List(VXML) {
+fn tokenize_if_t_or_has_href_attr_and_recurse(opening_parenthesis_splitter: Splitter, vxml: VXML) -> List(VXML) {
   case vxml {
-    T(_, _) -> tokenize_t(vxml)
+    T(_, _) -> tokenize_t(opening_parenthesis_splitter, vxml)
     V(_, _, attrs, children) ->
       case infra.attrs_have_key(attrs, "href") {
         True -> [
@@ -88,7 +113,7 @@ fn tokenize_if_t_or_has_href_attr_and_recurse(vxml: VXML) -> List(VXML) {
             ..vxml,
             children: list.flat_map(
               children,
-              tokenize_if_t_or_has_href_attr_and_recurse,
+              fn(vxml) { tokenize_if_t_or_has_href_attr_and_recurse(opening_parenthesis_splitter, vxml) },
             ),
           ),
         ]
@@ -97,7 +122,7 @@ fn tokenize_if_t_or_has_href_attr_and_recurse(vxml: VXML) -> List(VXML) {
   }
 }
 
-fn nodemap(vxml: VXML) -> VXML {
+fn nodemap(opening_parenthesis_splitter: Splitter, vxml: VXML) -> VXML {
   case vxml {
     T(_, _) -> vxml
     V(_, _, attrs, children) -> {
@@ -106,7 +131,7 @@ fn nodemap(vxml: VXML) -> VXML {
         True -> {
           let attrs = [had_href_child, ..attrs]
           let children =
-            list.flat_map(children, tokenize_if_t_or_has_href_attr_and_recurse)
+            list.flat_map(children, fn(vxml) { tokenize_if_t_or_has_href_attr_and_recurse(opening_parenthesis_splitter, vxml) })
           V(..vxml, attrs: attrs, children: children)
         }
       }
@@ -114,8 +139,8 @@ fn nodemap(vxml: VXML) -> VXML {
   }
 }
 
-fn nodemap_factory(_inner: InnerParam) -> n2t.OneToOneNoErrorNodemap {
-  nodemap
+fn nodemap_factory(inner: InnerParam) -> n2t.OneToOneNoErrorNodemap {
+  fn(vxml) { nodemap(inner, vxml) }
 }
 
 fn transform_factory(inner: InnerParam) -> DesugarerTransform {
@@ -123,15 +148,16 @@ fn transform_factory(inner: InnerParam) -> DesugarerTransform {
   |> n2t.one_to_one_no_error_nodemap_2_desugarer_transform()
 }
 
-fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
-  Ok(param)
+fn param_to_inner_param(_param: Param) -> Result(InnerParam, DesugaringError) {
+  let opening_parenthesis_splitter: Splitter = splitter.new([" ", "(", "[", "—"])
+  Ok(opening_parenthesis_splitter)
 }
 
 type Param =
   Nil
 
 type InnerParam =
-  Param
+  Splitter
 
 pub const name = "tokenize_href_surroundings"
 
@@ -235,6 +261,82 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
                 <> __OneSpace
                 <> __OneWord
                   val=line
+                <> __EndTokenizedT
+      ",
+    ),
+    infra.AssertiveTestDataNoParam(
+      source: "
+            <> testing
+              <> zz
+                href=cx
+                <>
+                  '(Note'
+                  ''
+                  'third line'
+      ",
+      expected: "
+            <> testing
+              had_href_child=true
+              <> zz
+                href=cx
+                <> __StartTokenizedT
+                <> __OneWord
+                  val=(
+                <> __OneWord
+                  val=Note
+                <> __OneNewLine
+                <> __OneNewLine
+                <> __OneWord
+                  val=third
+                <> __OneSpace
+                <> __OneWord
+                  val=line
+                <> __EndTokenizedT
+      ",
+    ),
+    infra.AssertiveTestDataNoParam(
+      source: "
+            <> testing
+              <> zz
+                href=cx
+                <>
+                  '[Note'
+                  ''
+      ",
+      expected: "
+            <> testing
+              had_href_child=true
+              <> zz
+                href=cx
+                <> __StartTokenizedT
+                <> __OneWord
+                  val=[
+                <> __OneWord
+                  val=Note
+                <> __OneNewLine
+                <> __EndTokenizedT
+      ",
+    ),
+    infra.AssertiveTestDataNoParam(
+      source: "
+            <> testing
+              <> zz
+                href=cx
+                <>
+                  '—Note'
+                  ''
+      ",
+      expected: "
+            <> testing
+              had_href_child=true
+              <> zz
+                href=cx
+                <> __StartTokenizedT
+                <> __OneWord
+                  val=—
+                <> __OneWord
+                  val=Note
+                <> __OneNewLine
                 <> __EndTokenizedT
       ",
     ),

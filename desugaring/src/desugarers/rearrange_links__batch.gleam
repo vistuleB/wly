@@ -7,6 +7,7 @@ import gleam/result
 import gleam/string.{inspect as ins}
 import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError, DesugaringError} as infra
 import nodemaps_2_desugarer_transforms as n2t
+import splitter.{type Splitter}
 import vxml.{type VXML, T, V, Attr, type Line, Line}
 import blame.{type Blame} as bl
 import on
@@ -366,37 +367,65 @@ fn end_node(blame: Blame) {
 }
 
 fn tokenize_string_acc(
+  opening_punctuation_splitter: Splitter,
   past_tokens: List(VXML),
   current_blame: Blame,
   leftover: String,
 ) -> List(VXML) {
-  case string.split_once(leftover, " ") {
-    Ok(#("", after)) -> tokenize_string_acc(
-      [space_node(current_blame), ..past_tokens],
-      bl.advance(current_blame, 1),
-      after,
-    )
-    Ok(#(before, after)) -> tokenize_string_acc(
-      [space_node(current_blame), word_node(current_blame, before), ..past_tokens],
-      bl.advance(current_blame, string.length(before) + 1),
-      after,
-    )
-    Error(Nil) -> case leftover == "" {
-      True -> past_tokens |> list.reverse
-      False -> [word_node(current_blame, leftover), ..past_tokens] |> list.reverse
-    }
+  case splitter.split(opening_punctuation_splitter, leftover) {
+    #(_, "", _) ->
+      case leftover == "" {
+        True -> past_tokens |> list.reverse
+        False ->
+          [word_node(current_blame, leftover), ..past_tokens] |> list.reverse
+      }
+    #("", " ", after) ->
+      tokenize_string_acc(
+        opening_punctuation_splitter,
+        [space_node(current_blame), ..past_tokens],
+        bl.advance(current_blame, 1),
+        after,
+      )
+    #(before, " ", after) ->
+      tokenize_string_acc(
+        opening_punctuation_splitter,
+        [
+          space_node(current_blame),
+          word_node(current_blame, before),
+          ..past_tokens
+        ],
+        bl.advance(current_blame, string.length(before) + 1),
+        after,
+      )
+    #("", non_space_punctuation, after) ->
+      tokenize_string_acc(
+        opening_punctuation_splitter,
+        [
+          word_node(current_blame, non_space_punctuation),
+          ..past_tokens
+        ],
+        bl.advance(current_blame, 1),
+        after,
+      )
+    #(before, non_space_punctuation, after) ->
+      tokenize_string_acc(
+        opening_punctuation_splitter,
+        [
+          word_node(current_blame, before),
+          word_node(current_blame, non_space_punctuation),
+          ..past_tokens
+        ],
+        bl.advance(current_blame, string.length(before) + 1),
+        after,
+      )
   }
 }
 
-fn tokenize_t(vxml: VXML) -> List(VXML) {
+fn tokenize_t(opening_punctuation_splitter: Splitter, vxml: VXML) -> List(VXML) {
   let assert T(blame, lines) = vxml
   lines
   |> list.index_map(fn(line, i) {
-    tokenize_string_acc(
-      [],
-      line.blame,
-      line.content,
-    )
+    tokenize_string_acc(opening_punctuation_splitter, [], line.blame, line.content)
     |> list.prepend(case i == 0 {
       True -> start_node(line.blame)
       False -> newline_node(line.blame)
@@ -406,11 +435,11 @@ fn tokenize_t(vxml: VXML) -> List(VXML) {
   |> list.append([end_node(blame)])
 }
 
-fn tokenize_if_t_or_has_href_tag_recursive(vxml: VXML) -> List(VXML) {
+fn tokenize_if_t_or_has_href_tag_recursive(opening_punctuation_splitter: Splitter, vxml: VXML) -> List(VXML) {
   case vxml {
-    T(_, _) -> tokenize_t(vxml)
+    T(_, _) -> tokenize_t(opening_punctuation_splitter, vxml)
     V(_, _, _, children) -> case infra.v_has_attr_with_key(vxml, "href") {
-      True -> [V(..vxml, children: list.flat_map(children, tokenize_if_t_or_has_href_tag_recursive))]
+      True -> [V(..vxml, children: list.flat_map(children, fn(vxml) { tokenize_if_t_or_has_href_tag_recursive(opening_punctuation_splitter, vxml) }))]
       False -> [vxml]
     }
   }
@@ -420,11 +449,11 @@ fn tokenize_if_t_or_has_href_tag_recursive(vxml: VXML) -> List(VXML) {
 //   list.flat_map(nodes, tokenize_if_t_or_has_href_tag_recursive)
 // }
 
-fn tokenize_maybe(children: List(VXML)) -> Option(List(VXML)) {
+fn tokenize_maybe(opening_punctuation_splitter: Splitter, children: List(VXML)) -> Option(List(VXML)) {
   case list.any(children, infra.is_v_and_has_attr_with_key(_, "href")) {
     True -> {
       children
-      |> list.flat_map(tokenize_if_t_or_has_href_tag_recursive)
+      |> list.flat_map(fn(vxml) { tokenize_if_t_or_has_href_tag_recursive(opening_punctuation_splitter, vxml) })
       |> Some
     }
     False -> None
@@ -451,12 +480,12 @@ fn nodemap(
   case vxml {
     V(_, _, _, children) -> {
       use atomized <- on.eager_none_some(
-        tokenize_maybe(children),
+        tokenize_maybe(inner.1, children),
         vxml,
       )
 
       let atomized = list.fold(
-        inner,
+        inner.0,
         atomized,
         match_until_end,
       )
@@ -839,41 +868,45 @@ fn collect_unique_href_vars(pattern1: LinkPattern) -> Result(List(Int), Int) {
 }
 
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
-  list.try_map(
-    param,
-    fn(p) {
-      use #(pattern1, pattern2) <- on.ok(string_pair_to_link_pattern_pair(p))
+  let opening_punctuation_splitter: Splitter = splitter.new([" ", "(", "[", "—"])
+  use pairs <- on.ok(
+    list.try_map(
+      param,
+      fn(p) {
+        use #(pattern1, pattern2) <- on.ok(string_pair_to_link_pattern_pair(p))
 
-      use unique_href_vars <- on.ok(
-        collect_unique_href_vars(pattern1)
-        |> result.map_error(fn(var){ DesugaringError(bl.no_blame, "Source pattern " <> p.0 <>" has duplicate declaration of href variable: " <> ins(var)) })
-      )
+        use unique_href_vars <- on.ok(
+          collect_unique_href_vars(pattern1)
+          |> result.map_error(fn(var){ DesugaringError(bl.no_blame, "Source pattern " <> p.0 <>" has duplicate declaration of href variable: " <> ins(var)) })
+        )
 
-      use unique_content_vars <- on.ok(
-        collect_unique_content_vars(pattern1)
-        |> result.map_error(fn(var){ DesugaringError(bl.no_blame, "Source pattern " <> p.0 <>" has duplicate declaration of content variable: " <> ins(var)) })
-      )
+        use unique_content_vars <- on.ok(
+          collect_unique_content_vars(pattern1)
+          |> result.map_error(fn(var){ DesugaringError(bl.no_blame, "Source pattern " <> p.0 <>" has duplicate declaration of content variable: " <> ins(var)) })
+        )
 
-      use _ <- on.ok(
-        check_each_href_var_is_sourced(pattern2, unique_href_vars)
-        |> result.map_error(fn(var){ DesugaringError(bl.no_blame, "Target pattern " <> p.1 <> " has a declaration of unsourced href variable: " <> ins(var)) })
-      )
+        use _ <- on.ok(
+          check_each_href_var_is_sourced(pattern2, unique_href_vars)
+          |> result.map_error(fn(var){ DesugaringError(bl.no_blame, "Target pattern " <> p.1 <> " has a declaration of unsourced href variable: " <> ins(var)) })
+        )
 
-      use _ <- on.ok(
-        check_each_content_var_is_sourced(pattern2, unique_content_vars)
-        |> result.map_error(fn(var){ DesugaringError(bl.no_blame, "Target pattern " <> p.1 <> " has a declaration of unsourced content variable: " <> ins(var)) })
-      )
+        use _ <- on.ok(
+          check_each_content_var_is_sourced(pattern2, unique_content_vars)
+          |> result.map_error(fn(var){ DesugaringError(bl.no_blame, "Target pattern " <> p.1 <> " has a declaration of unsourced content variable: " <> ins(var)) })
+        )
 
-      Ok(#(pattern1, pattern2))
-    }
+        Ok(#(pattern1, pattern2))
+      }
+    )
   )
+  Ok(#(pairs, opening_punctuation_splitter))
 }
 
 type Param = List(#(String,   String))
 //                  ↖         ↖
 //                  source    target
 //                  pattern   pattern
-type InnerParam = List(#(LinkPattern, LinkPattern))
+type InnerParam = #(List(#(LinkPattern, LinkPattern)), Splitter)
 
 pub const name = "rearrange_links__batch"
 fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
@@ -902,7 +935,134 @@ pub fn constructor(param: Param) -> Desugarer {
 // 🌊🌊🌊 tests 🌊🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
 fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
-  []
+  [
+    infra.AssertiveTestData(
+      param: [#("here <a href=1>link</a>", "<a href=1>here link</a>")],
+      source: "
+            <> p
+              <>
+                'see here '
+              <> a
+                href=some-url
+                <>
+                  'link'
+      ",
+      expected: "
+            <> p
+              <>
+                'see '
+              <> a
+                href=some-url
+                class=
+                <>
+                  'here link'
+      ",
+    ),
+    infra.AssertiveTestData(
+      param: [#("here <a href=1>link</a>", "<a href=1>here link</a>")],
+      source: "
+            <> p
+              <>
+                '(here '
+              <> a
+                href=some-url
+                <>
+                  'link'
+      ",
+      expected: "
+            <> p
+              <>
+                '('
+              <> a
+                href=some-url
+                class=
+                <>
+                  'here link'
+      ",
+    ),
+    infra.AssertiveTestData(
+      param: [#("note <a href=1>link</a>", "<a href=1>note link</a>")],
+      source: "
+            <> p
+              <>
+                '[note '
+              <> a
+                href=some-url
+                <>
+                  'link'
+      ",
+      expected: "
+            <> p
+              <>
+                '['
+              <> a
+                href=some-url
+                class=
+                <>
+                  'note link'
+      ",
+    ),
+    infra.AssertiveTestData(
+      param: [
+        #("go <a href=1>here</a>", "<a href=1>go here</a>"),
+        #("come <a href=2>there</a>", "<a href=2>come there</a>"),
+      ],
+      source: "
+            <> p
+              <>
+                'see go '
+              <> a
+                href=url1
+                <>
+                  'here'
+              <>
+                ', and come '
+              <> b
+                href=url2
+                <>
+                  'there'
+      ",
+      expected: "
+            <> p
+              <>
+                'see '
+              <> a
+                href=url1
+                class=
+                <>
+                  'go here'
+              <>
+                ', and '
+              <> b
+                href=url2
+                class=
+                <>
+                  'come there'
+      ",
+    ),
+    infra.AssertiveTestData(
+      param: [#("note <a href=1>link</a>", "<a href=1>note link</a>")],
+      source: "
+            <> p
+              <>
+                '(note '
+              <> a
+                href=some-url
+                <>
+                  'link'
+      ",
+      expected: "
+            <> p
+              <>
+                '('
+              <> a
+                href=some-url
+                class=
+                <>
+                  'note link'
+      ",
+    ),
+  ]
 }
 
 pub fn assertive_tests() {

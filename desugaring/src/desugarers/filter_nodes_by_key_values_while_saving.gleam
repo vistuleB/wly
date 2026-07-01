@@ -1,18 +1,21 @@
-import desugarers/delete_outside_subtrees.{constructor as delete_outside_subtrees}
+import desugarers/delete_outside_subtrees.{
+  constructor as delete_outside_subtrees,
+}
 import gleam/list
 import gleam/option
 import gleam/string.{inspect as ins}
-import infrastructure.{type DesugaringError, type Desugarer, Desugarer} as infra
-import vxml.{type VXML, V, T}
+import infrastructure.{type Desugarer, type DesugaringError, Desugarer} as infra
 import nodemaps_2_desugarer_transforms as n2t
+import vxml.{type VXML, T, V}
 
-fn matches_a_pair(vxml: VXML, inner: InnerParam) -> Bool {
+fn should_keep(vxml: VXML, inner: InnerParam) -> Bool {
   case vxml {
     T(..) -> False
-    V(_, tag, attrs, _) -> list.any(attrs, fn(attr) {
+    V(_, tag, attrs, _) ->
       list.contains(inner.1, tag)
-      || list.any(inner.0, fn(kv) { kv.0 == attr.key && kv.1 == attr.val })
-    })
+      || list.any(attrs, fn(attr) {
+        list.any(inner.0, fn(kv) { kv.0 == attr.key && kv.1 == attr.val })
+      })
   }
 }
 
@@ -20,10 +23,13 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
   Ok(param)
 }
 
-type Param = #(List(#(String,  String)), List(String))
-//                  ↖        ↖
-//                  key      value
-type InnerParam = Param
+type Param =
+  #(List(#(String, String)), List(String))
+
+//                    ↖       ↖
+//                    key     value
+type InnerParam =
+  Param
 
 pub const name = "filter_nodes_by_key_values_while_saving"
 
@@ -43,11 +49,12 @@ pub fn constructor(param: Param) -> Desugarer {
     stringified_outside: option.None,
     transform: case param_to_inner_param(param) {
       Error(error) -> fn(_) { Error(error) }
-      Ok(inner) -> case inner.0 {
-        [] -> n2t.identity_transform
-        _ -> delete_outside_subtrees(matches_a_pair(_, inner)).transform
-      }
-    }
+      Ok(inner) ->
+        case inner.0 {
+          [] -> n2t.identity_transform
+          _ -> delete_outside_subtrees(should_keep(_, inner)).transform
+        }
+    },
   )
 }
 
@@ -59,5 +66,9 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
 }
 
 pub fn assertive_tests() {
-  infra.assertive_test_collection_from_data(name, assertive_tests_data(), constructor)
+  infra.assertive_test_collection_from_data(
+    name,
+    assertive_tests_data(),
+    constructor,
+  )
 }

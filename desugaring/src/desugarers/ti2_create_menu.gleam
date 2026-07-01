@@ -40,9 +40,18 @@ type Relation {
   Next
 }
 
+type ConstructedAtRootData {
+  ConstructedAtRootData(
+    chapter_word: String,
+    toc_word: String,
+    homepage_word: String,
+    homepage_url: String,
+  )
+}
+
 type LinkData {
   LinkData(
-    homepage_url: String,
+    at_root_data: ConstructedAtRootData,
     index: Option(String),
     prev: Option(Page),
     next: Option(Page),
@@ -55,47 +64,52 @@ type Menu {
 }
 
 fn an_attr(key: String, val: String) -> Attr {
-  Attr(desugarer_blame(58), key, val)
+  Attr(desugarer_blame(67), key, val)
 }
 
 fn string_2_text_node(content: String) -> VXML {
-  T(desugarer_blame(62), [Line(desugarer_blame(62), content)])
+  T(desugarer_blame(71), [Line(desugarer_blame(71), content)])
 }
 
 fn into_list(a: a) -> List(a) {
   [a]
 }
 
-fn homepage_link(homepage_url: String) -> VXML {
-  V(
-    desugarer_blame(71),
-    "a",
-    an_attr("href", homepage_url) |> into_list,
-    string_2_text_node("zur Kursübersicht") |> into_list,
-  )
+fn homepage_link(at_root_data: ConstructedAtRootData) -> Option(VXML) {
+  case at_root_data.homepage_url {
+    "" -> None
+    url ->
+      Some(V(
+        desugarer_blame(83),
+        "a",
+        an_attr("href", url) |> into_list,
+        string_2_text_node(at_root_data.homepage_word) |> into_list,
+      ))
+  }
 }
 
-fn index_link() -> VXML {
+fn index_link(toc_word: String) -> VXML {
   V(
-    desugarer_blame(80),
+    desugarer_blame(93),
     "a",
     an_attr("href", "./index.html") |> into_list,
     [
       V(
-        desugarer_blame(85),
+        desugarer_blame(98),
         "span",
-        an_attr("class", "inhalts_arrows") |> into_list, 
+        an_attr("class", "inhalts_arrows") |> into_list,
         "<< " |> string_2_text_node |> into_list,
       ),
-      "Inhaltsverzeichnis" |> string_2_text_node
-    ]
+      toc_word |> string_2_text_node,
+    ],
   )
 }
 
 fn page_href(page: Page) -> String {
   case page {
     Chapter(_, _, ch_no) -> "./" <> ins(ch_no) <> "-0.html"
-    Sub(_, _, ch_no, sub_no) -> "./" <> ins(ch_no) <> "-" <> ins(sub_no) <> ".html"
+    Sub(_, _, ch_no, sub_no) ->
+      "./" <> ins(ch_no) <> "-" <> ins(sub_no) <> ".html"
   }
 }
 
@@ -115,7 +129,7 @@ fn tooltip(
   }
 
   V(
-    desugarer_blame(118),
+    desugarer_blame(132),
     "span",
     [
       an_attr("style", "visibility:hidden"),
@@ -129,8 +143,9 @@ fn page_link(
   page: Page,
   relation: Relation,
   which: Menu,
+  chapter_word: String,
 ) -> VXML {
-  let href_attr = 
+  let href_attr =
     page
     |> page_href
     |> an_attr("href", _)
@@ -141,16 +156,22 @@ fn page_link(
   }
 
   let content = case page {
-    Chapter(_, _, ch_no) -> prev_prefix <> "Kapitel " <> ins(ch_no) <> next_suffix
-    Sub(_, _, ch_no, sub_no) -> prev_prefix <> "Kapitel " <> ins(ch_no) <> "." <> ins(sub_no) <> next_suffix
+    Chapter(_, _, ch_no) ->
+      prev_prefix <> chapter_word <> " " <> ins(ch_no) <> next_suffix
+    Sub(_, _, ch_no, sub_no) ->
+      prev_prefix
+      <> chapter_word
+      <> " "
+      <> ins(ch_no)
+      <> "."
+      <> ins(sub_no)
+      <> next_suffix
   }
 
   V(
-    desugarer_blame(149),
+    desugarer_blame(172),
     "a",
-    [
-      href_attr,
-    ],
+    [href_attr],
     [
       content |> string_2_text_node,
       tooltip(page, relation, which),
@@ -167,14 +188,13 @@ fn row1_row2_links_2_menu(
     Top -> #("TopMenu", "top-")
     Bottom -> #("BottomMenu", "bottom-")
   }
-  let dummy = V(desugarer_blame(170), "a", [an_attr("class", "menu-row-placeholder")], [])
+  let dummy =
+    V(desugarer_blame(192), "a", [an_attr("class", "menu-row-placeholder")], [])
   let row_constructor = fn(row: #(Option(VXML), Option(VXML))) {
     let #(left, right) = row
     let right = case right {
       None -> None
-      Some(x) -> Some(
-        infra.v_append_classes(x, "menu-row-right")
-      )
+      Some(x) -> Some(infra.v_append_classes(x, "menu-row-right"))
     }
     case left, right {
       None, None -> None
@@ -182,7 +202,7 @@ fn row1_row2_links_2_menu(
         let left = option.unwrap(left, dummy)
         let right = option.unwrap(right, dummy)
         Some(V(
-          desugarer_blame(185),
+          desugarer_blame(205),
           "MenuRow",
           an_attr("class", "menu-row") |> into_list,
           [left, right],
@@ -191,10 +211,10 @@ fn row1_row2_links_2_menu(
     }
   }
   V(
-    desugarer_blame(194),
+    desugarer_blame(214),
     tag,
     an_attr("id", p1 <> "menu") |> into_list,
-    [row1, row2] |> list.map(row_constructor) |> option.values
+    [row1, row2] |> list.map(row_constructor) |> option.values,
   )
 }
 
@@ -202,136 +222,71 @@ fn data_2_menu_row_version(
   data: LinkData,
   which: Menu,
 ) -> VXML {
+  let chapter_word = data.at_root_data.chapter_word
+  let toc_word = data.at_root_data.toc_word
+  let homepage = homepage_link(data.at_root_data)
+
   case data.index {
     // the Index
-    None -> case which {
-      Top -> row1_row2_links_2_menu(
-        #(
-          Some(data.homepage_url |> homepage_link()),
-          data.next |> option.map(page_link(_, Next, which)) |> option.map(infra.v_prepend_attr(_, next_page_id_attr))
-        ),
-        #(None, None),
-        which,
-      )
+    None ->
+      case which {
+        Top ->
+          row1_row2_links_2_menu(
+            #(
+              homepage,
+              data.next
+                |> option.map(page_link(_, Next, which, chapter_word))
+                |> option.map(infra.v_prepend_attr(_, next_page_id_attr)),
+            ),
+            #(None, None),
+            which,
+          )
 
-      Bottom -> row1_row2_links_2_menu(
-        #(None, None),
-        #(None, None),
-        which,
-      )
-    }
+        Bottom ->
+          row1_row2_links_2_menu(
+            #(None, None),
+            #(None, None),
+            which,
+          )
+      }
 
     // a chapter or subchapter
-    _ -> case which {
-      Top -> row1_row2_links_2_menu(
-        #(
-          case data.prev {
-            None -> index_link() |> infra.v_prepend_attr(prev_page_id_attr)
-            _ -> index_link()
-          } |> Some,
-          Some(data.homepage_url |> homepage_link()),
-        ),
-        #(
-          data.prev |> option.map(page_link(_, Prev, which)) |> option.map(infra.v_prepend_attr(_, prev_page_id_attr)),
-          data.next |> option.map(page_link(_, Next, which)) |> option.map(infra.v_prepend_attr(_, next_page_id_attr)),
-        ),
-        which,
-      )
+    _ ->
+      case which {
+        Top ->
+          row1_row2_links_2_menu(
+            #(
+              case data.prev {
+                None ->
+                  index_link(toc_word) |> infra.v_prepend_attr(prev_page_id_attr)
+                _ -> index_link(toc_word)
+              }
+                |> Some,
+              homepage,
+            ),
+            #(
+              data.prev
+                |> option.map(page_link(_, Prev, which, chapter_word))
+                |> option.map(infra.v_prepend_attr(_, prev_page_id_attr)),
+              data.next
+                |> option.map(page_link(_, Next, which, chapter_word))
+                |> option.map(infra.v_prepend_attr(_, next_page_id_attr)),
+            ),
+            which,
+          )
 
-      Bottom -> row1_row2_links_2_menu(
-        #(
-          data.prev |> option.map(page_link(_, Prev, which)),
-          data.next |> option.map(page_link(_, Next, which)),
-        ),
-        #(None, None),
-        which,
-      )
-    }
+        Bottom ->
+          row1_row2_links_2_menu(
+            #(
+              data.prev |> option.map(page_link(_, Prev, which, chapter_word)),
+              data.next |> option.map(page_link(_, Next, which, chapter_word)),
+            ),
+            #(None, None),
+            which,
+          )
+      }
   }
 }
-
-// old left-right menu version (might still revert to this):
-
-// fn left_right_links_2_menu(
-//   left: List(VXML),
-//   right: List(VXML),
-//   which: Menu,
-// ) -> VXML {
-//   let #(tag, p1) = case which {
-//     Top -> #("TopMenu", "top-")
-//     Bottom -> #("BottomMenu", "bottom-")
-//   }
-//   V(
-//     desugarer_blame(265),
-//     tag,
-//     an_attr("id", p1 <> "menu") |> into_list,
-//     [
-//       V(
-//         desugarer_blame(270),
-//         "MenuLeft",
-//         an_attr("id", p1 <> "menu-left") |> into_list,
-//         left,
-//       ),
-//       V(
-//         desugarer_blame(276),
-//         "MenuRight",
-//         an_attr("id", p1 <> "menu-right") |> into_list,
-//         right,
-//       ),
-//     ],
-//   )
-// }
-
-// fn data_2_menu(
-//   data: LinkData,
-//   which: Menu,
-// ) -> VXML {
-//   case data.index {
-//     // the Index
-//     None -> case which {
-//       Top -> left_right_links_2_menu(
-//         [
-//           data.homepage_url |> homepage_link(),
-//         ],
-//         [
-//           data.next |> option.map(page_link(_, Next, which)),
-//         ] |> option.values |> infra.map_first(infra.v_prepend_attr(_, next_page_id_attr)),
-//         which,
-//       )
-
-//       Bottom -> left_right_links_2_menu(
-//         [],
-//         [],
-//         which,
-//       )
-//     }
-
-//     // a chapter or subchapter
-//     _ -> case which {
-//       Top -> left_right_links_2_menu(
-//         [
-//           data.prev |> option.map(page_link(_, Prev, which)),
-//           Some(index_link()),
-//         ] |> option.values |> infra.map_first(infra.v_prepend_attr(_, prev_page_id_attr)) |> list.reverse,
-//         [
-//           Some(data.homepage_url |> homepage_link()),
-//           data.next |> option.map(page_link(_, Next, which)) |> option.map(infra.v_prepend_attr(_, next_page_id_attr)),
-//         ] |> option.values,
-//         which,
-//       )
-
-//       Bottom -> left_right_links_2_menu(
-//         [
-//           data.prev |> option.map(page_link(_, Prev, which))
-//         ] |> option.values,
-//         [
-//           data.next |> option.map(page_link(_, Next, which))
-//         ] |> option.values,
-//         which,
-//       )
-//     }
-//   }
-// }
 
 fn page_from_title(
   vxml: VXML,
@@ -365,22 +320,26 @@ fn page_from_title(
 
 fn link_data_at_index(
   index: VXML,
-  homepage_url: String,
+  at_root_data: ConstructedAtRootData,
 ) -> Result(LinkData, DesugaringError) {
   use next <- on.ok(page_from_title(index, Next))
   case next {
-    None -> Error(DesugaringError(bl.no_blame, "index missing NextChapterOrSubTitle child (?)"))
-    _ -> Ok(LinkData(homepage_url, None, None, next))
+    None ->
+      Error(DesugaringError(
+        bl.no_blame,
+        "index missing NextChapterOrSubTitle child (?)",
+      ))
+    _ -> Ok(LinkData(at_root_data, None, None, next))
   }
 }
 
 fn link_data_at_ch_or_sub(
   vxml: VXML,
-  homepage_url: String,
+  at_root_data: ConstructedAtRootData,
 ) -> Result(LinkData, DesugaringError) {
   use prev <- on.ok(page_from_title(vxml, Prev))
   use next <- on.ok(page_from_title(vxml, Next))
-  Ok(LinkData(homepage_url, Some("./index.html"), prev, next))
+  Ok(LinkData(at_root_data, Some("./index.html"), prev, next))
 }
 
 fn add_menu(
@@ -391,34 +350,32 @@ fn add_menu(
   let menu = data_2_menu_row_version(data, which)
   case which {
     Top -> infra.v_prepend_child(node, menu)
-    Bottom -> infra.v_pour_before_first(
-      node,
-      [
-        menu,
-        hr,
-      ],
-      "Sub",
-    )
+    Bottom ->
+      infra.v_pour_before_first(
+        node,
+        [menu, hr],
+        "Sub",
+      )
   }
 }
 
 fn nodemap(
   vxml: VXML,
-  homepage_url: String,
+  at_root_data: ConstructedAtRootData,
 ) -> Result(#(VXML, TrafficLight), DesugaringError) {
   use #(data, continue) <- on.ok(case vxml {
     V(_, "Index", _, _) -> {
-      use data <- on.ok(link_data_at_index(vxml, homepage_url))
+      use data <- on.ok(link_data_at_index(vxml, at_root_data))
       Ok(#(Some(data), GoBack))
     }
 
     V(_, "Chapter", _, _) -> {
-      use data <- on.ok(link_data_at_ch_or_sub(vxml, homepage_url))
+      use data <- on.ok(link_data_at_ch_or_sub(vxml, at_root_data))
       Ok(#(Some(data), Continue))
     }
 
     V(_, "Sub", _, _) -> {
-      use data <- on.ok(link_data_at_ch_or_sub(vxml, homepage_url))
+      use data <- on.ok(link_data_at_ch_or_sub(vxml, at_root_data))
       Ok(#(Some(data), GoBack))
     }
 
@@ -435,7 +392,8 @@ fn nodemap(
     None -> vxml
     Some(data) -> {
       case data.index {
-        None -> vxml |> add_menu(data, Top) // the index gets no bottom menu
+        None -> vxml |> add_menu(data, Top)
+        // the index gets no bottom menu
         Some(_) -> vxml |> add_menu(data, Top) |> add_menu(data, Bottom)
       }
     }
@@ -444,17 +402,45 @@ fn nodemap(
   Ok(#(vxml, continue))
 }
 
-fn at_root(
-  root: VXML
-) -> Result(VXML, DesugaringError) {
+fn at_root(root: VXML) -> Result(VXML, DesugaringError) {
   let homepage_url =
     infra.v_val_of_first_attr_with_key(root, "homepage")
     |> option.unwrap("")
 
-  n2t.early_return_one_to_one_nodemap_walk(
-    root,
-    nodemap(_, homepage_url),
-  )
+  use language <- on.ok(case infra.v_val_of_first_attr_with_key(root, "language") {
+    None ->
+      Error(DesugaringError(
+        bl.no_blame,
+        "ti2_create_menu: missing 'language' attribute on document root",
+      ))
+    Some(lang) -> Ok(lang)
+  })
+
+  use at_root_data <- on.ok(case language {
+    "de" ->
+      Ok(ConstructedAtRootData(
+        chapter_word: "Kapitel",
+        toc_word: "Inhaltsverzeichnis",
+        homepage_word: "zur Kursübersicht",
+        homepage_url: homepage_url,
+      ))
+    "en" ->
+      Ok(ConstructedAtRootData(
+        chapter_word: "Chapter",
+        toc_word: "Contents",
+        homepage_word: "Course Homepage",
+        homepage_url: homepage_url,
+      ))
+    other ->
+      Error(DesugaringError(
+        bl.no_blame,
+        "ti2_create_menu: invalid 'language' value '"
+          <> other
+          <> "' (expected 'en' or 'de')",
+      ))
+  })
+
+  n2t.early_return_one_to_one_nodemap_walk(root, nodemap(_, at_root_data))
 }
 
 fn transform_factory(_: InnerParam) -> infra.DesugarerTransform {
@@ -470,7 +456,10 @@ type Param = Nil
 type InnerParam = Nil
 
 pub const name = "ti2_create_menu"
-fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
+
+fn desugarer_blame(line_no: Int) {
+  bl.Des([], name, line_no)
+}
 
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 // 🏖️🏖️ Desugarer 🏖️🏖️
@@ -503,5 +492,9 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
 }
 
 pub fn assertive_tests() {
-  infra.assertive_test_collection_from_data_no_param(name, assertive_tests_data(), constructor)
+  infra.assertive_test_collection_from_data_no_param(
+    name,
+    assertive_tests_data(),
+    constructor,
+  )
 }

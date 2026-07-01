@@ -26,6 +26,7 @@ import gleam/erlang/process.{type Subject, spawn, send, receive}
 import dirtree.{type DirTree} as dt
 import gleam/regexp
 import splitter
+import either_or.{Either, Or}
 
 const default_times_table_char_width = 90 // MacBook 16' can take 140
 
@@ -70,15 +71,7 @@ pub fn default_writerly_assembler(
   dirpath_or_filepath: String,
   options: RendererOptions(_),
 ) -> Result(#(List(InputLine), Option(DirTree)), wl.AssemblyError) {
-  let only_paths = options.only_paths
-  let #(s1, s2) = list.partition(only_paths, string.starts_with(_, "!"))
-  let s1 = list.map(s1, string.drop_start(_, 1))
-  let path_selector = case s1, s2 {
-    [], [] -> fn(_) { True }
-    [], _ -> fn(path) { list.any(s2, string.contains(path, _)) }
-    _, [] -> fn(path) { !list.any(s1, string.contains(path, _)) }
-    _, _ -> fn(path) { list.any(s2, string.contains(path, _)) && !list.any(s1, string.contains(path, _)) }
-  }
+  let path_selector = wl.path_selector_from_only_paths(options.only_paths)
   use #(tree, assembled) <- on.ok(
     wl.assemble_input_lines_with_path_selector(dirpath_or_filepath, path_selector),
   )
@@ -117,7 +110,7 @@ pub fn default_xml_parser(
 pub const default_html_parser = default_xml_parser
 
 // ************************************************************
-// Filterer(c)                                                 // 'c' is parser error type
+// Filterer(c)                                                 // 'c' is filterer error type
 // VXML -> VXML
 // ************************************************************
 
@@ -610,6 +603,11 @@ pub fn basic_cli_usage(header: String) {
   io.println(margin <> "           <steps number> empty defaults to step numbers '+0-0'")
   io.println("")
   io.println(margin <> "     leave <step numbers> empty to track all steps")
+  io.println("")
+  io.println(margin <> "  -> additional examples for --track:")
+  io.println("")
+  io.println(margin <> "     gleam run -- --track \"lorem ipsum\" +5-5 my_desugarer_name")
+  io.println(margin <> "     gleam run -- --track \"lorem ipsum\" +5-5 my_desugarer_name-2+2")
   io.println("")
   io.println(margin <> "  -> additional options for --track:")
   io.println("")
@@ -2167,11 +2165,21 @@ pub fn run_renderer(
         list.zip(renderer.pipeline, all_seconds),
         fn (pair, i) {
           let #(desugarer, seconds) = pair
-          let num_bars = float.round(seconds *. 100.0 *. one_hundreth_seconds_num_bars)
-          #(ins(i + 1) <> ".", desugarer.name, pr.blocks(num_bars))
+          case desugarer.name {
+            "table_marker" -> [" ", "% table_marker %", " "] |> list.map(Or)
+            "table_section_header" -> {
+              let assert Some(header) = desugarer.stringified_param
+              ["/", "/ " <> header <> " /", "/"] |> list.map(Or)
+            }
+            _ -> {
+              let num_bars = float.round(seconds *. 100.0 *. one_hundreth_seconds_num_bars)
+              [Either(#(ins(i + 1) <> ".", desugarer.name, pr.blocks(num_bars)))]
+            }
+          }
         }
       )
-      pr.three_column_table([#("#.", "name", scale), ..bars])
+      |> list.flatten
+      pr.three_column_table([Either(#("#.", "name", scale)), ..bars])
       |> pr.print_lines_at_indent(2)
       io.println("  ...ended pipeline in " <> ins(seconds) <> "s")
     }

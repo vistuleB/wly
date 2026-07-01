@@ -5,7 +5,7 @@ import gleam/option.{None, Some}
 import gleam/regexp
 import gleam/result
 import gleam/string.{inspect as ins}
-import blame.{type Blame, Src, prepend_comment as pc} as bl
+import blame.{type Blame, Anchored, Movable, Src, prepend_comment as pc} as bl
 import io_lines.{type InputLine, InputLine, type OutputLine, OutputLine} as io_l
 import simplifile
 import xmlm
@@ -237,7 +237,7 @@ fn parse_nodes_at_indent(
       )
       use #(attrs, after) <- on.ok(parse_attributes_at_indent(indent + vxml_indent, rest))
       use #(children, after) <- on.ok(parse_nodes_at_indent(indent + vxml_indent, after))
-      let node = V(blame |> bl.set_proxy, tag, attrs, children)
+      let node = V(blame |> bl.set_anchored, tag, attrs, children)
       use #(nodes, after) <- on.ok(parse_nodes_at_indent(indent, after))
       Ok(#([node, ..nodes], after))
     }
@@ -1006,62 +1006,90 @@ fn xmlm_attr_to_vxml_attrs(
   line_no: Int,
   xmlm_attr: xmlm.Attribute,
 ) -> Attr {
-  let blame = Src([], filename, line_no, 0, False)
+  let blame = Src([], filename, line_no, 0, Movable)
   Attr(blame, xmlm_attr.name.local, xmlm_attr.value)
+}
+
+fn close_html_void_tag(content: String, tag: String) -> String {
+  let assert Ok(re) =
+    regexp.from_string("(<" <> tag <> ")(\\b[^>]*)(>)")
+
+  regexp.match_map(re, content, fn(match) {
+    let regexp.Match(_, sub) = match
+    let assert [_, maybe_middle, _] = sub
+    let middle = maybe_middle |> option.unwrap("")
+    case middle |> string.trim_end |> string.ends_with("/") {
+      True -> "<" <> tag <> middle <> ">"
+      False -> "<" <> tag <> middle <> "/>"
+    }
+  })
+}
+
+pub fn escape_non_entity_ampersands(
+  content: String,
+) -> String {
+  let assert Ok(re) = regexp.from_string(non_html_ampersand_re)
+
+  regexp.replace(re, content, "&amp;")
+}
+
+fn expand_html_boolean_attr(content: String, attr: String) -> String {
+  let assert Ok(re) =
+    regexp.from_string("(\\s" <> attr <> ")(\\s|>|/>)")
+
+  regexp.match_map(re, content, fn(match) {
+    let regexp.Match(_, sub) = match
+    let assert [Some(attr), Some(after)] = sub
+    attr <> "=\"\"" <> after
+  })
+}
+
+pub fn expand_html_boolean_attrs(
+  content: String,
+) -> String {
+  [
+    "allowfullscreen", "async", "autofocus", "autoplay", "checked", "controls",
+    "default", "defer", "disabled", "formnovalidate", "hidden", "inert", "ismap",
+    "loop", "multiple", "muted", "nomodule", "novalidate", "open", "playsinline",
+    "readonly", "required", "reversed", "selected",
+  ]
+  |> list.fold(content, fn(content, attr) {
+    expand_html_boolean_attr(content, attr)
+  })
+}
+
+pub fn close_html_void_tags(
+  content: String,
+) -> String {
+  [
+    "area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta",
+    "source", "track", "wbr",
+  ]
+  |> list.fold(content, fn(content, tag) {
+    close_html_void_tag(content, tag)
+  })
+}
+
+pub fn remove_attrs_from_closing_tags(
+  content: String,
+) -> String {
+  let assert Ok(re) = regexp.from_string("(<\\/)(\\w+)(\\s+[^>]*)(>)")
+
+  regexp.match_map(re, content, fn(match) {
+    let regexp.Match(_, sub) = match
+    let assert [_, Some(tag), _, _] = sub
+    "</" <> tag <> ">"
+  })
 }
 
 pub fn bad_html_pre_processor(
   content: String,
 ) -> String {
-  // self-explanatory
-  let content =
-    content
-    |> string.replace("\r\n", "\n")
-    |> string.replace("async ", "async=\"\"")
-    |> string.replace("async\n", "async=\"\"\n")
-    |> string.replace("& ", "&amp;")
-    |> string.replace("&\n", "&amp;\n")
-    |> string.replace(" &", "&amp;")
-    |> string.replace("\\,<", "\\,&lt;")
-    |> string.replace(" < ", " &lt; ")
-    |> string.replace("\\rt{0.1}<", "\\rt{0.1}&lt;")
-
-  // close img tags
-  let assert Ok(re) = regexp.from_string("(<img)(\\b[^>]*[^\\/])(>)")
-  let content =
-    regexp.match_map(re, content, fn(match) {
-      let regexp.Match(_, sub) = match
-      let assert [_, Some(middle), _] = sub
-      "<img" <> middle <> "/>"
-    })
-
-  // close link tags
-  let assert Ok(re) = regexp.from_string("(<link)(\\b[^>]*[^\\/])(>)")
-  let content =
-    regexp.match_map(re, content, fn(match) {
-      let regexp.Match(_, sub) = match
-      let assert [_, Some(middle), _] = sub
-      "<link" <> middle <> "/>"
-    })
-
-  // close meta tags
-  let assert Ok(re) = regexp.from_string("(<meta)(\\b[^>]*[^\\/])(>)")
-  let content =
-    regexp.match_map(re, content, fn(match) {
-      let regexp.Match(_, sub) = match
-      let assert [_, Some(middle), _] = sub
-      "<meta" <> middle <> "/>"
-    })
-
-  // remove attrs in closing tags
-  let assert Ok(re) = regexp.from_string("(<\\/)(\\w+)(\\s+[^>]*)(>)")
-  let matches = regexp.scan(re, content)
-
-  list.fold(matches, content, fn(content_str, match) {
-    let regexp.Match(_, sub) = match
-    let assert [_, Some(tag), _, _] = sub
-    regexp.replace(re, content_str, "</" <> tag <> ">")
-  })
+  content
+  |> expand_html_boolean_attrs
+  |> escape_non_entity_ampersands
+  |> close_html_void_tags
+  |> remove_attrs_from_closing_tags
 }
 
 pub fn xmlm_based_html_parser(
@@ -1093,7 +1121,7 @@ pub fn xmlm_based_html_parser(
       input,
       fn(xmlm_tag, children) {
         V(
-          Src([], filename, 0, 0, True),
+          Src([], filename, 0, 0, Anchored),
           xmlm_tag.name.local,
           xmlm_tag.attributes
             |> list.map(xmlm_attr_to_vxml_attrs(filename, 0, _)),
@@ -1105,9 +1133,9 @@ pub fn xmlm_based_html_parser(
           content
           |> string.split("\n")
           |> list.map(fn(content) {
-            Line(Src([], filename, 0, 0, False), content)
+            Line(Src([], filename, 0, 0, Movable), content)
           })
-        T(Src([], filename, 0, 0, False), lines)
+        T(Src([], filename, 0, 0, Movable), lines)
       },
     )
   {

@@ -24,6 +24,7 @@ import desugarers/append_attribute_if_child_of__batch
 import desugarers/append_attribute_if_fancy
 import desugarers/append_attribute_to_second_of_kind
 import desugarers/append_attribute_to_second_of_kind__outside
+import desugarers/append_attributes
 import desugarers/append_class
 import desugarers/append_class__batch
 import desugarers/append_class_to_child_if
@@ -105,6 +106,7 @@ import desugarers/grand_wrapper_move_nodes_to_wrapper
 import desugarers/group_consecutive_children__outside
 import desugarers/handles_add_ids
 import desugarers/handles_generate_dictionary_and_id_list
+import desugarers/handles_generate_v_definitions_from_t_definitions
 import desugarers/handles_setup_grand_wrapper
 import desugarers/handles_substitute_and_fix_nonlocal_id_links
 import desugarers/identity
@@ -143,6 +145,7 @@ import desugarers/lbp_wrap_with_3003_spans
 import desugarers/line_rewrap_no1__outside
 import desugarers/line_rewrap_no2__outside
 import desugarers/markdown_link_closing_handrolled_splitter
+import desugarers/math_label_to_tag_handle
 import desugarers/merge_parent_attributes_into_child
 import desugarers/naive_unsecaped_split_and_replace__outside
 import desugarers/normalize_begin_end_align
@@ -172,9 +175,9 @@ import desugarers/prepend_text_node__outside
 import desugarers/prepend_text_node_if_fancy
 import desugarers/prepend_text_node_if_has_ancestor_else__batch
 import desugarers/rearrange_links
-import desugarers/rearrange_links__batch
 import desugarers/rearrange_links_4_pre_tokenized_src
 import desugarers/rearrange_links_4_pre_tokenized_src__batch
+import desugarers/rearrange_links__batch
 import desugarers/reassign_text_node_blame_to_blame_of_first_nonempty_line_in_text_node
 import desugarers/regex_split_and_replace__batch__outside
 import desugarers/regex_split_and_replace__outside
@@ -211,6 +214,7 @@ import desugarers/substitute_counters
 import desugarers/supplement_class
 import desugarers/surround_elements_by
 import desugarers/table_marker
+import desugarers/table_section_header
 import desugarers/ti2_add_listing_bol_spans
 import desugarers/ti2_add_prev_next_chapter_title_elements
 import desugarers/ti2_add_should_be_numbers
@@ -297,6 +301,7 @@ pub const append_attribute_if_child_of__batch = append_attribute_if_child_of__ba
 pub const append_attribute_if_fancy = append_attribute_if_fancy.constructor
 pub const append_attribute_to_second_of_kind = append_attribute_to_second_of_kind.constructor
 pub const append_attribute_to_second_of_kind__outside = append_attribute_to_second_of_kind__outside.constructor
+pub const append_attributes = append_attributes.constructor
 pub const append_class = append_class.constructor
 pub const append_class__batch = append_class__batch.constructor
 pub const append_class_to_child_if = append_class_to_child_if.constructor
@@ -378,6 +383,7 @@ pub const grand_wrapper_move_nodes_to_wrapper = grand_wrapper_move_nodes_to_wrap
 pub const group_consecutive_children__outside = group_consecutive_children__outside.constructor
 pub const handles_add_ids = handles_add_ids.constructor
 pub const handles_generate_dictionary_and_id_list = handles_generate_dictionary_and_id_list.constructor
+pub const handles_generate_v_definitions_from_t_definitions = handles_generate_v_definitions_from_t_definitions.constructor
 pub const handles_setup_grand_wrapper = handles_setup_grand_wrapper.constructor
 pub const handles_substitute_and_fix_nonlocal_id_links = handles_substitute_and_fix_nonlocal_id_links.constructor
 pub const identity = identity.constructor
@@ -416,6 +422,7 @@ pub const lbp_wrap_with_3003_spans = lbp_wrap_with_3003_spans.constructor
 pub const line_rewrap_no1__outside = line_rewrap_no1__outside.constructor
 pub const line_rewrap_no2__outside = line_rewrap_no2__outside.constructor
 pub const markdown_link_closing_handrolled_splitter = markdown_link_closing_handrolled_splitter.constructor
+pub const math_label_to_tag_handle = math_label_to_tag_handle.constructor
 pub const merge_parent_attributes_into_child = merge_parent_attributes_into_child.constructor
 pub const naive_unsecaped_split_and_replace__outside = naive_unsecaped_split_and_replace__outside.constructor
 pub const normalize_begin_end_align = normalize_begin_end_align.constructor
@@ -445,9 +452,9 @@ pub const prepend_text_node__outside = prepend_text_node__outside.constructor
 pub const prepend_text_node_if_fancy = prepend_text_node_if_fancy.constructor
 pub const prepend_text_node_if_has_ancestor_else__batch = prepend_text_node_if_has_ancestor_else__batch.constructor
 pub const rearrange_links = rearrange_links.constructor
-pub const rearrange_links__batch = rearrange_links__batch.constructor
 pub const rearrange_links_4_pre_tokenized_src = rearrange_links_4_pre_tokenized_src.constructor
 pub const rearrange_links_4_pre_tokenized_src__batch = rearrange_links_4_pre_tokenized_src__batch.constructor
+pub const rearrange_links__batch = rearrange_links__batch.constructor
 pub const reassign_text_node_blame_to_blame_of_first_nonempty_line_in_text_node = reassign_text_node_blame_to_blame_of_first_nonempty_line_in_text_node.constructor
 pub const regex_split_and_replace__batch__outside = regex_split_and_replace__batch__outside.constructor
 pub const regex_split_and_replace__outside = regex_split_and_replace__outside.constructor
@@ -484,6 +491,7 @@ pub const substitute_counters = substitute_counters.constructor
 pub const supplement_class = supplement_class.constructor
 pub const surround_elements_by = surround_elements_by.constructor
 pub const table_marker = table_marker.constructor
+pub const table_section_header = table_section_header.constructor
 pub const ti2_add_listing_bol_spans = ti2_add_listing_bol_spans.constructor
 pub const ti2_add_prev_next_chapter_title_elements = ti2_add_prev_next_chapter_title_elements.constructor
 pub const ti2_add_should_be_numbers = ti2_add_should_be_numbers.constructor
@@ -571,6 +579,7 @@ pub const assertive_tests : List(fn() -> infra.AssertiveTestCollection) = [
   append_attribute_if_fancy.assertive_tests,
   append_attribute_to_second_of_kind.assertive_tests,
   append_attribute_to_second_of_kind__outside.assertive_tests,
+  append_attributes.assertive_tests,
   append_class.assertive_tests,
   append_class__batch.assertive_tests,
   append_class_to_child_if.assertive_tests,
@@ -652,6 +661,7 @@ pub const assertive_tests : List(fn() -> infra.AssertiveTestCollection) = [
   group_consecutive_children__outside.assertive_tests,
   handles_add_ids.assertive_tests,
   handles_generate_dictionary_and_id_list.assertive_tests,
+  handles_generate_v_definitions_from_t_definitions.assertive_tests,
   handles_setup_grand_wrapper.assertive_tests,
   handles_substitute_and_fix_nonlocal_id_links.assertive_tests,
   identity.assertive_tests,
@@ -690,6 +700,7 @@ pub const assertive_tests : List(fn() -> infra.AssertiveTestCollection) = [
   line_rewrap_no1__outside.assertive_tests,
   line_rewrap_no2__outside.assertive_tests,
   markdown_link_closing_handrolled_splitter.assertive_tests,
+  math_label_to_tag_handle.assertive_tests,
   merge_parent_attributes_into_child.assertive_tests,
   naive_unsecaped_split_and_replace__outside.assertive_tests,
   normalize_begin_end_align.assertive_tests,
@@ -719,9 +730,9 @@ pub const assertive_tests : List(fn() -> infra.AssertiveTestCollection) = [
   prepend_text_node_if_fancy.assertive_tests,
   prepend_text_node_if_has_ancestor_else__batch.assertive_tests,
   rearrange_links.assertive_tests,
-  rearrange_links__batch.assertive_tests,
   rearrange_links_4_pre_tokenized_src.assertive_tests,
   rearrange_links_4_pre_tokenized_src__batch.assertive_tests,
+  rearrange_links__batch.assertive_tests,
   reassign_text_node_blame_to_blame_of_first_nonempty_line_in_text_node.assertive_tests,
   regex_split_and_replace__batch__outside.assertive_tests,
   regex_split_and_replace__outside.assertive_tests,
@@ -758,6 +769,7 @@ pub const assertive_tests : List(fn() -> infra.AssertiveTestCollection) = [
   supplement_class.assertive_tests,
   surround_elements_by.assertive_tests,
   table_marker.assertive_tests,
+  table_section_header.assertive_tests,
   ti2_add_listing_bol_spans.assertive_tests,
   ti2_add_prev_next_chapter_title_elements.assertive_tests,
   ti2_add_should_be_numbers.assertive_tests,

@@ -14,8 +14,10 @@ import on
 
 type CounterType {
   Arabic
-  Roman
-  Alphabetic
+  Lowercase
+  Uppercase
+  LowercaseRoman
+  UppercaseRoman
   Unary(String)
 }
 
@@ -43,6 +45,21 @@ const increment = StringAndRegexVersion(string: "++", regex_string: "\\+\\+")
 const decrement = StringAndRegexVersion(string: "--", regex_string: "--")
 const no_change = StringAndRegexVersion(string: "øø", regex_string: "øø")
 
+/// Base-26 expansion of a nonnegative integer.
+fn to_base_26(n: Int) -> List(Int) {
+  case n {
+    0 -> [0]
+    _ -> do_base_26(n, [])
+  }
+}
+
+fn do_base_26(n: Int, acc: List(Int)) -> List(Int) {
+  case n {
+    0 -> acc
+    _ -> do_base_26(n / 26, [n % 26, ..acc])
+  }
+}
+
 fn update_info(
   info: CounterInfo,
   mutation: String,
@@ -63,33 +80,46 @@ fn render_info(
 ) -> String {
   case info.counter_type {
     Arabic -> ins(info.value)
-    Roman -> roman.int_to_roman(info.value) |> option.unwrap([]) |> roman.roman_to_string()
+    UppercaseRoman -> roman.int_to_roman(info.value) |> option.unwrap([]) |> roman.roman_to_string() |> string.uppercase
+    LowercaseRoman -> roman.int_to_roman(info.value) |> option.unwrap([]) |> roman.roman_to_string()
     Unary(c) -> string.repeat(c, info.value)
-    Alphabetic -> {
-      let assert Ok(utf) = string.utf_codepoint(info.value)
-      string.from_utf_codepoints([utf])
+    Uppercase -> {
+      to_base_26(info.value - 1)
+      |> list.map(fn(d) {
+        let assert Ok(cp) = string.utf_codepoint(d + 65)
+        cp
+      })
+      |> string.from_utf_codepoints
+    }
+    Lowercase -> {
+      to_base_26(info.value - 1)
+      |> list.map(fn(d) {
+        let assert Ok(cp) = string.utf_codepoint(d + 97)
+        cp
+      })
+      |> string.from_utf_codepoints
     }
   }
 }
 
-fn process_regex_groups(
+fn process_regexp_groups(
   blame: Blame,
   counters: CounterDict,
-  a: String,
-  b: String,
-  c: String,
+  loudness: String,
+  change: String,
+  counter_name: String,
 ) -> Result(#(String, CounterDict), DesugaringError) {
   use info <- on.error_ok(
-    dict.get(counters, c),
-    fn(_) { Error(DesugaringError(blame, "undefined counter: " <> c)) },
+    dict.get(counters, counter_name),
+    fn(_) { Error(DesugaringError(blame, "undefined counter: " <> counter_name)) },
   )
-  let info = update_info(info, b)
-  let render = case a {
-    _ if a == loud.string -> render_info(info)
-    _ if a == soft.string -> ""
+  let info = update_info(info, change)
+  let render = case loudness {
+    _ if loudness == loud.string -> render_info(info)
+    _ if loudness == soft.string -> ""
     _ -> panic
   }
-  Ok(#(render, dict.insert(counters, c, info)))
+  Ok(#(render, dict.insert(counters, counter_name, info)))
 }
 
 fn process_splits(
@@ -104,9 +134,9 @@ fn process_splits(
       [first, ..already_processed],
       counters,
     ))
-    [a, b, c, ..splits] -> {
+    [loudness, change, counter_name, ..splits] -> {
       use #(render, counters) <- on.ok(
-        process_regex_groups(blame, counters, a, b, c)
+        process_regexp_groups(blame, counters, loudness, change, counter_name)
       )
       process_splits(
         blame,
@@ -171,107 +201,80 @@ fn take_existing_counters(
   |> dict.filter(fn(k, _) { dict.has_key(current, k) })
 }
 
-fn parse_starting_value(
-  attr: Attr,
+fn parse_counter_definition_attr_value(
+  blame: Blame,
+  counter_type: CounterType,
   value: String,
-  counter_type: CounterType,
-) -> Result(Int, DesugaringError) {
-  case counter_type {
-    Alphabetic -> {
-      let assert [utf] = string.to_utf_codepoints(value)
-      Ok(string.utf_codepoint_to_int(utf))
-    }
-    _ -> {
-      use starting_value <- on.error_ok(
-        int.parse(value),
-        fn(_) { Error(DesugaringError(attr.blame, "counter starting value must be a number")) },
-      )
-      Ok(starting_value)
-    }
-  }
-}
-
-fn handle_non_unary_att_value(
-  attr: Attr,
-  counter_type: CounterType,
-) -> Result(#(String, Int, Int), DesugaringError) {
-  let splits = string.split(attr.val, " ")
+) -> Result(#(String, CounterInfo), DesugaringError) {
+  let splits =
+    string.split(value, " ")
+    |> list.filter(fn(s) { s != "" })
 
   use counter_name, rest <- on.empty_nonempty(
     splits,
-    fn() { Error(DesugaringError(attr.blame, "counter must have a name")) },
+    fn() { Error(DesugaringError(blame, "counter must have a name")) },
   )
 
-  let default_value = case counter_type {
-    Alphabetic -> 64
-    _ -> 0
-  }
+  use #(counter_type, rest) <- on.ok(case counter_type {
+    Unary(_) -> case rest {
+      [first, ..rest] -> Ok(#(Unary(first), rest))
+      [] -> Error(DesugaringError(blame, "unary counter missing 1-value"))
+    }
+    _ -> Ok(#(counter_type, rest))
+  })
 
   use starting_value, rest <- on.empty_nonempty(
     rest,
-    fn() { Ok(#(counter_name, default_value, 1)) },
+    fn() { Ok(#(counter_name, CounterInfo(counter_type, 0, 1))) },
   )
 
-  use starting_value <- on.ok(parse_starting_value(attr, starting_value, counter_type))
+  use starting_value <- on.error_ok(
+    int.parse(starting_value),
+    fn(_) { Error(DesugaringError(blame, "counter starting value must be a number")) },
+  )
 
   use step, rest <- on.empty_nonempty(
     rest,
-    fn() { Ok(#(counter_name, starting_value, 1)) },
+    fn() { Ok(#(counter_name, CounterInfo(counter_type, starting_value, 1))) },
   )
 
   use step <- on.error_ok(
     int.parse(step),
-    fn(_) { Error(DesugaringError(attr.blame, "counter step size must be a number")) },
+    fn(_) { Error(DesugaringError(blame, "counter step size must be a number")) },
   )
 
   case list.is_empty(rest) {
-    True -> Ok(#(counter_name, starting_value, step))
-    False -> Error(DesugaringError(attr.blame, "extra arguments found after <counter_name> <starting_value> <step_value>"))
-  }
-}
-
-fn handle_unary_att_value(
- attr: Attr,
-) -> Result(#(String, String), DesugaringError) {
-  let splits = string.split(attr.val, " ")
-  case splits {
-    [counter_name, unary_char] -> Ok(#(counter_name, unary_char))
-    [counter_name] -> Ok(#(counter_name, "1"))
-    [] -> Error(DesugaringError(attr.blame, "counter attr without name"))
-    _ -> Error(DesugaringError(attr.blame, "too many arguments for unary-counter"))
+    True -> Ok(#(counter_name, CounterInfo(counter_type, starting_value, step)))
+    False -> Error(DesugaringError(blame, "extra arguments found after <counter_name> <starting_value> <step_value>"))
   }
 }
 
 fn attr_key_is_counter(
   key: String
-) -> Result(CounterType, Nil) {
+) -> Result(Option(_), CounterType) {
   case key {
-    "counter" -> Ok(Arabic)
-    "roman-counter" -> Ok(Roman)
-    "alphabetic-counter" -> Ok(Alphabetic)
-    "unary-counter" -> Ok(Unary(""))
-    _ -> Error(Nil)
+    "counter" -> Error(Arabic)
+    "counter-lowercase" -> Error(Lowercase)
+    "counter-uppercase" -> Error(Uppercase)
+    "counter-roman-lowercase" -> Error(LowercaseRoman)
+    "counter-roman-uppercase" -> Error(UppercaseRoman)
+    "counter-unary" -> Error(Unary(""))
+    _ -> Ok(None)
   }
 }
 
 fn read_counter_definition(
   attr: Attr,
 ) -> Result(Option(#(String, CounterInfo)), DesugaringError) {
-  use counter_type <- on.error_ok(
+  use counter_type <- on.error(
     attr_key_is_counter(attr.key),
-    fn(_) { Ok(None) },
   )
 
-  case counter_type {
-    Unary(_) -> {
-      use #(counter_name, unary_char) <- on.ok(handle_unary_att_value(attr))
-      Ok(Some(#(counter_name, CounterInfo(Unary(unary_char), 0, 1))))
-    }
-    _ -> {
-      use #(counter_name, initial_value, step) <- on.ok(handle_non_unary_att_value(attr, counter_type))
-      Ok(Some(#(counter_name, CounterInfo(counter_type, initial_value, step))))
-    }
-  }
+  use #(counter_name, counter_info) <- on.ok(
+    parse_counter_definition_attr_value(attr.blame, counter_type, attr.val)
+  )
+
+  Ok(Some(#(counter_name, counter_info)))
 }
 
 fn fancy_one_attr_processor(
@@ -441,30 +444,30 @@ pub const name = "substitute_counters"
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 //------------------------------------------------53
 /// Substitutes strings of the form
-/// 
+///
 ///          (::|..)(++|--|øø)<counterName>
 ///
 /// inside text lines and attribute values by string
 /// value of the counter, while incrementing/decrementing
 /// counters along the way.
-/// 
+///
 /// The counter must have initialized by the time
 /// it's used or else a DesugaringError will occur.
-/// 
+///
 /// E.g., here is a correct use of a counter:
-/// 
+///
 /// <> Chapter
-///     counter=ExerciseCounter
+///     counter=SectionCounter
 ///     <> Section
 ///         number=::--SectionCounter
-/// 
+///
 /// After the desugarer is run, this would become:
 ///
 /// <> Chapter
-///     counter=ExerciseCounter
+///     counter=SectionCounter
 ///     <> Section
 ///         number=-1
-/// 
+///
 /// The second capturing group (++|--|øø)
 /// determines whether a counter is incremented,
 /// decremented, or kept equal at a point (according
@@ -473,9 +476,9 @@ pub const name = "substitute_counters"
 /// is echoed '::' or silenced '..', i.e., inserted
 /// or not into the document at that point. In
 /// partuclar, a counter of the form
-/// 
+///
 ///        ..øø<counterName>
-/// 
+///
 /// has no effect on the document.
 pub fn constructor() -> Desugarer {
   Desugarer(
@@ -576,6 +579,190 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
                   <>
                     '0'
                     '-1-2'
+                ",
+    ),
+    infra.AssertiveTestDataNoParam(
+      source:   "
+                <> root
+                  counter-uppercase=ChapCtr
+                  <>
+                    '::++ChapCtr'
+                    '::++ChapCtr'
+                    '::++ChapCtr'
+                ",
+      expected: "
+                <> root
+                  counter-uppercase=ChapCtr
+                  <>
+                    'A'
+                    'B'
+                    'C'
+                ",
+    ),
+    infra.AssertiveTestDataNoParam(
+      source:   "
+                <> root
+                  counter-lowercase=SecCtr
+                  <>
+                    '::++SecCtr'
+                    '::++SecCtr'
+                    '::++SecCtr'
+                ",
+      expected: "
+                <> root
+                  counter-lowercase=SecCtr
+                  <>
+                    'a'
+                    'b'
+                    'c'
+                ",
+    ),
+    infra.AssertiveTestDataNoParam(
+      source:   "
+                <> root
+                  counter-roman-uppercase=RomCtr
+                  <>
+                    '::++RomCtr'
+                    '::++RomCtr'
+                    '::++RomCtr'
+                    '::++RomCtr'
+                ",
+      expected: "
+                <> root
+                  counter-roman-uppercase=RomCtr
+                  <>
+                    'I'
+                    'II'
+                    'III'
+                    'IV'
+                ",
+    ),
+    infra.AssertiveTestDataNoParam(
+      source:   "
+                <> root
+                  counter-roman-lowercase=RomCtr
+                  <>
+                    '::++RomCtr'
+                    '::++RomCtr'
+                    '::++RomCtr'
+                    '::++RomCtr'
+                ",
+      expected: "
+                <> root
+                  counter-roman-lowercase=RomCtr
+                  <>
+                    'i'
+                    'ii'
+                    'iii'
+                    'iv'
+                ",
+    ),
+    infra.AssertiveTestDataNoParam(
+      source:   "
+                <> root
+                  counter-unary=StarCtr *
+                  <>
+                    '::++StarCtr'
+                    '::++StarCtr'
+                    '::++StarCtr'
+                ",
+      expected: "
+                <> root
+                  counter-unary=StarCtr *
+                  <>
+                    '*'
+                    '**'
+                    '***'
+                ",
+    ),
+    infra.AssertiveTestDataNoParam(
+      source:   "
+                <> root
+                  counter-uppercase=AppCtr
+                  <>
+                    '::++AppCtr'
+                    '::++AppCtr'
+                    '::++AppCtr'
+                    '::++AppCtr'
+                    '::++AppCtr'
+                    '::++AppCtr'
+                    '::++AppCtr'
+                    '::++AppCtr'
+                    '::++AppCtr'
+                    '::++AppCtr'
+                    '::++AppCtr'
+                    '::++AppCtr'
+                    '::++AppCtr'
+                    '::++AppCtr'
+                    '::++AppCtr'
+                    '::++AppCtr'
+                    '::++AppCtr'
+                    '::++AppCtr'
+                    '::++AppCtr'
+                    '::++AppCtr'
+                    '::++AppCtr'
+                    '::++AppCtr'
+                    '::++AppCtr'
+                    '::++AppCtr'
+                    '::++AppCtr'
+                ",
+      expected: "
+                <> root
+                  counter-uppercase=AppCtr
+                  <>
+                    'A'
+                    'B'
+                    'C'
+                    'D'
+                    'E'
+                    'F'
+                    'G'
+                    'H'
+                    'I'
+                    'J'
+                    'K'
+                    'L'
+                    'M'
+                    'N'
+                    'O'
+                    'P'
+                    'Q'
+                    'R'
+                    'S'
+                    'T'
+                    'U'
+                    'V'
+                    'W'
+                    'X'
+                    'Y'
+                ",
+    ),
+    infra.AssertiveTestDataNoParam(
+      source:   "
+                <> root
+                  counter=QCounter  -3
+                  <>
+                    '::++QCounter'
+                ",
+      expected: "
+                <> root
+                  counter=QCounter  -3
+                  <>
+                    '-2'
+                ",
+    ),
+    infra.AssertiveTestDataNoParam(
+      source:   "
+                <> root
+                  counter-unary=StarCtr  *
+                  <>
+                    '::++StarCtr'
+                ",
+      expected: "
+                <> root
+                  counter-unary=StarCtr  *
+                  <>
+                    '*'
                 ",
     ),
   ]
