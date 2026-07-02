@@ -108,6 +108,7 @@ import desugarers/handles_add_ids
 import desugarers/handles_generate_dictionary_and_id_list
 import desugarers/handles_generate_v_definitions_from_t_definitions
 import desugarers/handles_setup_grand_wrapper
+import desugarers/handles_substitute
 import desugarers/handles_substitute_and_fix_nonlocal_id_links
 import desugarers/handles_substitute_inside_math
 import desugarers/identity
@@ -386,6 +387,7 @@ pub const handles_add_ids = handles_add_ids.constructor
 pub const handles_generate_dictionary_and_id_list = handles_generate_dictionary_and_id_list.constructor
 pub const handles_generate_v_definitions_from_t_definitions = handles_generate_v_definitions_from_t_definitions.constructor
 pub const handles_setup_grand_wrapper = handles_setup_grand_wrapper.constructor
+pub const handles_substitute = handles_substitute.constructor
 pub const handles_substitute_and_fix_nonlocal_id_links = handles_substitute_and_fix_nonlocal_id_links.constructor
 pub const handles_substitute_inside_math = handles_substitute_inside_math.constructor
 pub const identity = identity.constructor
@@ -665,6 +667,7 @@ pub const assertive_tests : List(fn() -> infra.AssertiveTestCollection) = [
   handles_generate_dictionary_and_id_list.assertive_tests,
   handles_generate_v_definitions_from_t_definitions.assertive_tests,
   handles_setup_grand_wrapper.assertive_tests,
+  handles_substitute.assertive_tests,
   handles_substitute_and_fix_nonlocal_id_links.assertive_tests,
   handles_substitute_inside_math.assertive_tests,
   identity.assertive_tests,

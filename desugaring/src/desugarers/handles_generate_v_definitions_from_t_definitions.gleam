@@ -1,16 +1,13 @@
+import blame.{type Blame}
 import gleam/list
 import gleam/option.{Some}
 import gleam/regexp.{type Regexp}
 import gleam/string
 import infrastructure.{
-  type Desugarer,
-  type DesugarerTransform,
-  type DesugaringError,
-  Desugarer,
+  type Desugarer, type DesugarerTransform, type DesugaringError, Desugarer,
 } as infra
 import nodemaps_2_desugarer_transforms as n2t
 import vxml.{type Attr, type Line, type VXML, Attr, Line, T, V}
-import blame.{type Blame}
 
 // Extract the value token after ##<<:
 //   - stops at the first space when not inside a bracket
@@ -82,7 +79,8 @@ fn process_content(
 }
 
 fn process_line(line: Line, re: Regexp) -> #(Line, List(Attr)) {
-  let #(new_content, new_attrs) = process_content(line.content, "", [], re, line.blame)
+  let #(new_content, new_attrs) =
+    process_content(line.content, "", [], re, line.blame)
   #(Line(..line, content: new_content), new_attrs)
 }
 
@@ -126,7 +124,9 @@ fn v_after(
   Ok(#(V(..vxml, attrs: list.append(new_handle_attrs, attrs)), original_state))
 }
 
-fn nodemap_factory(re: InnerParam) -> n2t.OneToOneBeforeAndAfterStatefulNodemap(State) {
+fn nodemap_factory(
+  re: InnerParam,
+) -> n2t.OneToOneBeforeAndAfterStatefulNodemap(State) {
   n2t.OneToOneBeforeAndAfterStatefulNodemap(
     v_before_transforming_children: v_before,
     v_after_transforming_children: v_after,
@@ -142,15 +142,17 @@ fn transform_factory(inner: InnerParam) -> DesugarerTransform {
 }
 
 fn param_to_inner_param(_param: Param) -> Result(InnerParam, DesugaringError) {
-  // Matches: (space | '(' | '[')(handleName[#decorator]*)##<<
+  // Matches: (start of line | space | '(' | '[')(handleName[#decorator]*)##<<
   // Handle chars:    letters, digits, _, ., :, -, ^
   // Handle end chars: letters, digits, _
   // Decorator chars:  same minus . and ^
-  let in_text_def_pattern = "([ {\\(\\[])([a-zA-Z0-9_.:\\-\\^']*[a-zA-Z0-9_'](?:#[a-zA-Z0-9_:\\-]+)*)##<<"
-  let assert Ok(re) = regexp.compile(
-    in_text_def_pattern,
-    regexp.Options(case_insensitive: False, multi_line: False),
-  )
+  let in_text_def_pattern =
+    "(^|[ {\\(\\[])([a-zA-Z0-9_.:\\-\\^']*[a-zA-Z0-9_'](?:#[a-zA-Z0-9_:\\-]+)*)##<<"
+  let assert Ok(re) =
+    regexp.compile(
+      in_text_def_pattern,
+      regexp.Options(case_insensitive: False, multi_line: False),
+    )
   Ok(re)
 }
 
@@ -171,7 +173,7 @@ pub const name = "handles_generate_v_definitions_from_t_definitions"
 ///
 ///   PRECEDING_CHAR handleName[#decorator...]##<<VALUE
 ///
-/// where PRECEDING_CHAR is a space, '(' or '[';
+/// where PRECEDING_CHAR is the start of the line, a space, '(' or '[';
 /// handleName must satisfy the handle-name regex;
 /// each #decorator consists of '#' followed by one
 /// or more decorator chars; and VALUE is everything
@@ -255,17 +257,17 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
         ",
     ),
 
-    // Test 4: no match because '##<<' has no valid preceding space/paren/bracket
+    // Test 4: no match because '##<<' has no valid preceding character
     infra.AssertiveTestDataNoParam(
       source: "
         <> root
           <>
-            'foo##<<value rest'
+            'prefix/handleBob##<<value rest'
         ",
       expected: "
         <> root
           <>
-            'foo##<<value rest'
+            'prefix/handleBob##<<value rest'
         ",
     ),
 
@@ -517,17 +519,18 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
         ",
     ),
 
-    // Test 20: ##<< with no preceding valid char at line start — no match
+    // Test 20: handle definition at line start
     infra.AssertiveTestDataNoParam(
       source: "
         <> root
           <>
-            '##<<value rest'
+            'handleBob##<<value rest'
         ",
       expected: "
         <> root
+          handle=handleBob value
           <>
-            '##<<value rest'
+            'value rest'
         ",
     ),
 
@@ -579,5 +582,9 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
 }
 
 pub fn assertive_tests() {
-  infra.assertive_test_collection_from_data_no_param(name, assertive_tests_data(), constructor)
+  infra.assertive_test_collection_from_data_no_param(
+    name,
+    assertive_tests_data(),
+    constructor,
+  )
 }
