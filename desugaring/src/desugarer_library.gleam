@@ -105,6 +105,7 @@ import desugarers/grand_wrapper_append_attributes
 import desugarers/grand_wrapper_move_nodes_to_wrapper
 import desugarers/group_consecutive_children__outside
 import desugarers/handles_add_ids
+import desugarers/handles_generate_dictionary
 import desugarers/handles_generate_dictionary_and_id_list
 import desugarers/handles_generate_v_definitions_from_t_definitions
 import desugarers/handles_setup_grand_wrapper
@@ -384,6 +385,7 @@ pub const grand_wrapper_append_attributes = grand_wrapper_append_attributes.cons
 pub const grand_wrapper_move_nodes_to_wrapper = grand_wrapper_move_nodes_to_wrapper.constructor
 pub const group_consecutive_children__outside = group_consecutive_children__outside.constructor
 pub const handles_add_ids = handles_add_ids.constructor
+pub const handles_generate_dictionary = handles_generate_dictionary.constructor
 pub const handles_generate_dictionary_and_id_list = handles_generate_dictionary_and_id_list.constructor
 pub const handles_generate_v_definitions_from_t_definitions = handles_generate_v_definitions_from_t_definitions.constructor
 pub const handles_setup_grand_wrapper = handles_setup_grand_wrapper.constructor
@@ -664,6 +666,7 @@ pub const assertive_tests : List(fn() -> infra.AssertiveTestCollection) = [
   grand_wrapper_move_nodes_to_wrapper.assertive_tests,
   group_consecutive_children__outside.assertive_tests,
   handles_add_ids.assertive_tests,
+  handles_generate_dictionary.assertive_tests,
   handles_generate_dictionary_and_id_list.assertive_tests,
   handles_generate_v_definitions_from_t_definitions.assertive_tests,
   handles_setup_grand_wrapper.assertive_tests,
