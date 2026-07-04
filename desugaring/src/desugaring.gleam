@@ -1150,6 +1150,7 @@ fn parse_step_numbers(
         _ -> {
           let lo = option.unwrap(lo, 0) |> multiply_first
           let hi = option.unwrap(hi, lo)
+          let lo = int.min(lo, 0)
           Ok(#(acc.0, acc.1, [#(desugarer_name, lo, hi, forced), ..acc.2]))
         }
       }

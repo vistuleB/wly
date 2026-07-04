@@ -11,6 +11,7 @@ import vxml.{type Attr, type Line, type VXML, Attr, Line, T, V}
 
 // Extract the value token after ##<<:
 //   - stops at the first space when not inside a bracket
+//   - stops at the first | when not inside a bracket
 //   - stops at an unmatched closing bracket (depth would go negative)
 //   - stops at end of string
 fn do_extract_value(remaining: String, depth: Int, acc: String) -> String {
@@ -25,6 +26,11 @@ fn do_extract_value(remaining: String, depth: Int, acc: String) -> String {
             _ -> do_extract_value(rest, depth - 1, acc <> char)
           }
         " " ->
+          case depth {
+            0 -> acc
+            _ -> do_extract_value(rest, depth, acc <> char)
+          }
+        "|" ->
           case depth {
             0 -> acc
             _ -> do_extract_value(rest, depth, acc <> char)
@@ -44,6 +50,13 @@ fn extract_value(s: String) -> String {
 // with
 //   PRECEDING_CHAR + VALUE
 // and collecting handle attrs for the parent V node.
+fn replacement_prefix(preceding_char: String) -> String {
+  case preceding_char {
+    "#" -> ""
+    _ -> preceding_char
+  }
+}
+
 fn process_content(
   remaining: String,
   done: String,
@@ -70,7 +83,8 @@ fn process_content(
           let rest = string.drop_start(after_marker, string.length(value))
           let attr_val = infra.normalize_spaces(handle_name <> " " <> value)
           let new_attr = Attr(blame, "handle", attr_val)
-          let new_done = done <> before <> preceding_char <> value
+          let new_done =
+            done <> before <> replacement_prefix(preceding_char) <> value
           process_content(rest, new_done, [new_attr, ..attrs], re, blame)
         }
       }
@@ -142,12 +156,12 @@ fn transform_factory(inner: InnerParam) -> DesugarerTransform {
 }
 
 fn param_to_inner_param(_param: Param) -> Result(InnerParam, DesugaringError) {
-  // Matches: (start of line | space | '(' | '[')(handleName[#decorator]*)##<<
+  // Matches: (start of line | space | '#' | '(' | '[')(handleName[#decorator]*)##<<
   // Handle chars:    letters, digits, _, ., :, -, ^
   // Handle end chars: letters, digits, _
   // Decorator chars:  same minus . and ^
   let in_text_def_pattern =
-    "(^|[ {\\(\\[])([a-zA-Z0-9_.:\\-\\^']*[a-zA-Z0-9_'](?:#[a-zA-Z0-9_:\\-]+)*)##<<"
+    "(^|[# {\\(\\[])([a-zA-Z0-9_.:\\-\\^']*[a-zA-Z0-9_'](?:#[a-zA-Z0-9_:\\-]+)*)##<<"
   let assert Ok(re) =
     regexp.compile(
       in_text_def_pattern,
@@ -173,17 +187,18 @@ pub const name = "handles_generate_v_definitions_from_t_definitions"
 ///
 ///   PRECEDING_CHAR handleName[#decorator...]##<<VALUE
 ///
-/// where PRECEDING_CHAR is the start of the line, a space, '(' or '[';
+/// where PRECEDING_CHAR is the start of the line, a space, '#', '(' or '[';
 /// handleName must satisfy the handle-name regex;
 /// each #decorator consists of '#' followed by one
 /// or more decorator chars; and VALUE is everything
-/// after '##<<' up to the first un-bracketed space,
+/// after '##<<' up to the first un-bracketed space or '|',
 /// end of string, or unmatched closing bracket.
 ///
 /// For each match found, the desugarer:
 /// 
 ///   1. Replaces the matched span with just
-///      PRECEDING_CHAR + VALUE in the text.
+///      PRECEDING_CHAR + VALUE in the text, except
+///      that a '#' preceding char is removed.
 ///   2. Adds a 'handle=handleName VALUE' attribute
 ///      to the closest ancestor V node of the T node.
 ///
@@ -576,6 +591,66 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
           handle=left-reduction-w' (A)
           <>
             '\\\\tag{(A)}'
+        ",
+    ),
+
+    // Test 24: handle preceded by '#' drops the prefix marker
+    infra.AssertiveTestDataNoParam(
+      source: "
+        <> root
+          <>
+            'see #handleBob##<<Bobbba rest'
+        ",
+      expected: "
+        <> root
+          handle=handleBob Bobbba
+          <>
+            'see Bobbba rest'
+        ",
+    ),
+
+    // Test 25: line-start '#' prefix marker is dropped
+    infra.AssertiveTestDataNoParam(
+      source: "
+        <> root
+          <>
+            '#handleBob##<<Bobbba rest'
+        ",
+      expected: "
+        <> root
+          handle=handleBob Bobbba
+          <>
+            'Bobbba rest'
+        ",
+    ),
+
+    // Test 26: value extraction stops at unbracketed pipe
+    infra.AssertiveTestDataNoParam(
+      source: "
+        <> root
+          <>
+            'see handleBob##<<Bobbba|rest'
+        ",
+      expected: "
+        <> root
+          handle=handleBob Bobbba
+          <>
+            'see Bobbba|rest'
+        ",
+    ),
+
+    // Test 27: value extraction keeps pipe inside brackets
+    infra.AssertiveTestDataNoParam(
+      source: "
+        <> root
+          <>
+            'see handleBob##<<[Bobbba|still-value]|rest'
+        ",
+      expected: "
+        <> root
+          handle=handleBob [Bobbba|still-value]
+          <>
+            'see [Bobbba|still-value]|rest'
         ",
     ),
   ]

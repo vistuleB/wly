@@ -195,7 +195,7 @@ type Param =
 type InnerParam =
   Nil
 
-pub const name = "generate_lbp_breadcrumbs"
+pub const name = "lbp_generate_breadcrumbs"
 
 fn desugarer_blame(line_no: Int) {
   bl.Des([], name, line_no)

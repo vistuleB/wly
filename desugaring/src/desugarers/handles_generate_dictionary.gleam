@@ -21,7 +21,7 @@ fn grand_wrapper_attrs(state: State) -> List(Attr) {
       False -> ""
     }
     Attr(
-      desugarer_blame(19),
+      desugarer_blame(24),
       "handle",
       key <> "|" <> page <> "|" <> value <> "|" <> id <> "|" <> path,
     )

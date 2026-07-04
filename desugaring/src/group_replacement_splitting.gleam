@@ -1,4 +1,5 @@
 import gleam/list
+import gleam/io
 import gleam/regexp.{type Regexp}
 import gleam/string.{inspect as ins}
 import infrastructure as infra
@@ -114,9 +115,32 @@ fn rrs_split_line(
   line: Line,
   w: RegexpReplacementerSplitter,
 ) -> List(VXML) {
+  case line.content == "”  |_" {
+    True -> {
+      io.println("SEEING IT!")
+      io.println(string.inspect(w.groups))
+    }
+    False -> Nil
+  }
   case regexp.check(w.re, line.content) {
-    False -> [T(line.blame, [line])]
-    True -> rrs_split_content(line.blame, line.content, w)
+    False -> {
+      case line.content == "”  |_" {
+        True -> {
+          io.println("...IT DID NOT MATCH!")
+        }
+        False -> Nil
+      }
+      [T(line.blame, [line])]
+    }
+    True -> {
+      case line.content == "”  |_" {
+        True -> {
+          io.println("...IT DID MATCH!")
+        }
+        False -> Nil
+      }
+      rrs_split_content(line.blame, line.content, w)
+    }
   }
 }
 
