@@ -103,7 +103,7 @@ fn at_root(
 
 fn transform_factory(inner: InnerParam) -> DesugarerTransform {
   at_root(_, inner)
-  |> n2t.at_root_no_changes_2_desugarer_transform()
+  |> n2t.at_root_identity_2_desugarer_transform()
 }
 
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
