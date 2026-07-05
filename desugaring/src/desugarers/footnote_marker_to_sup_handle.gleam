@@ -44,7 +44,13 @@ fn split_nonempty_content(
                   T(sup_blame, [
                     Line(
                       sup_blame,
-                      handle_name <> "##<<(" <> counter_expr <> ")",
+                      "["
+                        <> handle_name
+                        <> "##<<("
+                        <> counter_expr
+                        <> ")](#"
+                        <> handle_name
+                        <> ")",
                     ),
                   ]),
                 ])
@@ -116,15 +122,20 @@ pub const name = "footnote_marker_to_sup_handle"
 /// `(*>>handle_name)` and replaces each with a new
 /// `sup` element whose text child reads
 ///
-///   handle_name##<<(counter_expr)
+///   [handle_name##<<(counter_expr)](#handle_name)
 ///
-/// so that a subsequent
+/// i.e. an ordinary markdown-style link, so that the
+/// existing `markdown_link_splitting` pipeline
+/// fragment (reused as-is, no bespoke link-splitting
+/// logic here) turns it into a real `<a>` once a
+/// subsequent `substitute_counters` +
 /// `handles_generate_v_definitions_from_t_definitions`
-/// pass (which must run after `substitute_counters`
-/// has resolved `counter_expr` to a concrete value)
-/// turns it into a numbered, handle-carrying `sup`
-/// marker, e.g. `<sup>(1)</sup>` with
-/// `handle="handle_name (1)"`.
+/// pass has resolved `counter_expr` and folded the
+/// `##<<` marker into a plain value. End result:
+/// `<sup><a href="#handle_name">(1)</a></sup>`, with
+/// `handle="handle_name (1)"` attached to the `sup`.
+/// The href expects a matching `id="handle_name"` on
+/// whatever element defines the footnote text.
 ///
 /// keeps out of subtrees rooted at tags given by its
 /// second argument
@@ -160,7 +171,7 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataWithOutside(Param)) {
             'Fourier transform'
           <> sup
             <>
-              'fn-fourier-transform##<<(::++FootnoteCounter)'
+              '[fn-fourier-transform##<<(::++FootnoteCounter)](#fn-fourier-transform)'
           <>
             ' of f'
         ",
@@ -197,12 +208,12 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataWithOutside(Param)) {
             'a'
           <> sup
             <>
-              'fn-one##<<(::++FootnoteCounter)'
+              '[fn-one##<<(::++FootnoteCounter)](#fn-one)'
           <>
             ' and b'
           <> sup
             <>
-              'fn-two##<<(::++FootnoteCounter)'
+              '[fn-two##<<(::++FootnoteCounter)](#fn-two)'
         ",
     ),
 
