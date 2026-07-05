@@ -313,6 +313,49 @@ fn chapter_ol(chapters: List(ChapterInfo)) -> VXML {
   )
 }
 
+// 🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸
+// 🌸 exercises link~~ 🌸
+// 🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸
+
+fn gather_exercises_title_from_node(vxml: VXML) -> Result(Title, DesugaringError) {
+  use title_element <- on.ok(infra.v_unique_child(vxml, "ExercisesTitle"))
+  let assert V(_, _, _, children) = title_element
+  case children {
+    [V(_, "p", _, children)] -> Ok(children)
+    _ -> Ok(children)
+  }
+}
+
+fn gather_exercises_title(root: VXML) -> option.Option(Title) {
+  let assert V(_, "Document", _, children) = root
+  case list.find(children, fn(v) {
+    case v { V(_, "Exercises", _, _) -> True _ -> False }
+  }) {
+    Error(_) -> option.None
+    Ok(exercises) ->
+      case gather_exercises_title_from_node(exercises) {
+        Ok(t) -> option.Some(t)
+        Error(_) -> option.None
+      }
+  }
+}
+
+fn exercises_link(root: VXML) -> option.Option(VXML) {
+  let b = desugarer_blame(322)
+  case gather_exercises_title(root) {
+    option.None -> option.None
+    option.Some(title) ->
+      option.Some(
+        V(
+          b,
+          "p",
+          [Attr(b, "class", "index__exercises-link")],
+          [V(b, "a", [Attr(b, "href", "./exercises.html")], title)],
+        ),
+      )
+  }
+}
+
 // 🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸
 // 🌸 index navigation~~ 🌸
 // 🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸
@@ -351,13 +394,18 @@ fn index(root: VXML) -> Result(VXML, DesugaringError) {
     ]
   }
 
+  let exercises = case exercises_link(root) {
+    option.None -> []
+    option.Some(link) -> [link]
+  }
+
   Ok(V(
     b,
     "Index",
     [
       Attr(desugarer_blame(358), "path", "./index.html"),
     ],
-    list.flatten([nav, [header(root), chapter_ol(chapter_infos)]]),
+    list.flatten([nav, [header(root), chapter_ol(chapter_infos)], exercises]),
   ))
 }
 
