@@ -14,10 +14,11 @@ fn split_content(
   content: String,
   re: Regexp,
   counter_expr: String,
+  target_id: String,
 ) -> List(VXML) {
   case content {
     "" -> []
-    _ -> split_nonempty_content(blame, content, re, counter_expr)
+    _ -> split_nonempty_content(blame, content, re, counter_expr, target_id)
   }
 }
 
@@ -26,6 +27,7 @@ fn split_nonempty_content(
   content: String,
   re: Regexp,
   counter_expr: String,
+  target_id: String,
 ) -> List(VXML) {
   case regexp.scan(re, content) {
     [] -> [T(blame, [Line(blame, content)])]
@@ -49,7 +51,7 @@ fn split_nonempty_content(
                         <> "##<<("
                         <> counter_expr
                         <> ")](#"
-                        <> handle_name
+                        <> target_id
                         <> ")",
                     ),
                   ]),
@@ -61,7 +63,7 @@ fn split_nonempty_content(
               list.flatten([
                 before_nodes,
                 [sup_node],
-                split_content(after_blame, after, re, counter_expr),
+                split_content(after_blame, after, re, counter_expr, target_id),
               ])
             }
           }
@@ -70,17 +72,22 @@ fn split_nonempty_content(
   }
 }
 
-fn line_nodemap(line: Line, re: Regexp, counter_expr: String) -> List(VXML) {
-  split_content(line.blame, line.content, re, counter_expr)
+fn line_nodemap(
+  line: Line,
+  re: Regexp,
+  counter_expr: String,
+  target_id: String,
+) -> List(VXML) {
+  split_content(line.blame, line.content, re, counter_expr, target_id)
 }
 
 fn nodemap(vxml: VXML, inner: InnerParam) -> List(VXML) {
-  let #(re, counter_expr) = inner
+  let #(re, counter_expr, target_id) = inner
   case vxml {
     V(_, _, _, _) -> [vxml]
     T(_, lines) ->
       lines
-      |> list.flat_map(line_nodemap(_, re, counter_expr))
+      |> list.flat_map(line_nodemap(_, re, counter_expr, target_id))
       |> infra.plain_concatenation_in_list
   }
 }
@@ -95,22 +102,25 @@ fn transform_factory(inner: InnerParam, outside: List(String)) -> DesugarerTrans
 }
 
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
+  let #(counter_expr, target_id) = param
   let pattern = "\\(\\*>>([a-zA-Z0-9_.:^\\-']+(?:#[a-zA-Z0-9_:\\-]+)*)\\)"
   let assert Ok(re) =
     regexp.compile(
       pattern,
       regexp.Options(case_insensitive: False, multi_line: False),
     )
-  Ok(#(re, param))
+  Ok(#(re, counter_expr, target_id))
 }
 
-type Param = String
-//           ↖
-//           counter increment
-//           expression, e.g.
-//           "::++FootnoteCounter"
+type Param = #(String, String)
+//             ↖       ↖
+//             counter  id of the shared anchor
+//             increment that every sup produced
+//             expression, by this desugarer
+//             e.g.       links to, e.g. "footnote"
+//             "::++FootnoteCounter"
 
-type InnerParam = #(Regexp, String)
+type InnerParam = #(Regexp, String, String)
 
 pub const name = "footnote_marker_to_sup_handle"
 
@@ -122,7 +132,7 @@ pub const name = "footnote_marker_to_sup_handle"
 /// `(*>>handle_name)` and replaces each with a new
 /// `sup` element whose text child reads
 ///
-///   [handle_name##<<(counter_expr)](#handle_name)
+///   [handle_name##<<(counter_expr)](#target_id)
 ///
 /// i.e. an ordinary markdown-style link, so that the
 /// existing `markdown_link_splitting` pipeline
@@ -132,17 +142,23 @@ pub const name = "footnote_marker_to_sup_handle"
 /// `handles_generate_v_definitions_from_t_definitions`
 /// pass has resolved `counter_expr` and folded the
 /// `##<<` marker into a plain value. End result:
-/// `<sup><a href="#handle_name">(1)</a></sup>`, with
+/// `<sup><a href="#target_id">(1)</a></sup>`, with
 /// `handle="handle_name (1)"` attached to the `sup`.
-/// The href expects a matching `id="handle_name"` on
-/// whatever element defines the footnote text.
+///
+/// `target_id` is the same literal anchor id for every
+/// sup this desugarer produces (e.g. "footnote") — it
+/// is not derived from handle_name, so it's the
+/// caller's job to make sure something on the page
+/// (e.g. every `Footnote` block, via
+/// `append_attribute__batch`) carries a matching
+/// `id=target_id`.
 ///
 /// keeps out of subtrees rooted at tags given by its
-/// second argument
+/// third argument
 pub fn constructor(param: Param, outside: List(String)) -> Desugarer {
   Desugarer(
     name: name,
-    stringified_param: option.Some(param),
+    stringified_param: option.Some(ins(param)),
     stringified_outside: option.Some(ins(outside)),
     transform: case param_to_inner_param(param) {
       Error(error) -> fn(_) { Error(error) }
@@ -158,7 +174,7 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataWithOutside(Param)) {
   [
     // Test 1: basic match, mid-sentence
     infra.AssertiveTestDataWithOutside(
-      param: "::++FootnoteCounter",
+      param: #("::++FootnoteCounter", "footnote"),
       outside: [],
       source: "
         <> root
@@ -171,7 +187,7 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataWithOutside(Param)) {
             'Fourier transform'
           <> sup
             <>
-              '[fn-fourier-transform##<<(::++FootnoteCounter)](#fn-fourier-transform)'
+              '[fn-fourier-transform##<<(::++FootnoteCounter)](#footnote)'
           <>
             ' of f'
         ",
@@ -179,7 +195,7 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataWithOutside(Param)) {
 
     // Test 2: no match -> unchanged
     infra.AssertiveTestDataWithOutside(
-      param: "::++FootnoteCounter",
+      param: #("::++FootnoteCounter", "footnote"),
       outside: [],
       source: "
         <> root
@@ -195,7 +211,7 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataWithOutside(Param)) {
 
     // Test 3: two matches on the same line
     infra.AssertiveTestDataWithOutside(
-      param: "::++FootnoteCounter",
+      param: #("::++FootnoteCounter", "footnote"),
       outside: [],
       source: "
         <> root
@@ -208,18 +224,18 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataWithOutside(Param)) {
             'a'
           <> sup
             <>
-              '[fn-one##<<(::++FootnoteCounter)](#fn-one)'
+              '[fn-one##<<(::++FootnoteCounter)](#footnote)'
           <>
             ' and b'
           <> sup
             <>
-              '[fn-two##<<(::++FootnoteCounter)](#fn-two)'
+              '[fn-two##<<(::++FootnoteCounter)](#footnote)'
         ",
     ),
 
     // Test 4: match inside a forbidden ancestor -> unchanged
     infra.AssertiveTestDataWithOutside(
-      param: "::++FootnoteCounter",
+      param: #("::++FootnoteCounter", "footnote"),
       outside: ["MathBlock"],
       source: "
         <> root
