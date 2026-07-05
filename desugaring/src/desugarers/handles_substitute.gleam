@@ -407,17 +407,14 @@ type State {
 
 type Param =
   #(
-    String,
-    String,
-    String,
-    List(#(String, String)),
-    List(#(String, String)),
-    List(String),
+    String, // 'path' attribute key
+    String, // in-page-link tag name
+    String, // out-page-link tag name
+    List(#(String, String)), // in-page link attributes
+    List(#(String, String)), // out-page link attributes
+    List(String), // tags that already define you as being inside a lin
   )
 
-//  attr key  in-page  out-page attributes             attributes             tags that count as
-//  to update tag      tag      for in-page links      for out-page links     already inside a link
-//  local path
 type InnerParam =
   #(String, String, String, List(Attr), List(Attr), List(String), Regexp)
 
