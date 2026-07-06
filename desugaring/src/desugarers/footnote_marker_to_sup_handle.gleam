@@ -1,24 +1,20 @@
 import blame.{type Blame} as bl
 import gleam/list
-import gleam/option.{Some}
+import gleam/option.{None, Some}
 import gleam/regexp.{type Regexp}
 import gleam/string.{inspect as ins}
 import infrastructure.{
   type Desugarer, type DesugarerTransform, type DesugaringError, Desugarer,
 } as infra
 import nodemaps_2_desugarer_transforms as n2t
-import vxml.{type Line, type VXML, Line, T, V}
+import vxml.{type Line, type VXML, Attr, Line, T, V}
 
-fn split_content(
-  blame: Blame,
-  content: String,
-  re: Regexp,
-  counter_expr: String,
-  target_id: String,
-) -> List(VXML) {
+const originator_suffix = "-originator"
+
+fn split_content(blame: Blame, content: String, re: Regexp) -> List(VXML) {
   case content {
     "" -> []
-    _ -> split_nonempty_content(blame, content, re, counter_expr, target_id)
+    _ -> split_nonempty_content(blame, content, re)
   }
 }
 
@@ -26,8 +22,6 @@ fn split_nonempty_content(
   blame: Blame,
   content: String,
   re: Regexp,
-  counter_expr: String,
-  target_id: String,
 ) -> List(VXML) {
   case regexp.scan(re, content) {
     [] -> [T(blame, [Line(blame, content)])]
@@ -42,20 +36,12 @@ fn split_nonempty_content(
               let sup_blame = bl.advance(blame, before_len)
               let after_blame = bl.advance(blame, before_len + match_len)
               let sup_node =
-                V(sup_blame, "sup", [], [
-                  T(sup_blame, [
-                    Line(
-                      sup_blame,
-                      "["
-                        <> handle_name
-                        <> "##<<("
-                        <> counter_expr
-                        <> ")](#"
-                        <> target_id
-                        <> ")",
-                    ),
-                  ]),
-                ])
+                V(
+                  sup_blame,
+                  "sup",
+                  [Attr(sup_blame, "handle", handle_name <> originator_suffix)],
+                  [T(sup_blame, [Line(sup_blame, "(>>" <> handle_name <> ")")])],
+                )
               let before_nodes = case before {
                 "" -> []
                 _ -> [T(blame, [Line(blame, before)])]
@@ -63,7 +49,7 @@ fn split_nonempty_content(
               list.flatten([
                 before_nodes,
                 [sup_node],
-                split_content(after_blame, after, re, counter_expr, target_id),
+                split_content(after_blame, after, re),
               ])
             }
           }
@@ -72,22 +58,47 @@ fn split_nonempty_content(
   }
 }
 
-fn line_nodemap(
-  line: Line,
-  re: Regexp,
-  counter_expr: String,
-  target_id: String,
-) -> List(VXML) {
-  split_content(line.blame, line.content, re, counter_expr, target_id)
+fn line_nodemap(line: Line, re: Regexp) -> List(VXML) {
+  split_content(line.blame, line.content, re)
+}
+
+fn footnote_own_handle_name(vxml: VXML) -> option.Option(String) {
+  case infra.v_first_attr_with_key(vxml, "handle") {
+    None -> None
+    Some(handle_attr) ->
+      case string.split_once(handle_attr.val, " ") {
+        Ok(#(name, _)) -> Some(name)
+        Error(_) -> Some(handle_attr.val)
+      }
+  }
+}
+
+fn prepend_backlink_to_footnote(vxml: VXML, counter_name: String) -> VXML {
+  case footnote_own_handle_name(vxml) {
+    None -> vxml
+    Some(handle_name) -> {
+      let assert V(blame, _, _, children) = vxml
+      let backlink_text =
+        "[(::øø"
+        <> counter_name
+        <> ")](>>"
+        <> handle_name
+        <> originator_suffix
+        <> ") "
+      let backlink_node = T(blame, [Line(blame, backlink_text)])
+      V(..vxml, children: [backlink_node, ..children])
+    }
+  }
 }
 
 fn nodemap(vxml: VXML, inner: InnerParam) -> List(VXML) {
-  let #(re, counter_expr, target_id) = inner
+  let #(re, counter_name) = inner
   case vxml {
+    V(_, "Footnote", _, _) -> [prepend_backlink_to_footnote(vxml, counter_name)]
     V(_, _, _, _) -> [vxml]
     T(_, lines) ->
       lines
-      |> list.flat_map(line_nodemap(_, re, counter_expr, target_id))
+      |> list.flat_map(line_nodemap(_, re))
       |> infra.plain_concatenation_in_list
   }
 }
@@ -102,25 +113,27 @@ fn transform_factory(inner: InnerParam, outside: List(String)) -> DesugarerTrans
 }
 
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
-  let #(counter_expr, target_id) = param
   let pattern = "\\(\\*>>([a-zA-Z0-9_.:^\\-']+(?:#[a-zA-Z0-9_:\\-]+)*)\\)"
   let assert Ok(re) =
     regexp.compile(
       pattern,
       regexp.Options(case_insensitive: False, multi_line: False),
     )
-  Ok(#(re, counter_expr, target_id))
+  Ok(#(re, param))
 }
 
-type Param = #(String, String)
-//             ↖       ↖
-//             counter  id of the shared anchor
-//             increment that every sup produced
-//             expression, by this desugarer
-//             e.g.       links to, e.g. "footnote"
-//             "::++FootnoteCounter"
+type Param = String
+//           ↖
+//           bare counter name, e.g.
+//           "FootnoteCounter" (NOT an
+//           increment expression — this
+//           desugarer only ever *reads*
+//           the counter with ::øø, since
+//           incrementing happens at the
+//           `Footnote` node itself via
+//           `prepend_counter_incrementing_attribute`)
 
-type InnerParam = #(Regexp, String, String)
+type InnerParam = #(Regexp, String)
 
 pub const name = "footnote_marker_to_sup_handle"
 
@@ -128,33 +141,57 @@ pub const name = "footnote_marker_to_sup_handle"
 // 🏖️🏖️ Desugarer 🏖️🏖️
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 //------------------------------------------------53
-/// splits T-node text on occurrences of
-/// `(*>>handle_name)` and replaces each with a new
-/// `sup` element whose text child reads
+/// Two independent, local rewrites in one pass:
 ///
-///   [handle_name##<<(counter_expr)](#target_id)
+/// 1. T-node text `(*>>handle_name)` becomes
+///    ```
+///    <> sup
+///        handle=handle_name-originator
+///        <>
+///            '(>>handle_name)'
+///    ```
+///    `handle_name` is expected to be independently
+///    defined elsewhere (on a `Footnote` node, via a
+///    bare `handle=handle_name` attribute whose value
+///    gets filled in by `set_handle_value` reading a
+///    counter incremented at that same `Footnote`
+///    node) — so `(>>handle_name)` resolves to
+///    `(<a href=...>N</a>)` via the ordinary
+///    `handles_substitute` text-reference mechanism.
+///    The `handle=handle_name-originator` attribute
+///    makes the sup itself independently addressable,
+///    for the reverse link (see below).
 ///
-/// i.e. an ordinary markdown-style link, so that the
-/// existing `markdown_link_splitting` pipeline
-/// fragment (reused as-is, no bespoke link-splitting
-/// logic here) turns it into a real `<a>` once a
-/// subsequent `substitute_counters` +
-/// `handles_generate_v_definitions_from_t_definitions`
-/// pass has resolved `counter_expr` and folded the
-/// `##<<` marker into a plain value. End result:
-/// `<sup><a href="#target_id">(1)</a></sup>`, with
-/// `handle="handle_name (1)"` attached to the `sup`.
+/// 2. Every `Footnote` V-node gets a new first T-node
+///    child prepended:
+///    ```
+///    [(::øøcounter_name)](>>handle_name-originator)
+///    ```
+///    where `handle_name` is read off that SAME
+///    `Footnote` node's own `handle` attribute. This is
+///    markdown-link syntax whose URL is a handle
+///    reference — once `markdown_link_splitting` (which
+///    must run AFTER this desugarer) turns it into a
+///    real `<a>`, `handles_substitute`'s href-rewriting
+///    (the same mechanism that resolves
+///    `href=>>handle_name` on any `<a>` tag) resolves it
+///    to the sup's own id, giving a working backlink.
 ///
-/// `target_id` is the same literal anchor id for every
-/// sup this desugarer produces (e.g. "footnote") — it
-/// is not derived from handle_name, so it's the
-/// caller's job to make sure something on the page
-/// (e.g. every `Footnote` block, via
-/// `append_attribute__batch`) carries a matching
-/// `id=target_id`.
+/// Callers still need, elsewhere in the pipeline:
+///   - `prepend_counter_incrementing_attribute` on
+///     `Footnote` (increments `counter_name` at each
+///     `Footnote` node, in document order)
+///   - `set_handle_value` on `Footnote` reading
+///     `::øøcounter_name` (assigns that just-incremented
+///     value to the node's own bare `handle=` attribute)
+///   - `rearrange_links__batch` with
+///     `#("(<a href=0>_0_</a>)", "<a href=0>(_0_)</a>")`
+///     (run after `handles_substitute`) to make the
+///     parens around the sup's own `(N)` part of the
+///     link, not just the bare number
 ///
-/// keeps out of subtrees rooted at tags given by its
-/// third argument
+/// keeps the T-node rewrite (1) out of subtrees rooted
+/// at tags given by its second argument
 pub fn constructor(param: Param, outside: List(String)) -> Desugarer {
   Desugarer(
     name: name,
@@ -174,7 +211,7 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataWithOutside(Param)) {
   [
     // Test 1: basic match, mid-sentence
     infra.AssertiveTestDataWithOutside(
-      param: #("::++FootnoteCounter", "footnote"),
+      param: "FootnoteCounter",
       outside: [],
       source: "
         <> root
@@ -186,8 +223,9 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataWithOutside(Param)) {
           <>
             'Fourier transform'
           <> sup
+            handle=fn-fourier-transform-originator
             <>
-              '[fn-fourier-transform##<<(::++FootnoteCounter)](#footnote)'
+              '(>>fn-fourier-transform)'
           <>
             ' of f'
         ",
@@ -195,7 +233,7 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataWithOutside(Param)) {
 
     // Test 2: no match -> unchanged
     infra.AssertiveTestDataWithOutside(
-      param: #("::++FootnoteCounter", "footnote"),
+      param: "FootnoteCounter",
       outside: [],
       source: "
         <> root
@@ -211,7 +249,7 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataWithOutside(Param)) {
 
     // Test 3: two matches on the same line
     infra.AssertiveTestDataWithOutside(
-      param: #("::++FootnoteCounter", "footnote"),
+      param: "FootnoteCounter",
       outside: [],
       source: "
         <> root
@@ -223,19 +261,21 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataWithOutside(Param)) {
           <>
             'a'
           <> sup
+            handle=fn-one-originator
             <>
-              '[fn-one##<<(::++FootnoteCounter)](#footnote)'
+              '(>>fn-one)'
           <>
             ' and b'
           <> sup
+            handle=fn-two-originator
             <>
-              '[fn-two##<<(::++FootnoteCounter)](#footnote)'
+              '(>>fn-two)'
         ",
     ),
 
     // Test 4: match inside a forbidden ancestor -> unchanged
     infra.AssertiveTestDataWithOutside(
-      param: #("::++FootnoteCounter", "footnote"),
+      param: "FootnoteCounter",
       outside: ["MathBlock"],
       source: "
         <> root
@@ -248,6 +288,46 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataWithOutside(Param)) {
           <> MathBlock
             <>
               'a(*>>fn-one) b'
+        ",
+    ),
+
+    // Test 5: Footnote node gets a prepended backlink
+    infra.AssertiveTestDataWithOutside(
+      param: "FootnoteCounter",
+      outside: [],
+      source: "
+        <> root
+          <> Footnote
+            handle=bob
+            <>
+              'Some footnote text.'
+        ",
+      expected: "
+        <> root
+          <> Footnote
+            handle=bob
+            <>
+              '[(::øøFootnoteCounter)](>>bob-originator) '
+            <>
+              'Some footnote text.'
+        ",
+    ),
+
+    // Test 6: Footnote node with no handle attr -> unchanged
+    infra.AssertiveTestDataWithOutside(
+      param: "FootnoteCounter",
+      outside: [],
+      source: "
+        <> root
+          <> Footnote
+            <>
+              'Some footnote text.'
+        ",
+      expected: "
+        <> root
+          <> Footnote
+            <>
+              'Some footnote text.'
         ",
     ),
   ]
