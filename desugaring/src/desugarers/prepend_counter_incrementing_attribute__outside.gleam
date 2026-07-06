@@ -62,7 +62,7 @@ pub const name = "prepend_counter_incrementing_attribute__outside"
 /// tuple in the parameter list, this desugarer adds 
 /// an attr of the form
 /// ```
-/// .=counter_name ::++counter_name
+/// _=counter_name ::++counter_name
 /// ```
 /// to each node of tag 'tag', where the key is a 
 /// period '.' and the value is the string 
