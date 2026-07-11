@@ -6,7 +6,8 @@ import gleam/int
 import gleam/io
 import gleam/json
 import gleam/list
-import gleam/option.{Some, None}
+import gleam/option.{type Option, Some, None}
+import gleam/regexp
 import gleam/result
 import gleam/string.{inspect as ins}
 import gleam/crypto
@@ -24,6 +25,7 @@ import nodemaps_2_desugarer_transforms as n2t
 import on
 import shellout
 import simplifile
+import ansel/image
 import table_and_co_printer as pr
 import either_or.{Either}
 import vxml.{
@@ -374,6 +376,81 @@ fn update_src_attr(attrs: List(Attr), src: String) -> List(Attr) {
   infra.attrs_set(attrs, desugarer_blame(374), "src", src)
 }
 
+fn first_regexp_submatch(pattern: String, content: String) -> Option(String) {
+  let assert Ok(pattern) = regexp.from_string(pattern)
+  case regexp.scan(pattern, content) {
+    [match, ..] -> case match.submatches {
+      [Some(value), ..] -> Some(value)
+      _ -> None
+    }
+    [] -> None
+  }
+}
+
+fn first_two_regexp_submatches(pattern: String, content: String) -> Option(#(String, String)) {
+  let assert Ok(pattern) = regexp.from_string(pattern)
+  case regexp.scan(pattern, content) {
+    [match, ..] -> case match.submatches {
+      [Some(first), Some(second), ..] -> Some(#(first, second))
+      _ -> None
+    }
+    [] -> None
+  }
+}
+
+fn svg_intrinsic_dimensions(blame: Blame, path: String) -> Result(#(String, String), DesugaringError) {
+  use content <- on.error_ok(
+    simplifile.read(path),
+    fn(error) { Error(DesugaringError(blame, "could not read image dimensions from '" <> path <> "' (" <> simplifile.describe_error(error) <> ")")) },
+  )
+  use svg_tag <- on.none_some(
+    first_regexp_submatch("(<svg[^>]*>)", content),
+    fn() { Error(DesugaringError(blame, "could not find root svg element in '" <> path <> "'")) },
+  )
+
+  let width = first_regexp_submatch("(?:^|[[:space:]])width=['\"]([0-9]+(?:\\.[0-9]+)?)(?:[a-zA-Z%]*)['\"]", svg_tag)
+  let height = first_regexp_submatch("(?:^|[[:space:]])height=['\"]([0-9]+(?:\\.[0-9]+)?)(?:[a-zA-Z%]*)['\"]", svg_tag)
+  case width, height {
+    Some(width), Some(height) -> Ok(#(width, height))
+    _, _ -> {
+      use dimensions <- on.none_some(
+        first_two_regexp_submatches("(?:^|[[:space:]])viewBox=['\"][[:space:]]*[-+0-9.]+[[:space:],]+[-+0-9.]+[[:space:],]+([0-9]+(?:\\.[0-9]+)?)[[:space:],]+([0-9]+(?:\\.[0-9]+)?)['\"]", svg_tag),
+        fn() { Error(DesugaringError(blame, "could not determine intrinsic dimensions of '" <> path <> "'")) },
+      )
+      Ok(dimensions)
+    }
+  }
+}
+
+fn intrinsic_dimensions(blame: Blame, path: String) -> Result(#(String, String), DesugaringError) {
+  case string.ends_with(string.lowercase(path), ".svg") {
+    True -> svg_intrinsic_dimensions(blame, path)
+    False -> case image.read(path) {
+      Ok(bitmap) -> Ok(#(
+        image.get_width(bitmap) |> int.to_string,
+        image.get_height(bitmap) |> int.to_string,
+      ))
+      Error(error) -> Error(DesugaringError(blame, "could not determine intrinsic dimensions of '" <> path <> "': " <> ins(error)))
+    }
+  }
+}
+
+fn add_intrinsic_dimensions(
+  attrs: List(Attr),
+  src: String,
+  src_attr: Attr,
+  inner: InnerParam,
+) -> Result(List(Attr), DesugaringError) {
+  let path = case src {
+    "tmp-images/" <> _ -> inner.exec_2_build <> src
+    _ -> inner.exec_2_src <> src
+  }
+  use <- on.false_true(simplifile.is_file(path) == Ok(True), fn() { Ok(attrs) })
+  use dimensions <- on.ok(intrinsic_dimensions(src_attr.blame, path))
+  let attrs = infra.attrs_set(attrs, desugarer_blame(452), "intrinsicWidth", dimensions.0)
+  Ok(infra.attrs_set(attrs, desugarer_blame(453), "intrinsicHeight", dimensions.1))
+}
+
 fn v_before(
   vxml: VXML,
   image_map: ImageMap,
@@ -400,6 +477,9 @@ fn v_before(
   )
 
   let src = src_attr.val |> infra.drop_prefix("./") |> infra.drop_prefix("/")
+
+  use attrs <- on.ok(add_intrinsic_dimensions(attrs, src, src_attr, inner))
+  let vxml = V(..vxml, attrs: attrs)
 
   // escape #3: src does not start with the expected src_2_src_img prefix
   use <- on.false_true(
