@@ -1,4 +1,3 @@
-import gleam/io
 import gleam/int
 import gleam/list
 import gleam/option.{None, Some}
@@ -712,7 +711,7 @@ fn attrs_to_sticky_lines(
 }
 
 const sticky_tags = [
-  "NumberedTitle", "a", "span", "i", "b", "strong", "em", "code", "tt", "br", "img",
+  "a", "span", "i", "b", "strong", "em", "code", "tt", "br", "img",
 ]
 
 const self_closing_tags = ["img", "br", "hr"]
@@ -1082,7 +1081,7 @@ pub fn remove_attrs_from_closing_tags(
   })
 }
 
-pub fn bad_html_pre_processor(
+pub fn xml_parser_html_repair(
   content: String,
 ) -> String {
   content
@@ -1096,7 +1095,7 @@ pub fn xmlm_based_html_parser(
   content: String,
   filename: String,
 ) -> Result(VXML, xmlm.InputError) {
-  let input = content |> bad_html_pre_processor |>  xmlm.from_string
+  let input = content |> xml_parser_html_repair |>  xmlm.from_string
 
   // **********
   // use this to debug if you get an input_error on a file, see
@@ -1591,13 +1590,17 @@ fn vxmls_from_streaming_logical_units_acc(
         [] -> Ok(previously_completed |> list.reverse)
         [last, ..] -> {
           let assert V(blame, tag, _, _) = last
-          list.each(
-            stack,
-            fn(s) {
-              io.println(v_digest(s))
-            }
-          )
-          Error(#(blame, "unclosed '" <> tag <> "' at end of document"))
+          let ancestor_tag_sequence =
+            stack
+            |> list.map(v_digest)
+            |> string.join(" -> ")
+          Error(#(
+            blame,
+            "unclosed '"
+            <> tag
+            <> "' at end of document; open ancestor sequence: "
+            <> ancestor_tag_sequence,
+          ))
         }
       }
     }
@@ -1791,7 +1794,7 @@ pub fn streaming_based_xml_parser_string_version(
   filename: String,
 ) -> Result(VXML, #(Blame, String)) {
   content
-  |> bad_html_pre_processor
+  |> xml_parser_html_repair
   |> io_l.string_to_input_lines(filename, 0)
   |> streaming_based_xml_parser
 }

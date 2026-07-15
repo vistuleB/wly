@@ -108,8 +108,8 @@ pub fn remove_attrs_from_closing_tags_uses_each_tag_match_test() {
   |> should.equal("</span></div></a>")
 }
 
-pub fn bad_html_pre_processor_combines_html_repairs_test() {
+pub fn xml_parser_html_repair_combines_html_repairs_test() {
   "<img src=\"x\"><span>body</span class=\"old\">"
-  |> vxml.bad_html_pre_processor
+  |> vxml.xml_parser_html_repair
   |> should.equal("<img src=\"x\"/><span>body</span>")
 }

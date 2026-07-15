@@ -1,6 +1,6 @@
 # VXML
 
-An document format for encoding generic XML in a minimalist human-readable form while
+A document format for encoding generic XML in a minimalist human-readable form while
 treating text as a first-class citizen.
 
 This is a sample document:
