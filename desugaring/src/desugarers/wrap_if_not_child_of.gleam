@@ -11,9 +11,6 @@ const blame = bl.Des([], name, 9)
 fn nodemap(
   vxml: VXML,
   ancestors: List(VXML),
-  _previous_siblings_before_mapping: List(VXML),
-  _previous_siblings_after_mapping: List(VXML),
-  _following_siblings_before_mapping: List(VXML),
   inner: InnerParam,
 ) -> VXML {
   case vxml {
@@ -32,8 +29,8 @@ fn nodemap(
 }
 
 fn nodemap_factory(inner: InnerParam) -> n2t.FancyOneToOneNoErrorNodemap {
-  fn(node, ancestors, prev_before, prev_after, following) {
-    nodemap(node, ancestors, prev_before, prev_after, following, inner)
+  fn(node, ancestors, _, _, _) {
+    nodemap(node, ancestors, inner)
   }
 }
 
