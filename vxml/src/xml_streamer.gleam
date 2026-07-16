@@ -1,3 +1,10 @@
+//// Token-level XML streaming utilities.
+////
+//// This module exposes the lower-level token stream used by VXML's streaming
+//// XML parser. Most callers can use `vxml.streaming_based_xml_parser` instead.
+//// Use this module when an application needs to inspect or transform XML
+//// events before they become a VXML tree.
+
 import gleam/list
 import gleam/string.{inspect as ins}
 import gleam/regexp
@@ -8,6 +15,7 @@ import on
 
 const bd = bl.blame_digest
 
+/// Render one token as a debug string.
 pub fn event_digest(
   e: Event
 ) -> String {
@@ -40,6 +48,7 @@ pub fn event_digest(
   }
 }
 
+/// A token produced by the XML streamer.
 pub type Event {
   Newline(blame: Blame)                              // all newlines are recorded, can occur in or outside of a tag, but we don't support multi-line attrs so it will be outside of an attr value
 
@@ -455,6 +464,7 @@ fn input_lines_to_content_lines(
   list.map(lines, input_line_to_content_line)
 }
 
+/// Stream XML tokens from blamed string pairs.
 pub fn pairs_streamer(
   lines: List(#(Blame, String))
 ) -> List(Event) {
@@ -463,6 +473,7 @@ pub fn pairs_streamer(
   |> event_stream_internal([], OutsideTag, _)
 }
 
+/// Stream XML tokens from input lines.
 pub fn input_lines_streamer(
   lines: List(InputLine)
 ) -> List(Event) {
@@ -471,6 +482,7 @@ pub fn input_lines_streamer(
   |> event_stream_internal([], OutsideTag, _)
 }
 
+/// Stream XML tokens from a string.
 pub fn string_streamer(
   s: String,
   filename: String,

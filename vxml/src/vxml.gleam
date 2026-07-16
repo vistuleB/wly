@@ -1,3 +1,10 @@
+//// Core VXML tree types, parsers, validators, and serializers.
+////
+//// VXML is a generic XML-like tree with two node kinds: element nodes (`V`)
+//// and text nodes (`T`). It can be serialized to a readable VXML text format,
+//// HTML, or JSX-like output. This module also includes XML/HTML parsing helpers
+//// and small HTML repair functions for common non-XML HTML syntax.
+
 import gleam/int
 import gleam/list
 import gleam/option.{None, Some}
@@ -26,14 +33,19 @@ pub const non_html_ampersand_re = "&(?!(?:[a-zA-Z]{2,6};|#x[a-f\\d]{1,6};|#\\d{2
 // Attr, Line, VXML (pretend 'blame' does not exist -> makes it more readable)
 // ************************************************************
 
+/// An attribute on a VXML element node.
 pub type Attr {
   Attr(blame: Blame, key: String, val: String)
 }
 
+/// One line of text inside a VXML text node.
 pub type Line {
   Line(blame: Blame, content: String)
 }
 
+/// A generic XML-like tree.
+///
+/// `V` is an element node. `T` is a text node containing one or more lines.
 pub type VXML {
   V(blame: Blame, tag: String, attrs: List(Attr), children: List(VXML))
   T(blame: Blame, lines: List(Line))
@@ -270,6 +282,7 @@ fn contains_chars(thing: String, substrings: List(String)) -> String {
   }
 }
 
+/// Validate an attribute key for the VXML text format.
 pub fn validate_key(key: String) -> Result(String, BadKey) {
   case key {
     "" -> Error(EmptyKey)
@@ -283,6 +296,7 @@ pub fn validate_key(key: String) -> Result(String, BadKey) {
   }
 }
 
+/// Validate an element tag for the VXML text format.
 pub fn validate_tag(tag: String) -> Result(String, BadTag) {
   case tag == "" {
     True -> Error(EmptyTag)
@@ -380,6 +394,7 @@ fn vxml_to_output_lines_internal(
 // VXML -> List(OutputLine) api
 // ************************************************************
 
+/// Serialize one VXML node to VXML text-format output lines.
 pub fn vxml_to_output_lines(vxml: VXML) -> List(OutputLine) {
   vxml_to_output_lines_internal(vxml, 0)
 }
@@ -394,6 +409,7 @@ pub fn vxmls_to_output_lines(vxmls: List(VXML)) -> List(OutputLine) {
 // VXML -> String api
 // ************************************************************
 
+/// Serialize one VXML node to the VXML text format.
 pub fn vxml_to_string(vxml: VXML) -> String {
   vxml
   |> vxml_to_output_lines
@@ -916,6 +932,7 @@ fn vxmls_to_html_output_lines_internal(
   |> list.flatten
 }
 
+/// Serialize one VXML node to HTML output lines.
 pub fn vxml_to_html_output_lines(
   node: VXML,
   indent: Int,
@@ -938,6 +955,7 @@ pub fn vxmls_to_html_output_lines(
 // parse_input_lines
 // ************************************************************
 
+/// Parse VXML text-format input lines.
 pub fn parse_input_lines(
   lines: List(io_l.InputLine),
   unique_root: Bool,
@@ -957,6 +975,7 @@ pub fn parse_input_lines(
 // parse_string
 // ************************************************************
 
+/// Parse a string containing the VXML text format.
 pub fn parse_string(
   source: String,
   filename: String,
@@ -971,6 +990,7 @@ pub fn parse_string(
 // parse_file
 // ************************************************************
 
+/// Parse a file containing the VXML text format.
 pub fn parse_file(
   path: String,
   unique_root: Bool,
@@ -1069,6 +1089,7 @@ pub fn remove_attrs_from_closing_tags(
   })
 }
 
+/// Repair common HTML syntax so it can be parsed by XML-oriented parsers.
 pub fn xml_parser_html_repair(
   content: String,
 ) -> String {
@@ -1079,6 +1100,7 @@ pub fn xml_parser_html_repair(
   |> remove_attrs_from_closing_tags
 }
 
+/// Parse HTML after applying `xml_parser_html_repair`.
 pub fn xmlm_based_html_parser(
   content: String,
   filename: String,
@@ -1709,6 +1731,7 @@ fn vxml_from_streaming_logical_units(
   }
 }
 
+/// Parse XML-like input lines with the streaming parser.
 pub fn streaming_based_xml_parser(
   lines: List(InputLine),
 ) -> Result(VXML, #(Blame, String)) {

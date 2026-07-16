@@ -1,9 +1,16 @@
+//// Line-based input and output helpers.
+////
+//// `InputLine` and `OutputLine` pair indentation and text with `Blame`.
+//// They provide a small bridge between files/strings and VXML parsers or
+//// serializers.
+
 import gleam/list
 import gleam/result
 import gleam/string.{length as len}
 import simplifile.{type FileError}
 import blame.{type Blame} as bl
 
+/// A source line with indentation and blame.
 pub type InputLine {
   InputLine(
     blame: Blame,
@@ -12,6 +19,7 @@ pub type InputLine {
   )
 }
 
+/// An output line with indentation and blame.
 pub type OutputLine {
   OutputLine(
     blame: Blame,
@@ -28,6 +36,7 @@ fn spaces(i: Int) -> String {
   string.repeat(" ", i)
 }
 
+/// Normalize CRLF and CR line endings to LF.
 pub fn normalize_line_endings(source: String) -> String {
   source
   |> string.replace("\r\n", "\n")
@@ -38,6 +47,7 @@ pub fn normalize_line_endings(source: String) -> String {
 // String -> List(InputLine) & path -> List(InputLine)
 // ***************************************************
 
+/// Convert a string to input lines, preserving source path and indentation.
 pub fn string_to_input_lines(
   source: String,
   path: String,
@@ -66,6 +76,7 @@ pub fn string_to_input_lines(
   )
 }
 
+/// Read a file into input lines.
 pub fn read(
   path: String,
   added_indentation: Int,
@@ -103,6 +114,7 @@ pub fn output_line_to_string(line: OutputLine) -> String {
   spaces(line.indent) <> line.suffix
 }
 
+/// Convert output lines to a newline-separated string.
 pub fn output_lines_to_string(lines: List(OutputLine)) -> String {
   lines
   |> list.map(output_line_to_string)

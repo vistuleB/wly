@@ -1,12 +1,21 @@
+//// Source provenance for VXML trees.
+////
+//// `Blame` values attach origin information to VXML nodes, attributes, and
+//// lines. Source blame can be movable or anchored, which lets parsers and
+//// transformation pipelines preserve useful locations while slicing or moving
+//// text.
+
 import gleam/int
 import gleam/list
 import gleam/string.{inspect as ins}
 
+/// Whether a source position can move when text is sliced or shifted.
 pub type SourceCursor {
   Movable
   Anchored
 }
 
+/// Provenance for a VXML node, attribute, or line.
 pub type Blame {
   Src(
     comments: List(String),
@@ -46,6 +55,7 @@ fn spaces(i: Int) -> String {
 
 pub const no_blame = NoBlame([])
 
+/// Remove comments while preserving the main blame identity.
 pub fn clear_comments(blame: Blame) -> Blame {
   case blame {
     Src(..) -> Src(..blame, comments: [])
@@ -55,6 +65,7 @@ pub fn clear_comments(blame: Blame) -> Blame {
   }
 }
 
+/// Add a comment before existing blame comments.
 pub fn prepend_comment(blame: Blame, comment: String) -> Blame {
   case blame {
     Src(..) -> Src(..blame, comments: [comment, ..blame.comments])
@@ -73,6 +84,7 @@ pub fn append_comment(blame: Blame, comment: String) -> Blame {
   }  
 }
 
+/// Advance movable source blame by a character offset.
 pub fn advance(blame: Blame, by: Int) -> Blame {
   case blame {
     Src(_, _, _, _, Movable) -> Src(..blame, char_no: blame.char_no + by)
@@ -80,6 +92,7 @@ pub fn advance(blame: Blame, by: Int) -> Blame {
   }
 }
 
+/// Mark source blame as anchored.
 pub fn set_anchored(blame: Blame) -> Blame {
   case blame {
     Src(..) -> Src(..blame, cursor: Anchored)
@@ -87,6 +100,7 @@ pub fn set_anchored(blame: Blame) -> Blame {
   }
 }
 
+/// Render a short human-readable blame label.
 pub fn blame_digest(blame: Blame) -> String {
   case blame {
     Src(_, path, line_no, char_no, cursor) -> {
