@@ -4,7 +4,6 @@ import gleam/list
 import io_lines
 import simplifile
 import vxml
-import xml_streamer
 
 pub fn main() {
   gleeunit.main()
@@ -65,17 +64,9 @@ pub fn sample_html_file_parses_and_emits_test() {
 pub fn sample_html_streaming_parser_returns_one_root_test() {
   let assert Ok(content) = simplifile.read("samples/sample2.html")
 
-  let assert Ok(units) =
-    content
-    |> xml_streamer.string_streamer("samples/sample2.html")
-    |> vxml.xml_streaming_logical_units
-
-  let assert Ok(_) = vxml.vxml_from_streaming_logical_units(units)
-
-  units
-  |> list.length
-  |> fn(length) { length > 0 }
-  |> should.be_true
+  content
+  |> vxml.streaming_based_xml_parser_string_version("samples/sample2.html")
+  |> should.be_ok
 }
 
 pub fn close_html_void_tags_test() {

@@ -407,7 +407,7 @@ pub fn vxmls_to_string(vxmls: List(VXML)) -> String {
 }
 
 // ************************************************************
-// echo_vxml
+// VXML debug table
 // ************************************************************
 
 pub fn vxml_table(vxml: VXML, banner: String, indent: Int) -> String {
@@ -758,17 +758,6 @@ fn closing_tag_to_sticky_lines(
   ]
 }
 
-pub fn init_last(l: List(a)) -> Result(#(List(a), a), Nil) {
-  case l {
-    [] -> Error(Nil)
-    [last] -> Ok(#([], last))
-    [first, ..rest] -> {
-      let assert Ok(#(head, last)) = init_last(rest)
-      Ok(#([first, ..head], last))
-    }
-  }
-}
-
 fn t_sticky_lines(t: VXML, indent: Int, pre: Bool, ampersand_re: regexp.Regexp) -> List(StickyLine) {
   let assert T(_, lines) = t
   let indent = case pre {
@@ -842,7 +831,6 @@ fn t_very_fancy_sticky_lines_post_processing(
           }
         }
         False -> {
-          // let assert Ok(#(init, last)) = init_last(lines)
           let assert [last, ..init] = lines |> list.reverse
           case string.ends_with(last.content, " ") {
             True -> {
@@ -904,7 +892,7 @@ fn vxml_sticky_tree(
   }
 }
 
-pub fn vxml_to_html_output_lines_internal(
+fn vxml_to_html_output_lines_internal(
   node: VXML,
   indent: Int,
   spaces: Int,
@@ -917,7 +905,7 @@ pub fn vxml_to_html_output_lines_internal(
   |> list.map(sticky_2_blamed)
 }
 
-pub fn vxmls_to_html_output_lines_internal(
+fn vxmls_to_html_output_lines_internal(
   vxmls: List(VXML),
   indent: Int,
   spaces: Int,
@@ -1097,24 +1085,6 @@ pub fn xmlm_based_html_parser(
 ) -> Result(VXML, xmlm.InputError) {
   let input = content |> xml_parser_html_repair |>  xmlm.from_string
 
-  // **********
-  // use this to debug if you get an input_error on a file, see
-  // "input_error" case at end of function
-  // **********
-  // case xmlm.signals(
-  //   input
-  // ) {
-  //   Ok(#(signals, _)) -> {
-  //     list.each(
-  //       signals,
-  //       fn(signal) { io.println(signal |> xmlm.signal_to_string) }
-  //     )
-  //   }
-  //   Error(input_error) -> {
-  //     io.println("got error:" <> ins(input_error))
-  //   }
-  // }
-
   case
     xmlm.document_tree(
       input,
@@ -1147,7 +1117,7 @@ pub fn xmlm_based_html_parser(
 // XML streaming-based parser
 // ************************************************************
 
-pub type XMLStreamingParserLogicalUnit {
+type XMLStreamingParserLogicalUnit {
   XMLStreamingParserText(List(Line))
   XMLStreamingParserOpeningTag(Blame, String, List(Attr))
   XMLStreamingParserSelfClosingTag(Blame, String, List(Attr))
@@ -1369,8 +1339,6 @@ fn xml_streaming_get_next_logical_unit(
 ) -> Result(#(XMLStreamingParserLogicalUnit, List(xs.Event)), #(Blame, String)) {
   let assert [first, ..rest] = events
 
-  // io.println("first: " <> xs.event_digest(first))
-
   case first {
     // XMLStreamingParserText
     xs.Text(_, _) | xs.Newline(_) -> {
@@ -1497,7 +1465,7 @@ fn xml_streaming_logical_units_acc(
   }
 }
 
-pub fn xml_streaming_logical_units(
+fn xml_streaming_logical_units(
   events: List(xs.Event)
 ) -> Result(List(XMLStreamingParserLogicalUnit), #(Blame, String)) {
   xml_streaming_logical_units_acc(events, [])
@@ -1520,45 +1488,6 @@ fn attrs_digest(
   attrs: List(Attr)
 ) -> String {
   list_of_digest(attrs, attr_digest)
-}
-
-pub fn lines_digest(
-  lines: List(Line)
-) -> String {
-  list_of_digest(lines, fn(l) { ins(l.content) })
-}
-
-pub fn unit_digest(
-  unit: XMLStreamingParserLogicalUnit
-) -> String {
-  case unit {
-    XMLStreamingParserText(lines) ->
-      "Text(" <> lines_digest(lines) <> ")"
-
-    XMLStreamingParserOpeningTag(_, tag, attrs) ->
-      "OpeningTag(" <> tag <> ", " <> attrs_digest(attrs) <> ")"
-
-    XMLStreamingParserSelfClosingTag(_, tag, attrs) ->
-      "SelfClosingTag(" <> tag <> ", " <> attrs_digest(attrs) <> ")"
-
-    XMLStreamingParserXMLVersion(_, tag, attrs) ->
-      "XMLVersion(" <> tag <> ", " <> attrs_digest(attrs) <> ")"
-
-    XMLStreamingParserDoctype(_, tag, attrs, _) ->
-      "Doctype(" <> tag <> ", " <> attrs_digest(attrs) <> ")"
-
-    XMLStreamingParserClosingTag(_, tag) ->
-      "ClosingTag(" <> tag <> ")"
-
-    XMLStreamingParserComment(lines) ->
-      "Comment(" <> lines_digest(lines) <> ")"
-  }
-}
-
-pub fn units_digest(
-  units: List(XMLStreamingParserLogicalUnit),
-) -> String {
-  list_of_digest(units, unit_digest)
 }
 
 fn v_digest(
@@ -1767,7 +1696,7 @@ fn vxmls_from_streaming_logical_units(
   )
 }
 
-pub fn vxml_from_streaming_logical_units(
+fn vxml_from_streaming_logical_units(
   units: List(XMLStreamingParserLogicalUnit)
 ) -> Result(VXML, #(Blame, String)) {
   use vxmls <- on.ok(vxmls_from_streaming_logical_units(units, True, True))

@@ -5,8 +5,6 @@ import gleam/string.{inspect as ins}
 import simplifile
 import vxml
 import io_lines as io_l
-import blame as bl
-import xml_streamer as xs
 import on
 
 fn streaming_parser_engine_light() -> Result(Nil, String) {
@@ -19,32 +17,15 @@ fn streaming_parser_engine_light() -> Result(Nil, String) {
     fn(_) { Error("streaming_parser_engine_light i/o error wile reading '" <> path <> "'") },
   )
 
-  let events =
-    content
-    |> xs.string_streamer(path)
-
-  use units <- on.error_ok(
-    events
-    |> vxml.xml_streaming_logical_units(),
-    on_error: fn(e) {
-      let #(blame, msg) = e
-      io.println("")
-      io.println("got error going from events to units:")
-      io.println("- msg:   " <> msg)
-      io.println("- blame: " <> bl.blame_digest(blame))
-      Error("streaming_parser_engine_light pt1")
-    }
-  )
-
   use vxml <- on.error_ok(
-    vxml.vxml_from_streaming_logical_units(units),
+    content
+    |> vxml.streaming_based_xml_parser_string_version(path),
     fn(e) {
-      let #(blame, msg) = e
+      let #(_, msg) = e
       io.println("")
-      io.println("got error going from units to events:")
+      io.println("got error in streaming parser:")
       io.println("- msg:   " <> msg)
-      io.println("- blame: " <> bl.blame_digest(blame))
-      Error("streaming_parser_engine_light pt2")
+      Error("streaming_parser_engine_light")
     }
   )
 

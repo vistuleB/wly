@@ -126,7 +126,7 @@ pub fn path_contains(blame: Blame, s: String) -> Bool {
 }
 
 // **************************************************
-// List(#(Blame, String)) pretty-printer (no1)
+// List(#(Blame, String)) pretty-printer
 // **************************************************
 
 fn truncate_with_suffix_or_pad(
@@ -194,7 +194,7 @@ fn glue_columns_3(
   #(#(col1_size, col2_size), table_lines)
 }
 
-fn blamed_strings_annotated_table_no1_header_lines(
+fn blamed_strings_annotated_table_header_lines(
   margin_total_width: Int,
   extra_dashes_for_content: Int,
 ) -> List(String) {
@@ -205,7 +205,7 @@ fn blamed_strings_annotated_table_no1_header_lines(
   ]
 }
 
-fn blamed_strings_annotated_table_no1_body_lines(
+fn blamed_strings_annotated_table_body_lines(
   contents: List(#(Blame, String)),
   banner: String,
 ) -> #(#(Int, Int), List(String)) {
@@ -228,7 +228,7 @@ fn blamed_strings_annotated_table_no1_body_lines(
   #(#(cols1, cols2), table_lines)
 }
 
-fn blamed_strings_annotated_table_no1_footer_lines(
+fn blamed_strings_annotated_table_footer_lines(
   margin_total_width: Int,
   extra_dashes_for_content: Int,
 ) -> List(String) {
@@ -237,17 +237,17 @@ fn blamed_strings_annotated_table_no1_footer_lines(
   ]
 }
 
-pub fn blamed_strings_annotated_table_no1(
+pub fn blamed_strings_annotated_table(
   lines: List(#(Blame, String)),
   banner: String,
 ) -> List(String) {
   let #(#(cols1, cols2), body_lines) =
-    blamed_strings_annotated_table_no1_body_lines(lines, banner)
+    blamed_strings_annotated_table_body_lines(lines, banner)
 
   [
-    blamed_strings_annotated_table_no1_header_lines(cols1 + cols2, 38),
+    blamed_strings_annotated_table_header_lines(cols1 + cols2, 38),
     body_lines,
-    blamed_strings_annotated_table_no1_footer_lines(cols1 + cols2, 38),
+    blamed_strings_annotated_table_footer_lines(cols1 + cols2, 38),
   ]
   |> list.flatten
 }

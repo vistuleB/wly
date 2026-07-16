@@ -857,7 +857,7 @@ pub fn echo_lines(
   let table =
     lines
     |> list.map(fn(line) { #(line.blame, "\"" <> line.content <> "\"") })
-    |> bl.blamed_strings_annotated_table_no1("")
+    |> bl.blamed_strings_annotated_table("")
     |> list.map(fn(l) { "   " <> l })
     |> string.join("\n")
   io.println(announcer <> ":\n")

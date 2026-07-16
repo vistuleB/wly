@@ -1,5 +1,4 @@
 import gleam/list
-import gleam/io
 import gleam/string.{inspect as ins}
 import gleam/regexp
 import splitter as sp
@@ -261,11 +260,15 @@ fn event_stream_internal(
       let length = string.length(text <> z <> tag)
       case string.length(first.content) < length {
         True -> {
-          io.println("first.content: %" <> first.content <> "%")
-          io.println("text: %" <> text <> "%")
-          io.println("z: %" <> z <> "%")
-          io.println("tag: %" <> tag <> "%")
-          panic
+          let msg = "tag split invariant failed: content="
+            <> ins(first.content)
+            <> ", text="
+            <> ins(text)
+            <> ", prefix="
+            <> ins(z)
+            <> ", tag="
+            <> ins(tag)
+          panic as msg
         }
         False -> Nil
       }
@@ -433,7 +436,7 @@ fn event_stream_internal(
       OutsideTag,
       [advance_line(first, 1), ..rest],
     )
-    _ -> panic as "hey"
+    _ -> panic as "unexpected tag ending delimiter"
   }
 }
 

@@ -122,7 +122,7 @@ pub fn input_lines_table(
   let margin = spaces(indent)
   content
   |> list.map(fn(c) {#(c.blame, spaces(c.indent) <> c.suffix)})
-  |> bl.blamed_strings_annotated_table_no1(banner)
+  |> bl.blamed_strings_annotated_table(banner)
   |> list.map(fn(s) {margin <> s})
   |> string.join("\n")
 }
@@ -135,7 +135,7 @@ pub fn output_lines_table_lines(
   let margin = spaces(indent)
   content
   |> list.map(fn(c) {#(c.blame, spaces(c.indent) <> c.suffix)})
-  |> bl.blamed_strings_annotated_table_no1(banner)
+  |> bl.blamed_strings_annotated_table(banner)
   |> list.map(fn(s) {margin <> s})
 }
 
