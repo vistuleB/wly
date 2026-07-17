@@ -19,11 +19,11 @@ fn extract_handle_and_page_and_decoy(match: Match) -> #(String, Bool, Option(Str
     Ok(#(before, after)) -> #(before <> after, True)
     _ -> #(handle_name, False)
   }
+  let handle_name = string.remove_suffix(handle_name, "##")
   let #(handle_name, decoy) = case string.split_once(handle_name, "#decoy:") {
     Ok(#(before, after)) -> #(before, option.Some(after))
     _ -> #(handle_name, None)
   }
-  let handle_name = string.remove_suffix(handle_name, "##")
   #(handle_name, page, decoy)
 }
 
