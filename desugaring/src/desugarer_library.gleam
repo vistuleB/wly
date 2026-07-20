@@ -247,6 +247,7 @@ import desugarers/trim_empty_lines
 import desugarers/trim_empty_lines__batch
 import desugarers/trim_ending_spaces_except_last_line
 import desugarers/trim_spaces_around_newlines__outside
+import desugarers/unescape_delimiters__outside
 import desugarers/unwrap
 import desugarers/unwrap__batch
 import desugarers/unwrap__outside
@@ -528,6 +529,7 @@ pub const trim_empty_lines = trim_empty_lines.constructor
 pub const trim_empty_lines__batch = trim_empty_lines__batch.constructor
 pub const trim_ending_spaces_except_last_line = trim_ending_spaces_except_last_line.constructor
 pub const trim_spaces_around_newlines__outside = trim_spaces_around_newlines__outside.constructor
+pub const unescape_delimiters__outside = unescape_delimiters__outside.constructor
 pub const unwrap = unwrap.constructor
 pub const unwrap__batch = unwrap__batch.constructor
 pub const unwrap__outside = unwrap__outside.constructor
@@ -810,6 +812,7 @@ pub const assertive_tests : List(fn() -> infra.AssertiveTestCollection) = [
   trim_empty_lines__batch.assertive_tests,
   trim_ending_spaces_except_last_line.assertive_tests,
   trim_spaces_around_newlines__outside.assertive_tests,
+  unescape_delimiters__outside.assertive_tests,
   unwrap.assertive_tests,
   unwrap__batch.assertive_tests,
   unwrap__outside.assertive_tests,
