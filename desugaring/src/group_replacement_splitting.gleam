@@ -201,11 +201,19 @@ pub fn unescaped_suffix_rr_splitter(
   re_suffix suffix: String,
   replacement instruction: SplitReplacementInstruction,
 ) -> RegexpReplacementerSplitter {
-  let string = suffix |> unescaped_suffix
-  let assert Ok(re) = string |> parenthesize |> regexp.from_string
+  // the (even-length) backslash run in front of the delimiter gets its own
+  // capture group and is Kept, rather than being swallowed together with the
+  // delimiter: that is what lets "\\_" keep its literal backslash while the
+  // "_" still counts as a live delimiter
+  let assert Ok(re) =
+    { parenthesize(regex_prefix_to_make_unescaped) <> parenthesize(suffix) }
+    |> regexp.from_string
   RegexpReplacementerSplitter(
     re: re,
-    groups: [RegexpGroupSourceAndInstruction(string, instruction)],
+    groups: [
+      RegexpGroupSourceAndInstruction(regex_prefix_to_make_unescaped, Keep),
+      RegexpGroupSourceAndInstruction(suffix, instruction),
+    ],
   )
 }
 
@@ -227,6 +235,14 @@ pub fn rr_splitter_for_groups(
   RegexpReplacementerSplitter(re: re, groups: groups)
 }
 
+// length of the run of backslashes at the very end of a string
+fn trailing_backslash_run(s: String) -> Int {
+  case string.ends_with(s, "\\") {
+    False -> 0
+    True -> 1 + trailing_backslash_run(string.drop_end(s, 1))
+  }
+}
+
 pub fn remaining_unescaped_splits(
   splits: List(String),
   escaped_splitter_replacement e: String,
@@ -235,7 +251,10 @@ pub fn remaining_unescaped_splits(
     [] -> panic
     [_] -> splits
     [first, ..rest] -> {
-      case string.ends_with(first, "\\") {
+      // the delimiter is escaped only if the backslash run in front of it
+      // has ODD length: "\$" is escaped, but "\\$" is a literal backslash
+      // followed by a LIVE delimiter
+      case trailing_backslash_run(first) % 2 == 1 {
         False -> [first, ..remaining_unescaped_splits(rest, e)]
         True -> {
           let assert [second, ..rest] = remaining_unescaped_splits(rest, e)
