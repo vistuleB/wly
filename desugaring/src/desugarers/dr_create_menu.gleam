@@ -158,7 +158,7 @@ fn build_nav_dict(
 // ---- Navigation node construction ----
 
 fn anchor(id: String, href: String) -> VXML {
-  let b = desugarer_blame(153)
+  let b = desugarer_blame(161)
   V(b, "a", [Attr(b, "id", id), Attr(b, "href", href)], [])
 }
 
@@ -166,10 +166,13 @@ fn make_navigation(
   prev_href: Option(String),
   next_href: Option(String),
 ) -> VXML {
-  let b = desugarer_blame(161)
+  let b = desugarer_blame(169)
   let links =
     [
       prev_href |> option.map(fn(h) { anchor("prev-page", h) }),
+      // always present; the stylesheet decides where it is shown. On a
+      // pointer device the `0` key already jumps to the index.
+      Some(anchor("index-page", "./index.html")),
       next_href |> option.map(fn(h) { anchor("next-page", h) }),
     ]
     |> option.values
@@ -309,6 +312,9 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
                           id=prev-page
                           href=./index.html
                         <> a
+                          id=index-page
+                          href=./index.html
+                        <> a
                           id=next-page
                           href=./1-2.html
                     <> Section
@@ -317,6 +323,9 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
                         <> a
                           id=prev-page
                           href=./1-1.html
+                        <> a
+                          id=index-page
+                          href=./index.html
                 ",
     ),
     infra.AssertiveTestDataNoParam(
@@ -344,6 +353,9 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
                           id=prev-page
                           href=./index.html
                         <> a
+                          id=index-page
+                          href=./index.html
+                        <> a
                           id=next-page
                           href=./1-2.html
                     <> Section
@@ -352,6 +364,9 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
                         <> a
                           id=prev-page
                           href=./1-1.html
+                        <> a
+                          id=index-page
+                          href=./index.html
                         <> a
                           id=next-page
                           href=./2-1.html
@@ -362,6 +377,9 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
                         <> a
                           id=prev-page
                           href=./1-2.html
+                        <> a
+                          id=index-page
+                          href=./index.html
                         <> a
                           id=next-page
                           href=./2-2.html
@@ -372,6 +390,9 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
                           id=prev-page
                           href=./2-1.html
                         <> a
+                          id=index-page
+                          href=./index.html
+                        <> a
                           id=next-page
                           href=./2-2-1.html
                       <> SubSection
@@ -380,6 +401,9 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
                           <> a
                             id=prev-page
                             href=./2-2.html
+                          <> a
+                            id=index-page
+                            href=./index.html
                           <> a
                             id=next-page
                             href=./2-2-2.html
@@ -390,6 +414,9 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
                             id=prev-page
                             href=./2-2-1.html
                           <> a
+                            id=index-page
+                            href=./index.html
+                          <> a
                             id=next-page
                             href=./2-2-3.html
                       <> SubSection
@@ -398,6 +425,9 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
                           <> a
                             id=prev-page
                             href=./2-2-2.html
+                          <> a
+                            id=index-page
+                            href=./index.html
                           <> a
                             id=next-page
                             href=./3-1.html
@@ -408,6 +438,9 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
                         <> a
                           id=prev-page
                           href=./2-2-3.html
+                        <> a
+                          id=index-page
+                          href=./index.html
                 ",
     ),
     infra.AssertiveTestDataNoParam(
@@ -429,6 +462,9 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
                         id=prev-page
                         href=./index.html
                       <> a
+                        id=index-page
+                        href=./index.html
+                      <> a
                         id=next-page
                         href=./1-1.html
                     <> SomeContent
@@ -439,6 +475,9 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
                           id=prev-page
                           href=./1-0.html
                         <> a
+                          id=index-page
+                          href=./index.html
+                        <> a
                           id=next-page
                           href=./1-2.html
                     <> Section
@@ -447,6 +486,9 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
                         <> a
                           id=prev-page
                           href=./1-1.html
+                        <> a
+                          id=index-page
+                          href=./index.html
                         <> a
                           id=next-page
                           href=./2-1.html
@@ -457,6 +499,9 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
                         <> a
                           id=prev-page
                           href=./1-2.html
+                        <> a
+                          id=index-page
+                          href=./index.html
                 ",
     ),
     infra.AssertiveTestDataNoParam(
@@ -481,6 +526,9 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
                           id=prev-page
                           href=./index.html
                         <> a
+                          id=index-page
+                          href=./index.html
+                        <> a
                           id=next-page
                           href=./2-0.html
                   <> Chapter
@@ -489,6 +537,9 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
                       <> a
                         id=prev-page
                         href=./1-1.html
+                      <> a
+                        id=index-page
+                        href=./index.html
                       <> a
                         id=next-page
                         href=./2-1.html
@@ -500,6 +551,9 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataNoParam) {
                         <> a
                           id=prev-page
                           href=./2-0.html
+                        <> a
+                          id=index-page
+                          href=./index.html
                 ",
     ),
   ]
