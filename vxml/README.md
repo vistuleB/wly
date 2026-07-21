@@ -8,21 +8,22 @@ From XML, VXML keeps only recursive nodes with tags and attributes, plus termina
 text nodes. It bypasses CDATA, processing instructions, namespaces, entity rules,
 XML declarations, and other ancillary XML features.
 
-VXML is intended to operate as an intermediate when converting between
-different light-markup-style document formats, or when normalizing a document
-within the same format. A parser can convert a source document into VXML,
+VXML is intended to operate as an intermediate between
+different light-markup-style document formats. A parser can convert a source document into VXML,
 a pipeline can transform the AST, and an emitter can serialize the result to
-HTML, XML-like text, JSX, or another target. VXML's simple shape makes it easy
-for each participating document format to define its own encoding and decoding
-contracts, while keeping VXML -> VXML transforms quick to scaffold, compose, and
-share atomically.
+HTML, XML-like text, JSX, or another target. VXML's simplicity makes it easy
+to reason about encoding and decoding contracts. 
+Transforms that map VXML to VXML are easy to write and can be composed
+and shared atomically.
 
 VXML comes with its own indentation-based serialization format for human
 inspection and for persisting documents required by test suites. However, VXML
 is typically expected to exist as data inside a running program, not as a
-persistent storage format. In this sense, serialized VXML is designed to be
-_unambiguous_, _simple_, and _human-readable_, but is not designed to be
-_human-writable_. This gives serialized VXML a distinctive "read-only" shape.
+persistent storage format. 
+VXML is not designed to be typed out by hand, either, though it is
+designed to be readable.
+
+As a specialist in document-to-document transpilation, VXML 
 
 In this package:
 
@@ -39,6 +40,11 @@ In this package:
   parsers
 
 ## Data Model
+
+Upstream types are:
+
+- `Blame`: encodes cursor position in a source document, or points b
+- `Line`: helloooo...
 
 The core type has two node variants:
 
@@ -82,7 +88,7 @@ quoted lines form text nodes:
       <>
         'For VXML, this is just a'
         'second text node. A "paragraph"'
-        'is not a VXML concept.'
+        'is not a concept in VXML.'
 ```
 
 Each line of text appears as a visible quoted line, making newline placement and
