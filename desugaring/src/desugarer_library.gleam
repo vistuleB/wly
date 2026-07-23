@@ -113,6 +113,7 @@ import desugarers/handles_setup_grand_wrapper
 import desugarers/handles_substitute
 import desugarers/handles_substitute_and_fix_nonlocal_id_links
 import desugarers/handles_substitute_inside_math
+import desugarers/handles_warn_unused
 import desugarers/identity
 import desugarers/ii2_carousel_component
 import desugarers/ii2_class_well_container_theorem_2_statement
@@ -395,6 +396,7 @@ pub const handles_setup_grand_wrapper = handles_setup_grand_wrapper.constructor
 pub const handles_substitute = handles_substitute.constructor
 pub const handles_substitute_and_fix_nonlocal_id_links = handles_substitute_and_fix_nonlocal_id_links.constructor
 pub const handles_substitute_inside_math = handles_substitute_inside_math.constructor
+pub const handles_warn_unused = handles_warn_unused.constructor
 pub const identity = identity.constructor
 pub const ii2_carousel_component = ii2_carousel_component.constructor
 pub const ii2_class_well_container_theorem_2_statement = ii2_class_well_container_theorem_2_statement.constructor
@@ -678,6 +680,7 @@ pub const assertive_tests : List(fn() -> infra.AssertiveTestCollection) = [
   handles_substitute.assertive_tests,
   handles_substitute_and_fix_nonlocal_id_links.assertive_tests,
   handles_substitute_inside_math.assertive_tests,
+  handles_warn_unused.assertive_tests,
   identity.assertive_tests,
   ii2_carousel_component.assertive_tests,
   ii2_class_well_container_theorem_2_statement.assertive_tests,
