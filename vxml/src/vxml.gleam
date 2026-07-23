@@ -11,10 +11,9 @@ import gleam/option.{None, Some}
 import gleam/regexp
 import gleam/result
 import gleam/string.{inspect as ins}
-import blame.{type Blame, Anchored, Movable, Src, prepend_comment as pc} as bl
+import blame.{type Blame, prepend_comment as pc} as bl
 import io_lines.{type InputLine, InputLine, type OutputLine, OutputLine} as io_l
 import simplifile
-import xmlm
 import xml_streamer as xs
 import on
 
@@ -1004,20 +1003,7 @@ pub fn parse_file(
   |> result.map_error(fn(e) { DocumentError(e) })
 }
 
-// ************************************************************
-// XMLM parser
-// ************************************************************
-
-fn xmlm_attr_to_vxml_attrs(
-  filename: String,
-  line_no: Int,
-  xmlm_attr: xmlm.Attribute,
-) -> Attr {
-  let blame = Src([], filename, line_no, 0, Movable)
-  Attr(blame, xmlm_attr.name.local, xmlm_attr.value)
-}
-
-fn close_html_void_tag(content: String, tag: String) -> String {
+fn html_repair_close_void_tag(content: String, tag: String) -> String {
   let assert Ok(re) =
     regexp.from_string("(<" <> tag <> ")(\\b[^>]*)(>)")
 
@@ -1032,7 +1018,7 @@ fn close_html_void_tag(content: String, tag: String) -> String {
   })
 }
 
-pub fn escape_non_entity_ampersands(
+pub fn html_repair_escape_non_entity_ampersands(
   content: String,
 ) -> String {
   let assert Ok(re) = regexp.from_string(non_html_ampersand_re)
@@ -1040,7 +1026,7 @@ pub fn escape_non_entity_ampersands(
   regexp.replace(re, content, "&amp;")
 }
 
-fn expand_html_boolean_attr(content: String, attr: String) -> String {
+fn html_repair_expand_boolean_attr(content: String, attr: String) -> String {
   let assert Ok(re) =
     regexp.from_string("(\\s" <> attr <> ")(\\s|>|/>)")
 
@@ -1051,7 +1037,7 @@ fn expand_html_boolean_attr(content: String, attr: String) -> String {
   })
 }
 
-pub fn expand_html_boolean_attrs(
+pub fn html_repair_expand_boolean_attrs(
   content: String,
 ) -> String {
   [
@@ -1061,11 +1047,11 @@ pub fn expand_html_boolean_attrs(
     "readonly", "required", "reversed", "selected",
   ]
   |> list.fold(content, fn(content, attr) {
-    expand_html_boolean_attr(content, attr)
+    html_repair_expand_boolean_attr(content, attr)
   })
 }
 
-pub fn close_html_void_tags(
+pub fn html_repair_close_void_tags(
   content: String,
 ) -> String {
   [
@@ -1073,11 +1059,11 @@ pub fn close_html_void_tags(
     "source", "track", "wbr",
   ]
   |> list.fold(content, fn(content, tag) {
-    close_html_void_tag(content, tag)
+    html_repair_close_void_tag(content, tag)
   })
 }
 
-pub fn remove_attrs_from_closing_tags(
+pub fn html_repair_remove_attrs_from_closing_tags(
   content: String,
 ) -> String {
   let assert Ok(re) = regexp.from_string("(<\\/)(\\w+)(\\s+[^>]*)(>)")
@@ -1090,49 +1076,14 @@ pub fn remove_attrs_from_closing_tags(
 }
 
 /// Repair common HTML syntax so it can be parsed by XML-oriented parsers.
-pub fn xml_parser_html_repair(
+pub fn html_repair(
   content: String,
 ) -> String {
   content
-  |> expand_html_boolean_attrs
-  |> escape_non_entity_ampersands
-  |> close_html_void_tags
-  |> remove_attrs_from_closing_tags
-}
-
-/// Parse HTML after applying `xml_parser_html_repair`.
-pub fn xmlm_based_html_parser(
-  content: String,
-  filename: String,
-) -> Result(VXML, xmlm.InputError) {
-  let input = content |> xml_parser_html_repair |>  xmlm.from_string
-
-  case
-    xmlm.document_tree(
-      input,
-      fn(xmlm_tag, children) {
-        V(
-          Src([], filename, 0, 0, Anchored),
-          xmlm_tag.name.local,
-          xmlm_tag.attributes
-            |> list.map(xmlm_attr_to_vxml_attrs(filename, 0, _)),
-          children,
-        )
-      },
-      fn(content) {
-        let lines =
-          content
-          |> string.split("\n")
-          |> list.map(fn(content) {
-            Line(Src([], filename, 0, 0, Movable), content)
-          })
-        T(Src([], filename, 0, 0, Movable), lines)
-      },
-    )
-  {
-    Ok(#(_, vxml, _)) -> Ok(vxml)
-    Error(input_error) -> Error(input_error)
-  }
+  |> html_repair_expand_boolean_attrs
+  |> html_repair_escape_non_entity_ampersands
+  |> html_repair_close_void_tags
+  |> html_repair_remove_attrs_from_closing_tags
 }
 
 // ************************************************************
@@ -1731,8 +1682,8 @@ fn vxml_from_streaming_logical_units(
   }
 }
 
-/// Parse XML-like input lines with the streaming parser.
-pub fn streaming_based_xml_parser(
+/// Parse XML-like input lines into VXML.
+pub fn parse_xml_input_lines(
   lines: List(InputLine),
 ) -> Result(VXML, #(Blame, String)) {
   lines
@@ -1741,12 +1692,22 @@ pub fn streaming_based_xml_parser(
   |> on.ok(vxml_from_streaming_logical_units)
 }
 
-pub fn streaming_based_xml_parser_string_version(
+/// Parse an XML-like string into VXML.
+pub fn parse_xml_string(
   content: String,
   filename: String,
 ) -> Result(VXML, #(Blame, String)) {
   content
-  |> xml_parser_html_repair
   |> io_l.string_to_input_lines(filename, 0)
-  |> streaming_based_xml_parser
+  |> parse_xml_input_lines
+}
+
+/// Repair an HTML-ish string and parse it into VXML.
+pub fn parse_repaired_html_string(
+  content: String,
+  filename: String,
+) -> Result(VXML, #(Blame, String)) {
+  content
+  |> html_repair
+  |> parse_xml_string(filename)
 }

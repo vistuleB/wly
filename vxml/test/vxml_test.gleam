@@ -1,9 +1,55 @@
 import gleeunit
 import gleeunit/should
 import gleam/list
+import gleam/string
+import blame.{Anchored, Movable, Src}
 import io_lines
 import simplifile
-import vxml
+import vxml.{type Attr, type VXML, Attr, Line, T, V}
+import xmlm
+
+fn xmlm_attr_to_vxml_attrs(
+  filename: String,
+  line_no: Int,
+  xmlm_attr: xmlm.Attribute,
+) -> Attr {
+  let blame = Src([], filename, line_no, 0, Movable)
+  Attr(blame, xmlm_attr.name.local, xmlm_attr.value)
+}
+
+fn xmlm_based_html_parser(
+  content: String,
+  filename: String,
+) -> Result(VXML, xmlm.InputError) {
+  let input = content |> vxml.html_repair |> xmlm.from_string
+
+  case
+    xmlm.document_tree(
+      input,
+      fn(xmlm_tag, children) {
+        V(
+          Src([], filename, 0, 0, Anchored),
+          xmlm_tag.name.local,
+          xmlm_tag.attributes
+            |> list.map(xmlm_attr_to_vxml_attrs(filename, 0, _)),
+          children,
+        )
+      },
+      fn(content) {
+        let lines =
+          content
+          |> string.split("\n")
+          |> list.map(fn(content) {
+            Line(Src([], filename, 0, 0, Movable), content)
+          })
+        T(Src([], filename, 0, 0, Movable), lines)
+      },
+    )
+  {
+    Ok(#(_, vxml, _)) -> Ok(vxml)
+    Error(input_error) -> Error(input_error)
+  }
+}
 
 pub fn main() {
   gleeunit.main()
@@ -27,7 +73,7 @@ pub fn parse_string_rejects_multiple_roots_when_unique_root_test() {
 
 pub fn html_parser_accepts_common_html_repairs_test() {
   "<html><body><img src=\"x\"><input disabled><p>fish & chips</p></body></html>"
-  |> vxml.xmlm_based_html_parser("sample.html")
+  |> xmlm_based_html_parser("sample.html")
   |> should.be_ok
 }
 
@@ -52,7 +98,7 @@ pub fn sample_vxml_file_parses_test() {
 
 pub fn sample_html_file_parses_and_emits_test() {
   let assert Ok(content) = simplifile.read("samples/sample.html")
-  let assert Ok(node) = vxml.xmlm_based_html_parser(content, "samples/sample.html")
+  let assert Ok(node) = xmlm_based_html_parser(content, "samples/sample.html")
 
   node
   |> vxml.vxml_to_html_output_lines(0, 2)
@@ -65,42 +111,42 @@ pub fn sample_html_streaming_parser_returns_one_root_test() {
   let assert Ok(content) = simplifile.read("samples/sample2.html")
 
   content
-  |> vxml.streaming_based_xml_parser_string_version("samples/sample2.html")
+  |> vxml.parse_repaired_html_string("samples/sample2.html")
   |> should.be_ok
 }
 
-pub fn close_html_void_tags_test() {
+pub fn html_repair_close_void_tags_test() {
   "<div><img src=\"x\"><br><input disabled></div>"
-  |> vxml.close_html_void_tags
+  |> vxml.html_repair_close_void_tags
   |> should.equal("<div><img src=\"x\"/><br/><input disabled/></div>")
 }
 
-pub fn escape_non_entity_ampersands_test() {
+pub fn html_repair_escape_non_entity_ampersands_test() {
   "fish & chips &Gamma;"
-  |> vxml.escape_non_entity_ampersands
+  |> vxml.html_repair_escape_non_entity_ampersands
   |> should.equal("fish &amp; chips &Gamma;")
 }
 
-pub fn expand_html_boolean_attrs_test() {
+pub fn html_repair_expand_boolean_attrs_test() {
   "<script async src=\"x\"></script><input disabled/>"
-  |> vxml.expand_html_boolean_attrs
+  |> vxml.html_repair_expand_boolean_attrs
   |> should.equal("<script async=\"\" src=\"x\"></script><input disabled=\"\"/>")
 }
 
-pub fn close_html_void_tags_leaves_already_closed_tags_test() {
+pub fn html_repair_close_void_tags_leaves_already_closed_tags_test() {
   "<meta charset=\"utf-8\"/><hr/>"
-  |> vxml.close_html_void_tags
+  |> vxml.html_repair_close_void_tags
   |> should.equal("<meta charset=\"utf-8\"/><hr/>")
 }
 
-pub fn remove_attrs_from_closing_tags_uses_each_tag_match_test() {
+pub fn html_repair_remove_attrs_from_closing_tags_uses_each_tag_match_test() {
   "</span class=\"x\"></div id=\"main\"></a href=\"/somewhere\">"
-  |> vxml.remove_attrs_from_closing_tags
+  |> vxml.html_repair_remove_attrs_from_closing_tags
   |> should.equal("</span></div></a>")
 }
 
-pub fn xml_parser_html_repair_combines_html_repairs_test() {
+pub fn html_repair_combines_html_repairs_test() {
   "<img src=\"x\"><span>body</span class=\"old\">"
-  |> vxml.xml_parser_html_repair
+  |> vxml.html_repair
   |> should.equal("<img src=\"x\"/><span>body</span>")
 }

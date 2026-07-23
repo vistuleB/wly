@@ -109,7 +109,7 @@ pub fn blame_digest(blame: Blame) -> String {
         Anchored -> path <> ":" <> ins(line_no) <> ":" <> ins(char_no) <> " ->"
       }
     }
-    Des(_, name, line_no) -> name <> "♦" <> ins(line_no)
+    Des(_, name, line_no) -> name <> "~" <> ins(line_no)
     Ext(_, name) -> "e:" <> name
     NoBlame(_) -> ""
   }

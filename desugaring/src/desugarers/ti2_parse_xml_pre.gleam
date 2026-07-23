@@ -1,3 +1,4 @@
+import io_lines
 import gleam/option
 import gleam/string
 import gleam/list
@@ -41,8 +42,8 @@ fn nodemap(
               case x {
                 V(_, _, _, _) -> [x]
                 T(_, lines) -> {
-                  let pairs = list.map(lines, fn(l) { #(l.blame, l.content) })
-                  let events = xs.pairs_streamer(pairs)
+                  let pairs = list.map(lines, fn(l) { io_lines.InputLine(l.blame, 0, l.content) })
+                  let events = xs.input_lines_streamer(pairs)
                   list.flat_map(
                     events,
                     fn(event) {

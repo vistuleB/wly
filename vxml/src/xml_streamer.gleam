@@ -1,7 +1,7 @@
 //// Token-level XML streaming utilities.
 ////
 //// This module exposes the lower-level token stream used by VXML's streaming
-//// XML parser. Most callers can use `vxml.streaming_based_xml_parser` instead.
+//// XML parser. Most callers can use `vxml.parse_xml_input_lines` instead.
 //// Use this module when an application needs to inspect or transform XML
 //// events before they become a VXML tree.
 
@@ -462,15 +462,6 @@ fn input_lines_to_content_lines(
   lines: List(InputLine)
 ) -> List(ContentLine) {
   list.map(lines, input_line_to_content_line)
-}
-
-/// Stream XML tokens from blamed string pairs.
-pub fn pairs_streamer(
-  lines: List(#(Blame, String))
-) -> List(Event) {
-  lines
-  |> list.map(fn(x) { ContentLine(x.0, x.1) })
-  |> event_stream_internal([], OutsideTag, _)
 }
 
 /// Stream XML tokens from input lines.

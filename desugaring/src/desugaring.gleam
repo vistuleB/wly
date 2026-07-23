@@ -103,8 +103,8 @@ pub fn default_writerly_parser(
 pub fn default_xml_parser(
   lines: List(InputLine),
 ) -> Result(VXML, #(Blame, String)) {
-  vp.streaming_based_xml_parser(lines)
-  |> result.map_error(fn(e) { #(bl.no_blame, "xmlm parse error: " <> ins(e)) })
+  vp.parse_xml_input_lines(lines)
+  |> result.map_error(fn(e) { #(bl.no_blame, "xml parse error: " <> ins(e)) })
 }
 
 pub const default_html_parser = default_xml_parser
