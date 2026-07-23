@@ -814,8 +814,8 @@ pub fn echo_lines(lines: List(Line), announcer: String) -> List(Line) {
     |> list.map(fn(line) { #(line.blame, "\"" <> line.content <> "\"") })
     |> bl.blamed_strings_annotated_table(
       "",
-      bl.BlameTableMarginSectionMinMax(48, 48),
-      bl.BlameTableMarginSectionMinMax(30, 30),
+      bl.BlameTableMarginColumnsMinMax(48, 48),
+      bl.BlameTableMarginColumnsMinMax(30, 30),
     )
     |> list.map(fn(l) { "   " <> l })
     |> string.join("\n")

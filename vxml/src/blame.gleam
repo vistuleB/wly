@@ -129,29 +129,29 @@ pub fn path_contains(blame: Blame, s: String) -> Bool {
 // List(#(Blame, String)) pretty-printer
 // **************************************************
 
-pub type BlameTableMarginSectionMinMax {
-  BlameTableMarginSectionMinMax(min: Int, max: Int)
+pub type BlameTableMarginColumnsMinMax {
+  BlameTableMarginColumnsMinMax(min: Int, max: Int)
 }
 
 fn normalized_margin(
-  constraints: BlameTableMarginSectionMinMax,
-) -> BlameTableMarginSectionMinMax {
+  constraints: BlameTableMarginColumnsMinMax,
+) -> BlameTableMarginColumnsMinMax {
   case constraints.max < constraints.min {
-    True -> BlameTableMarginSectionMinMax(constraints.max, constraints.max)
+    True -> BlameTableMarginColumnsMinMax(constraints.max, constraints.max)
     False -> constraints
   }
 }
 
 fn constrained_width(
   content_width: Int,
-  constraints: BlameTableMarginSectionMinMax,
+  constraints: BlameTableMarginColumnsMinMax,
 ) -> Int {
   let constraints = normalized_margin(constraints)
   int.max(int.min(content_width, constraints.max), constraints.min)
 }
 
 fn should_render_margin_column(
-  constraints: BlameTableMarginSectionMinMax,
+  constraints: BlameTableMarginColumnsMinMax,
 ) -> Bool {
   let constraints = normalized_margin(constraints)
   constraints.max > 0
@@ -197,8 +197,8 @@ fn mid_truncation_or_pad(
 
 fn glue_columns_3(
   table_lines: List(#(String, String, String)),
-  blame_digest_margin: BlameTableMarginSectionMinMax,
-  comments_margin: BlameTableMarginSectionMinMax,
+  blame_digest_margin: BlameTableMarginColumnsMinMax,
+  comments_margin: BlameTableMarginColumnsMinMax,
   mid_truncation_dots: String,
   truncation_suffix_col2: String,
 ) -> #(#(Int, Int), List(String)) {
@@ -250,8 +250,8 @@ fn blamed_strings_annotated_table_header_lines(
 fn blamed_strings_annotated_table_body_lines(
   contents: List(#(Blame, String)),
   banner: String,
-  blame_digest_margin: BlameTableMarginSectionMinMax,
-  comments_margin: BlameTableMarginSectionMinMax,
+  blame_digest_margin: BlameTableMarginColumnsMinMax,
+  comments_margin: BlameTableMarginColumnsMinMax,
 ) -> #(#(Int, Int), List(String)) {
   let banner = case banner == "" {
     True -> ""
@@ -279,8 +279,8 @@ fn blamed_strings_annotated_table_footer_lines(
 pub fn blamed_strings_annotated_table(
   lines: List(#(Blame, String)),
   banner: String,
-  blame_digest_margin: BlameTableMarginSectionMinMax,
-  comments_margin: BlameTableMarginSectionMinMax,
+  blame_digest_margin: BlameTableMarginColumnsMinMax,
+  comments_margin: BlameTableMarginColumnsMinMax,
 ) -> List(String) {
   let #(#(cols1, cols2), body_lines) =
     blamed_strings_annotated_table_body_lines(

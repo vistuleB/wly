@@ -235,7 +235,7 @@ a transformation pipeline and from outside it, such as an emitter step.
 
 Use `vxml_table` to inspect serialized VXML together with its attached blames.
 For line-level output, `io_lines.output_lines_table_with` allows the blame
-margin sections to be sized explicitly:
+margin columns to be sized explicitly:
 
 ```gleam
 let assert Ok([tree]) =
@@ -246,15 +246,15 @@ tree
 |> io_lines.output_lines_table_with(
   "",
   0,
-  blame.BlameTableMarginSectionMinMax(30, 30),
-  blame.BlameTableMarginSectionMinMax(0, 0),
+  blame.BlameTableMarginColumnsMinMax(30, 30),
+  blame.BlameTableMarginColumnsMinMax(0, 0),
 )
 |> io.println
 ```
 
-The first `BlameTableMarginSectionMinMax` controls the blame digest section.
-The second controls the blame comments section. Passing `(0, 0)` for the
-comments section suppresses it entirely. For the serialized VXML example above,
+The first `BlameTableMarginColumnsMinMax` controls the blame digest columns.
+The second controls the blame comments columns. Passing `(0, 0)` for the
+comments columns suppresses them entirely. For the serialized VXML example above,
 this prints:
 
 ```gleam

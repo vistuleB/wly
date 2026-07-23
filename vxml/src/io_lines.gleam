@@ -114,9 +114,9 @@ pub fn output_lines_to_string(lines: List(OutputLine)) -> String {
 // List(OutputLine) -> String table pretty-printer
 // **************************************************
 
-const default_blame_digest_margin = bl.BlameTableMarginSectionMinMax(48, 48)
+const default_blame_digest_margin = bl.BlameTableMarginColumnsMinMax(48, 48)
 
-const default_comments_margin = bl.BlameTableMarginSectionMinMax(30, 30)
+const default_comments_margin = bl.BlameTableMarginColumnsMinMax(30, 30)
 
 pub fn input_lines_table(
   content: List(InputLine),
@@ -139,8 +139,8 @@ pub fn output_lines_table_lines_with(
   content: List(OutputLine),
   banner: String,
   indent: Int,
-  blame_digest_margin: bl.BlameTableMarginSectionMinMax,
-  comments_margin: bl.BlameTableMarginSectionMinMax,
+  blame_digest_margin: bl.BlameTableMarginColumnsMinMax,
+  comments_margin: bl.BlameTableMarginColumnsMinMax,
 ) -> List(String) {
   let margin = spaces(indent)
   content
@@ -171,8 +171,8 @@ pub fn output_lines_table_with(
   content: List(OutputLine),
   banner: String,
   indent: Int,
-  blame_digest_margin: bl.BlameTableMarginSectionMinMax,
-  comments_margin: bl.BlameTableMarginSectionMinMax,
+  blame_digest_margin: bl.BlameTableMarginColumnsMinMax,
+  comments_margin: bl.BlameTableMarginColumnsMinMax,
 ) -> String {
   output_lines_table_lines_with(
     content,
