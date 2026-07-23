@@ -25,20 +25,11 @@ pub type Blame {
     cursor: SourceCursor,
   )
 
-  Des(
-    comments: List(String),
-    name: String,
-    line_no: Int,
-  )
+  Des(comments: List(String), name: String, line_no: Int)
 
-  Ext(
-    comments: List(String),
-    name: String,
-  )
+  Ext(comments: List(String), name: String)
 
-  NoBlame(
-    comments: List(String),
-  )
+  NoBlame(comments: List(String))
 }
 
 // *************
@@ -81,7 +72,7 @@ pub fn append_comment(blame: Blame, comment: String) -> Blame {
     Des(..) -> Des(..blame, comments: list.append(blame.comments, [comment]))
     Ext(..) -> Ext(..blame, comments: list.append(blame.comments, [comment]))
     NoBlame(_) -> NoBlame(comments: list.append(blame.comments, [comment]))
-  }  
+  }
 }
 
 /// Advance movable source blame by a character offset.
@@ -115,20 +106,15 @@ pub fn blame_digest(blame: Blame) -> String {
   }
 }
 
-pub fn comments_digest(
-  blame: Blame,
-) -> String {
-  list.index_fold(
-    blame.comments,
-    "[",
-    fn(acc, comment, i) {
-      acc <> case i > 0 {
-        True -> ", "
-        False -> ""
-      }
-      <> comment
+pub fn comments_digest(blame: Blame) -> String {
+  list.index_fold(blame.comments, "[", fn(acc, comment, i) {
+    acc
+    <> case i > 0 {
+      True -> ", "
+      False -> ""
     }
-  )
+    <> comment
+  })
   <> "]"
 }
 
@@ -143,6 +129,24 @@ pub fn path_contains(blame: Blame, s: String) -> Bool {
 // List(#(Blame, String)) pretty-printer
 // **************************************************
 
+type ColumnWidthConstraints {
+  ColumnWidthConstraints(min: Int, max: Int)
+}
+
+type BlameTableMarginShape {
+  BlameTableMarginShape(
+    blame_digest: ColumnWidthConstraints,
+    comments: ColumnWidthConstraints,
+  )
+}
+
+fn constrained_width(
+  content_width: Int,
+  constraints: ColumnWidthConstraints,
+) -> Int {
+  int.max(int.min(content_width, constraints.max), constraints.min)
+}
+
 fn truncate_with_suffix_or_pad(
   content: String,
   desired_length: Int,
@@ -150,7 +154,12 @@ fn truncate_with_suffix_or_pad(
 ) -> String {
   let l = string.length(content)
   case l > desired_length {
-    True -> string.drop_end(content, l - {desired_length - string.length(truncation_suffix)}) <> truncation_suffix
+    True ->
+      string.drop_end(
+        content,
+        l - { desired_length - string.length(truncation_suffix) },
+      )
+      <> truncation_suffix
     False -> content <> spaces(desired_length - l)
   }
 }
@@ -163,9 +172,11 @@ fn mid_truncation_or_pad(
   let l = string.length(content)
   case l + 1 >= desired_length {
     True -> {
-      let amt_to_drop = 1 + l - {desired_length - string.length(mid_truncation_dots)}
+      let amt_to_drop =
+        1 + l - { desired_length - string.length(mid_truncation_dots) }
       let inner_content = string.drop_start(content, 2)
-      let slice_start = { string.length(inner_content) / 2 } - {amt_to_drop / 2} - 10
+      let slice_start =
+        { string.length(inner_content) / 2 } - { amt_to_drop / 2 } - 10
       let start = string.slice(inner_content, 0, slice_start)
       let end = string.slice(inner_content, slice_start + amt_to_drop, 1000)
       "│ " <> start <> mid_truncation_dots <> end <> " "
@@ -176,34 +187,27 @@ fn mid_truncation_or_pad(
 
 fn glue_columns_3(
   table_lines: List(#(String, String, String)),
-  min_max_col1: #(Int, Int),
-  min_max_col2: #(Int, Int),
+  margin_shape: BlameTableMarginShape,
   mid_truncation_dots: String,
   truncation_suffix_col2: String,
 ) -> #(#(Int, Int), List(String)) {
-  let #(col1_max, col2_max) = list.fold(
-    table_lines,
-    #(0, 0),
-    fn (acc, tuple) {
+  let #(col1_max, col2_max) =
+    list.fold(table_lines, #(0, 0), fn(acc, tuple) {
       #(
         int.max(acc.0, tuple.0 |> string.length),
         int.max(acc.1, tuple.1 |> string.length),
       )
-    }
-  )
+    })
 
-  let col1_size = int.max(int.min(col1_max, min_max_col1.1), min_max_col1.0)
-  let col2_size = int.max(int.min(col2_max, min_max_col2.1), min_max_col2.0)
+  let col1_size = constrained_width(col1_max, margin_shape.blame_digest)
+  let col2_size = constrained_width(col2_max, margin_shape.comments)
 
   let table_lines =
-    list.map(
-      table_lines,
-      fn (tuple) {
-        mid_truncation_or_pad(tuple.0, col1_size, mid_truncation_dots)
-        <> truncate_with_suffix_or_pad(tuple.1, col2_size, truncation_suffix_col2)
-        <> tuple.2
-      }
-    )
+    list.map(table_lines, fn(tuple) {
+      mid_truncation_or_pad(tuple.0, col1_size, mid_truncation_dots)
+      <> truncate_with_suffix_or_pad(tuple.1, col2_size, truncation_suffix_col2)
+      <> tuple.2
+    })
 
   #(#(col1_size, col2_size), table_lines)
 }
@@ -229,15 +233,17 @@ fn blamed_strings_annotated_table_body_lines(
   }
 
   let #(#(cols1, cols2), table_lines) =
-    list.map(
-      contents,
-      fn(c) {#(
-        "│ " <> banner <> blame_digest(c.0),
-        comments_digest(c.0),
-        "█" <> c.1,
-      )},
+    list.map(contents, fn(c) {
+      #("│ " <> banner <> blame_digest(c.0), comments_digest(c.0), "█" <> c.1)
+    })
+    |> glue_columns_3(
+      BlameTableMarginShape(
+        blame_digest: ColumnWidthConstraints(48, 48),
+        comments: ColumnWidthConstraints(30, 30),
+      ),
+      "...",
+      "...]",
     )
-    |> glue_columns_3(#(48, 48), #(30, 30), "...", "...]")
 
   #(#(cols1, cols2), table_lines)
 }

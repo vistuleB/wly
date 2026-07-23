@@ -48,7 +48,7 @@ The upstream non-recursive payloads are:
 - `Line`: `Line(blame: Blame, content: String)` encodes single-line text payload
 - `Attr`: `Attr(blame: Blame, key: String, val: String)` encodes an attribute key-value pair
 
-The core recursive tree type is:
+The main type is:
 
 ```gleam
 pub type VXML {
@@ -65,8 +65,8 @@ Here:
 Note that `Blame`s aside, VXML is built on only four types: `V`, `T`, `Line`
 and `Attr`.
 
-Moreover, every `V`, `T`, `Line`, and `Attr` value carries exactly one `Blame`,
-stored as its first field, making for a simple mental model.
+Moreover, `V`, `T`, `Line`, and `Attr` each carry one `Blame`, stored as their
+first field, making for a simple mental model.
 
 VXML is semantics-agnostic: tags and attributes are names, not behaviors.
 
