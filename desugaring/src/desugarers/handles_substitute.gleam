@@ -4,6 +4,7 @@ import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/regexp.{type Match, type Regexp, Match}
 import gleam/result
+import gleam/set.{type Set}
 import gleam/string.{inspect as ins}
 import infrastructure.{
   type Desugarer, type DesugarerTransform, type DesugaringError,
@@ -63,10 +64,10 @@ fn hyperlink_constructor(
 }
 
 fn warning_element(handle_name: String, blame: Blame) -> VXML {
-  V(desugarer_blame(66), "InTextWarning", [], [
-    T(desugarer_blame(67), [
+  V(desugarer_blame(67), "InTextWarning", [], [
+    T(desugarer_blame(68), [
       Line(
-        desugarer_blame(69),
+        desugarer_blame(70),
         "undefined handle at " <> bl.blame_digest(blame) <> ": " <> handle_name,
       ),
     ]),
@@ -78,11 +79,11 @@ fn hyperlink_maybe(
   blame: Blame,
   state: State,
   inner: InnerParam,
-) -> Result(#(VXML, List(DesugaringWarning)), DesugaringError) {
+) -> Result(#(VXML, List(DesugaringWarning), List(String)), DesugaringError) {
   let #(handle_name, page, decoy) = handle_and_page_and_decoy
   use _ <- on.ok_error(dict.get(state.handles, handle_name), fn(quad) {
     hyperlink_constructor(quad, page, blame, state, inner)
-    |> result.try(fn(vxml) { Ok(#(vxml, [])) })
+    |> result.try(fn(vxml) { Ok(#(vxml, [], [handle_name])) })
   })
 
   use warning_span_or_decoy_link <- on.ok(case decoy {
@@ -96,7 +97,7 @@ fn hyperlink_maybe(
   let actual_warning =
     DesugaringWarning(blame, "handle '" <> handle_name <> "' is not assigned")
 
-  Ok(#(warning_span_or_decoy_link, [actual_warning]))
+  Ok(#(warning_span_or_decoy_link, [actual_warning], []))
 }
 
 fn matches_2_hyperlinks(
@@ -104,25 +105,32 @@ fn matches_2_hyperlinks(
   blame: Blame,
   state: State,
   inner: InnerParam,
-) -> Result(#(List(VXML), List(DesugaringWarning)), DesugaringError) {
+) -> Result(
+  #(List(VXML), List(DesugaringWarning), List(String)),
+  DesugaringError,
+) {
   let handles_and_pages_and_decoys =
     matches |> list.map(extract_handle_and_page_and_decoy)
-  use #(vxmls, warnings) <- on.ok(
+  use #(vxmls, warnings, used) <- on.ok(
     list.try_fold(
       handles_and_pages_and_decoys,
-      #([], []),
+      #([], [], []),
       fn(acc, handle_and_page_and_decoy) {
-        use #(vxml, warnings) <- on.ok(hyperlink_maybe(
+        use #(vxml, warnings, used) <- on.ok(hyperlink_maybe(
           handle_and_page_and_decoy,
           blame,
           state,
           inner,
         ))
-        Ok(#([vxml, ..acc.0], infra.pour(warnings, acc.1)))
+        Ok(#(
+          [vxml, ..acc.0],
+          infra.pour(warnings, acc.1),
+          infra.pour(used, acc.2),
+        ))
       },
     ),
   )
-  Ok(#(vxmls |> list.reverse, warnings |> list.reverse))
+  Ok(#(vxmls |> list.reverse, warnings |> list.reverse, used))
 }
 
 fn augment_to_1_mod_3(splits: List(String)) -> List(String) {
@@ -161,12 +169,15 @@ fn process_line(
   line: Line,
   state: State,
   inner: InnerParam,
-) -> Result(#(List(VXML), List(DesugaringWarning)), DesugaringError) {
+) -> Result(
+  #(List(VXML), List(DesugaringWarning), List(String)),
+  DesugaringError,
+) {
   let Line(blame, content) = line
   case regexp.scan(inner.6, content) {
     [_, ..] as matches -> {
       let splits = regexp.split(inner.6, content)
-      use #(hyperlinks, warnings) <- on.ok(matches_2_hyperlinks(
+      use #(hyperlinks, warnings, used) <- on.ok(matches_2_hyperlinks(
         matches,
         blame,
         state,
@@ -176,9 +187,9 @@ fn process_line(
       let vxmls =
         list.interleave([text_nodes, hyperlinks])
         |> infra.last_to_first_concatenation
-      Ok(#(vxmls, warnings))
+      Ok(#(vxmls, warnings, used))
     }
-    [] -> Ok(#([T(line.blame, [line])], []))
+    [] -> Ok(#([T(line.blame, [line])], [], []))
   }
 }
 
@@ -186,25 +197,33 @@ fn process_lines(
   lines: List(Line),
   state: State,
   inner: InnerParam,
-) -> Result(#(List(VXML), List(DesugaringWarning)), DesugaringError) {
+) -> Result(
+  #(List(VXML), List(DesugaringWarning), List(String)),
+  DesugaringError,
+) {
   use big_list <- on.ok(
     lines
     |> list.map(process_line(_, state, inner))
     |> result.all,
   )
 
-  let #(list_list_vxml, list_list_warnings) = big_list |> list.unzip
-
   let vxmls =
-    list_list_vxml
+    big_list
+    |> list.map(fn(triple) { triple.0 })
     |> list.flatten
     |> infra.plain_concatenation_in_list
 
   let warnings =
-    list_list_warnings
+    big_list
+    |> list.map(fn(triple) { triple.1 })
     |> list.flatten
 
-  Ok(#(vxmls, warnings))
+  let used =
+    big_list
+    |> list.map(fn(triple) { triple.2 })
+    |> list.flatten
+
+  Ok(#(vxmls, warnings, used))
 }
 
 fn grand_wrapper_load(state: State, attrs: List(Attr)) -> State {
@@ -225,6 +244,38 @@ fn grand_wrapper_load(state: State, attrs: List(Attr)) -> State {
   State(..state, handles: handles)
 }
 
+fn mark_used(used: Set(String), names: List(String)) -> Set(String) {
+  list.fold(names, used, fn(acc, name) { set.insert(acc, name) })
+}
+
+/// Appends a 6th 'used' column to each handle dictionary entry of the
+/// GrandWrapper, turning
+///
+/// handle=<name>|<page>|<value>|<id>|<path>
+///
+/// into
+///
+/// handle=<name>|<page>|<value>|<id>|<path>|used     (handle was referenced)
+/// handle=<name>|<page>|<value>|<id>|<path>|         (handle was never referenced)
+fn grand_wrapper_record_usage(
+  attrs: List(Attr),
+  used: Set(String),
+) -> List(Attr) {
+  list.map(attrs, fn(attr) {
+    case attr.key == "handle" {
+      False -> attr
+      True -> {
+        let assert [handle_name, _, _, _, _] = attr.val |> string.split("|")
+        let suffix = case set.contains(used, handle_name) {
+          True -> "|used"
+          False -> "|"
+        }
+        Attr(..attr, val: attr.val <> suffix)
+      }
+    }
+  })
+}
+
 type HrefType {
   InPage
   OutOfPage
@@ -235,7 +286,7 @@ type HrefType {
 fn substitute_handle_in_href(
   attr: Attr,
   state: State,
-) -> #(Attr, HrefType, List(DesugaringWarning)) {
+) -> #(Attr, HrefType, List(DesugaringWarning), List(String)) {
   assert attr.val |> string.starts_with(">>")
   let handle_name = attr.val |> string.drop_start(2)
   let #(page, handle_name) = case string.ends_with(handle_name, "#page") {
@@ -254,7 +305,7 @@ fn substitute_handle_in_href(
         False, OutOfPage -> Attr(..attr, val: target_path <> "#" <> id)
         False, _ -> panic
       }
-      #(attr, href_type, [])
+      #(attr, href_type, [], [handle_name])
     }
     _ -> {
       let warning =
@@ -262,7 +313,7 @@ fn substitute_handle_in_href(
           attr.blame,
           "handle '" <> handle_name <> "' is not assigned",
         )
-      #(attr, UndefinedOrOutOfDocument, [warning])
+      #(attr, UndefinedOrOutOfDocument, [warning], [])
     }
   }
 }
@@ -270,10 +321,10 @@ fn substitute_handle_in_href(
 fn substitute_in_href(
   attr: Attr,
   state: State,
-) -> #(Attr, HrefType, List(DesugaringWarning)) {
+) -> #(Attr, HrefType, List(DesugaringWarning), List(String)) {
   case attr.key == "href", attr.val {
     True, ">>" <> _ -> substitute_handle_in_href(attr, state)
-    _, _ -> #(attr, NotAHandleHref, [])
+    _, _ -> #(attr, NotAHandleHref, [], [])
   }
 }
 
@@ -284,18 +335,20 @@ fn substitute_hrefs_in_a(
 ) -> Result(#(VXML, State, List(DesugaringWarning)), DesugaringError) {
   let assert V(_, "a", attrs, _) = vxml
   use #(attrs, acc) <- on.ok(
-    infra.try_map_fold(attrs, #(None, []), fn(acc, attr) {
-      let #(attr, href_type, warnings) = substitute_in_href(attr, state)
+    infra.try_map_fold(attrs, #(None, [], []), fn(acc, attr) {
+      let #(attr, href_type, warnings, used) = substitute_in_href(attr, state)
       use acc0 <- on.ok(case acc.0, href_type {
         _, NotAHandleHref -> Ok(acc.0)
         None, _ -> Ok(Some(href_type))
         _, _ ->
           Error(DesugaringError(
-            desugarer_blame(294),
+            desugarer_blame(345),
             "duplicate 'href' attribute",
           ))
       })
-      Ok(#(attr, #(acc0, list.append(warnings, acc.1))))
+      Ok(
+        #(attr, #(acc0, list.append(warnings, acc.1), infra.pour(used, acc.2))),
+      )
     }),
   )
   let #(tag, attrs) = case acc.0 {
@@ -303,7 +356,11 @@ fn substitute_hrefs_in_a(
     Some(OutOfPage) -> #(inner.2, infra.pour(inner.4, attrs))
     _ -> #(vxml.tag, attrs)
   }
-  Ok(#(V(..vxml, tag: tag, attrs: attrs), state, acc.1))
+  Ok(#(
+    V(..vxml, tag: tag, attrs: attrs),
+    State(..state, used: mark_used(state.used, acc.2)),
+    acc.1,
+  ))
 }
 
 fn update_state_path(state: State, vxml: VXML, inner: InnerParam) -> State {
@@ -339,9 +396,14 @@ fn v_after_transform(
   original_state: State,
   latest_state: State,
 ) -> Result(#(List(VXML), State, List(DesugaringWarning)), DesugaringError) {
-  let assert V(_, _, _, _) = vxml
+  let assert V(_, tag, attrs, _) = vxml
   let exit_state =
     State(..latest_state, inside_a_link_tag: original_state.inside_a_link_tag)
+  let vxml = case tag {
+    "GrandWrapper" ->
+      V(..vxml, attrs: grand_wrapper_record_usage(attrs, latest_state.used))
+    _ -> vxml
+  }
   Ok(#([vxml], exit_state, []))
 }
 
@@ -351,8 +413,16 @@ fn t_transform(
   inner: InnerParam,
 ) -> Result(#(List(VXML), State, List(DesugaringWarning)), DesugaringError) {
   let assert T(_, lines) = vxml
-  use #(updated_lines, warnings) <- on.ok(process_lines(lines, state, inner))
-  Ok(#(updated_lines, state, warnings))
+  use #(updated_lines, warnings, used) <- on.ok(process_lines(
+    lines,
+    state,
+    inner,
+  ))
+  Ok(#(
+    updated_lines,
+    State(..state, used: mark_used(state.used, used)),
+    warnings,
+  ))
 }
 
 fn nodemap_factory(
@@ -372,7 +442,7 @@ fn nodemap_factory(
 fn transform_factory(inner: InnerParam) -> DesugarerTransform {
   nodemap_factory(inner)
   |> n2t.one_to_many_before_and_after_stateful_nodemap_with_warnings_2_desufarer_transform(
-    State(dict.new(), None, False),
+    State(dict.new(), None, False, set.new()),
   )
 }
 
@@ -386,8 +456,8 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
     param.0,
     param.1,
     param.2,
-    param.3 |> infra.string_pairs_2_attrs(desugarer_blame(389)),
-    param.4 |> infra.string_pairs_2_attrs(desugarer_blame(390)),
+    param.3 |> infra.string_pairs_2_attrs(desugarer_blame(459)),
+    param.4 |> infra.string_pairs_2_attrs(desugarer_blame(460)),
     param.5,
     handles_regexp,
   )
@@ -402,7 +472,15 @@ type HandlesDict =
 //                                default
 
 type State {
-  State(handles: HandlesDict, path: Option(String), inside_a_link_tag: Bool)
+  State(
+    handles: HandlesDict,
+    path: Option(String),
+    inside_a_link_tag: Bool,
+    // names of handles that were actually referenced somewhere in the
+    // document; written back to the GrandWrapper dictionary as a 6th
+    // 'used' column, for downstream unused-handle reporting
+    used: Set(String),
+  )
 }
 
 type Param =
@@ -436,6 +514,15 @@ fn desugarer_blame(line_no: Int) {
 ///
 /// Unlike handles_substitute_and_fix_nonlocal_id_links, this desugarer does
 /// not rewrite href=#id links and does not remove the GrandWrapper node.
+///
+/// On its way out it appends a 6th 'used' column to every GrandWrapper
+/// handle entry, recording whether the handle was referenced anywhere in
+/// the document:
+///
+/// handle=handle_name|page_flag|value|id|path|used
+/// handle=handle_name|page_flag|value|id|path|
+///
+/// (see handles_warn_unused, which consumes that column).
 pub fn constructor(param: Param) -> Desugarer {
   Desugarer(
     name: name,
@@ -470,7 +557,7 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
       ",
       expected: "
         <> GrandWrapper
-          handle=fluescence||AA|_23-super-id|./ch1.html
+          handle=fluescence||AA|_23-super-id|./ch1.html|used
           <> root
             <> Chapter
               path=./ch1.html
@@ -512,7 +599,7 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
       ",
       expected: "
         <> GrandWrapper
-          handle=section||Section 1|section-1|./ch1.html
+          handle=section||Section 1|section-1|./ch1.html|used
           id=section-1 ./ch1.html
           <> root
             <> Chapter
