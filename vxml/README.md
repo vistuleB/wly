@@ -40,7 +40,7 @@ In this package:
 - HTML repair helpers for making damaged HTML palatable to XML-oriented parsers
 - serializers for HTML-, XML-, and JSX-like output, as well as VXML itself
 
-## Data Model
+## Model
 
 The upstream non-recursive payloads are:
 
@@ -124,13 +124,11 @@ Rules & notes:
 - serialized VXML does not have comments
 
 Relevant rules also apply to the VXML datatype itself, even while the type
-system is not able to encode some constraints, e.g., the fact that "=" is an
+system is not able to encode some constraints, e.g., the fact that `=` is an
 invalid character inside an attribute key. These constraints could have been
 enforced via opaque types, but the present package takes a more live and let
 live approach, which has advantages in terms of allowing transforms to directly
-`case` on VXML values, etc.
-
-Note in particular, however, that a VXML payload is
+`case` on VXML values, etc. But note that a VXML payload is
 considered malformed if it contains a `T`-node with an empty list of lines.
 
 Serialized VXML can be parsed and emitted directly:
@@ -182,9 +180,10 @@ steps they want.
 
 Before parsing, source strings are converted to `List(InputLine)`. That
 conversion can be performed directly with `io_lines.string_to_input_lines`, and
-the result can be inspected with `io_lines.input_lines_table`. For even
-lower-level inspection one can use `xml_streamer.input_lines_streamer`, which
-turns those input lines into XML token events rather than VXML.
+the result can be inspected with
+[`io_lines.input_lines_table`](#blame-tables). For even lower-level inspection
+one can use `xml_streamer.input_lines_streamer`, which turns those input lines
+into XML token events rather than VXML.
 
 ## HTML and JSX Output
 
