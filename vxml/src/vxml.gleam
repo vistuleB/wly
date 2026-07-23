@@ -26,7 +26,7 @@ pub const vxml_line_delimiter = "'"
 
 /// a regexp that matches ampersands
 /// that appear outside of html entities:
-pub const non_html_ampersand_re = "&(?!(?:[a-zA-Z]{2,6};|#x[a-f\\d]{1,6};|#\\d{2,6};))"
+const non_html_ampersand_re = "&(?!(?:[a-zA-Z]{2,6};|#x[a-f\\d]{1,6};|#\\d{2,6};))"
 
 // ************************************************************
 // Attr, Line, VXML (pretend 'blame' does not exist -> makes it more readable)
@@ -1693,21 +1693,11 @@ pub fn parse_xml_input_lines(
 }
 
 /// Parse an XML-like string into VXML.
-pub fn parse_xml_string(
+pub fn parse_xml(
   content: String,
   filename: String,
 ) -> Result(VXML, #(Blame, String)) {
   content
   |> io_l.string_to_input_lines(filename, 0)
   |> parse_xml_input_lines
-}
-
-/// Repair an HTML-ish string and parse it into VXML.
-pub fn parse_repaired_html_string(
-  content: String,
-  filename: String,
-) -> Result(VXML, #(Blame, String)) {
-  content
-  |> html_repair
-  |> parse_xml_string(filename)
 }

@@ -585,7 +585,7 @@ fn parse_link_pattern(
   re: regexp.Regexp,
 ) -> Result(LinkPattern, DesugaringError) {
   use root <- on.error_ok(
-    vxml.parse_xml_string(s, "r4l"),
+    vxml.parse_xml(s, "r4l"),
     fn(e) { Error(DesugaringError(bl.no_blame, "could not parse link pattern '" <> s <> "': " <> ins(e))) }
   )
 

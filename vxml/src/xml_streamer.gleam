@@ -1,8 +1,8 @@
 //// Token-level XML streaming utilities.
 ////
 //// This module exposes the lower-level token stream used by VXML's streaming
-//// XML parser. Most callers can use `vxml.parse_xml_input_lines` instead.
-//// Use this module when an application needs to inspect or transform XML
+//// XML parser. Most callers can use `vxml.parse_xml` instead. Use this module
+//// when an application needs to inspect or transform XML
 //// events before they become a VXML tree.
 
 import gleam/list
@@ -10,7 +10,7 @@ import gleam/string.{inspect as ins}
 import gleam/regexp
 import splitter as sp
 import blame.{type Blame} as bl
-import io_lines.{type InputLine} as io_l
+import io_lines.{type InputLine}
 import on
 
 const bd = bl.blame_digest
@@ -224,7 +224,7 @@ fn event_stream_internal(
 
   // no content left on line
   use <- on.true_false(
-    first.content == "" || first.content == "\r",
+    first.content == "",
     fn() {
       case rest {
         [] -> previous |> list.reverse
@@ -449,19 +449,15 @@ fn event_stream_internal(
   }
 }
 
-fn input_line_to_content_line(
-  line: InputLine,
-) -> ContentLine {
-  ContentLine(
-    line.blame |> bl.advance(-line.indent),
-    string.repeat(" ", line.indent) <> line.suffix,
-  )
-}
-
 fn input_lines_to_content_lines(
   lines: List(InputLine)
 ) -> List(ContentLine) {
-  list.map(lines, input_line_to_content_line)
+  list.map(lines, fn(line) {
+    ContentLine(
+      line.blame |> bl.advance(-line.indent),
+      string.repeat(" ", line.indent) <> line.suffix,
+    )
+  })
 }
 
 /// Stream XML tokens from input lines.
@@ -471,14 +467,4 @@ pub fn input_lines_streamer(
   lines
   |> input_lines_to_content_lines
   |> event_stream_internal([], OutsideTag, _)
-}
-
-/// Stream XML tokens from a string.
-pub fn string_streamer(
-  s: String,
-  filename: String,
-) -> List(Event) {
-  s
-  |> io_l.string_to_input_lines(filename, 0)
-  |> input_lines_streamer
 }

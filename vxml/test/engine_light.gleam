@@ -19,7 +19,8 @@ fn streaming_parser_engine_light() -> Result(Nil, String) {
 
   use vxml <- on.error_ok(
     content
-    |> vxml.parse_repaired_html_string(path),
+    |> vxml.html_repair
+    |> vxml.parse_xml(path),
     fn(e) {
       let #(_, msg) = e
       io.println("")
@@ -45,8 +46,8 @@ fn html_engine_light() -> Result(Nil, String) {
   )
 
   use vxml <- on.error_ok(
-    vxml.parse_repaired_html_string(content, path),
-    fn(e) { Error("html_engine_light parse_repaired_html_string error: " <> ins(e)) },
+    content |> vxml.html_repair |> vxml.parse_xml(path),
+    fn(e) { Error("html_engine_light parse_xml error: " <> ins(e)) },
   )
 
   vxml.vxml_table(vxml, "html_engine_light", 0) |> io.println

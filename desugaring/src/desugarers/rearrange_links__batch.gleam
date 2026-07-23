@@ -762,7 +762,7 @@ fn parse_link_pattern(
   re: regexp.Regexp,
 ) -> Result(LinkPattern, DesugaringError) {
   use root <- on.error_ok(
-    vxml.parse_xml_string(s, "plp"),
+    vxml.parse_xml(s, "plp"),
     fn(e) { Error(DesugaringError(bl.no_blame, "could not parse link pattern '" <> s <> "': " <> ins(e))) }
   )
 

@@ -34,8 +34,8 @@ In this package:
   built on `Blame`, `Line`, and `Attr`
 - `InputLine`/`OutputLine` datatypes that allow `Blame`-aware inspection of line
   sequences before parsing and after emitting
-- pretty-printing utilities for "live" VXML documents that include blames in
-  two-column table format (line-by-line blames on left, VXML document on right)
+- `vxml_table` for pretty-printing "live" VXML documents with blames in
+  two-column table format
 - out-of-the-box parsers for XML-ish input and serialized VXML itself
 - HTML repair helpers for making damaged HTML palatable to XML-oriented parsers
 - serializers for HTML-, XML-, and JSX-like output, as well as VXML itself
@@ -114,11 +114,14 @@ Rules & notes:
 - text nodes serialize as anonymous `<>` containers with single-quoted lines;
   the text content of a line is the part between the first `'` and the last
   `'`, so intermediate single quotes do not need to be escaped
+- serialized VXML has no escape syntax; quotes, backslashes, and other
+  characters are read literally inside text lines
 - a serialized text line that does not start and end with a single quote is an
   error
 - indentation is fixed at two spaces, matching Gleam indentation and allowing
   VXML to be included as block strings in Gleam source
 - text nodes must have at least 1 line, though the line can be the empty string
+- serialized VXML does not have comments
 
 Relevant rules also apply to the VXML datatype itself, even while the type
 system is not able to encode some constraints, e.g., the fact that "=" is an
@@ -130,34 +133,41 @@ live approach, which has advantages in terms of allowing transforms to directly
 Note in particular, however, that a VXML payload is
 considered malformed if it contains a `T`-node with an empty list of lines.
 
-## Ingress: Parsing XML and HTML
-
-VXML's XML ingress has two layers. Most callers should use the parser layer,
-which converts source text into a VXML tree. Lower-level callers can use
-`xml_streamer` directly to tokenize XML-like input before building their own
-parser.
-
-For the usual case, convert a string to `InputLine`s and pass them to
-`parse_xml_input_lines`:
+Serialized VXML can be parsed and emitted directly:
 
 ```gleam
-let assert Ok(vxml) =
-  source
-  |> io_lines.string_to_input_lines("relevant/path/to/source.xml", 0)
-  |> vxml.parse_xml_input_lines
+let assert Ok([tree]) =
+  vxml.parse_string(source, "example.vxml", True)
+
+let text =
+  vxml.vxml_to_string(tree)
 ```
 
-For direct string input, `parse_xml_string(source, filename)` performs the
-`string_to_input_lines` conversion internally.
+## Ingress: Parsing XML and HTML
 
-For HTML-ish input, apply the HTML repair helpers first:
+The default XML-like parser takes a source string and a filename-like token to
+use for blame-generation:
 
 ```gleam
-let assert Ok(vxml) =
-  source
-  |> vxml.html_repair
-  |> io_lines.string_to_input_lines("source.html", 0)
-  |> vxml.parse_xml_input_lines
+let path = "content/source.xml"
+let short_pathname_to_use_in_blame = "source.xml"
+
+simplifile.read(path)
+|> result.map_error(fn(e) { #(blame.no_blame, string.inspect(e)) })
+|> result.try(vxml.parse_xml(_, short_pathname_to_use_in_blame))
+```
+
+For iffy input that may come from a handwritten HTML source, use `html_repair`
+first:
+
+```gleam
+let path = "content/source.html"
+let short_pathname_to_use_in_blame = "source.html"
+
+simplifile.read(path)
+|> result.map_error(fn(e) { #(blame.no_blame, string.inspect(e)) })
+|> result.map(vxml.html_repair)
+|> result.try(vxml.parse_xml(_, short_pathname_to_use_in_blame))
 ```
 
 The `html_repair` step:
@@ -170,9 +180,11 @@ The `html_repair` step:
 The individual repair helpers are public so callers can apply only the repair
 steps they want.
 
-The tokenizer layer is available through `xml_streamer`. It exposes entry points
-for strings and `InputLine`s, returning XML token events rather than VXML. Use
-it only when token-level XML access is needed before VXML construction.
+Before parsing, source strings are converted to `List(InputLine)`. That
+conversion can be performed directly with `io_lines.string_to_input_lines`, and
+the result can be inspected with `io_lines.input_lines_table`. For even
+lower-level inspection one can use `xml_streamer.input_lines_streamer`, which
+turns those input lines into XML token events rather than VXML.
 
 ## HTML and JSX Output
 
@@ -220,14 +232,56 @@ source maps after several tree rewrites.
 `Des` and `Ext` can be used for code-attributed blame, respectively from inside
 a transformation pipeline and from outside it, such as an emitter step.
 
+## Blame Tables
+
+Use `vxml_table` to inspect serialized VXML together with its attached blames:
+
+```gleam
+let assert Ok([tree]) =
+  vxml.parse_string(source, "example.vxml", True)
+
+tree
+|> vxml.vxml_table("", 0)
+|> io.println
+```
+
+For the serialized VXML example above, this prints:
+
+```text
+┌────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+│ Blame                                                                       █doc
+├────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+│ example.vxml:1:1 ->                           []                            █<> Article
+│ example.vxml:2:3                              []                            █  id=intro
+│ example.vxml:3:3 ->                           []                            █  <> Title
+│ example.vxml:4:5                              []                            █    <>
+│ example.vxml:5:7                              []                            █      'A dark and stormy night'
+│ example.vxml:6:3 ->                           []                            █  <> Section
+│ example.vxml:7:5 ->                           []                            █    <> SectionTitle
+│ example.vxml:8:7                              []                            █      <>
+│ example.vxml:9:9                              []                            █        'Darkness descends'
+│ example.vxml:10:5 ->                          []                            █    <> Paragraphs
+│ example.vxml:11:7                             []                            █      <>
+│ example.vxml:12:9                             []                            █        'This is the third text node'
+│ example.vxml:13:9                             []                            █        'of the tree, but the first'
+│ example.vxml:14:9                             []                            █        'text node with >1 lines.'
+│ example.vxml:15:7                             []                            █      <>
+│ example.vxml:16:9                             []                            █        'For VXML, this is just a'
+│ example.vxml:17:9                             []                            █        'second text node. A "paragraph"'
+│ example.vxml:18:9                             []                            █        'is not one of VXML's abstractions.'
+└────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+```
+
+The same table format is available for line-level output through
+`io_lines.output_lines_table_lines`.
+
 ## Import Guide
 
 - `vxml`: core tree types, validation, serialized VXML parsing,
-  HTML/XML/JSX-like serialization, streaming XML parsing, and HTML repair
-  helpers
+  HTML/XML/JSX-like serialization, XML-like parsing, and HTML repair helpers
 - `blame`: provenance data and formatting utilities
 - `io_lines`: input/output line types and conversion helpers
-- `xml_streamer`: advanced XML token stream API used by the streaming parser
+- `xml_streamer`: advanced XML token stream and token validation helpers
 
 Most users should start with `vxml`, `blame`, and `io_lines`. Use
 `xml_streamer` when token-level XML processing is needed.

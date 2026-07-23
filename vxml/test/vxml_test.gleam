@@ -111,7 +111,8 @@ pub fn sample_html_streaming_parser_returns_one_root_test() {
   let assert Ok(content) = simplifile.read("samples/sample2.html")
 
   content
-  |> vxml.parse_repaired_html_string("samples/sample2.html")
+  |> vxml.html_repair
+  |> vxml.parse_xml("samples/sample2.html")
   |> should.be_ok
 }
 
