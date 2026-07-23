@@ -4,28 +4,20 @@
 //// They provide a small bridge between files/strings and VXML parsers or
 //// serializers.
 
+import blame.{type Blame} as bl
 import gleam/list
 import gleam/result
 import gleam/string.{length as len}
 import simplifile.{type FileError}
-import blame.{type Blame} as bl
 
 /// A source line with indentation and blame.
 pub type InputLine {
-  InputLine(
-    blame: Blame,
-    indent: Int,
-    suffix: String,
-  )
+  InputLine(blame: Blame, indent: Int, suffix: String)
 }
 
 /// An output line with indentation and blame.
 pub type OutputLine {
-  OutputLine(
-    blame: Blame,
-    indent: Int,
-    suffix: String,
-  )
+  OutputLine(blame: Blame, indent: Int, suffix: String)
 }
 
 // *************
@@ -56,24 +48,22 @@ pub fn string_to_input_lines(
   source
   |> normalize_line_endings
   |> string.split("\n")
-  |> list.index_map(
-    fn (s, i) {
-      let suffix =
-        string.trim_start(s)
-      let indent = len(s) - len(suffix)
-      InputLine(
-        blame: bl.Src(
-          comments: [],
-          path: path,
-          line_no: i + 1,
-          char_no: indent + 1, // ...to match VSCode numbering
-          cursor: bl.Movable,
-        ),
-        indent: indent + added_indentation,
-        suffix: suffix,
-      )
-    }
-  )
+  |> list.index_map(fn(s, i) {
+    let suffix = string.trim_start(s)
+    let indent = len(s) - len(suffix)
+    InputLine(
+      blame: bl.Src(
+        comments: [],
+        path: path,
+        line_no: i + 1,
+        char_no: indent + 1,
+        // ...to match VSCode numbering
+        cursor: bl.Movable,
+      ),
+      indent: indent + added_indentation,
+      suffix: suffix,
+    )
+  })
 }
 
 /// Read a file into input lines.
@@ -99,11 +89,9 @@ pub fn input_lines_to_string(lines: List(InputLine)) -> String {
   |> string.join("\n")
 }
 
-pub fn input_lines_to_output_lines(
-  lines: List(InputLine)
-) -> List(OutputLine) {
+pub fn input_lines_to_output_lines(lines: List(InputLine)) -> List(OutputLine) {
   lines
-  |> list.map(fn(l){OutputLine(l.blame, l.indent, l.suffix)})
+  |> list.map(fn(l) { OutputLine(l.blame, l.indent, l.suffix) })
 }
 
 // **************************************************
@@ -126,6 +114,10 @@ pub fn output_lines_to_string(lines: List(OutputLine)) -> String {
 // List(OutputLine) -> String table pretty-printer
 // **************************************************
 
+const default_blame_digest_margin = bl.BlameTableMarginSectionMinMax(48, 48)
+
+const default_comments_margin = bl.BlameTableMarginSectionMinMax(30, 30)
+
 pub fn input_lines_table(
   content: List(InputLine),
   banner: String,
@@ -133,10 +125,32 @@ pub fn input_lines_table(
 ) -> String {
   let margin = spaces(indent)
   content
-  |> list.map(fn(c) {#(c.blame, spaces(c.indent) <> c.suffix)})
-  |> bl.blamed_strings_annotated_table(banner)
-  |> list.map(fn(s) {margin <> s})
+  |> list.map(fn(c) { #(c.blame, spaces(c.indent) <> c.suffix) })
+  |> bl.blamed_strings_annotated_table(
+    banner,
+    default_blame_digest_margin,
+    default_comments_margin,
+  )
+  |> list.map(fn(s) { margin <> s })
   |> string.join("\n")
+}
+
+pub fn output_lines_table_lines_with(
+  content: List(OutputLine),
+  banner: String,
+  indent: Int,
+  blame_digest_margin: bl.BlameTableMarginSectionMinMax,
+  comments_margin: bl.BlameTableMarginSectionMinMax,
+) -> List(String) {
+  let margin = spaces(indent)
+  content
+  |> list.map(fn(c) { #(c.blame, spaces(c.indent) <> c.suffix) })
+  |> bl.blamed_strings_annotated_table(
+    banner,
+    blame_digest_margin,
+    comments_margin,
+  )
+  |> list.map(fn(s) { margin <> s })
 }
 
 pub fn output_lines_table_lines(
@@ -144,11 +158,30 @@ pub fn output_lines_table_lines(
   banner: String,
   indent: Int,
 ) -> List(String) {
-  let margin = spaces(indent)
-  content
-  |> list.map(fn(c) {#(c.blame, spaces(c.indent) <> c.suffix)})
-  |> bl.blamed_strings_annotated_table(banner)
-  |> list.map(fn(s) {margin <> s})
+  output_lines_table_lines_with(
+    content,
+    banner,
+    indent,
+    default_blame_digest_margin,
+    default_comments_margin,
+  )
+}
+
+pub fn output_lines_table_with(
+  content: List(OutputLine),
+  banner: String,
+  indent: Int,
+  blame_digest_margin: bl.BlameTableMarginSectionMinMax,
+  comments_margin: bl.BlameTableMarginSectionMinMax,
+) -> String {
+  output_lines_table_lines_with(
+    content,
+    banner,
+    indent,
+    blame_digest_margin,
+    comments_margin,
+  )
+  |> string.join("\n")
 }
 
 pub fn output_lines_table(

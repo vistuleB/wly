@@ -233,46 +233,54 @@ a transformation pipeline and from outside it, such as an emitter step.
 
 ## Blame Tables
 
-Use `vxml_table` to inspect serialized VXML together with its attached blames:
+Use `vxml_table` to inspect serialized VXML together with its attached blames.
+For line-level output, `io_lines.output_lines_table_with` allows the blame
+margin sections to be sized explicitly:
 
 ```gleam
 let assert Ok([tree]) =
   vxml.parse_string(source, "example.vxml", True)
 
 tree
-|> vxml.vxml_table("", 0)
+|> vxml.vxml_to_output_lines
+|> io_lines.output_lines_table_with(
+  "",
+  0,
+  blame.BlameTableMarginSectionMinMax(30, 30),
+  blame.BlameTableMarginSectionMinMax(0, 0),
+)
 |> io.println
 ```
 
-For the serialized VXML example above, this prints:
+The first `BlameTableMarginSectionMinMax` controls the blame digest section.
+The second controls the blame comments section. Passing `(0, 0)` for the
+comments section suppresses it entirely. For the serialized VXML example above,
+this prints:
 
-```text
-┌────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-│ Blame                                                                       █doc
-├────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-│ example.vxml:1:1 ->                           []                            █<> Article
-│ example.vxml:2:3                              []                            █  id=intro
-│ example.vxml:3:3 ->                           []                            █  <> Title
-│ example.vxml:4:5                              []                            █    <>
-│ example.vxml:5:7                              []                            █      'A dark and stormy night'
-│ example.vxml:6:3 ->                           []                            █  <> Section
-│ example.vxml:7:5 ->                           []                            █    <> SectionTitle
-│ example.vxml:8:7                              []                            █      <>
-│ example.vxml:9:9                              []                            █        'Darkness descends'
-│ example.vxml:10:5 ->                          []                            █    <> Paragraphs
-│ example.vxml:11:7                             []                            █      <>
-│ example.vxml:12:9                             []                            █        'This is the third text node'
-│ example.vxml:13:9                             []                            █        'of the tree, but the first'
-│ example.vxml:14:9                             []                            █        'text node with >1 lines.'
-│ example.vxml:15:7                             []                            █      <>
-│ example.vxml:16:9                             []                            █        'For VXML, this is just a'
-│ example.vxml:17:9                             []                            █        'second text node. A "paragraph"'
-│ example.vxml:18:9                             []                            █        'is not one of VXML's abstractions.'
-└────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+```gleam
+┌────────────────────────────────────────────────────────────────────
+│ Blame                       █doc
+├────────────────────────────────────────────────────────────────────
+│ example.vxml:1:1 ->         █<> Article
+│ example.vxml:2:3            █  id=intro
+│ example.vxml:3:3 ->         █  <> Title
+│ example.vxml:4:5            █    <>
+│ example.vxml:5:7            █      'A dark and stormy night'
+│ example.vxml:6:3 ->         █  <> Section
+│ example.vxml:7:5 ->         █    <> SectionTitle
+│ example.vxml:8:7            █      <>
+│ example.vxml:9:9            █        'Darkness descends'
+│ example.vxml:10:5 ->        █    <> Paragraphs
+│ example.vxml:11:7           █      <>
+│ example.vxml:12:9           █        'This is the third text node'
+│ example.vxml:13:9           █        'of the tree, but the first'
+│ example.vxml:14:9           █        'text node with >1 lines.'
+│ example.vxml:15:7           █      <>
+│ example.vxml:16:9           █        'For VXML, this is just a'
+│ example.vxml:17:9           █        'second text node. A "paragraph"'
+│ example.vxml:18:9           █        'is not one of VXML's abstractions.'
+└────────────────────────────────────────────────────────────────────
 ```
-
-The same table format is available for line-level output through
-`io_lines.output_lines_table_lines`.
 
 ## Import Guide
 

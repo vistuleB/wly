@@ -129,22 +129,32 @@ pub fn path_contains(blame: Blame, s: String) -> Bool {
 // List(#(Blame, String)) pretty-printer
 // **************************************************
 
-type ColumnWidthConstraints {
-  ColumnWidthConstraints(min: Int, max: Int)
+pub type BlameTableMarginSectionMinMax {
+  BlameTableMarginSectionMinMax(min: Int, max: Int)
 }
 
-type BlameTableMarginShape {
-  BlameTableMarginShape(
-    blame_digest: ColumnWidthConstraints,
-    comments: ColumnWidthConstraints,
-  )
+fn normalized_margin(
+  constraints: BlameTableMarginSectionMinMax,
+) -> BlameTableMarginSectionMinMax {
+  case constraints.max < constraints.min {
+    True -> BlameTableMarginSectionMinMax(constraints.max, constraints.max)
+    False -> constraints
+  }
 }
 
 fn constrained_width(
   content_width: Int,
-  constraints: ColumnWidthConstraints,
+  constraints: BlameTableMarginSectionMinMax,
 ) -> Int {
+  let constraints = normalized_margin(constraints)
   int.max(int.min(content_width, constraints.max), constraints.min)
+}
+
+fn should_render_margin_column(
+  constraints: BlameTableMarginSectionMinMax,
+) -> Bool {
+  let constraints = normalized_margin(constraints)
+  constraints.max > 0
 }
 
 fn truncate_with_suffix_or_pad(
@@ -187,25 +197,39 @@ fn mid_truncation_or_pad(
 
 fn glue_columns_3(
   table_lines: List(#(String, String, String)),
-  margin_shape: BlameTableMarginShape,
+  blame_digest_margin: BlameTableMarginSectionMinMax,
+  comments_margin: BlameTableMarginSectionMinMax,
   mid_truncation_dots: String,
   truncation_suffix_col2: String,
 ) -> #(#(Int, Int), List(String)) {
+  let render_comments = should_render_margin_column(comments_margin)
+
   let #(col1_max, col2_max) =
     list.fold(table_lines, #(0, 0), fn(acc, tuple) {
-      #(
-        int.max(acc.0, tuple.0 |> string.length),
-        int.max(acc.1, tuple.1 |> string.length),
-      )
+      #(int.max(acc.0, tuple.0 |> string.length), case render_comments {
+        True -> int.max(acc.1, tuple.1 |> string.length)
+        False -> 0
+      })
     })
 
-  let col1_size = constrained_width(col1_max, margin_shape.blame_digest)
-  let col2_size = constrained_width(col2_max, margin_shape.comments)
+  let col1_size = constrained_width(col1_max, blame_digest_margin)
+  let col2_size = case render_comments {
+    True -> constrained_width(col2_max, comments_margin)
+    False -> 0
+  }
 
   let table_lines =
     list.map(table_lines, fn(tuple) {
       mid_truncation_or_pad(tuple.0, col1_size, mid_truncation_dots)
-      <> truncate_with_suffix_or_pad(tuple.1, col2_size, truncation_suffix_col2)
+      <> case render_comments {
+        True ->
+          truncate_with_suffix_or_pad(
+            tuple.1,
+            col2_size,
+            truncation_suffix_col2,
+          )
+        False -> ""
+      }
       <> tuple.2
     })
 
@@ -226,6 +250,8 @@ fn blamed_strings_annotated_table_header_lines(
 fn blamed_strings_annotated_table_body_lines(
   contents: List(#(Blame, String)),
   banner: String,
+  blame_digest_margin: BlameTableMarginSectionMinMax,
+  comments_margin: BlameTableMarginSectionMinMax,
 ) -> #(#(Int, Int), List(String)) {
   let banner = case banner == "" {
     True -> ""
@@ -236,14 +262,7 @@ fn blamed_strings_annotated_table_body_lines(
     list.map(contents, fn(c) {
       #("│ " <> banner <> blame_digest(c.0), comments_digest(c.0), "█" <> c.1)
     })
-    |> glue_columns_3(
-      BlameTableMarginShape(
-        blame_digest: ColumnWidthConstraints(48, 48),
-        comments: ColumnWidthConstraints(30, 30),
-      ),
-      "...",
-      "...]",
-    )
+    |> glue_columns_3(blame_digest_margin, comments_margin, "...", "...]")
 
   #(#(cols1, cols2), table_lines)
 }
@@ -260,9 +279,16 @@ fn blamed_strings_annotated_table_footer_lines(
 pub fn blamed_strings_annotated_table(
   lines: List(#(Blame, String)),
   banner: String,
+  blame_digest_margin: BlameTableMarginSectionMinMax,
+  comments_margin: BlameTableMarginSectionMinMax,
 ) -> List(String) {
   let #(#(cols1, cols2), body_lines) =
-    blamed_strings_annotated_table_body_lines(lines, banner)
+    blamed_strings_annotated_table_body_lines(
+      lines,
+      banner,
+      blame_digest_margin,
+      comments_margin,
+    )
 
   [
     blamed_strings_annotated_table_header_lines(cols1 + cols2, 38),
