@@ -12,7 +12,7 @@ import nodemaps_2_desugarer_transforms as n2t
 import splitter.{type Splitter}
 import vxml.{type VXML, Attr, T, V}
 
-const had_href_child = Attr(bl.Des([], name, 9), "had_href_child", "true")
+const had_href_child = Attr(bl.Des([], name, 15), "had_href_child", "true")
 
 fn start_node(blame: Blame) {
   V(blame, "__StartTokenizedT", [], [])

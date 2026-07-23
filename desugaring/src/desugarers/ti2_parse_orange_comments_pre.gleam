@@ -14,9 +14,9 @@ const t_1_empty_line = T(
 
 const orange =
   V(
-    bl.Des([], name, 16), // "functions can only be called within other functions..."
+    bl.Des([], name, 17), // "functions can only be called within other functions..."
     "span",
-    [Attr(bl.Des([], name, 18), "class", "actual-orange-comment")],
+    [Attr(bl.Des([], name, 19), "class", "actual-orange-comment")],
     [],
   )
 

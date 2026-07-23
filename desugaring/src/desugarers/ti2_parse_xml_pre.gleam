@@ -10,10 +10,10 @@ import blame.{type Blame} as bl
 
 const newline_t =
   T(
-    bl.Des([], name, 11),
+    bl.Des([], name, 13),
     [
-      Line(bl.Des([], name, 13), ""),
-      Line(bl.Des([], name, 14), ""),
+      Line(bl.Des([], name, 15), ""),
+      Line(bl.Des([], name, 16), ""),
     ]
   )
 
@@ -21,7 +21,7 @@ fn span(blame: Blame, class: String, content: String) -> VXML {
   V(
     blame,
     "span",
-    [Attr(desugarer_blame(23), "class", class)],
+    [Attr(desugarer_blame(24), "class", class)],
     [T(blame, [Line(blame, content)])],
   )
 }

@@ -20,9 +20,9 @@ const terminal_prompt = "user@home:~$"
 
 const terminal_prompt_span =
   V(
-    bl.Des([], name, 31),
+    bl.Des([], name, 23),
     "span",
-    [Attr(bl.Des([], name, 18), "class", "terminal-prompt")],
+    [Attr(bl.Des([], name, 25), "class", "terminal-prompt")],
     [],
   )
 
@@ -30,23 +30,23 @@ const terminal_prompt_content_span =
   V(
     bl.Des([], name, 31),
     "span",
-    [Attr(bl.Des([], name, 18), "class", "terminal-prompt-content")],
+    [Attr(bl.Des([], name, 33), "class", "terminal-prompt-content")],
     [],
   )
 
 const prompt_span =
   V(
-    bl.Des([], name, 22),
+    bl.Des([], name, 39),
     "span",
-    [Attr(bl.Des([], name, 18), "class", "arbitrary-prompt")],
+    [Attr(bl.Des([], name, 41), "class", "arbitrary-prompt")],
     [],
   )
 
 const response_span =
   V(
-    bl.Des([], name, 30),
+    bl.Des([], name, 47),
     "span",
-    [Attr(bl.Des([], name, 18), "class", "arbitrary-response")],
+    [Attr(bl.Des([], name, 49), "class", "arbitrary-response")],
     [],
   )
 

@@ -9,10 +9,10 @@ import either_or as eo
 
 const newline_t =
   T(
-    bl.Des([], name, 11),
+    bl.Des([], name, 12),
     [
-      Line(bl.Des([], name, 13), ""),
       Line(bl.Des([], name, 14), ""),
+      Line(bl.Des([], name, 15), ""),
     ]
   )
 

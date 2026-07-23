@@ -1066,7 +1066,8 @@ pub fn html_repair_close_void_tags(
 pub fn html_repair_remove_attrs_from_closing_tags(
   content: String,
 ) -> String {
-  let assert Ok(re) = regexp.from_string("(<\\/)(\\w+)(\\s+[^>]*)(>)")
+  let assert Ok(re) =
+    regexp.from_string("(<\\/)([a-zA-Z][a-zA-Z0-9._-]*)(\\s+[^>]*)(>)")
 
   regexp.match_map(re, content, fn(match) {
     let regexp.Match(_, sub) = match
@@ -1075,7 +1076,7 @@ pub fn html_repair_remove_attrs_from_closing_tags(
   })
 }
 
-/// Repair common HTML syntax so it can be parsed by XML-oriented parsers.
+/// Best-effort repair for common HTML syntax that blocks XML-oriented parsers.
 pub fn html_repair(
   content: String,
 ) -> String {

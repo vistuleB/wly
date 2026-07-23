@@ -42,7 +42,7 @@ fn transform_factory(inner: InnerParam) -> DesugarerTransform {
 }
 
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
-  use v <- on.ok(infra.from_tag(bl.Des([], name, 43), param.1))
+  use v <- on.ok(infra.from_tag(desugarer_blame(45), param.1))
   Ok(#(param.0, v, param.2))
 }
 
@@ -53,6 +53,7 @@ type Param = #(String,   String,   TrafficLight)
 type InnerParam = #(String, VXML, TrafficLight)
 
 pub const name = "append"
+fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
 
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 // 🏖️🏖️ Desugarer 🏖️🏖️

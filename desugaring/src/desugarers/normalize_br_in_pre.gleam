@@ -7,10 +7,10 @@ import blame as bl
 
 const newline_t =
   T(
-    bl.Des([], name, 11),
+    bl.Des([], name, 10),
     [
+      Line(bl.Des([], name, 12), ""),
       Line(bl.Des([], name, 13), ""),
-      Line(bl.Des([], name, 14), ""),
     ]
   )
 

@@ -25,8 +25,8 @@ import on
 
 const prev_page_id_attr = Attr(bl.Des([], name, 26), "id", "prev-page")
 const next_page_id_attr = Attr(bl.Des([], name, 27), "id", "next-page")
-const hr_id_attr = Attr(bl.Des([], name, 27), "id", "bottom-menu-hr")
-const hr = V(bl.Des([], name, 15), "hr", [hr_id_attr], [])
+const hr_id_attr = Attr(bl.Des([], name, 28), "id", "bottom-menu-hr")
+const hr = V(bl.Des([], name, 29), "hr", [hr_id_attr], [])
 
 type Title = List(VXML)
 

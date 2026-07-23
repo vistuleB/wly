@@ -16,7 +16,7 @@ import on
 // as well:
 const container_classname = "t-3003-c"
 const tooltip_classname = "t-3003"
-const b = bl.Des([], name, 14)
+const b = bl.Des([], name, 19)
 const newline_t = T(b, [Line(b, ""), Line(b, "")])
 
 fn line_to_tooltip_span(

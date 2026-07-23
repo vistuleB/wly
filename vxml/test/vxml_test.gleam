@@ -1,8 +1,8 @@
-import gleeunit
-import gleeunit/should
+import blame.{Anchored, Movable, Src}
 import gleam/list
 import gleam/string
-import blame.{Anchored, Movable, Src}
+import gleeunit
+import gleeunit/should
 import io_lines
 import simplifile
 import vxml.{type Attr, type VXML, Attr, Line, T, V}
@@ -131,7 +131,9 @@ pub fn html_repair_escape_non_entity_ampersands_test() {
 pub fn html_repair_expand_boolean_attrs_test() {
   "<script async src=\"x\"></script><input disabled/>"
   |> vxml.html_repair_expand_boolean_attrs
-  |> should.equal("<script async=\"\" src=\"x\"></script><input disabled=\"\"/>")
+  |> should.equal(
+    "<script async=\"\" src=\"x\"></script><input disabled=\"\"/>",
+  )
 }
 
 pub fn html_repair_close_void_tags_leaves_already_closed_tags_test() {
@@ -144,6 +146,12 @@ pub fn html_repair_remove_attrs_from_closing_tags_uses_each_tag_match_test() {
   "</span class=\"x\"></div id=\"main\"></a href=\"/somewhere\">"
   |> vxml.html_repair_remove_attrs_from_closing_tags
   |> should.equal("</span></div></a>")
+}
+
+pub fn html_repair_remove_attrs_from_closing_tags_supports_parser_tag_names_test() {
+  "</x-tag data-old=\"1\"></x.name data-old=\"2\"></x_tag data-old=\"3\">"
+  |> vxml.html_repair_remove_attrs_from_closing_tags
+  |> should.equal("</x-tag></x.name></x_tag>")
 }
 
 pub fn html_repair_combines_html_repairs_test() {

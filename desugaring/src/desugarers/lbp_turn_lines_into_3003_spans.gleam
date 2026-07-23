@@ -24,7 +24,7 @@ import vxml.{
 
 const container_classname = "t-3003-c"
 const tooltip_classname = "t-3003"
-const b = bl.Des([], name, 14)
+const b = bl.Des([], name, 27)
 const newline_t = T(b, [Line(b, ""), Line(b, "")])
 const container_attrs = [Attr(b, "class", container_classname)]
 const tooltip_attrs = [Attr(b, "class", tooltip_classname)]

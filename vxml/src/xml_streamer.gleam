@@ -77,17 +77,6 @@ pub type Event {
   CommentEndSequence(blame: Blame)                   // "-->"  CommentEnd sequences that occur without a matching CommentStart have no effect on state, either (of course)
 }
 
-pub fn is_tag_end_event(
-  e: Event,
-) -> Bool {
-  case e {
-    TagEndOrdinary(_) -> True
-    TagEndSelfClosing(_) -> True
-    TagEndXMLVersion(_) -> True
-    _ -> False
-  }
-}
-
 type ContentLine {
   ContentLine(blame: Blame, content: String)
 }
@@ -124,13 +113,13 @@ fn advance_line(
   )
 }
 
-pub fn is_ordinary_tag(input: String) -> Bool {
+fn is_ordinary_tag(input: String) -> Bool {
   let pattern = "^[a-zA-Z][a-zA-Z0-9._-]*$"
   let assert Ok(re) = regexp.from_string(pattern)
   regexp.check(re, input)
 }
 
-pub fn is_valid_key(input: String) -> Bool {
+fn is_valid_key(input: String) -> Bool {
   let pattern = "^[a-zA-Z][:a-zA-Z0-9._-]*$"
   let assert Ok(re) = regexp.from_string(pattern)
   regexp.check(re, input)

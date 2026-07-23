@@ -180,27 +180,28 @@ pub fn default_writerly_emitter(
 pub fn stub_html_emitter(
   fragment: OutputFragment(z, VXML),
 ) -> Result(OutputFragment(z, List(OutputLine)), b) {
+  let blame = Ext([], "stub_html_emitter")
   let lines =
     list.flatten([
       [
-        OutputLine(Ext([], "stub_html_emitter"), 0, "<!DOCTYPE html>"),
-        OutputLine(Ext([], "stub_html_emitter"), 0, "<html>"),
-        OutputLine(Ext([], "stub_html_emitter"), 0, "<head>"),
-        OutputLine(Ext([], "stub_html_emitter"), 2, "<link rel=\"icon\" type=\"image/x-icon\" href=\"logo.png\">"),
-        OutputLine(Ext([], "stub_html_emitter"), 2, "<meta charset=\"utf-8\">"),
-        OutputLine(Ext([], "stub_html_emitter"), 2, "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">"),
-        OutputLine(Ext([], "stub_html_emitter"), 2, "<script type=\"text/javascript\" src=\"./mathjax_setup.js\"></script>"),
-        OutputLine(Ext([], "stub_html_emitter"), 2, "<script type=\"text/javascript\" id=\"MathJax-script\" async src=\"https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js\"></script>"),
-        OutputLine(Ext([], "stub_html_emitter"), 0, "</head>"),
-        OutputLine(Ext([], "stub_html_emitter"), 0, "<body>"),
+        OutputLine(blame, 0, "<!DOCTYPE html>"),
+        OutputLine(blame, 0, "<html>"),
+        OutputLine(blame, 0, "<head>"),
+        OutputLine(blame, 2, "<link rel=\"icon\" type=\"image/x-icon\" href=\"logo.png\">"),
+        OutputLine(blame, 2, "<meta charset=\"utf-8\">"),
+        OutputLine(blame, 2, "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">"),
+        OutputLine(blame, 2, "<script type=\"text/javascript\" src=\"./mathjax_setup.js\"></script>"),
+        OutputLine(blame, 2, "<script type=\"text/javascript\" id=\"MathJax-script\" async src=\"https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js\"></script>"),
+        OutputLine(blame, 0, "</head>"),
+        OutputLine(blame, 0, "<body>"),
       ],
       fragment.payload
       |> infra.v_get_children
       |> list.map(fn(vxml) { vp.vxml_to_html_output_lines(vxml, 2, 2) })
       |> list.flatten,
       [
-        OutputLine(Ext([], "stub_html_emitter"), 0, "</body>"),
-        OutputLine(Ext([], "stub_html_emitter"), 0, ""),
+        OutputLine(blame, 0, "</body>"),
+        OutputLine(blame, 0, ""),
       ],
     ])
   Ok(OutputFragment(..fragment, payload: lines))
@@ -209,22 +210,23 @@ pub fn stub_html_emitter(
 pub fn stub_jsx_emitter(
   fragment: OutputFragment(z, VXML),
 ) -> Result(OutputFragment(z, List(OutputLine)), b) {
+  let blame = Ext([], "panel_emitter")
   let lines =
     list.flatten([
       [
-        OutputLine(Ext([], "panel_emitter"), 0, "import Something from \"./Somewhere\";",),
-        OutputLine(Ext([], "panel_emitter"), 0, ""),
-        OutputLine(Ext([], "panel_emitter"), 0, "const OurSuperComponent = () => {"),
-        OutputLine(Ext([], "panel_emitter"), 2, "return ("),
-        OutputLine(Ext([], "panel_emitter"), 4, "<>"),
+        OutputLine(blame, 0, "import Something from \"./Somewhere\";",),
+        OutputLine(blame, 0, ""),
+        OutputLine(blame, 0, "const OurSuperComponent = () => {"),
+        OutputLine(blame, 2, "return ("),
+        OutputLine(blame, 4, "<>"),
       ],
       vp.vxmls_to_jsx_output_lines(fragment.payload |> infra.v_get_children, 6, 2),
       [
-        OutputLine(Ext([], "panel_emitter"), 4, "</>"),
-        OutputLine(Ext([], "panel_emitter"), 2, ");"),
-        OutputLine(Ext([], "panel_emitter"), 0, "};"),
-        OutputLine(Ext([], "panel_emitter"), 0, ""),
-        OutputLine(Ext([], "panel_emitter"), 0, "export default OurSuperComponent;"),
+        OutputLine(blame, 4, "</>"),
+        OutputLine(blame, 2, ");"),
+        OutputLine(blame, 0, "};"),
+        OutputLine(blame, 0, ""),
+        OutputLine(blame, 0, "export default OurSuperComponent;"),
       ],
     ])
   Ok(OutputFragment(..fragment, payload: lines))

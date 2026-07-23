@@ -7,7 +7,7 @@ import infrastructure.{
 import nodemaps_2_desugarer_transforms as n2t
 import vxml.{type Attr, type VXML, Attr, Line, T, V}
 
-const b = bl.Des([], name, 14)
+const b = bl.Des([], name, 10)
 
 const copy_symbol = "⧉"
 

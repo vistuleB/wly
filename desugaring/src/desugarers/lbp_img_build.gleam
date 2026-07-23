@@ -196,7 +196,7 @@ fn last_modified_date(file_path: String) -> Int {
 fn load_last_modified_times(exec_2_src_img: String) -> Result(LastModifiedTimes, DesugaringError) {
   use paths <- on.error_ok(
     simplifile.get_files(exec_2_src_img),
-    fn(err) { Error(DesugaringError(desugarer_blame(197), simplifile.describe_error(err))) }
+    fn(err) { Error(DesugaringError(desugarer_blame(199), simplifile.describe_error(err))) }
   )
   paths
   |> list.map( fn(path) { #(path |> infra.assert_drop_prefix(exec_2_src_img), last_modified_date(path)) })
@@ -289,7 +289,7 @@ fn run_shellout(
   case result {
     Ok(_) -> Ok(Nil)
     Error(e) -> Error(DesugaringError(
-      desugarer_blame(290),
+      desugarer_blame(292),
       "failed to execute: '" <> cmd <> "' (error: " <> string.inspect(e) <> ")"
     ))
   }
@@ -330,7 +330,7 @@ fn build_or_miraculously_retrieve_existing_build_image(
     get_created_date(exec_2_build_version),
     fn(err) {
       Error(DesugaringError(
-        desugarer_blame(331),
+        desugarer_blame(333),
         "could not get created date of optimized image: " <> exec_2_build_version <> ": " <> simplifile.describe_error(err),
       ))
     }
@@ -340,7 +340,7 @@ fn build_or_miraculously_retrieve_existing_build_image(
     get_file_size(exec_2_src_version),
     fn(_) {
       Error(DesugaringError(
-        desugarer_blame(341),
+        desugarer_blame(343),
         "Could not get size of original image: " <> exec_2_src_version,
       ))
     }
@@ -350,7 +350,7 @@ fn build_or_miraculously_retrieve_existing_build_image(
     get_file_size(exec_2_build_version),
     fn(_) {
       Error(DesugaringError(
-        desugarer_blame(351),
+        desugarer_blame(353),
         "Could not get size of build image: " <> exec_2_build_version,
       ))
     }
@@ -373,7 +373,7 @@ fn build_or_miraculously_retrieve_existing_build_image(
 }
 
 fn update_src_attr(attrs: List(Attr), src: String) -> List(Attr) {
-  infra.attrs_set(attrs, desugarer_blame(374), "src", src)
+  infra.attrs_set(attrs, desugarer_blame(376), "src", src)
 }
 
 fn first_regexp_submatch(pattern: String, content: String) -> Option(String) {
@@ -447,8 +447,8 @@ fn add_intrinsic_dimensions(
   }
   use <- on.false_true(simplifile.is_file(path) == Ok(True), fn() { Ok(attrs) })
   use dimensions <- on.ok(intrinsic_dimensions(src_attr.blame, path))
-  let attrs = infra.attrs_set(attrs, desugarer_blame(452), "intrinsicWidth", dimensions.0)
-  Ok(infra.attrs_set(attrs, desugarer_blame(453), "intrinsicHeight", dimensions.1))
+  let attrs = infra.attrs_set(attrs, desugarer_blame(450), "intrinsicWidth", dimensions.0)
+  Ok(infra.attrs_set(attrs, desugarer_blame(451), "intrinsicHeight", dimensions.1))
 }
 
 fn v_before(
@@ -584,7 +584,7 @@ fn remove_files_from_build_img_that_have_no_image_map_preimage(
 ) -> Result(Nil, DesugaringError) {
   use paths <- on.error_ok(
     simplifile.get_files(inner.exec_2_build_img),
-    fn(err) { Error(DesugaringError(desugarer_blame(507), "could not read build_img files at "  <> inner.exec_2_build_img <> " for cleanup: "  <> simplifile.describe_error(err))) }
+    fn(err) { Error(DesugaringError(desugarer_blame(587), "could not read build_img files at "  <> inner.exec_2_build_img <> " for cleanup: "  <> simplifile.describe_error(err))) }
   )
   let values = dict.values(state) |> list.map(fn(info) { info.build_version })
   list.each(

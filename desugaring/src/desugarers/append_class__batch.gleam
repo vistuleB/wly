@@ -9,7 +9,7 @@ import nodemaps_2_desugarer_transforms as n2t
 import vxml.{type VXML, V}
 import blame as bl
 
-const blame = bl.Des([], name, 18)
+const blame = bl.Des([], name, 12)
 
 fn nodemap(
   node: VXML,

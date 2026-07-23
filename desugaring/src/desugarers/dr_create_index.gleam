@@ -341,7 +341,7 @@ fn gather_exercises_title(root: VXML) -> option.Option(Title) {
 }
 
 fn exercises_link(root: VXML) -> option.Option(VXML) {
-  let b = desugarer_blame(322)
+  let b = desugarer_blame(344)
   case gather_exercises_title(root) {
     option.None -> option.None
     option.Some(title) ->
@@ -361,7 +361,7 @@ fn exercises_link(root: VXML) -> option.Option(VXML) {
 // 🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸
 
 fn anchor(id: String, href_val: String) -> VXML {
-  let b = desugarer_blame(321)
+  let b = desugarer_blame(364)
   V(b, "a", [Attr(b, "id", id), Attr(b, "href", href_val)], [])
 }
 
@@ -385,7 +385,7 @@ fn index_next_page_href(root: VXML) -> option.Option(String) {
 
 fn index(root: VXML) -> Result(VXML, DesugaringError) {
   use chapter_infos <- on.ok(gather_chapter_infos(root))
-  let b = desugarer_blame(345)
+  let b = desugarer_blame(388)
 
   let nav = case index_next_page_href(root) {
     option.None -> []
@@ -403,7 +403,7 @@ fn index(root: VXML) -> Result(VXML, DesugaringError) {
     b,
     "Index",
     [
-      Attr(desugarer_blame(358), "path", "./index.html"),
+      Attr(desugarer_blame(406), "path", "./index.html"),
     ],
     list.flatten([nav, [header(root), chapter_ol(chapter_infos)], exercises]),
   ))

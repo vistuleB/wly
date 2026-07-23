@@ -114,8 +114,10 @@ fn html_test() -> Result(Nil, String) {
   )
 
   use vxml <- on.error_ok(
-    vxml.xmlm_based_html_parser(content, path),
-    fn(e) { Error("HTML_TEST ERROR: xmlm_based_html_parser error: " <> ins(e)) },
+    content
+    |> vxml.html_repair
+    |> vxml.parse_xml(path),
+    fn(e) { Error("HTML_TEST ERROR: parse_xml error: " <> ins(e)) },
   )
 
   let writerlys = wl.vxml_to_writerlys(vxml)

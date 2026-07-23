@@ -1,68 +1,52 @@
-#!/bin/bash
+#!/usr/bin/env bash
+set -euo pipefail
 
-# Script to replace "desugarer_blame(X)" where X is any integer with "desugarer_blame(line_number)"
-# Usage: ./renumber_desugarer_blame.sh [directory_path]
+# Renumber desugarer-created blame references in src/desugarers/*.gleam.
+#
+# Rewrites:
+#   desugarer_blame(123)      -> desugarer_blame(current_line)
+#   bl.Des([], name, 123)     -> bl.Des([], name, current_line)
+#   Des([], name, 123)        -> Des([], name, current_line)
+#
+# The raw Des rewrite is intentionally narrow: it only touches numeric literals
+# in the standard desugarer-name shape, so helper bodies using `line_no` are left
+# unchanged.
 
-# Set default directory to current directory if no argument provided
-TARGET_DIR=src/desugarers/
+target_dir="${1:-src/desugarers}"
 
-# Check if directory exists
-if [ ! -d "$TARGET_DIR" ]; then
-    echo "Error: Directory '$TARGET_DIR' does not exist."
-    exit 1
+if [ ! -d "$target_dir" ]; then
+  echo "Error: directory '$target_dir' does not exist." >&2
+  exit 1
 fi
 
-echo "Processing files in directory: $TARGET_DIR"
-echo "Renumbering 'desugarer_blame(X)' patterns with correct line numbers..."
-echo
+echo "Renumbering desugarer blame references in $target_dir"
 
-# Counter for processed files
-processed_files=0
+changed=0
 
-# Process all files in the directory (not subdirectories)
-find "$TARGET_DIR" -maxdepth 1 -type f | while read -r file; do
-    # Skip binary files using the file command
-    if ! file -b --mime-type "$file" | grep -q '^text/'; then
-        echo "Skipping non-text file: $(basename "$file")"
-        continue
-    fi
-    
-    # Create a temporary file
-    temp_file=$(mktemp)
-    
-    # Track if any replacements were made
-    replacements_made=false
-    
-    # Process the file line by line
-    line_number=1
-    while IFS= read -r line || [ -n "$line" ]; do
-        # Check if line contains "desugarer_blame(" followed by digits and ")"
-        if [[ "$line" =~ desugarer_blame\([0-9]+\) ]]; then
-            # Replace all occurrences of "desugarer_blame(digits)" with "desugarer_blame(line_number)" on this line
-            # Using sed to handle multiple occurrences on the same line
-            modified_line=$(echo "$line" | sed -E 's/desugarer_blame\([0-9]+\)/desugarer_blame('"$line_number"')/g')
-            echo "$modified_line" >> "$temp_file"
-            replacements_made=true
-        else
-            echo "$line" >> "$temp_file"
-        fi
-        ((line_number++))
-    done < "$file"
-    
-    # If replacements were made, replace the original file
-    if [ "$replacements_made" = true ]; then
-        mv "$temp_file" "$file"
-        echo "Processed: $(basename "$file")"
-        ((processed_files++))
-    else
-        # No replacements needed, remove temp file
-        rm "$temp_file"
-    fi
+for file in "$target_dir"/*.gleam; do
+  [ -e "$file" ] || continue
+
+  before_hash="$(cksum "$file")"
+
+  perl -0pi -e '
+    my $line_no = 1;
+
+    s{^([^\n]*)(\n?)}{
+      my ($line, $newline) = ($1, $2);
+
+      $line =~ s/desugarer_blame\(\d+\)/"desugarer_blame($line_no)"/ge;
+      $line =~ s/\b((?:bl\.)?Des\(\[\],\s*name,\s*)\d+(\s*\))/$1 . $line_no . $2/ge;
+
+      $line_no++;
+      $line . $newline;
+    }gme;
+  ' "$file"
+
+  after_hash="$(cksum "$file")"
+  if [ "$before_hash" != "$after_hash" ]; then
+    changed=$((changed + 1))
+    echo "Processed: $(basename "$file")"
+  fi
 done
 
-# Count files that were actually modified
-final_count=$(find "$TARGET_DIR" -maxdepth 1 -type f -exec grep -l "desugarer_blame([0-9]\+)" {} \; 2>/dev/null | wc -l)
-
-echo
-echo "Script completed!"
-echo "Files with renumbered desugarer_blame patterns: $final_count"
+echo "Done. Files changed: $changed"

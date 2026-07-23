@@ -7,7 +7,7 @@ import dirtree.{Dirpath, Filepath} as _dt
 import blame.{Anchored, Movable, Src} as _bl
 import io_lines.{InputLine} as io_l
 import simplifile
-import vxml.{Attr, Line, xmlm_based_html_parser}
+import vxml.{Attr, Line}
 
 pub fn main() -> Nil {
   gleeunit.main()
@@ -142,7 +142,10 @@ pub fn sample_contents_directory_assembles_and_parses_test() {
 
 pub fn sample_xml_converts_to_writerly_test() {
   let assert Ok(contents) = simplifile.read("samples/ch5_ch.xml")
-  let assert Ok(node) = xmlm_based_html_parser(contents, "samples/ch5_ch.xml")
+  let assert Ok(node) =
+    contents
+    |> vxml.html_repair
+    |> vxml.parse_xml("samples/ch5_ch.xml")
 
   let writerlys = wl.vxml_to_writerlys(node)
 

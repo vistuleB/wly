@@ -37,7 +37,8 @@ In this package:
 - `vxml_table` for pretty-printing "live" VXML documents with blames in
   two-column table format
 - out-of-the-box parsers for XML-ish input and serialized VXML itself
-- HTML repair helpers for making damaged HTML palatable to XML-oriented parsers
+- best-effort HTML repair helpers for making common damaged-HTML patterns
+  palatable to XML-oriented parsers
 - serializers for HTML-, XML-, and JSX-like output, as well as VXML itself
 
 ## Model
@@ -155,8 +156,8 @@ simplifile.read(path)
 |> result.try(vxml.parse_xml(_, short_pathname_to_use_in_blame))
 ```
 
-For iffy input that may come from a handwritten HTML source, use `html_repair`
-first:
+For iffy input that may come from a handwritten HTML source, `html_repair`
+can repair a few common patterns before parsing:
 
 ```gleam
 let path = "content/source.html"
@@ -176,7 +177,8 @@ The `html_repair` step:
 - removes attributes from malformed closing tags
 
 The individual repair helpers are public so callers can apply only the repair
-steps they want.
+steps they want. These helpers are deliberately narrow string repairs, not a
+general HTML parser.
 
 Before parsing, source strings are converted to `List(InputLine)`. That
 conversion can be performed directly with `io_lines.string_to_input_lines`, and
@@ -214,8 +216,8 @@ piece of data came from, or which later transformation introduced it.
 ```gleam
 pub type Blame {
   Src(comments, path, line_no, char_no, cursor)
-  Des(comments, name, line_no)
-  Ext(comments, name)
+  Des(comments, name, line_no) // maintained desugarer code
+  Ext(comments, name)          // external/manual code attribution
   NoBlame(comments)
 }
 ```
@@ -234,8 +236,9 @@ a transformation pipeline and from outside it, such as an emitter step.
 ## Blame Tables
 
 Use `vxml_table` to inspect serialized VXML together with its attached blames.
-For line-level output, `io_lines.output_lines_table_with` allows the blame
-margin columns to be sized explicitly:
+For direct control over the emitted lines, use `vxml_to_output_lines` together
+with `io_lines.output_lines_table_with`. This allows the blame margin columns
+to be sized explicitly:
 
 ```gleam
 let assert Ok([tree]) =
@@ -288,7 +291,7 @@ this prints:
   HTML/XML/JSX-like serialization, XML-like parsing, and HTML repair helpers
 - `blame`: provenance data and formatting utilities
 - `io_lines`: input/output line types and conversion helpers
-- `xml_streamer`: advanced XML token stream and token validation helpers
+- `xml_streamer`: advanced XML token stream helpers
 
 Most users should start with `vxml`, `blame`, and `io_lines`. Use
 `xml_streamer` when token-level XML processing is needed.

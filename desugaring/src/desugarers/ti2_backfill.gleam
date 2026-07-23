@@ -19,7 +19,7 @@ import vxml.{type VXML, T, V, Attr}
 import blame as bl
 import on
 
-const const_blame = bl.Des([], name, 23)
+const const_blame = bl.Des([], name, 22)
 
 const stub_sub =
   V(
