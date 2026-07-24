@@ -154,6 +154,126 @@ fn retain_0_mod_3(splits: List(String)) -> List(String) {
   |> list.reverse
 }
 
+// ***********************************************************
+// math mode: substitution as flat LaTeX text, not as V-nodes
+// ***********************************************************
+
+/// MathJax parses the text content of a Math/MathBlock node as TeX
+/// source, so a link there must be a LaTeX \href fragment and not an
+/// 'a' V-node — an element node inside the math would be fed to the TeX
+/// parser as literal markup.
+fn substitution_text(
+  handle_and_page_and_decoy: #(String, Bool, Option(String)),
+  blame: Blame,
+  fold_parens: Bool,
+  state: State,
+) -> #(String, List(DesugaringWarning), List(String)) {
+  let #(handle_name, page, decoy) = handle_and_page_and_decoy
+  let wrap = fn(s: String) -> String {
+    case fold_parens {
+      True -> "(" <> s <> ")"
+      False -> s
+    }
+  }
+  case dict.get(state.handles, handle_name) {
+    Ok(#(page_by_default, value, id, target_path)) -> {
+      let target = case page || page_by_default {
+        True -> target_path
+        False -> target_path <> "#" <> id
+      }
+      #("\\href{" <> target <> "}{" <> wrap(value) <> "}", [], [handle_name])
+    }
+    Error(_) -> {
+      let warning =
+        DesugaringWarning(
+          blame,
+          "handle '" <> handle_name <> "' is not assigned",
+        )
+      case decoy {
+        Some(decoy_value) -> #(
+          "\\href{decoy-target-path#decoy-id}{" <> wrap(decoy_value) <> "}",
+          [warning],
+          [],
+        )
+        None -> #(wrap("undefined handle: " <> handle_name), [warning], [])
+      }
+    }
+  }
+}
+
+/// Rebuilds a line from its non-matching pieces and the handle matches
+/// that sit between them. A handle occurrence whose immediately
+/// surrounding characters are '(' and ')' with no whitespace absorbs
+/// both parens into the \href value, so the whole "(2.5)" is clickable
+/// rather than just the number.
+fn rebuild(
+  splits: List(String),
+  matches: List(Match),
+  blame: Blame,
+  state: State,
+) -> #(String, List(DesugaringWarning), List(String)) {
+  case splits, matches {
+    [last], [] -> #(last, [], [])
+    [before, next, ..rest_splits], [m, ..rest_matches] -> {
+      let fold = string.ends_with(before, "(") && string.starts_with(next, ")")
+      let #(before, next) = case fold {
+        True -> #(string.drop_end(before, 1), string.drop_start(next, 1))
+        False -> #(before, next)
+      }
+      let #(sub_text, warnings, used) =
+        substitution_text(
+          extract_handle_and_page_and_decoy(m),
+          blame,
+          fold,
+          state,
+        )
+      let #(rest_text, rest_warnings, rest_used) =
+        rebuild([next, ..rest_splits], rest_matches, blame, state)
+      #(
+        before <> sub_text <> rest_text,
+        infra.pour(warnings, rest_warnings),
+        infra.pour(used, rest_used),
+      )
+    }
+    _, _ -> panic as "splits/matches length mismatch in handles_substitute"
+  }
+}
+
+fn process_line_inside_math(
+  line: Line,
+  matches: List(Match),
+  state: State,
+  inner: InnerParam,
+) -> #(Line, List(DesugaringWarning), List(String)) {
+  let Line(blame, content) = line
+  let splits =
+    regexp.split(inner.7, content)
+    |> augment_to_1_mod_3
+    |> retain_0_mod_3
+  let #(new_content, warnings, used) = rebuild(splits, matches, blame, state)
+  #(Line(blame, new_content), warnings, used)
+}
+
+fn process_lines_inside_math(
+  lines: List(Line),
+  state: State,
+  inner: InnerParam,
+) -> #(List(Line), List(DesugaringWarning), List(String)) {
+  let triples =
+    lines
+    |> list.map(fn(line) {
+      case regexp.scan(inner.7, line.content) {
+        [] -> #(line, [], [])
+        matches -> process_line_inside_math(line, matches, state, inner)
+      }
+    })
+  #(
+    triples |> list.map(fn(triple) { triple.0 }),
+    triples |> list.map(fn(triple) { triple.1 }) |> list.flatten,
+    triples |> list.map(fn(triple) { triple.2 }) |> list.flatten,
+  )
+}
+
 fn split_2_t(split: String, blame: Blame) -> VXML {
   T(blame, [Line(blame, split)])
 }
@@ -174,9 +294,9 @@ fn process_line(
   DesugaringError,
 ) {
   let Line(blame, content) = line
-  case regexp.scan(inner.6, content) {
+  case regexp.scan(inner.7, content) {
     [_, ..] as matches -> {
-      let splits = regexp.split(inner.6, content)
+      let splits = regexp.split(inner.7, content)
       use #(hyperlinks, warnings, used) <- on.ok(matches_2_hyperlinks(
         matches,
         blame,
@@ -241,17 +361,7 @@ fn grand_wrapper_load(state: State, attrs: List(Attr)) -> State {
       dict.insert(acc, handle_name, #(page, value, id, path))
     })
 
-  // handles already resolved by an earlier desugarer that does its own
-  // substitution but cannot write the 'used' column, because the column
-  // is written here (currently: handles_substitute_inside_math)
-  let #(already_used, _) =
-    infra.attrs_extract_key_occurrences(attrs, "handle-used")
-
-  State(
-    ..state,
-    handles: handles,
-    used: mark_used(state.used, already_used |> list.map(fn(a) { a.val })),
-  )
+  State(..state, handles: handles)
 }
 
 fn mark_used(used: Set(String), names: List(String)) -> Set(String) {
@@ -267,15 +377,11 @@ fn mark_used(used: Set(String), names: List(String)) -> Set(String) {
 ///
 /// handle=<name>|<page>|<value>|<id>|<path>|used     (handle was referenced)
 /// handle=<name>|<page>|<value>|<id>|<path>|         (handle was never referenced)
-///
-/// Also consumes the 'handle-used' attrs that fed the usage set, so that
-/// the GrandWrapper is left carrying the dictionary and nothing else.
 fn grand_wrapper_record_usage(
   attrs: List(Attr),
   used: Set(String),
 ) -> List(Attr) {
   attrs
-  |> list.filter(fn(attr) { attr.key != "handle-used" })
   |> list.map(fn(attr) {
     case attr.key == "handle" {
       False -> attr
@@ -357,7 +463,7 @@ fn substitute_hrefs_in_a(
         None, _ -> Ok(Some(href_type))
         _, _ ->
           Error(DesugaringError(
-            desugarer_blame(360),
+            desugarer_blame(466),
             "duplicate 'href' attribute",
           ))
       })
@@ -400,6 +506,10 @@ fn v_before_transform(
     True -> state
     False -> State(..state, inside_a_link_tag: True)
   }
+  let state = case state.inside_math || !list.contains(inner.6, tag) {
+    True -> state
+    False -> State(..state, inside_math: True)
+  }
   case tag {
     "a" -> substitute_hrefs_in_a(vxml, state, inner)
     _ -> Ok(#(vxml, state, []))
@@ -413,7 +523,11 @@ fn v_after_transform(
 ) -> Result(#(List(VXML), State, List(DesugaringWarning)), DesugaringError) {
   let assert V(_, tag, attrs, _) = vxml
   let exit_state =
-    State(..latest_state, inside_a_link_tag: original_state.inside_a_link_tag)
+    State(
+      ..latest_state,
+      inside_a_link_tag: original_state.inside_a_link_tag,
+      inside_math: original_state.inside_math,
+    )
   let vxml = case tag {
     "GrandWrapper" ->
       V(..vxml, attrs: grand_wrapper_record_usage(attrs, latest_state.used))
@@ -427,7 +541,20 @@ fn t_transform(
   state: State,
   inner: InnerParam,
 ) -> Result(#(List(VXML), State, List(DesugaringWarning)), DesugaringError) {
-  let assert T(_, lines) = vxml
+  let assert T(blame, lines) = vxml
+
+  // inside math the substitution stays flat text, so the T node survives
+  // as a single T node instead of being split into text/link siblings
+  use <- on.true_false(state.inside_math, fn() {
+    let #(new_lines, warnings, used) =
+      process_lines_inside_math(lines, state, inner)
+    Ok(#(
+      [T(blame, new_lines)],
+      State(..state, used: mark_used(state.used, used)),
+      warnings,
+    ))
+  })
+
   use #(updated_lines, warnings, used) <- on.ok(process_lines(
     lines,
     state,
@@ -457,7 +584,7 @@ fn nodemap_factory(
 fn transform_factory(inner: InnerParam) -> DesugarerTransform {
   nodemap_factory(inner)
   |> n2t.one_to_many_before_and_after_stateful_nodemap_with_warnings_2_desufarer_transform(
-    State(dict.new(), None, False, set.new()),
+    State(dict.new(), None, False, False, set.new()),
   )
 }
 
@@ -471,9 +598,10 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
     param.0,
     param.1,
     param.2,
-    param.3 |> infra.string_pairs_2_attrs(desugarer_blame(474)),
-    param.4 |> infra.string_pairs_2_attrs(desugarer_blame(475)),
+    param.3 |> infra.string_pairs_2_attrs(desugarer_blame(601)),
+    param.4 |> infra.string_pairs_2_attrs(desugarer_blame(602)),
     param.5,
+    param.6,
     handles_regexp,
   )
   |> Ok
@@ -491,6 +619,9 @@ type State {
     handles: HandlesDict,
     path: Option(String),
     inside_a_link_tag: Bool,
+    // inside one of the param-listed math tags, where a substitution has
+    // to be flat LaTeX text rather than an 'a' V-node
+    inside_math: Bool,
     // names of handles that were actually referenced somewhere in the
     // document; written back to the GrandWrapper dictionary as a 6th
     // 'used' column, for downstream unused-handle reporting
@@ -506,10 +637,20 @@ type Param =
     List(#(String, String)), // in-page link attributes
     List(#(String, String)), // out-page link attributes
     List(String), // tags that already define you as being inside a lin
+    List(String), // tags whose contents are LaTeX (typically Math, MathBlock)
   )
 
 type InnerParam =
-  #(String, String, String, List(Attr), List(Attr), List(String), Regexp)
+  #(
+    String,
+    String,
+    String,
+    List(Attr),
+    List(Attr),
+    List(String),
+    List(String),
+    Regexp,
+  )
 
 pub const name = "handles_substitute"
 
@@ -539,10 +680,20 @@ fn desugarer_blame(line_no: Int) {
 ///
 /// (see handles_warn_unused, which consumes that column).
 ///
-/// A desugarer that resolves handles of its own but runs before this one
-/// — currently handles_substitute_inside_math — records what it resolved
-/// as handle-used=<handle_name> attrs on the GrandWrapper; those are
-/// folded into the usage set here and then removed.
+/// Inside any descendant of a tag named in the last param entry
+/// (typically "Math" and "MathBlock") the substitution is made in place
+/// as plain text, as a LaTeX
+///
+/// \href{<target_path>}{<value>}
+///
+/// fragment, rather than as a link V-node: MathJax parses the text
+/// content of those nodes as TeX source, and an element node sitting in
+/// the middle of it is fed to the TeX parser as literal markup. If the
+/// occurrence is immediately wrapped in unspaced parens, both parens are
+/// absorbed into the \href value, so the whole "(2.5)" is clickable.
+/// An unassigned handle falls back to its #decoy: value if present and
+/// otherwise becomes plain 'undefined handle: <name>' text, warning in
+/// both cases.
 pub fn constructor(param: Param) -> Desugarer {
   Desugarer(
     name: name,
@@ -565,6 +716,7 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
         [#("class", "handle-in-chapter-link")],
         [#("class", "handle-out-chapter-link")],
         ["a"],
+        ["Math", "MathBlock"],
       ),
       source: "
         <> GrandWrapper
@@ -600,6 +752,7 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
         [#("class", "handle-in-chapter-link")],
         [#("class", "handle-out-chapter-link")],
         ["a"],
+        ["Math", "MathBlock"],
       ),
       source: "
         <> GrandWrapper
@@ -635,9 +788,7 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
                   'handle attr link'
       ",
     ),
-    // a handle nowhere referenced gets an empty 'used' column; a
-    // 'handle-used' attr left by handles_substitute_inside_math counts
-    // as a reference and is itself consumed
+    // a handle nowhere referenced gets an empty 'used' column
     infra.AssertiveTestData(
       param: #(
         "path",
@@ -646,12 +797,12 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
         [#("class", "handle-in-chapter-link")],
         [#("class", "handle-out-chapter-link")],
         ["a"],
+        ["Math", "MathBlock"],
       ),
       source: "
         <> GrandWrapper
           handle=lonely||(1.1)|eq-1|./ch1.html
           handle=in-math-only||(1.2)|eq-2|./ch1.html
-          handle-used=in-math-only
           <> root
             <> Chapter
               path=./ch1.html
@@ -663,7 +814,7 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
       expected: "
         <> GrandWrapper
           handle=lonely||(1.1)|eq-1|./ch1.html|
-          handle=in-math-only||(1.2)|eq-2|./ch1.html|used
+          handle=in-math-only||(1.2)|eq-2|./ch1.html|
           <> root
             <> Chapter
               path=./ch1.html
@@ -671,6 +822,156 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
                 id=eq-2
                 <>
                   'x = y'
+      ",
+    ),
+
+    // inside math: substitution is flat \\href text, and unspaced
+    // surrounding parens fold into the link value
+    infra.AssertiveTestData(
+      param: #("path", "a", "a", [], [], ["a"], ["Math", "MathBlock"]),
+      source: "
+        <> GrandWrapper
+          handle=some_handle||2|eq-id|./ch1.html
+          <> root
+            <> Chapter
+              path=./ch1.html
+              <> Math
+                <>
+                  '(>>some_handle) a + b = 2'
+      ",
+      expected: "
+        <> GrandWrapper
+          handle=some_handle||2|eq-id|./ch1.html|used
+          <> root
+            <> Chapter
+              path=./ch1.html
+              <> Math
+                <>
+                  '\\href{./ch1.html#eq-id}{(2)} a + b = 2'
+      ",
+    ),
+    // inside math without surrounding parens: no folding
+    infra.AssertiveTestData(
+      param: #("path", "a", "a", [], [], ["a"], ["Math", "MathBlock"]),
+      source: "
+        <> GrandWrapper
+          handle=some_handle||2|eq-id|./ch1.html
+          <> root
+            <> Chapter
+              path=./ch1.html
+              <> MathBlock
+                <>
+                  'see >>some_handle for details'
+      ",
+      expected: "
+        <> GrandWrapper
+          handle=some_handle||2|eq-id|./ch1.html|used
+          <> root
+            <> Chapter
+              path=./ch1.html
+              <> MathBlock
+                <>
+                  'see \\href{./ch1.html#eq-id}{2} for details'
+      ",
+    ),
+    // inside math, #page suffix: links to the page, no #id
+    infra.AssertiveTestData(
+      param: #("path", "a", "a", [], [], ["a"], ["Math", "MathBlock"]),
+      source: "
+        <> GrandWrapper
+          handle=some_handle||2|eq-id|./ch1.html
+          <> root
+            <> Chapter
+              path=./ch1.html
+              <> MathBlock
+                <>
+                  'see >>some_handle#page for the page'
+      ",
+      expected: "
+        <> GrandWrapper
+          handle=some_handle||2|eq-id|./ch1.html|used
+          <> root
+            <> Chapter
+              path=./ch1.html
+              <> MathBlock
+                <>
+                  'see \\href{./ch1.html}{2} for the page'
+      ",
+    ),
+    // inside math, unassigned handle with a #decoy: falls back to it
+    infra.AssertiveTestData(
+      param: #("path", "a", "a", [], [], ["a"], ["Math", "MathBlock"]),
+      source: "
+        <> GrandWrapper
+          handle=other||2|eq-id|./ch1.html
+          <> root
+            <> Chapter
+              path=./ch1.html
+              <> Math
+                <>
+                  '(>>missing#decoy:26) a + b'
+      ",
+      expected: "
+        <> GrandWrapper
+          handle=other||2|eq-id|./ch1.html|
+          <> root
+            <> Chapter
+              path=./ch1.html
+              <> Math
+                <>
+                  '\\href{decoy-target-path#decoy-id}{(26)} a + b'
+      ",
+    ),
+    // inside math, unassigned handle without decoy: plain text, no node
+    infra.AssertiveTestData(
+      param: #("path", "a", "a", [], [], ["a"], ["Math", "MathBlock"]),
+      source: "
+        <> GrandWrapper
+          handle=other||2|eq-id|./ch1.html
+          <> root
+            <> Chapter
+              path=./ch1.html
+              <> Math
+                <>
+                  '>>missing a + b'
+      ",
+      expected: "
+        <> GrandWrapper
+          handle=other||2|eq-id|./ch1.html|
+          <> root
+            <> Chapter
+              path=./ch1.html
+              <> Math
+                <>
+                  'undefined handle: missing a + b'
+      ",
+    ),
+    // outside math the very same occurrence becomes a link node
+    infra.AssertiveTestData(
+      param: #("path", "a", "a", [], [], ["a"], ["Math", "MathBlock"]),
+      source: "
+        <> GrandWrapper
+          handle=some_handle||2|eq-id|./ch1.html
+          <> root
+            <> Chapter
+              path=./ch1.html
+              <>
+                '(>>some_handle) is outside of math'
+      ",
+      expected: "
+        <> GrandWrapper
+          handle=some_handle||2|eq-id|./ch1.html|used
+          <> root
+            <> Chapter
+              path=./ch1.html
+              <>
+                '('
+              <> a
+                href=./ch1.html#eq-id
+                <>
+                  '2'
+              <>
+                ') is outside of math'
       ",
     ),
   ]
