@@ -2,35 +2,24 @@
 ////
 //// VXML is a generic XML-like tree with two node kinds: element nodes (`V`)
 //// and text nodes (`T`). It can be serialized to a readable VXML text format,
-//// HTML, or JSX-like output. This module also includes XML/HTML parsing helpers
-//// and small HTML repair functions for common non-XML HTML syntax.
+//// HTML, or JSX-like output. This module also includes XML/HTML parsing helpers.
 
+import blame.{type Blame, prepend_comment as pc} as bl
 import gleam/int
 import gleam/list
 import gleam/option.{None, Some}
 import gleam/regexp
 import gleam/result
 import gleam/string.{inspect as ins}
-import blame.{type Blame, prepend_comment as pc} as bl
-import io_lines.{type InputLine, InputLine, type OutputLine, OutputLine} as io_l
-import simplifile
-import xml_streamer as xs
+import io_lines.{type InputLine, type OutputLine, InputLine, OutputLine} as io_l
 import on
-
-// ************************************************************
-// public constants
-// ************************************************************
+import simplifile
+import vxml_html_repair
+import xml_streamer as xs
 
 pub const vxml_indent = 2
+
 pub const vxml_line_delimiter = "'"
-
-/// a regexp that matches ampersands
-/// that appear outside of html entities:
-const non_html_ampersand_re = "&(?!(?:[a-zA-Z]{2,6};|#x[a-f\\d]{1,6};|#\\d{2,6};))"
-
-// ************************************************************
-// Attr, Line, VXML (pretend 'blame' does not exist -> makes it more readable)
-// ************************************************************
 
 /// An attribute on a VXML element node.
 pub type Attr {
@@ -50,10 +39,6 @@ pub type VXML {
   T(blame: Blame, lines: List(Line))
 }
 
-// ************************************************************
-// validation & parse error types
-// ************************************************************
-
 pub type BadKey {
   EmptyKey
   IllegalKeyCharacter(String, String)
@@ -61,7 +46,7 @@ pub type BadKey {
 
 pub type BadTag {
   EmptyTag
-  IllegalTagCharacter(String, String)
+  MalformedTag(String, String)
 }
 
 pub type VXMLParseError {
@@ -83,190 +68,9 @@ pub type VXMLParseFileError {
   DocumentError(VXMLParseError)
 }
 
-// ************************************************************
-// the new parser
-// ************************************************************
-
-fn parse_text_lines_at_indent(
-  indent: Int,
-  head: FileHead,
-) -> Result(#(List(Line), FileHead), VXMLParseError) {
-  // no lines left
-  use InputLine(blame, suffix_indent, suffix), rest <- on.empty_nonempty(
-    head,
-    fn() { Ok(#([], head)) },
-  )
-
-  // empty suffix
-  use <- on.true_false(
-    suffix == "",
-    fn() { parse_text_lines_at_indent(indent, rest) },
-  )
-
-  // indent too large
-  use <- on.true_false(
-    suffix_indent > indent,
-    fn() { Error(VXMLParseErrorIndentationTooLarge(blame, suffix)) },
-  )
-
-  // indent too small
-  use <- on.true_false(
-    suffix_indent < indent,
-    fn() { Ok(#([], head)) },
-  )
-
-  let suffix = string.trim_end(suffix)
-
-  // missing opening quote
-  use <- on.false_true(
-    suffix |> string.starts_with(vxml_line_delimiter),
-    fn() { Error(VXMLParseErrorTextNoOpeningQuote(blame, suffix)) }
-  )
-
-  let content = suffix |> string.drop_start(1)
-
-  // missing closing quote
-  use <- on.false_true(
-    content |> string.ends_with(vxml_line_delimiter),
-    fn() { Error(VXMLParseErrorTextNoClosingQuote(blame, suffix)) }
-  )
-
-  let content = content |> string.drop_end(1)
-  let line = Line(blame, content)
-  use #(lines, after) <- on.ok(parse_text_lines_at_indent(indent, rest))
-  Ok(#([line, ..lines], after))
-}
-
-fn parse_attributes_at_indent(
-  indent: Int,
-  head: FileHead,
-) -> Result(#(List(Attr), FileHead), VXMLParseError) {
-  // no lines left
-  use InputLine(blame, suffix_indent, suffix), rest <- on.empty_nonempty(
-    head,
-    fn() { Ok(#([], head)) },
-  )
-
-  // empty suffix
-  use <- on.true_false(
-    suffix == "",
-    fn() { parse_attributes_at_indent(indent, rest) },
-  )
-
-  // indent too large
-  use <- on.true_false(
-    suffix_indent > indent,
-    fn() { Error(VXMLParseErrorIndentationTooLarge(blame, suffix)) },
-  )
-
-  // indent too small
-  use <- on.true_false(
-    suffix_indent < indent,
-    fn() { Ok(#([], head)) },
-  )
-
-  // tag
-  use <- on.true_false(
-    suffix |> string.starts_with("<>"),
-    fn() { Ok(#([], head)) },
-  )
-
-  // missing '='
-  use #(key, val) <- on.error_ok(
-    suffix |> string.split_once("="),
-    fn(_) { Error(VXMLParseErrorAttributeAssignmentMissing(blame, suffix)) },
-  )
-  
-  // bad key
-  use _ <- on.error_ok(
-    validate_key(key),
-    fn(e) { Error(VXMLParseErrorBadAttributeKey(blame, e)) },
-  )
-
-  let val = val |> string.trim
-  let attr = Attr(blame, key, val)
-  use #(attrs, after) <- on.ok(parse_attributes_at_indent(indent, rest))
-  let attrs = [attr, ..attrs]
-  Ok(#(attrs, after))
-}
-
-fn parse_nodes_at_indent(
-  indent: Int,
-  head: FileHead,
-) -> Result(#(List(VXML), FileHead), VXMLParseError) {
-  // no lines left
-  use InputLine(blame, suffix_indent, suffix), rest <- on.empty_nonempty(
-    head,
-    fn() { Ok(#([], head)) },
-  )
-
-  // empty suffix
-  use <- on.true_false(
-    suffix == "",
-    fn() { parse_nodes_at_indent(indent, rest) },
-  )
-
-  // indent too large
-  use <- on.true_false(
-    suffix_indent > indent,
-    fn() { Error(VXMLParseErrorIndentationTooLarge(blame, suffix)) },
-  )
-
-  // indent too small
-  use <- on.true_false(
-    suffix_indent < indent,
-    fn() { Ok(#([], head)) },
-  )
-
-  // not a tag
-  use <- on.false_true(
-    suffix |> string.starts_with("<>"),
-    fn() { Error(VXMLParseErrorCaretExpected(blame, suffix)) },
-  )
-
-  let tag = suffix |> string.drop_start(2) |> string.trim
-
-  case tag {
-    // text node
-    "" -> {
-      use #(lines, after) <- on.ok(parse_text_lines_at_indent(indent + vxml_indent, rest))
-      case lines {
-        [] -> Error(VXMLParseErrorTextMissing(blame))
-        _ -> {
-          let node = T(blame, lines)
-          use #(nodes, after) <- on.ok(parse_nodes_at_indent(indent, after))
-          Ok(#([node, ..nodes], after))
-        }
-      }
-    }
-    // tag
-    _ -> {
-      use _ <- on.error_ok(
-        validate_tag(tag),
-        fn(e) { Error(VXMLParseErrorBadTag(blame, e)) },
-      )
-      use #(attrs, after) <- on.ok(parse_attributes_at_indent(indent + vxml_indent, rest))
-      use #(children, after) <- on.ok(parse_nodes_at_indent(indent + vxml_indent, after))
-      let node = V(blame |> bl.set_anchored, tag, attrs, children)
-      use #(nodes, after) <- on.ok(parse_nodes_at_indent(indent, after))
-      Ok(#([node, ..nodes], after))
-    }
-  }
-}
-
-// ************************************************************
-// private types & constants
-// ************************************************************
-
-const illegal_tag_characters = [".", " ", "\"", "-"]
 const illegal_key_characters = [".", " ", "\"", ";"]
 
-type FileHead =
-  List(InputLine)
-
-// ************************************************************
-// tag & attribute key validation
-// ************************************************************
+pub const tag_pattern = "^[A-Za-z][A-Za-z0-9_]*$"
 
 fn contains_chars(thing: String, substrings: List(String)) -> String {
   case substrings {
@@ -300,11 +104,172 @@ pub fn validate_tag(tag: String) -> Result(String, BadTag) {
   case tag == "" {
     True -> Error(EmptyTag)
     False -> {
-      let bad_char = contains_chars(tag, illegal_tag_characters)
-      case bad_char == "" {
+      let assert Ok(re) = regexp.from_string(tag_pattern)
+      case regexp.check(re, tag) {
         True -> Ok(tag)
-        False -> Error(IllegalTagCharacter(tag, bad_char))
+        False -> Error(MalformedTag(tag, tag_pattern))
       }
+    }
+  }
+}
+
+type FileHead =
+  List(InputLine)
+
+// ************************************************************
+// serialized VXML parser
+// ************************************************************
+
+fn parse_text_lines_at_indent(
+  indent: Int,
+  head: FileHead,
+) -> Result(#(List(Line), FileHead), VXMLParseError) {
+  // no lines left
+  use InputLine(blame, suffix_indent, suffix), rest <- on.empty_nonempty(
+    head,
+    fn() { Ok(#([], head)) },
+  )
+
+  // empty suffix
+  use <- on.true_false(suffix == "", fn() {
+    parse_text_lines_at_indent(indent, rest)
+  })
+
+  // indent too large
+  use <- on.true_false(suffix_indent > indent, fn() {
+    Error(VXMLParseErrorIndentationTooLarge(blame, suffix))
+  })
+
+  // indent too small
+  use <- on.true_false(suffix_indent < indent, fn() { Ok(#([], head)) })
+
+  let suffix = string.trim_end(suffix)
+
+  // missing opening quote
+  use <- on.false_true(suffix |> string.starts_with(vxml_line_delimiter), fn() {
+    Error(VXMLParseErrorTextNoOpeningQuote(blame, suffix))
+  })
+
+  let content = suffix |> string.drop_start(1)
+
+  // missing closing quote
+  use <- on.false_true(content |> string.ends_with(vxml_line_delimiter), fn() {
+    Error(VXMLParseErrorTextNoClosingQuote(blame, suffix))
+  })
+
+  let content = content |> string.drop_end(1)
+  let line = Line(blame, content)
+  use #(lines, after) <- on.ok(parse_text_lines_at_indent(indent, rest))
+  Ok(#([line, ..lines], after))
+}
+
+fn parse_attributes_at_indent(
+  indent: Int,
+  head: FileHead,
+) -> Result(#(List(Attr), FileHead), VXMLParseError) {
+  // no lines left
+  use InputLine(blame, suffix_indent, suffix), rest <- on.empty_nonempty(
+    head,
+    fn() { Ok(#([], head)) },
+  )
+
+  // empty suffix
+  use <- on.true_false(suffix == "", fn() {
+    parse_attributes_at_indent(indent, rest)
+  })
+
+  // indent too large
+  use <- on.true_false(suffix_indent > indent, fn() {
+    Error(VXMLParseErrorIndentationTooLarge(blame, suffix))
+  })
+
+  // indent too small
+  use <- on.true_false(suffix_indent < indent, fn() { Ok(#([], head)) })
+
+  // tag
+  use <- on.true_false(suffix |> string.starts_with("<>"), fn() {
+    Ok(#([], head))
+  })
+
+  // missing '='
+  use #(key, val) <- on.error_ok(suffix |> string.split_once("="), fn(_) {
+    Error(VXMLParseErrorAttributeAssignmentMissing(blame, suffix))
+  })
+
+  // bad key
+  use _ <- on.error_ok(validate_key(key), fn(e) {
+    Error(VXMLParseErrorBadAttributeKey(blame, e))
+  })
+
+  let val = val |> string.trim
+  let attr = Attr(blame, key, val)
+  use #(attrs, after) <- on.ok(parse_attributes_at_indent(indent, rest))
+  let attrs = [attr, ..attrs]
+  Ok(#(attrs, after))
+}
+
+fn parse_nodes_at_indent(
+  indent: Int,
+  head: FileHead,
+) -> Result(#(List(VXML), FileHead), VXMLParseError) {
+  // no lines left
+  use InputLine(blame, suffix_indent, suffix), rest <- on.empty_nonempty(
+    head,
+    fn() { Ok(#([], head)) },
+  )
+
+  // empty suffix
+  use <- on.true_false(suffix == "", fn() {
+    parse_nodes_at_indent(indent, rest)
+  })
+
+  // indent too large
+  use <- on.true_false(suffix_indent > indent, fn() {
+    Error(VXMLParseErrorIndentationTooLarge(blame, suffix))
+  })
+
+  // indent too small
+  use <- on.true_false(suffix_indent < indent, fn() { Ok(#([], head)) })
+
+  // not a tag
+  use <- on.false_true(suffix |> string.starts_with("<>"), fn() {
+    Error(VXMLParseErrorCaretExpected(blame, suffix))
+  })
+
+  let tag = suffix |> string.drop_start(2) |> string.trim
+
+  case tag {
+    // text node
+    "" -> {
+      use #(lines, after) <- on.ok(parse_text_lines_at_indent(
+        indent + vxml_indent,
+        rest,
+      ))
+      case lines {
+        [] -> Error(VXMLParseErrorTextMissing(blame))
+        _ -> {
+          let node = T(blame, lines)
+          use #(nodes, after) <- on.ok(parse_nodes_at_indent(indent, after))
+          Ok(#([node, ..nodes], after))
+        }
+      }
+    }
+    // tag
+    _ -> {
+      use _ <- on.error_ok(validate_tag(tag), fn(e) {
+        Error(VXMLParseErrorBadTag(blame, e))
+      })
+      use #(attrs, after) <- on.ok(parse_attributes_at_indent(
+        indent + vxml_indent,
+        rest,
+      ))
+      use #(children, after) <- on.ok(parse_nodes_at_indent(
+        indent + vxml_indent,
+        after,
+      ))
+      let node = V(blame |> bl.set_anchored, tag, attrs, children)
+      use #(nodes, after) <- on.ok(parse_nodes_at_indent(indent, after))
+      Ok(#([node, ..nodes], after))
     }
   }
 }
@@ -344,10 +309,6 @@ pub fn annotate_blames(vxml: VXML) -> VXML {
   }
 }
 
-// ************************************************************
-// VXML -> List(OutputLine)
-// ************************************************************
-
 fn delimit(s: String) -> String {
   vxml_line_delimiter <> s <> vxml_line_delimiter
 }
@@ -360,11 +321,7 @@ fn vxml_to_output_lines_internal(
     T(blame, lines) -> [
       OutputLine(blame, indentation, "<>"),
       ..list.map(lines, fn(line) {
-        OutputLine(
-          line.blame,
-          indentation + vxml_indent,
-          delimit(line.content),
-        )
+        OutputLine(line.blame, indentation + vxml_indent, delimit(line.content))
       })
     ]
 
@@ -380,14 +337,13 @@ fn vxml_to_output_lines_internal(
             )
           }),
           children
-          |> list.map(vxml_to_output_lines_internal(_, indentation + 2))
-          |> list.flatten
+            |> list.map(vxml_to_output_lines_internal(_, indentation + 2))
+            |> list.flatten,
         )
       ]
     }
   }
 }
-
 
 // ************************************************************
 // VXML -> List(OutputLine) api
@@ -431,11 +387,60 @@ pub fn vxml_table(vxml: VXML, banner: String, indent: Int) -> String {
   |> io_l.output_lines_table(banner, indent)
 }
 
+pub fn parse_input_lines(
+  lines: List(io_l.InputLine),
+  unique_root: Bool,
+) -> Result(List(VXML), VXMLParseError) {
+  use #(vxmls, after) <- on.ok(parse_nodes_at_indent(0, lines))
+  assert after == []
+  case unique_root {
+    False -> Ok(vxmls)
+    True ->
+      case vxmls {
+        [_] -> Ok(vxmls)
+        _ -> Error(VXMLParseErrorNonUniqueRoot(vxmls |> list.length))
+      }
+  }
+}
+
 // ************************************************************
-// VXML -> jsx
+// parse_string
 // ************************************************************
 
-fn jsx_string_processor(content: String, ampersand_re: regexp.Regexp) -> String {
+/// Parse a string containing the VXML text format.
+pub fn parse_string(
+  source: String,
+  filename: String,
+  unique_root: Bool,
+) -> Result(List(VXML), VXMLParseError) {
+  source
+  |> io_l.string_to_input_lines(filename, 0)
+  |> parse_input_lines(unique_root)
+}
+
+// ************************************************************
+// parse_file
+// ************************************************************
+
+/// Parse a file containing the VXML text format.
+pub fn parse_file(
+  path: String,
+  unique_root: Bool,
+) -> Result(List(VXML), VXMLParseFileError) {
+  use contents <- on.error_ok(simplifile.read(path), fn(io_error) {
+    Error(IOError(io_error))
+  })
+
+  parse_string(contents, path, unique_root)
+  |> result.map_error(fn(e) { DocumentError(e) })
+}
+
+const non_html_ampersand_re = "&(?!(?:[a-zA-Z]{2,6};|#x[a-f\\d]{1,6};|#\\d{2,6};))"
+
+fn jsx_string_processor(
+  content: String,
+  ampersand_re: regexp.Regexp,
+) -> String {
   content
   |> regexp.replace(ampersand_re, _, "&amp;")
   |> string.replace("{", "&#123;")
@@ -444,10 +449,7 @@ fn jsx_string_processor(content: String, ampersand_re: regexp.Regexp) -> String 
   |> string.replace(">", "&gt;")
 }
 
-fn jsx_key_val(
-  attr: Attr,
-  ampersand_re: regexp.Regexp,
-) -> String {
+fn jsx_key_val(attr: Attr, ampersand_re: regexp.Regexp) -> String {
   let val = string.trim(attr.val) |> jsx_string_processor(ampersand_re)
   case val == "false" || val == "true" || result.is_ok(int.parse(val)) {
     True -> attr.key <> "={" <> val <> "}"
@@ -463,7 +465,7 @@ fn jsx_attr_output_line(
   OutputLine(
     blame: attr.blame,
     indent: indent,
-    suffix: jsx_key_val(attr, ampersand_re)
+    suffix: jsx_key_val(attr, ampersand_re),
   )
 }
 
@@ -487,20 +489,39 @@ fn jsx_tag_open_output_lines(
 ) -> List(OutputLine) {
   case attrs {
     [] -> [
-      OutputLine(blame: blame, indent: indent, suffix: "<" <> tag <> closing_same_line),
+      OutputLine(
+        blame: blame,
+        indent: indent,
+        suffix: "<" <> tag <> closing_same_line,
+      ),
     ]
     [first] -> [
       OutputLine(
         blame: blame,
         indent: indent,
-        suffix: "<" <> tag <> " " <> jsx_key_val(first, ampersand_re) <> closing_same_line,
+        suffix: "<"
+          <> tag
+          <> " "
+          <> jsx_key_val(first, ampersand_re)
+          <> closing_same_line,
       ),
     ]
     _ -> {
       [
         [OutputLine(blame: blame, indent: indent, suffix: "<" <> tag)],
-        attrs |> list.map(jsx_attr_output_line(_, indent + indentation, ampersand_re)),
-        [OutputLine(blame: blame, indent: indent, suffix: closing_different_line)],
+        attrs
+          |> list.map(jsx_attr_output_line(
+            _,
+            indent + indentation,
+            ampersand_re,
+          )),
+        [
+          OutputLine(
+            blame: blame,
+            indent: indent,
+            suffix: closing_different_line,
+          ),
+        ],
       ]
       |> list.flatten
     }
@@ -527,8 +548,20 @@ fn vxml_to_jsx_output_lines_internal(
       |> list.index_map(fn(t, i) {
         OutputLine(blame: t.blame, indent: indent, suffix: {
           let content = jsx_string_processor(t.content, ampersand_re)
-          let start = {i == 0 && {string.starts_with(content, " ") || string.is_empty(content)}} |> bool_2_jsx_space
-          let end = {i == n - 1 && {string.ends_with(content, " ") || string.is_empty(content)}} |> bool_2_jsx_space
+          let start =
+            {
+              i == 0
+              && {
+                string.starts_with(content, " ") || string.is_empty(content)
+              }
+            }
+            |> bool_2_jsx_space
+          let end =
+            {
+              i == n - 1
+              && { string.ends_with(content, " ") || string.is_empty(content) }
+            }
+            |> bool_2_jsx_space
           start <> content <> end
         })
       })
@@ -538,16 +571,39 @@ fn vxml_to_jsx_output_lines_internal(
       case list.is_empty(children) {
         False ->
           [
-            jsx_tag_open_output_lines(blame, tag, indent, ">", ">", attrs, ampersand_re, indentation),
+            jsx_tag_open_output_lines(
+              blame,
+              tag,
+              indent,
+              ">",
+              ">",
+              attrs,
+              ampersand_re,
+              indentation,
+            ),
             children
-            |> list.map(vxml_to_jsx_output_lines_internal(_, indent + indentation, ampersand_re, indentation))
-            |> list.flatten,
+              |> list.map(vxml_to_jsx_output_lines_internal(
+                _,
+                indent + indentation,
+                ampersand_re,
+                indentation,
+              ))
+              |> list.flatten,
             jsx_tag_close_output_lines(blame, tag, indent),
           ]
           |> list.flatten
 
         True ->
-          jsx_tag_open_output_lines(blame, tag, indent, " />", "/>", attrs, ampersand_re, indentation)
+          jsx_tag_open_output_lines(
+            blame,
+            tag,
+            indent,
+            " />",
+            "/>",
+            attrs,
+            ampersand_re,
+            indentation,
+          )
       }
     }
   }
@@ -561,9 +617,14 @@ pub fn vxml_to_jsx_output_lines(
   vxml: VXML,
   starting_indent: Int,
   indentation: Int,
- ) -> List(OutputLine) {
+) -> List(OutputLine) {
   let assert Ok(ampersand_re) = regexp.from_string(non_html_ampersand_re)
-  vxml_to_jsx_output_lines_internal(vxml, starting_indent, ampersand_re, indentation)
+  vxml_to_jsx_output_lines_internal(
+    vxml,
+    starting_indent,
+    ampersand_re,
+    indentation,
+  )
 }
 
 pub fn vxmls_to_jsx_output_lines(
@@ -573,7 +634,12 @@ pub fn vxmls_to_jsx_output_lines(
 ) -> List(OutputLine) {
   let assert Ok(ampersand_re) = regexp.from_string(non_html_ampersand_re)
   vxmls
-  |> list.map(vxml_to_jsx_output_lines_internal(_, starting_indent, ampersand_re, indentation))
+  |> list.map(vxml_to_jsx_output_lines_internal(
+    _,
+    starting_indent,
+    ampersand_re,
+    indentation,
+  ))
   |> list.flatten
 }
 
@@ -601,11 +667,10 @@ pub fn vxmls_to_jsx(
   |> io_l.output_lines_to_string
 }
 
-// ************************************************************
-// VXML -> html
-// ************************************************************
-
-fn html_string_processor(content: String, ampersand_re: regexp.Regexp) -> String {
+fn html_string_processor(
+  content: String,
+  ampersand_re: regexp.Regexp,
+) -> String {
   content
   |> regexp.replace(ampersand_re, _, "&amp;")
   |> string.replace("<", "&lt;")
@@ -773,26 +838,30 @@ fn closing_tag_to_sticky_lines(
   ]
 }
 
-fn t_sticky_lines(t: VXML, indent: Int, pre: Bool, ampersand_re: regexp.Regexp) -> List(StickyLine) {
+fn t_sticky_lines(
+  t: VXML,
+  indent: Int,
+  pre: Bool,
+  ampersand_re: regexp.Regexp,
+) -> List(StickyLine) {
   let assert T(_, lines) = t
   let indent = case pre {
     True -> 0
     False -> indent
   }
   let last_index = list.length(lines) - 1
-  let sticky_lines = list.index_map(
-    lines,
-    fn(line, i) {
+  let sticky_lines =
+    list.index_map(lines, fn(line, i) {
       let content = html_string_processor(line.content, ampersand_re)
       StickyLine(
         blame: line.blame,
         indent: indent,
         content: content,
-        sticky_start: i == 0 && {!string.starts_with(content, " ") || pre},
-        sticky_end: i == last_index && {!string.ends_with(content, " ") || pre},
+        sticky_start: i == 0 && { !string.starts_with(content, " ") || pre },
+        sticky_end: i == last_index
+          && { !string.ends_with(content, " ") || pre },
       )
-    }
-  )
+    })
   // if not pre:
   // - while lines have at least 1 line:
   //   - any starting blanks of first content can be removed (start is automatically non-sticky in that case)
@@ -831,20 +900,21 @@ fn t_very_fancy_sticky_lines_post_processing(
     }
     False -> {
       case first.content == "" {
-        True -> case list.is_empty(rest) {
-          False -> {
-            // action 2: the next line is not sticky anyway, so drop
-            // this empty line and keep only the others
-            let assert Ok(new_first) = list.first(rest)
-            assert new_first.sticky_start == False
-            t_very_fancy_sticky_lines_post_processing(rest)
+        True ->
+          case list.is_empty(rest) {
+            False -> {
+              // action 2: the next line is not sticky anyway, so drop
+              // this empty line and keep only the others
+              let assert Ok(new_first) = list.first(rest)
+              assert new_first.sticky_start == False
+              t_very_fancy_sticky_lines_post_processing(rest)
+            }
+            True -> {
+              // action 3: we have only 1 empty line, make it non-sticky
+              // at start and sticky at end to simulate a plain newline
+              [StickyLine(..first, sticky_start: False, sticky_end: True)]
+            }
           }
-          True -> {
-            // action 3: we have only 1 empty line, make it non-sticky
-            // at start and sticky at end to simulate a plain newline
-            [StickyLine(..first, sticky_start: False, sticky_end: True)]
-          }
-        }
         False -> {
           let assert [last, ..init] = lines |> list.reverse
           case string.ends_with(last.content, " ") {
@@ -853,7 +923,7 @@ fn t_very_fancy_sticky_lines_post_processing(
               // so trim ending spaces of last line
               assert last.sticky_end == False
               t_very_fancy_sticky_lines_post_processing(
-                [trim_end(last), ..init] |> list.reverse
+                [trim_end(last), ..init] |> list.reverse,
               )
             }
             False -> {
@@ -861,9 +931,12 @@ fn t_very_fancy_sticky_lines_post_processing(
                 True -> {
                   let assert [new_last, ..] = init
                   assert new_last.sticky_end == False
-                  t_very_fancy_sticky_lines_post_processing(init |> list.reverse)
+                  t_very_fancy_sticky_lines_post_processing(
+                    init |> list.reverse,
+                  )
                 }
-                False -> lines // (could not find anything to change)
+                False -> lines
+                // (could not find anything to change)
               }
             }
           }
@@ -873,7 +946,12 @@ fn t_very_fancy_sticky_lines_post_processing(
   }
 }
 
-fn t_sticky_tree(t: VXML, indent: Int, pre: Bool, ampersand_re: regexp.Regexp) -> StickyTree {
+fn t_sticky_tree(
+  t: VXML,
+  indent: Int,
+  pre: Bool,
+  ampersand_re: regexp.Regexp,
+) -> StickyTree {
   StickyTree(
     opening_lines: t_sticky_lines(t, indent, pre, ampersand_re),
     children: [],
@@ -881,12 +959,25 @@ fn t_sticky_tree(t: VXML, indent: Int, pre: Bool, ampersand_re: regexp.Regexp) -
   )
 }
 
-fn v_sticky_tree(v: VXML, indent: Int, spaces: Int, pre: Bool, ampersand_re: regexp.Regexp) -> StickyTree {
+fn v_sticky_tree(
+  v: VXML,
+  indent: Int,
+  spaces: Int,
+  pre: Bool,
+  ampersand_re: regexp.Regexp,
+) -> StickyTree {
   let assert V(_, tag, _, children) = v
   let pre = pre || tag |> string.lowercase == "pre"
   StickyTree(
     opening_lines: opening_tag_to_sticky_lines(v, indent, spaces, pre),
-    children: children |> list.map(vxml_sticky_tree(_, indent + spaces, spaces, pre, ampersand_re)),
+    children: children
+      |> list.map(vxml_sticky_tree(
+        _,
+        indent + spaces,
+        spaces,
+        pre,
+        ampersand_re,
+      )),
     closing_lines: case list.contains(self_closing_tags, tag) {
       True -> []
       False -> closing_tag_to_sticky_lines(v, indent, pre)
@@ -927,7 +1018,12 @@ fn vxmls_to_html_output_lines_internal(
   ampersand_re: regexp.Regexp,
 ) -> List(OutputLine) {
   vxmls
-  |> list.map(vxml_to_html_output_lines_internal(_, indent, spaces, ampersand_re))
+  |> list.map(vxml_to_html_output_lines_internal(
+    _,
+    indent,
+    spaces,
+    ampersand_re,
+  ))
   |> list.flatten
 }
 
@@ -950,147 +1046,6 @@ pub fn vxmls_to_html_output_lines(
   vxmls_to_html_output_lines_internal(vxmls, indent, spaces, ampersand_re)
 }
 
-// ************************************************************
-// parse_input_lines
-// ************************************************************
-
-/// Parse VXML text-format input lines.
-pub fn parse_input_lines(
-  lines: List(io_l.InputLine),
-  unique_root: Bool,
-) -> Result(List(VXML), VXMLParseError) {
-  use #(vxmls, after) <- on.ok(parse_nodes_at_indent(0, lines))
-  assert after == []
-  case unique_root {
-    False -> Ok(vxmls)
-    True -> case vxmls {
-      [_] -> Ok(vxmls)
-      _ -> Error(VXMLParseErrorNonUniqueRoot(vxmls |> list.length))
-    }
-  }
-}
-
-// ************************************************************
-// parse_string
-// ************************************************************
-
-/// Parse a string containing the VXML text format.
-pub fn parse_string(
-  source: String,
-  filename: String,
-  unique_root: Bool,
-) -> Result(List(VXML), VXMLParseError) {
-  source
-  |> io_l.string_to_input_lines(filename, 0)
-  |> parse_input_lines(unique_root)
-}
-
-// ************************************************************
-// parse_file
-// ************************************************************
-
-/// Parse a file containing the VXML text format.
-pub fn parse_file(
-  path: String,
-  unique_root: Bool,
-) -> Result(List(VXML), VXMLParseFileError) {
-  use contents <- on.error_ok(
-    simplifile.read(path),
-    fn (io_error) { Error(IOError(io_error)) },
-  )
-
-  parse_string(contents, path, unique_root)
-  |> result.map_error(fn(e) { DocumentError(e) })
-}
-
-fn html_repair_close_void_tag(content: String, tag: String) -> String {
-  let assert Ok(re) =
-    regexp.from_string("(<" <> tag <> ")(\\b[^>]*)(>)")
-
-  regexp.match_map(re, content, fn(match) {
-    let regexp.Match(_, sub) = match
-    let assert [_, maybe_middle, _] = sub
-    let middle = maybe_middle |> option.unwrap("")
-    case middle |> string.trim_end |> string.ends_with("/") {
-      True -> "<" <> tag <> middle <> ">"
-      False -> "<" <> tag <> middle <> "/>"
-    }
-  })
-}
-
-pub fn html_repair_escape_non_entity_ampersands(
-  content: String,
-) -> String {
-  let assert Ok(re) = regexp.from_string(non_html_ampersand_re)
-
-  regexp.replace(re, content, "&amp;")
-}
-
-fn html_repair_expand_boolean_attr(content: String, attr: String) -> String {
-  let assert Ok(re) =
-    regexp.from_string("(\\s" <> attr <> ")(\\s|>|/>)")
-
-  regexp.match_map(re, content, fn(match) {
-    let regexp.Match(_, sub) = match
-    let assert [Some(attr), Some(after)] = sub
-    attr <> "=\"\"" <> after
-  })
-}
-
-pub fn html_repair_expand_boolean_attrs(
-  content: String,
-) -> String {
-  [
-    "allowfullscreen", "async", "autofocus", "autoplay", "checked", "controls",
-    "default", "defer", "disabled", "formnovalidate", "hidden", "inert", "ismap",
-    "loop", "multiple", "muted", "nomodule", "novalidate", "open", "playsinline",
-    "readonly", "required", "reversed", "selected",
-  ]
-  |> list.fold(content, fn(content, attr) {
-    html_repair_expand_boolean_attr(content, attr)
-  })
-}
-
-pub fn html_repair_close_void_tags(
-  content: String,
-) -> String {
-  [
-    "area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta",
-    "source", "track", "wbr",
-  ]
-  |> list.fold(content, fn(content, tag) {
-    html_repair_close_void_tag(content, tag)
-  })
-}
-
-pub fn html_repair_remove_attrs_from_closing_tags(
-  content: String,
-) -> String {
-  let assert Ok(re) =
-    regexp.from_string("(<\\/)([a-zA-Z][a-zA-Z0-9._-]*)(\\s+[^>]*)(>)")
-
-  regexp.match_map(re, content, fn(match) {
-    let regexp.Match(_, sub) = match
-    let assert [_, Some(tag), _, _] = sub
-    "</" <> tag <> ">"
-  })
-}
-
-/// Best-effort repair for common HTML syntax that blocks XML-oriented parsers.
-pub fn html_repair(
-  content: String,
-) -> String {
-  content
-  |> html_repair_expand_boolean_attrs
-  |> html_repair_escape_non_entity_ampersands
-  |> html_repair_close_void_tags
-  |> html_repair_remove_attrs_from_closing_tags
-}
-
-// ************************************************************
-// XML streaming-based parser
-// ************************************************************
-
 type XMLStreamingParserLogicalUnit {
   XMLStreamingParserText(List(Line))
   XMLStreamingParserOpeningTag(Blame, String, List(Attr))
@@ -1108,19 +1063,17 @@ fn take_while_text_or_newline_acc(
   // returns reversed list on purpose!!!
   case remaining {
     [] -> #(previous, [])
-    [first, ..rest] -> case first {
-      xs.Text(_, _) | xs.Newline(_) -> 
-        take_while_text_or_newline_acc(
-          [first, ..previous],
-          rest,
-        )
-      _ -> #(previous, remaining)
-    }
+    [first, ..rest] ->
+      case first {
+        xs.Text(_, _) | xs.Newline(_) ->
+          take_while_text_or_newline_acc([first, ..previous], rest)
+        _ -> #(previous, remaining)
+      }
   }
 }
 
 fn take_while_text_or_newline(
-  events: List(xs.Event)
+  events: List(xs.Event),
 ) -> #(List(xs.Event), List(xs.Event)) {
   // returns reversed list on purpose!!!
   take_while_text_or_newline_acc([], events)
@@ -1131,10 +1084,7 @@ type Return(a, b) {
   Continuation(b)
 }
 
-fn on_continuation(
-  thing: Return(a, b),
-  f: fn(b) -> a,
-) -> a {
+fn on_continuation(thing: Return(a, b), f: fn(b) -> a) -> a {
   case thing {
     Return(a) -> a
     Continuation(b) -> f(b)
@@ -1147,9 +1097,7 @@ type TriWay {
   SomethingElse(xs.Event, List(xs.Event), Bool)
 }
 
-fn tri_way(
-  events: List(xs.Event),
-) -> TriWay {
+fn tri_way(events: List(xs.Event)) -> TriWay {
   case events {
     [] -> NoMoreEvents
     [first, ..rest] -> {
@@ -1157,11 +1105,11 @@ fn tri_way(
         xs.TagEndOrdinary(_) -> TagEnd(first, rest)
         xs.TagEndSelfClosing(_) -> TagEnd(first, rest)
         xs.TagEndXMLVersion(_) -> TagEnd(first, rest)
-        xs.InTagWhitespace(_, _) | xs.Newline(_) -> case tri_way(rest) {
-          SomethingElse(first, rest, _) ->
-            SomethingElse(first, rest, True)
-          x -> x
-        }
+        xs.InTagWhitespace(_, _) | xs.Newline(_) ->
+          case tri_way(rest) {
+            SomethingElse(first, rest, _) -> SomethingElse(first, rest, True)
+            x -> x
+          }
         _ -> SomethingElse(first, rest, False)
       }
     }
@@ -1171,10 +1119,7 @@ fn tri_way(
 fn get_attrs_and_tag_end(
   tag_start: xs.Event,
   rest: List(xs.Event),
-) -> Result(
-  #(List(Attr), xs.Event, List(xs.Event)), 
-  #(Blame, String),
-) {
+) -> Result(#(List(Attr), xs.Event, List(xs.Event)), #(Blame, String)) {
   let prepend_attr_if_ok = fn(
     result: Result(#(List(Attr), xs.Event, List(xs.Event)), #(Blame, String)),
     attr: Attr,
@@ -1185,28 +1130,32 @@ fn get_attrs_and_tag_end(
     }
   }
 
-  use #(first, rest) <- on_continuation(
-    case tri_way(rest) {
-      TagEnd(tag_end, rest) ->
-        Return(Ok(#([], tag_end, rest)))
+  use #(first, rest) <- on_continuation(case tri_way(rest) {
+    TagEnd(tag_end, rest) -> Return(Ok(#([], tag_end, rest)))
 
-      NoMoreEvents ->
-        Return(Error(#(tag_start.blame, "ran out of events while waiting for end of tag")))
+    NoMoreEvents ->
+      Return(
+        Error(#(
+          tag_start.blame,
+          "ran out of events while waiting for end of tag",
+        )),
+      )
 
-      SomethingElse(first, rest, _) ->
-        Continuation(#(first, rest))
-    }
-  )
+    SomethingElse(first, rest, _) -> Continuation(#(first, rest))
+  })
 
-  use #(key_blame, key_name) <- on.ok(
-    case first {
-      xs.Key(b, k) -> Ok(#(b, k))
-      _ -> Error(#(
+  use #(key_blame, key_name) <- on.ok(case first {
+    xs.Key(b, k) -> Ok(#(b, k))
+    _ ->
+      Error(#(
         first.blame,
-        "expecting tag end or valid key after tag name; tag_start" <> xs.event_digest(tag_start) <> "; had " <> xs.event_digest(first) <> " instead",
+        "expecting tag end or valid key after tag name; tag_start"
+          <> xs.event_digest(tag_start)
+          <> "; had "
+          <> xs.event_digest(first)
+          <> " instead",
       ))
-    }
-  )
+  })
 
   // we accept a solitary key, or solitary key with '='
   // (e.g. 'async' or 'async=') as an assignment to the
@@ -1217,47 +1166,49 @@ fn get_attrs_and_tag_end(
   // current assignment as empty)
   let proto = Attr(key_blame, key_name, "")
 
-  use #(second, rest) <- on_continuation(
-    case tri_way(rest) {
-      TagEnd(tag_end, rest) ->
-        Return(Ok(#([proto], tag_end, rest)))
+  use #(second, rest) <- on_continuation(case tri_way(rest) {
+    TagEnd(tag_end, rest) -> Return(Ok(#([proto], tag_end, rest)))
 
-      NoMoreEvents ->
-        Return(Error(#(tag_start.blame, "ran out of events while waiting for end of tag")))
+    NoMoreEvents ->
+      Return(
+        Error(#(
+          tag_start.blame,
+          "ran out of events while waiting for end of tag",
+        )),
+      )
 
-      SomethingElse(second, rest, _) ->
-        Continuation(#(second, rest))
-    }
-  )
+    SomethingElse(second, rest, _) -> Continuation(#(second, rest))
+  })
 
-  use _ <- on_continuation(
-    case second {
-      xs.Assignment(_) -> Continuation(Nil)
-      _ -> Return(
+  use _ <- on_continuation(case second {
+    xs.Assignment(_) -> Continuation(Nil)
+    _ ->
+      Return(
         // if the key wasn't followed by '=' then it can only
         // be followed by spaces or by tag end, and either way
         // (tag end or spaces and no '=') it is fine for us to
         // keep attrs parsing from scratch:
         get_attrs_and_tag_end(tag_start, [second, ..rest])
-        |> prepend_attr_if_ok(proto)
+        |> prepend_attr_if_ok(proto),
       )
-    }
-  )
+  })
 
   // 'key=' or 'key  ='
 
-  use #(third, rest, had_spaces) <- on_continuation(
-    case tri_way(rest) {
-      TagEnd(tag_end, rest) ->
-        Return(Ok(#([proto], tag_end, rest)))
+  use #(third, rest, had_spaces) <- on_continuation(case tri_way(rest) {
+    TagEnd(tag_end, rest) -> Return(Ok(#([proto], tag_end, rest)))
 
-      NoMoreEvents ->
-        Return(Error(#(tag_start.blame, "ran out of events while waiting for end of tag")))
+    NoMoreEvents ->
+      Return(
+        Error(#(
+          tag_start.blame,
+          "ran out of events while waiting for end of tag",
+        )),
+      )
 
-      SomethingElse(third, rest, had_spaces) ->
-        Continuation(#(third, rest, had_spaces))
-    }
-  )
+    SomethingElse(third, rest, had_spaces) ->
+      Continuation(#(third, rest, had_spaces))
+  })
 
   case third {
     xs.ValueDoubleQuoted(_, val) | xs.ValueSingleQuoted(_, val) -> {
@@ -1271,12 +1222,12 @@ fn get_attrs_and_tag_end(
     _ -> {
       case get_attrs_and_tag_end(tag_start, rest) {
         Error(e) -> Error(e)
-        Ok(#(attrs, end, rest)) -> case had_spaces, attrs {
-          False, [some, ..] ->
-            Error(#(some.blame, "expecting attr val after '='"))
-          _, _ ->
-            Ok(#([proto, ..attrs], end, rest))
-        }
+        Ok(#(attrs, end, rest)) ->
+          case had_spaces, attrs {
+            False, [some, ..] ->
+              Error(#(some.blame, "expecting attr val after '='"))
+            _, _ -> Ok(#([proto, ..attrs], end, rest))
+          }
       }
     }
   }
@@ -1302,14 +1253,18 @@ fn reach_end_of_comments(
       Error(#(comment_start.blame, "unclosed comment"))
     }
     [some, ..] -> {
-      let msg = "non-comment Event after comment start; start: " <> bl.blame_digest(comment_start.blame) <> "; Event: " <> xs.event_digest(some)
+      let msg =
+        "non-comment Event after comment start; start: "
+        <> bl.blame_digest(comment_start.blame)
+        <> "; Event: "
+        <> xs.event_digest(some)
       panic as msg
     }
-  } 
+  }
 }
 
 fn xml_streaming_get_next_logical_unit(
-  events: List(xs.Event)
+  events: List(xs.Event),
 ) -> Result(#(XMLStreamingParserLogicalUnit, List(xs.Event)), #(Blame, String)) {
   let assert [first, ..rest] = events
 
@@ -1327,15 +1282,15 @@ fn xml_streaming_get_next_logical_unit(
         xs.Newline(b) -> [xs.Text(b, ""), ..guys]
         _ -> guys
       }
-      let lines = list.map(
-        guys,
-        fn(x) { case x {
-          xs.Newline(_) -> None
-          xs.Text(b, c) -> Some(Line(b, c))
-          _ -> panic
-        }}
-      )
-      |> option.values
+      let lines =
+        list.map(guys, fn(x) {
+          case x {
+            xs.Newline(_) -> None
+            xs.Text(b, c) -> Some(Line(b, c))
+            _ -> panic
+          }
+        })
+        |> option.values
       Ok(#(XMLStreamingParserText(lines), remaining))
     }
 
@@ -1349,8 +1304,7 @@ fn xml_streaming_get_next_logical_unit(
           Ok(#(XMLStreamingParserOpeningTag(blame, tag, attrs), remaining))
         xs.TagEndSelfClosing(_) ->
           Ok(#(XMLStreamingParserSelfClosingTag(blame, tag, attrs), remaining))
-        xs.TagEndXMLVersion(b) ->
-          Error(#(b, "unexpected '?>' tag ending"))
+        xs.TagEndXMLVersion(b) -> Error(#(b, "unexpected '?>' tag ending"))
         _ -> panic
       }
     }
@@ -1360,12 +1314,10 @@ fn xml_streaming_get_next_logical_unit(
       assert tag == "xml" || tag == "XML"
       use #(attrs, end, remaining) <- on.ok(get_attrs_and_tag_end(first, rest))
       case end {
-        xs.TagEndXMLVersion(_) -> 
+        xs.TagEndXMLVersion(_) ->
           Ok(#(XMLStreamingParserXMLVersion(blame, tag, attrs), remaining))
-        xs.TagEndOrdinary(b) -> 
-          Error(#(b, "expecting '?>' tag ending"))
-        xs.TagEndSelfClosing(b) ->
-          Error(#(b, "expecting '?>' tag ending"))
+        xs.TagEndOrdinary(b) -> Error(#(b, "expecting '?>' tag ending"))
+        xs.TagEndSelfClosing(b) -> Error(#(b, "expecting '?>' tag ending"))
         _ -> panic
       }
     }
@@ -1378,8 +1330,7 @@ fn xml_streaming_get_next_logical_unit(
           Ok(#(XMLStreamingParserDoctype(blame, tag, attrs, False), remaining))
         xs.TagEndSelfClosing(_) ->
           Ok(#(XMLStreamingParserDoctype(blame, tag, attrs, True), remaining))
-        xs.TagEndXMLVersion(b) ->
-          Error(#(b, "unexpected '?>' tag ending"))
+        xs.TagEndXMLVersion(b) -> Error(#(b, "unexpected '?>' tag ending"))
         _ -> panic
       }
     }
@@ -1387,17 +1338,14 @@ fn xml_streaming_get_next_logical_unit(
     // construction of XMLStreamingParserClosingTag
     xs.TagStartClosing(blame, tag) -> {
       use #(attrs, end, remaining) <- on.ok(get_attrs_and_tag_end(first, rest))
-      use <- on.nonempty_empty(
-        attrs,
-        fn(_, _) { Error(#(blame, "attrs in closing tag")) }
-      )
+      use <- on.nonempty_empty(attrs, fn(_, _) {
+        Error(#(blame, "attrs in closing tag"))
+      })
       case end {
         xs.TagEndOrdinary(_) ->
           Ok(#(XMLStreamingParserClosingTag(blame, tag), remaining))
-        xs.TagEndSelfClosing(b) ->
-          Error(#(b, "unexpected '/>' in closing tag"))
-        xs.TagEndXMLVersion(b) ->
-          Error(#(b, "unexpected '?>' in closing tag"))
+        xs.TagEndSelfClosing(b) -> Error(#(b, "unexpected '/>' in closing tag"))
+        xs.TagEndXMLVersion(b) -> Error(#(b, "unexpected '?>' in closing tag"))
         _ -> panic
       }
     }
@@ -1405,18 +1353,19 @@ fn xml_streaming_get_next_logical_unit(
     // construction of XMLS
     xs.CommentStartSequence(_) -> {
       use #(events, remaining) <- on.ok(reach_end_of_comments(first, rest))
-      let lines = list.map(events, fn(e) {
-        let assert xs.CommentContents(b, l) = e
-        Line(b, l)
-      })
+      let lines =
+        list.map(events, fn(e) {
+          let assert xs.CommentContents(b, l) = e
+          Line(b, l)
+        })
       Ok(#(XMLStreamingParserComment(lines), remaining))
     }
 
     // ...this completes everything we can construct!
     // ...everything else is out of place!
-
     _ -> {
-      let msg = "inner tag content (?) when ostensibly out-of-tag: " <> ins(first)
+      let msg =
+        "inner tag content (?) when ostensibly out-of-tag: " <> ins(first)
       panic as msg
     }
   }
@@ -1428,52 +1377,44 @@ fn xml_streaming_logical_units_acc(
 ) -> Result(List(XMLStreamingParserLogicalUnit), #(Blame, String)) {
   case remaining {
     [] -> acc |> list.reverse |> Ok
-    _ -> case xml_streaming_get_next_logical_unit(remaining) {
-      Error(error) -> Error(error)
-      Ok(#(unit, remaining)) ->
-        xml_streaming_logical_units_acc(
-          remaining,
-          [unit, ..acc],
-        )
-    }
+    _ ->
+      case xml_streaming_get_next_logical_unit(remaining) {
+        Error(error) -> Error(error)
+        Ok(#(unit, remaining)) ->
+          xml_streaming_logical_units_acc(remaining, [unit, ..acc])
+      }
   }
 }
 
 fn xml_streaming_logical_units(
-  events: List(xs.Event)
+  events: List(xs.Event),
 ) -> Result(List(XMLStreamingParserLogicalUnit), #(Blame, String)) {
   xml_streaming_logical_units_acc(events, [])
 }
 
-fn list_of_digest(
-  l: List(a),
-  d: fn(a) -> String
-) -> String {
+fn list_to_stack_digest(l: List(a), d: fn(a) -> String) -> String {
   "[" <> { list.map(l, d) |> string.join(", ") } <> "]"
 }
 
-fn attr_digest(
-  attr: Attr
-) -> String {
+fn attr_to_stack_digest(attr: Attr) -> String {
   attr.key <> "=" <> attr.val
 }
 
-fn attrs_digest(
-  attrs: List(Attr)
-) -> String {
-  list_of_digest(attrs, attr_digest)
+fn attrs_to_stack_digest(attrs: List(Attr)) -> String {
+  list_to_stack_digest(attrs, attr_to_stack_digest)
 }
 
-fn v_digest(
-  node: VXML
-) -> String {
+fn vxml_to_stack_digest(node: VXML) -> String {
   let assert V(bl, tag, attrs, children) = node
-  "V(" <>
-  { bl.blame_digest(bl) } <>
-  ", " <> tag <>
-  ", " <> attrs_digest(attrs) <>
-  ", " <> "[" <>
-  case children {
+  "V("
+  <> { bl.blame_digest(bl) }
+  <> ", "
+  <> tag
+  <> ", "
+  <> attrs_to_stack_digest(attrs)
+  <> ", "
+  <> "["
+  <> case children {
     [_] -> "1 child]"
     _ -> ins(list.length(children)) <> " children]"
   }
@@ -1495,14 +1436,14 @@ fn vxmls_from_streaming_logical_units_acc(
           let assert V(blame, tag, _, _) = last
           let ancestor_tag_sequence =
             stack
-            |> list.map(v_digest)
+            |> list.map(vxml_to_stack_digest)
             |> string.join(" -> ")
           Error(#(
             blame,
             "unclosed '"
-            <> tag
-            <> "' at end of document; open ancestor sequence: "
-            <> ancestor_tag_sequence,
+              <> tag
+              <> "' at end of document; open ancestor sequence: "
+              <> ancestor_tag_sequence,
           ))
         }
       }
@@ -1513,16 +1454,17 @@ fn vxmls_from_streaming_logical_units_acc(
         XMLStreamingParserDoctype(b, tag, attrs, _) -> {
           let v = V(b, tag, attrs, [])
           case stack {
-            [] -> vxmls_from_streaming_logical_units_acc(
-              rest,
-              [],
-              case filter_out_doctype_nodes {
-                True -> previously_completed
-                False -> [v, ..previously_completed]
-              },
-              filter_out_doctype_nodes,
-              filter_out_root_level_text,
-            )
+            [] ->
+              vxmls_from_streaming_logical_units_acc(
+                rest,
+                [],
+                case filter_out_doctype_nodes {
+                  True -> previously_completed
+                  False -> [v, ..previously_completed]
+                },
+                filter_out_doctype_nodes,
+                filter_out_root_level_text,
+              )
             _ -> Error(#(b, "found !DOCTYPE node at non-root level"))
           }
         }
@@ -1530,16 +1472,17 @@ fn vxmls_from_streaming_logical_units_acc(
         XMLStreamingParserXMLVersion(b, tag, attrs) -> {
           let v = V(b, tag, attrs, [])
           case stack {
-            [] -> vxmls_from_streaming_logical_units_acc(
-              rest,
-              [],
-              case filter_out_doctype_nodes {
-                True -> previously_completed
-                False -> [v, ..previously_completed]
-              },
-              filter_out_doctype_nodes,
-              filter_out_root_level_text,
-            )
+            [] ->
+              vxmls_from_streaming_logical_units_acc(
+                rest,
+                [],
+                case filter_out_doctype_nodes {
+                  True -> previously_completed
+                  False -> [v, ..previously_completed]
+                },
+                filter_out_doctype_nodes,
+                filter_out_root_level_text,
+              )
             _ -> Error(#(b, "found XML version-node at non-root level"))
           }
         }
@@ -1564,10 +1507,11 @@ fn vxmls_from_streaming_logical_units_acc(
               let last = V(..last, children: [t, ..last.children])
               #([last, ..others], previously_completed)
             }
-            _ -> case filter_out_root_level_text {
-              True -> #(stack, previously_completed)
-              False -> #(stack, [t, ..previously_completed])
-            }
+            _ ->
+              case filter_out_root_level_text {
+                True -> #(stack, previously_completed)
+                False -> #(stack, [t, ..previously_completed])
+              }
           }
           vxmls_from_streaming_logical_units_acc(
             rest,
@@ -1594,23 +1538,30 @@ fn vxmls_from_streaming_logical_units_acc(
             [last, ..others] -> {
               let assert V(_, last_tag, _, _) = last
               case last_tag == tag {
-                False -> Error(#(b, "expected closing '" <> last_tag <> "' tag, found '" <> tag <> "' instead"))
+                False ->
+                  Error(#(
+                    b,
+                    "expected closing '"
+                      <> last_tag
+                      <> "' tag, found '"
+                      <> tag
+                      <> "' instead",
+                  ))
                 True -> {
-                  let last = V(
-                    ..last,
-                    children: last.children |> list.reverse,
-                  )
+                  let last = V(..last, children: last.children |> list.reverse)
                   case others {
-                    [] -> vxmls_from_streaming_logical_units_acc(
-                      rest,
-                      [],
-                      [last, ..previously_completed],
-                      filter_out_doctype_nodes,
-                      filter_out_root_level_text,
-                    )
+                    [] ->
+                      vxmls_from_streaming_logical_units_acc(
+                        rest,
+                        [],
+                        [last, ..previously_completed],
+                        filter_out_doctype_nodes,
+                        filter_out_root_level_text,
+                      )
                     [parent, ..older] -> {
                       let assert V(_, _, _, _) = parent
-                      let parent = V(..parent, children: [last, ..parent.children])
+                      let parent =
+                        V(..parent, children: [last, ..parent.children])
                       vxmls_from_streaming_logical_units_acc(
                         rest,
                         [parent, ..older],
@@ -1671,7 +1622,7 @@ fn vxmls_from_streaming_logical_units(
 }
 
 fn vxml_from_streaming_logical_units(
-  units: List(XMLStreamingParserLogicalUnit)
+  units: List(XMLStreamingParserLogicalUnit),
 ) -> Result(VXML, #(Blame, String)) {
   use vxmls <- on.ok(vxmls_from_streaming_logical_units(units, True, True))
   case vxmls {
@@ -1701,4 +1652,28 @@ pub fn parse_xml(
   content
   |> io_l.string_to_input_lines(filename, 0)
   |> parse_xml_input_lines
+}
+
+// ************************************************************
+// HTML repair facade
+// ************************************************************
+
+pub fn html_repair_escape_non_entity_ampersands(content: String) -> String {
+  vxml_html_repair.html_repair_escape_non_entity_ampersands(content)
+}
+
+pub fn html_repair_expand_boolean_attrs(content: String) -> String {
+  vxml_html_repair.html_repair_expand_boolean_attrs(content)
+}
+
+pub fn html_repair_close_void_tags(content: String) -> String {
+  vxml_html_repair.html_repair_close_void_tags(content)
+}
+
+pub fn html_repair_remove_attrs_from_closing_tags(content: String) -> String {
+  vxml_html_repair.html_repair_remove_attrs_from_closing_tags(content)
+}
+
+pub fn html_repair(content: String) -> String {
+  vxml_html_repair.html_repair(content)
 }

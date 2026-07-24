@@ -71,6 +71,34 @@ pub fn parse_string_rejects_multiple_roots_when_unique_root_test() {
   |> should.equal(Error(vxml.VXMLParseErrorNonUniqueRoot(2)))
 }
 
+pub fn validate_tag_accepts_serialized_vxml_tag_names_test() {
+  "Chapter_2"
+  |> vxml.validate_tag
+  |> should.equal(Ok("Chapter_2"))
+}
+
+pub fn validate_tag_rejects_dot_and_hyphen_test() {
+  "chapter.2"
+  |> vxml.validate_tag
+  |> should.equal(
+    Error(vxml.MalformedTag("chapter.2", "^[A-Za-z][A-Za-z0-9_]*$")),
+  )
+
+  "chapter-2"
+  |> vxml.validate_tag
+  |> should.equal(
+    Error(vxml.MalformedTag("chapter-2", "^[A-Za-z][A-Za-z0-9_]*$")),
+  )
+}
+
+pub fn validate_tag_rejects_digit_start_test() {
+  "2Chapter"
+  |> vxml.validate_tag
+  |> should.equal(
+    Error(vxml.MalformedTag("2Chapter", "^[A-Za-z][A-Za-z0-9_]*$")),
+  )
+}
+
 pub fn html_parser_accepts_common_html_repairs_test() {
   "<html><body><img src=\"x\"><input disabled><p>fish & chips</p></body></html>"
   |> xmlm_based_html_parser("sample.html")

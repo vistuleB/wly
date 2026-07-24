@@ -106,6 +106,8 @@ whitespace easy to spot by human inspection.
 
 Rules & notes:
 
+- tag names must start with an ASCII letter and may then contain ASCII letters,
+  digits, or `_`
 - attribute keys must be nonempty and directly followed by `=`; they may not
   contain the `=` char, or spaces
 - attribute values are not quoted, should follow `=` directly, and may be
@@ -179,6 +181,9 @@ The `html_repair` step:
 The individual repair helpers are public so callers can apply only the repair
 steps they want. These helpers are deliberately narrow string repairs, not a
 general HTML parser.
+
+XML comments are tokenized by the lower-level streamer, but `parse_xml` does not
+represent them in the returned VXML tree.
 
 Before parsing, source strings are converted to `List(InputLine)`. That
 conversion can be performed directly with `io_lines.string_to_input_lines`, and
