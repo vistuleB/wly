@@ -2,14 +2,15 @@ import gleam/dict.{type Dict}
 import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/regexp.{type Match, type Regexp, Match}
+import gleam/set.{type Set}
 import gleam/string.{inspect as ins}
-import blame.{type Blame}
+import blame.{type Blame} as bl
 import infrastructure.{
   type Desugarer, type DesugarerTransform, type DesugaringError,
   type DesugaringWarning, Desugarer, DesugaringWarning,
 } as infra
 import nodemaps_2_desugarer_transforms as n2t
-import vxml.{type Attr, type Line, type VXML, Line, T, V}
+import vxml.{type Attr, type Line, type VXML, Attr, Line, T, V}
 
 fn extract_handle_and_page_and_decoy(match: Match) -> #(String, Bool, Option(String)) {
   let assert Match(_, [_, option.Some(handle_name)]) = match
@@ -51,7 +52,7 @@ fn substitution_text(
   blame: Blame,
   fold_parens: Bool,
   state: State,
-) -> #(String, List(DesugaringWarning)) {
+) -> #(String, List(DesugaringWarning), List(String)) {
   let #(handle_name, page, decoy) = handle_and_page_and_decoy
   let wrap = fn(s: String) -> String {
     case fold_parens {
@@ -65,7 +66,7 @@ fn substitution_text(
         True -> target_path
         False -> target_path <> "#" <> id
       }
-      #("\\href{" <> target <> "}{" <> wrap(value) <> "}", [])
+      #("\\href{" <> target <> "}{" <> wrap(value) <> "}", [], [handle_name])
     }
     Error(_) -> {
       let warning =
@@ -74,8 +75,9 @@ fn substitution_text(
         Some(decoy_value) -> #(
           "\\href{decoy-target-path#decoy-id}{" <> wrap(decoy_value) <> "}",
           [warning],
+          [],
         )
-        None -> #(wrap("undefined handle: " <> handle_name), [warning])
+        None -> #(wrap("undefined handle: " <> handle_name), [warning], [])
       }
     }
   }
@@ -86,20 +88,24 @@ fn rebuild(
   matches: List(Match),
   blame: Blame,
   state: State,
-) -> #(String, List(DesugaringWarning)) {
+) -> #(String, List(DesugaringWarning), List(String)) {
   case splits, matches {
-    [last], [] -> #(last, [])
+    [last], [] -> #(last, [], [])
     [before, next, ..rest_splits], [m, ..rest_matches] -> {
       let fold = string.ends_with(before, "(") && string.starts_with(next, ")")
       let #(before, next) = case fold {
         True -> #(string.drop_end(before, 1), string.drop_start(next, 1))
         False -> #(before, next)
       }
-      let #(sub_text, warnings) =
+      let #(sub_text, warnings, used) =
         substitution_text(extract_handle_and_page_and_decoy(m), blame, fold, state)
-      let #(rest_text, rest_warnings) =
+      let #(rest_text, rest_warnings, rest_used) =
         rebuild([next, ..rest_splits], rest_matches, blame, state)
-      #(before <> sub_text <> rest_text, infra.pour(warnings, rest_warnings))
+      #(
+        before <> sub_text <> rest_text,
+        infra.pour(warnings, rest_warnings),
+        infra.pour(used, rest_used),
+      )
     }
     _, _ -> panic as "splits/matches length mismatch in handles_substitute_inside_math"
   }
@@ -109,17 +115,17 @@ fn process_line(
   line: Line,
   state: State,
   inner: InnerParam,
-) -> #(Line, List(DesugaringWarning)) {
+) -> #(Line, List(DesugaringWarning), List(String)) {
   let Line(blame, content) = line
   case regexp.scan(inner.1, content) {
-    [] -> #(line, [])
+    [] -> #(line, [], [])
     matches -> {
       let splits =
         regexp.split(inner.1, content)
         |> augment_to_1_mod_3
         |> retain_0_mod_3
-      let #(new_content, warnings) = rebuild(splits, matches, blame, state)
-      #(Line(blame, new_content), warnings)
+      let #(new_content, warnings, used) = rebuild(splits, matches, blame, state)
+      #(Line(blame, new_content), warnings, used)
     }
   }
 }
@@ -128,12 +134,13 @@ fn process_lines(
   lines: List(Line),
   state: State,
   inner: InnerParam,
-) -> #(List(Line), List(DesugaringWarning)) {
-  let #(new_lines, warnings_lists) =
-    lines
-    |> list.map(process_line(_, state, inner))
-    |> list.unzip
-  #(new_lines, warnings_lists |> list.flatten)
+) -> #(List(Line), List(DesugaringWarning), List(String)) {
+  let triples = lines |> list.map(process_line(_, state, inner))
+  #(
+    triples |> list.map(fn(triple) { triple.0 }),
+    triples |> list.map(fn(triple) { triple.1 }) |> list.flatten,
+    triples |> list.map(fn(triple) { triple.2 }) |> list.flatten,
+  )
 }
 
 fn grand_wrapper_load(state: State, attrs: List(Attr)) -> State {
@@ -154,6 +161,21 @@ fn grand_wrapper_load(state: State, attrs: List(Attr)) -> State {
   State(..state, handles: handles)
 }
 
+/// Records each handle that this desugarer resolved as a 'handle-used'
+/// attr on the GrandWrapper, for handles_substitute — which runs later
+/// and is the one that writes the 'used' column of the handle dictionary
+/// — to fold into its own usage set. Without this, a handle referenced
+/// only from inside math would be reported as unused.
+fn grand_wrapper_record_usage(attrs: List(Attr), used: Set(String)) -> List(Attr) {
+  list.append(
+    attrs,
+    used
+      |> set.to_list
+      |> list.sort(string.compare)
+      |> list.map(Attr(desugarer_blame(175), "handle-used", _)),
+  )
+}
+
 fn t_transform(
   vxml: VXML,
   state: State,
@@ -163,7 +185,8 @@ fn t_transform(
   case state.inside_math {
     False -> Ok(#(vxml, state, []))
     True -> {
-      let #(new_lines, warnings) = process_lines(lines, state, inner)
+      let #(new_lines, warnings, used) = process_lines(lines, state, inner)
+      let state = State(..state, used: list.fold(used, state.used, set.insert))
       Ok(#(T(blame, new_lines), state, warnings))
     }
   }
@@ -191,7 +214,13 @@ fn v_after_transform(
   original_state: State,
   latest_state: State,
 ) -> Result(#(VXML, State, List(DesugaringWarning)), DesugaringError) {
+  let assert V(_, tag, attrs, _) = vxml
   let exit_state = State(..latest_state, inside_math: original_state.inside_math)
+  let vxml = case tag {
+    "GrandWrapper" ->
+      V(..vxml, attrs: grand_wrapper_record_usage(attrs, latest_state.used))
+    _ -> vxml
+  }
   Ok(#(vxml, exit_state, []))
 }
 
@@ -212,7 +241,7 @@ fn nodemap_factory(
 fn transform_factory(inner: InnerParam) -> DesugarerTransform {
   n2t.fancy_one_to_one_before_and_after_stateful_nodemap_with_warnings_2_desugarer_transform(
     nodemap_factory(inner),
-    State(dict.new(), False),
+    State(dict.new(), False, set.new()),
   )
 }
 
@@ -230,7 +259,13 @@ type HandlesDict = Dict(String, #(Bool,     String,   String,   String))
 //                                option
 
 type State {
-  State(handles: HandlesDict, inside_math: Bool)
+  State(
+    handles: HandlesDict,
+    inside_math: Bool,
+    // handles resolved by this desugarer, handed to handles_substitute
+    // through 'handle-used' attrs on the GrandWrapper
+    used: Set(String),
+  )
 }
 
 type Param = List(String)
@@ -241,6 +276,8 @@ type Param = List(String)
 type InnerParam = #(List(String), Regexp)
 
 pub const name = "handles_substitute_inside_math"
+
+fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
 
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 // 🏖️🏖️ Desugarer 🏖️🏖️
@@ -279,9 +316,22 @@ pub const name = "handles_substitute_inside_math"
 /// text, emitting a DesugaringWarning in both cases.
 ///
 /// Does not touch text outside of the Param-listed tags,
-/// and does not destroy or otherwise alter the GrandWrapper
-/// node, leaving it intact for a later desugarer (typically
+/// and leaves the GrandWrapper node in place for a later
+/// desugarer (typically handles_substitute or
 /// handles_substitute_and_fix_nonlocal_id_links) to consume.
+///
+/// The one change it does make to the GrandWrapper is to
+/// append a
+///
+/// handle-used=<handle_name>
+///
+/// attr for each handle it resolved. handles_substitute is
+/// what writes the 'used' column of the handle dictionary,
+/// but it runs later and cannot see the references consumed
+/// here; it folds these attrs into its own usage set and
+/// removes them. Without this, a handle referenced only from
+/// inside math would be reported as unused by
+/// handles_warn_unused.
 pub fn constructor(param: Param) -> Desugarer {
   Desugarer(
     name: name,
@@ -313,6 +363,7 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
       expected: "
         <> GrandWrapper
           handle=some_handle||2|eq-id|./ch1.html
+          handle-used=some_handle
           <> root
             <> Chapter
               <> Math
@@ -334,6 +385,7 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
       expected: "
         <> GrandWrapper
           handle=some_handle||2|eq-id|./ch1.html
+          handle-used=some_handle
           <> root
             <> Chapter
               <> Math
@@ -355,6 +407,7 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
       expected: "
         <> GrandWrapper
           handle=some_handle||2|eq-id|./ch1.html
+          handle-used=some_handle
           <> root
             <> Chapter
               <> MathBlock
