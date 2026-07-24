@@ -241,7 +241,17 @@ fn grand_wrapper_load(state: State, attrs: List(Attr)) -> State {
       dict.insert(acc, handle_name, #(page, value, id, path))
     })
 
-  State(..state, handles: handles)
+  // handles already resolved by an earlier desugarer that does its own
+  // substitution but cannot write the 'used' column, because the column
+  // is written here (currently: handles_substitute_inside_math)
+  let #(already_used, _) =
+    infra.attrs_extract_key_occurrences(attrs, "handle-used")
+
+  State(
+    ..state,
+    handles: handles,
+    used: mark_used(state.used, already_used |> list.map(fn(a) { a.val })),
+  )
 }
 
 fn mark_used(used: Set(String), names: List(String)) -> Set(String) {
@@ -257,11 +267,16 @@ fn mark_used(used: Set(String), names: List(String)) -> Set(String) {
 ///
 /// handle=<name>|<page>|<value>|<id>|<path>|used     (handle was referenced)
 /// handle=<name>|<page>|<value>|<id>|<path>|         (handle was never referenced)
+///
+/// Also consumes the 'handle-used' attrs that fed the usage set, so that
+/// the GrandWrapper is left carrying the dictionary and nothing else.
 fn grand_wrapper_record_usage(
   attrs: List(Attr),
   used: Set(String),
 ) -> List(Attr) {
-  list.map(attrs, fn(attr) {
+  attrs
+  |> list.filter(fn(attr) { attr.key != "handle-used" })
+  |> list.map(fn(attr) {
     case attr.key == "handle" {
       False -> attr
       True -> {
@@ -342,7 +357,7 @@ fn substitute_hrefs_in_a(
         None, _ -> Ok(Some(href_type))
         _, _ ->
           Error(DesugaringError(
-            desugarer_blame(345),
+            desugarer_blame(360),
             "duplicate 'href' attribute",
           ))
       })
@@ -456,8 +471,8 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
     param.0,
     param.1,
     param.2,
-    param.3 |> infra.string_pairs_2_attrs(desugarer_blame(459)),
-    param.4 |> infra.string_pairs_2_attrs(desugarer_blame(460)),
+    param.3 |> infra.string_pairs_2_attrs(desugarer_blame(474)),
+    param.4 |> infra.string_pairs_2_attrs(desugarer_blame(475)),
     param.5,
     handles_regexp,
   )
@@ -523,6 +538,11 @@ fn desugarer_blame(line_no: Int) {
 /// handle=handle_name|page_flag|value|id|path|
 ///
 /// (see handles_warn_unused, which consumes that column).
+///
+/// A desugarer that resolves handles of its own but runs before this one
+/// — currently handles_substitute_inside_math — records what it resolved
+/// as handle-used=<handle_name> attrs on the GrandWrapper; those are
+/// folded into the usage set here and then removed.
 pub fn constructor(param: Param) -> Desugarer {
   Desugarer(
     name: name,
@@ -613,6 +633,44 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
                 href=./ch1.html#section-1
                 <>
                   'handle attr link'
+      ",
+    ),
+    // a handle nowhere referenced gets an empty 'used' column; a
+    // 'handle-used' attr left by handles_substitute_inside_math counts
+    // as a reference and is itself consumed
+    infra.AssertiveTestData(
+      param: #(
+        "path",
+        "InChapterLink",
+        "OutChapterLink",
+        [#("class", "handle-in-chapter-link")],
+        [#("class", "handle-out-chapter-link")],
+        ["a"],
+      ),
+      source: "
+        <> GrandWrapper
+          handle=lonely||(1.1)|eq-1|./ch1.html
+          handle=in-math-only||(1.2)|eq-2|./ch1.html
+          handle-used=in-math-only
+          <> root
+            <> Chapter
+              path=./ch1.html
+              <> MathBlock
+                id=eq-2
+                <>
+                  'x = y'
+      ",
+      expected: "
+        <> GrandWrapper
+          handle=lonely||(1.1)|eq-1|./ch1.html|
+          handle=in-math-only||(1.2)|eq-2|./ch1.html|used
+          <> root
+            <> Chapter
+              path=./ch1.html
+              <> MathBlock
+                id=eq-2
+                <>
+                  'x = y'
       ",
     ),
   ]
