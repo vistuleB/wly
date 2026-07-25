@@ -21,7 +21,6 @@ import table_and_co_printer as pr
 import vxml.{type VXML, V} as vp
 import on
 import input
-import writerly as wl
 import gleam/erlang/process.{type Subject, spawn, send, receive}
 import dirtree.{type DirTree} as dt
 import gleam/regexp
@@ -67,17 +66,6 @@ pub fn desugarers_2_decorateds(
 pub type Assembler(a) =
   fn(String) -> Result(#(List(InputLine), Option(DirTree)), a)    // the 'List(String)' is a feedback/success message on assembly
 
-pub fn default_writerly_assembler(
-  dirpath_or_filepath: String,
-  options: RendererOptions(_),
-) -> Result(#(List(InputLine), Option(DirTree)), wl.AssemblyError) {
-  let path_selector = wl.path_selector_from_only_paths(options.only_paths)
-  use #(tree, assembled) <- on.ok(
-    wl.assemble_input_lines_with_path_selector(dirpath_or_filepath, path_selector),
-  )
-  Ok(#(assembled, Some(tree)))
-}
-
 pub fn default_other_files_assembler(
   path: String
 ) -> Result(#(List(InputLine), Option(DirTree)), simplifile.FileError) {
@@ -92,13 +80,6 @@ pub fn default_other_files_assembler(
 
 pub type Parser(b) =
   fn(List(InputLine)) -> Result(VXML, #(Blame, b))
-
-pub fn default_writerly_parser(
-  lines: List(InputLine)
-) -> Result(VXML, #(Blame, String)) {
-  wl.input_lines_to_vxml(lines)
-  |> result.map_error(fn(e) { #(e.blame, ins(e)) })
-}
 
 pub fn default_xml_parser(
   lines: List(InputLine),
@@ -164,18 +145,6 @@ pub fn stub_splitter(suffix: String) -> Splitter(Nil, Nil) {
 
 pub type Emitter(z, e) =
   fn(OutputFragment(z, VXML)) -> Result(OutputFragment(z, List(OutputLine)), e)
-
-pub fn default_writerly_emitter(
-  fragment: OutputFragment(z, VXML),
-) -> Result(OutputFragment(z, List(OutputLine)), b) {
-  let lines =
-    fragment.payload
-    |> wl.vxml_to_writerlys
-    |> list.map(wl.writerly_to_output_lines)
-    |> list.flatten
-
-  Ok(OutputFragment(..fragment, payload: lines))
-}
 
 pub fn stub_html_emitter(
   fragment: OutputFragment(z, VXML),
