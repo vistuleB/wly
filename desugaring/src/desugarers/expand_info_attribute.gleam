@@ -77,7 +77,7 @@ type InnerParam = Param
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 //------------------------------------------------53
 /// For tags in the given list (typically "pre" and/or
-/// "WriterlyCodeBlock" and/or "CodeBlock", depending)
+/// code-block-like tags such as "pre" and/or "CodeBlock")
 /// replace the attribute with key "info" by separate
 /// 'language', 'id', 'class', and 'style' attributes,
 /// according to the following schema:

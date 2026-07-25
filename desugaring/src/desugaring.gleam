@@ -724,7 +724,7 @@ pub fn process_command_line_arguments(
       let #(option, values) = pair
       case option {
         "--help" -> {
-          basic_cli_usage("\nwly renderer common command line options:")
+          basic_cli_usage("\nrenderer common command line options:")
           case list.is_empty(values) {
             True -> Ok(CommandLineAmendments(..amendments, help: True))
             False -> Error(UnexpectedArgumentsToOption("option"))
@@ -732,7 +732,7 @@ pub fn process_command_line_arguments(
         }
 
         "--esoteric" -> {
-          advanced_cli_usage("\nwly renderer advanced command line options:")
+          advanced_cli_usage("\nrenderer advanced command line options:")
           case list.is_empty(values) {
             True -> Ok(CommandLineAmendments(..amendments, help: True))
             False -> Error(UnexpectedArgumentsToOption("option"))

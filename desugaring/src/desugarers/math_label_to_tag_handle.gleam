@@ -143,7 +143,7 @@ pub const name = "math_label_to_tag_handle"
 ///
 /// `\label{name}` (without `##<<`) is not matched
 /// and is left untouched (treated as a vanilla
-/// MathJax label, not a Writerly handle).
+/// MathJax label, not a document handle).
 ///
 /// Must run before `substitute_counters` so that
 /// counter expressions in the generated

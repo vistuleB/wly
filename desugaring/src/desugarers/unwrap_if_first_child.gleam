@@ -76,11 +76,11 @@ pub fn constructor(param: Param) -> Desugarer {
 fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
   [
     infra.AssertiveTestData(
-      param: "WriterlyBlankLine",
+      param: "UnbridgeableTag",
       source: "
                 <> Proof
-                  <> WriterlyBlankLine
-                  <> WriterlyBlankLine
+                  <> UnbridgeableTag
+                  <> UnbridgeableTag
                   <>
                     'some text'
                 ",
@@ -91,13 +91,13 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
                 ",
     ),
     infra.AssertiveTestData(
-      param: "WriterlyBlankLine",
+      param: "UnbridgeableTag",
       source: "
                 <> Proof
-                  <> WriterlyBlankLine
+                  <> UnbridgeableTag
                     <> Granchild1
                     <> Granchild2
-                  <> WriterlyBlankLine
+                  <> UnbridgeableTag
                     <> Granchild3
                   <>
                     'some text'
@@ -106,18 +106,18 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
                 <> Proof
                   <> Granchild1
                   <> Granchild2
-                  <> WriterlyBlankLine
+                  <> UnbridgeableTag
                     <> Granchild3
                   <>
                     'some text'
                 ",
     ),
     infra.AssertiveTestData(
-      param: "WriterlyBlankLine",
+      param: "UnbridgeableTag",
       source: "
                 <> Proof
-                  <> WriterlyBlankLine
-                    <> WriterlyBlankLine
+                  <> UnbridgeableTag
+                    <> UnbridgeableTag
                     <> Granchild2
                   <>
                     'some text'
@@ -130,13 +130,13 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
                 ",
     ),
     infra.AssertiveTestData(
-      param: "WriterlyBlankLine",
+      param: "UnbridgeableTag",
       source: "
                 <> div
                   <> p
                     <>
                       'Text'
-                  <> WriterlyBlankLine
+                  <> UnbridgeableTag
                   <>
                     'More'
                 ",
@@ -145,7 +145,7 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
                   <> p
                     <>
                       'Text'
-                  <> WriterlyBlankLine
+                  <> UnbridgeableTag
                   <>
                     'More'
                 ",

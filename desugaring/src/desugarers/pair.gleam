@@ -358,30 +358,30 @@ pub fn constructor(param: Param) -> Desugarer {
 fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
   [
     infra.AssertiveTestData(
-      param: #("MDLinkOpening", "MDLinkClosing", "MDLink", ["WriterlyBlankLine"]),
+      param: #("MDLinkOpening", "MDLinkClosing", "MDLink", ["UnbridgeableTag"]),
       source: "
         <> root
           <> MDLinkOpening
           <> a
           <> b
-          <> WriterlyBlankLine
+          <> UnbridgeableTag
       ",
       expected: "
         <> root
           <> MDLinkOpening
           <> a
           <> b
-          <> WriterlyBlankLine
+          <> UnbridgeableTag
       "
     ),
     infra.AssertiveTestData(
-      param: #("MDLinkOpening", "MDLinkClosing", "MDLink", ["WriterlyBlankLine"]),
+      param: #("MDLinkOpening", "MDLinkClosing", "MDLink", ["UnbridgeableTag"]),
       source: "
         <> root
           <> MDLinkOpening
           <> a
           <> b
-          <> WriterlyBlankLine
+          <> UnbridgeableTag
           <> MDLinkClosing
       ",
       expected: "
@@ -389,26 +389,26 @@ fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
           <> MDLinkOpening
           <> a
           <> b
-          <> WriterlyBlankLine
+          <> UnbridgeableTag
           <> MDLinkClosing
       "
     ),
     infra.AssertiveTestData(
-      param: #("MDLinkOpening", "MDLinkClosing", "MDLink", ["WriterlyBlankLine"]),
+      param: #("MDLinkOpening", "MDLinkClosing", "MDLink", ["UnbridgeableTag"]),
       source: "
         <> root
           <> MDLinkOpening
           <> a
           <> b
           <> MDLinkClosing
-          <> WriterlyBlankLine
+          <> UnbridgeableTag
       ",
       expected: "
         <> root
           <> MDLink
             <> a
             <> b
-          <> WriterlyBlankLine
+          <> UnbridgeableTag
       "
     )
   ]
