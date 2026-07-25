@@ -14,9 +14,19 @@ import infrastructure.{
   EndAlign,
   BeginAlignStar,
   EndAlignStar,
+  BeginEnvironment,
+  EndEnvironment,
 } as infra
+import gleam/string
 import vxml.{type VXML, V, Attr}
 import desugarer_library as dl
+
+// regex-escape a LaTeX environment name for use inside an rr-splitter re_string:
+// only `*` needs escaping (braces are literal in the regex flavor used here, as
+// evidenced by the hand-written align / align* splitters below)
+fn regex_escape_environment_name(name: String) -> String {
+  string.replace(name, "*", "\\*")
+}
 
 // ************************************************************
 // math delimiter stuff
@@ -111,6 +121,23 @@ fn naive_unescaped_split_pair_fold_data(
       replacement: grs.TagAndText("EndAlignStar", "\\end{align*}"),
       tag: "EndAlignStar",
     )
+
+    // environment begin/end are asymmetric (begin != end), so a BeginEnd-
+    // Environment pair never reaches this (naive == symmetric-delimiter) branch;
+    // these arms exist for exhaustiveness only, but are computed correctly anyway
+    BeginEnvironment(name) -> NaiveUnescapedSplitPairFoldData(
+      splitter: "\\begin{" <> name <> "}",
+      escaped_splitter_replacement: "\\\\begin{" <> name <> "}",
+      replacement: grs.TagAndText("BeginEnv:" <> name, "\\begin{" <> name <> "}"),
+      tag: "BeginEnv:" <> name,
+    )
+
+    EndEnvironment(name) -> NaiveUnescapedSplitPairFoldData(
+      splitter: "\\end{" <> name <> "}",
+      escaped_splitter_replacement: "\\\\end{" <> name <> "}",
+      replacement: grs.TagAndText("EndEnv:" <> name, "\\end{" <> name <> "}"),
+      tag: "EndEnv:" <> name,
+    )
   }
 }
 
@@ -184,6 +211,21 @@ fn rrs_split_pair_fold_data(
       grs.rr_splitter(re_string: "\\\\end{align\\*}", replacement: grs.TextAndTag("EndAlignStar", "\\end{align*}")),
       "EndAlignStar",
       "\\end{align*}",
+    )
+
+    // opening keeps its `\begin{name}` at the *start* of the following text
+    // (TagAndText), closing keeps its `\end{name}` at the *end* of the preceding
+    // text (TextAndTag) — mirroring the BeginAlign / EndAlign arms above
+    BeginEnvironment(name) -> RRSSplitPairFoldData(
+      grs.rr_splitter(re_string: "\\\\begin{" <> regex_escape_environment_name(name) <> "}", replacement: grs.TagAndText("BeginEnv:" <> name, "\\begin{" <> name <> "}")),
+      "BeginEnv:" <> name,
+      "\\begin{" <> name <> "}",
+    )
+
+    EndEnvironment(name) -> RRSSplitPairFoldData(
+      grs.rr_splitter(re_string: "\\\\end{" <> regex_escape_environment_name(name) <> "}", replacement: grs.TextAndTag("EndEnv:" <> name, "\\end{" <> name <> "}")),
+      "EndEnv:" <> name,
+      "\\end{" <> name <> "}",
     )
   }
 }
