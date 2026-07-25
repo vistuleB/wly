@@ -270,16 +270,18 @@ fn create_math_or_mathblock_elements(
 pub fn create_mathblock_elements(
   parsed: List(LatexDelimiterPair),
   produced: LatexDelimiterPair,
+  unbridgeable_tags: List(String),
 ) -> Pipeline {
-  create_math_or_mathblock_elements(parsed, produced, produced, "MathBlock", ["WriterlyBlankLine"])
+  create_math_or_mathblock_elements(parsed, produced, produced, "MathBlock", unbridgeable_tags)
 }
 
 pub fn create_math_elements(
   parsed: List(LatexDelimiterPair),
   produced: LatexDelimiterPair,
   backup: LatexDelimiterPair,
+  unbridgeable_tags: List(String),
 ) -> Pipeline {
-  create_math_or_mathblock_elements(parsed, produced, backup, "Math", ["WriterlyBlankLine"])
+  create_math_or_mathblock_elements(parsed, produced, backup, "Math", unbridgeable_tags)
 }
 
 // ************************************************************
@@ -332,6 +334,7 @@ pub fn asymmetric_delim_splitting(
   opening_ordinary_form: String,
   closing_ordinary_form: String,
   tag: String,
+  unbridgeable_tags: List(String),
   forbidden: List(String),
 ) -> Pipeline {
   let opening_grs = grs.rr_splitter_for_groups([
@@ -349,7 +352,7 @@ pub fn asymmetric_delim_splitting(
   [
     dl.regex_split_and_replace__outside(opening_grs, forbidden),
     dl.regex_split_and_replace__outside(closing_grs, forbidden),
-    dl.pair(#("OpeningAsymmetricDelim", "ClosingAsymmetricDelim", tag, ["WriterlyBlankLine"])),
+    dl.pair(#("OpeningAsymmetricDelim", "ClosingAsymmetricDelim", tag, unbridgeable_tags)),
     dl.fold_into_text(#("OpeningAsymmetricDelim", opening_ordinary_form)),
     dl.fold_into_text(#("ClosingAsymmetricDelim", closing_ordinary_form)),
   ]
@@ -363,6 +366,7 @@ pub fn barbaric_symmetric_delim_splitting(
   delim_regex_form: String,
   delim_ordinary_form: String,
   tag: String,
+  unbridgeable_tags: List(String),
   forbidden: List(String),
 ) -> Pipeline {
   let opening_or_closing_grs = grs.unescaped_suffix_rr_splitter(
@@ -371,7 +375,7 @@ pub fn barbaric_symmetric_delim_splitting(
   )
   [
     dl.regex_split_and_replace__outside(opening_or_closing_grs, forbidden),
-    dl.pair(#("OpeningOrClosingSymmetricDelim", "OpeningOrClosingSymmetricDelim", tag, ["WriterlyBlankLine"])),
+    dl.pair(#("OpeningOrClosingSymmetricDelim", "OpeningOrClosingSymmetricDelim", tag, unbridgeable_tags)),
     dl.fold_into_text(#("OpeningOrClosingSymmetricDelim", delim_ordinary_form)),
   ]
 }
@@ -383,6 +387,7 @@ pub fn barbaric_symmetric_delim_splitting(
 pub fn annotated_backtick_splitting(
   tag: String,
   annotation_key: String,
+  unbridgeable_tags: List(String),
   forbidden: List(String),
 ) -> Pipeline {
   let text_folder = fn(v: VXML) -> String {
@@ -402,7 +407,7 @@ pub fn annotated_backtick_splitting(
     [
       dl.regex_split_and_replace__outside(end_splitter, forbidden),
       dl.regex_split_and_replace__outside(start_splitter, forbidden),
-      dl.pair(#(start_tag, end_tag, "AnnotatedBackticks", ["WriterlyBlankLine"])),
+      dl.pair(#(start_tag, end_tag, "AnnotatedBackticks", unbridgeable_tags)),
       dl.fold_into_text(#("AnnotatedBackticksOpening", "`")),
       dl.fold_custom_into_text(#("AnnotatedBackticksClosing", text_folder)),
     ],
@@ -419,6 +424,7 @@ pub fn annotated_backtick_splitting(
 // ************************************************************
 
 pub fn markdown_link_splitting(
+  unbridgeable_tags: List(String),
   forbidden: List(String),
 ) -> Pipeline {
   let text_folder = fn(v: VXML) -> String {
@@ -431,7 +437,7 @@ pub fn markdown_link_splitting(
   [
     dl.markdown_link_closing_handrolled_splitter(end_tag, forbidden),
     dl.regex_split_and_replace__outside(start_splitter, forbidden),
-    dl.pair(#(start_tag, end_tag, "MDLink", ["WriterlyBlankLine"])),
+    dl.pair(#(start_tag, end_tag, "MDLink", unbridgeable_tags)),
     dl.fold_into_text(#("MDLinkOpening", "[")),
     dl.fold_custom_into_text(#("MDLinkClosing", text_folder)),
     dl.rename(#("MDLink", "a")),
