@@ -586,7 +586,7 @@ fn parse_writerlys_at_indent_from_encounter(
     }
 
     EncounteredCodeFence(blame, suffix) -> {
-      use attrs <- on.ok(parse_code_block_info(blame |> bl.advance(3), suffix |> string.drop_start(3), rgxs))
+      use attrs <- on.ok(code_block_info_to_attrs(blame |> bl.advance(3), suffix |> string.drop_start(3), rgxs))
       use #(lines, rest) <- on.ok(parse_code_block_at_indent(indent, rest, blame, rgxs))
       let writerly = CodeBlock(blame, attrs, lines)
       use #(s1, s2, encounter, rest) <- on.ok(parse_writerlys_at_indent(indent, rest, rgxs))
@@ -654,7 +654,7 @@ fn parse_code_block_at_indent(
   Ok(#([line, ..lines], rest))
 }
 
-fn reassemble_code_block_info(
+fn attrs_to_code_block_info(
   attrs: List(Attr),
 ) -> String {
   let #(info, attrs) = list.fold(
@@ -687,7 +687,7 @@ fn reassemble_code_block_info(
   [info, ..keyvals] |> string.join("&")
 }
 
-fn parse_code_block_info(
+fn code_block_info_to_attrs(
   blame: Blame,
   info: String,
   rgxs: OurRegexes,
@@ -1092,7 +1092,7 @@ pub fn writerly_annotate_blames(writerly: Writerly) -> Writerly {
         }),
       )
     CodeBlock(blame, attrs, lines) -> {
-      let info = reassemble_code_block_info(attrs)
+      let info = attrs_to_code_block_info(attrs)
       CodeBlock(
         blame |> pc("CodeBlock:" <> info),
         attrs,
@@ -1214,7 +1214,7 @@ fn writerly_to_output_lines_internal(
     CodeBlock(blame, attrs, lines) -> {
       list.flatten([
         [
-          OutputLine(blame, indentation, "```" <> reassemble_code_block_info(attrs)),
+          OutputLine(blame, indentation, "```" <> attrs_to_code_block_info(attrs)),
         ],
         lines
         |> add_escapes_in_lines(rgxs.requires_bol_cb_escape)

@@ -1949,12 +1949,6 @@ pub fn v_has_class(vxml: VXML, class: String) -> Bool {
   attrs_have_class(attrs, class)
 }
 
-// ************************************************************
-// THIS STUFF GRABBED FROM writerly.gleam UNCEREMONIOUSLY DUMPED HERE WITHOUT CARE:
-//
-// (until expand_clode_block_info_html_shorthand)
-// ************************************************************
-
 type InfoHTMLPiece {
   Id(blame: Blame, payload: String)
   Class(blame: Blame, payload: String)
@@ -1999,7 +1993,7 @@ fn info_html_pieces(
   #(tag, pieces)
 }
 
-pub fn expand_clode_block_info_html_shorthand(
+pub fn html_info_shorthand_to_attrs(
   blame: Blame,
   info: String,
 ) -> Result(
@@ -2062,7 +2056,7 @@ pub fn expand_clode_block_info_html_shorthand(
 // ************************************************************
 // constructors, including from_tag & expand_selector_shorthand
 //
-// NOTE: the `expand_selector_shorthand` might or might not be profitably simplified using above expand_clode_block_info_html_shorthand !!
+// NOTE: the `expand_selector_shorthand` might or might not be profitably simplified using above html_info_shorthand_to_attrs !!
 // TO BE SEEN! TODO!
 // ************************************************************
 
