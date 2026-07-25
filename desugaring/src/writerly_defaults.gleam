@@ -9,6 +9,10 @@ import io_lines.{type InputLine, type OutputLine}
 import vxml.{type VXML}
 import writerly as wl
 
+/// Writerly adapter defaults for the generic renderer.
+///
+/// This module keeps Writerly-specific assembly, parsing, and emitting
+/// separate from the input-format-agnostic renderer core.
 pub fn default_writerly_assembler(
   dirpath_or_filepath: String,
   options: RendererOptions(_),

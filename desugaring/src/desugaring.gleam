@@ -1291,7 +1291,7 @@ fn parse_times_args(
 // RendererParameters + CommandLineAmendments -> RendererParameters
 // ************************************************************
 
-pub fn amend_renderer_paramaters_by_command_line_amendments(
+pub fn amend_renderer_parameters_by_command_line_amendments(
   parameters: RendererParameters,
   amendments: CommandLineAmendments,
 ) -> RendererParameters {
