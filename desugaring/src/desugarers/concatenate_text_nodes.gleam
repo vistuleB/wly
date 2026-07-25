@@ -9,7 +9,7 @@ fn nodemap(
   case node {
     V(_, _, _, children) ->
       V(..node, children: infra.plain_concatenation_in_list(children))
-    _ -> 
+    _ ->
       node
   }
 }

@@ -22,7 +22,7 @@ fn nodemap(
   inner: InnerParam,
 ) -> #(VXML, TrafficLight) {
   case vxml {
-    V(_, tag, attrs, _) if tag == inner.0 -> 
+    V(_, tag, attrs, _) if tag == inner.0 ->
       #(V(..vxml, attrs: [inner.1, ..attrs]), inner.2)
     _ -> #(vxml, Continue)
   }
@@ -39,7 +39,7 @@ fn transform_factory(inner: InnerParam, outside: List(String)) -> DesugarerTrans
 
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
   #(
-    param.0, 
+    param.0,
     Attr(desugarer_blame(43), "_", param.1 <> " ::++" <> param.1),
     param.2,
   )
@@ -58,17 +58,17 @@ pub const name = "prepend_counter_incrementing_attribute__outside"
 // 🏖️🏖️ Desugarer 🏖️🏖️
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 //------------------------------------------------53
-/// For each #(tag, counter_name, traffic_light) 
-/// tuple in the parameter list, this desugarer adds 
+/// For each #(tag, counter_name, traffic_light)
+/// tuple in the parameter list, this desugarer adds
 /// an attr of the form
 /// ```
 /// _=counter_name ::++counter_name
 /// ```
-/// to each node of tag 'tag', where the key is a 
-/// period '.' and the value is the string 
+/// to each node of tag 'tag', where the key is a
+/// period '.' and the value is the string
 /// '<counter_name> ::++<counter_name>'. As counters
-/// are evaluated and substitued also inside of 
-/// key-value pairs, adding this key-value pair 
+/// are evaluated and substitued also inside of
+/// key-value pairs, adding this key-value pair
 /// causes the counter <counter_name> to increment at
 /// each occurrence of a node of tag 'tag'.
 pub fn constructor(

@@ -72,7 +72,7 @@ fn nodemap(
         True, True -> panic as "not expecting an href within an href"
       }
     }
-    
+
   }
 }
 
@@ -98,7 +98,7 @@ pub const name = "check_proper_href_tokenization"
 // 🏖️🏖️ Desugarer 🏖️🏖️
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 //------------------------------------------------53
-/// 
+///
 pub fn constructor() -> Desugarer {
   Desugarer(
     name: name,

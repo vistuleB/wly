@@ -50,9 +50,9 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
 }
 
 type Param = #(String,  String,     List(String))
-//             ↖        ↖           ↖               
+//             ↖        ↖           ↖
 //             tag to   tag to      ...if child of
-//             wrap     wrap with   one of these  
+//             wrap     wrap with   one of these
 type InnerParam = Param
 
 pub const name = "wrap_if_child_of"

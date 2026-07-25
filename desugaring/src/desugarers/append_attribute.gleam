@@ -52,7 +52,7 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
 }
 
 type Param = #(String, String, String, TrafficLight)
-//             ↖       ↖       ↖       ↖    
+//             ↖       ↖       ↖       ↖
 //             tag     attr    value   return-early-or-not-after-finding-tag
 type InnerParam = #(String, Attr, TrafficLight)
 

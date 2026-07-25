@@ -56,7 +56,7 @@ pub const name = "find_replace_if_has_ancestor_else"
 // 🏖️🏖️ Desugarer 🏖️🏖️
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 //------------------------------------------------53
-/// replaces literal occurrences of a string with another 
+/// replaces literal occurrences of a string with another
 /// based on whether the text node has any of the specified ancestors
 pub fn constructor(param: Param) -> Desugarer {
   Desugarer(

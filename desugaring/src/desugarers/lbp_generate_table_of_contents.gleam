@@ -80,7 +80,7 @@ type CounterType {
 
 fn increamentor(index: Int, counter_type: CounterType) -> String {
   case counter_type {
-    Number -> ins(index + 1) 
+    Number -> ins(index + 1)
     Alphabetic ->{
       let assert Ok(utf) = string.utf_codepoint(64 + index + 1)
       string.from_utf_codepoints([utf])
@@ -135,7 +135,7 @@ fn at_root(root: VXML, param: InnerParam) -> Result(VXML, DesugaringError) {
     #("Bootcamp", "bootcamp", "Bootcamps", Number),
     #("Appendix", "appendix", "Appendices", Alphabetic),
   ] |> list.try_map(fn(a_params) { create_toc_child_div(a_params, param, children) })
-   
+
   use merged <- on.ok(res)
 
   let flattened = list.flatten(merged)

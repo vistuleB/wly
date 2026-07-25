@@ -40,8 +40,8 @@ type Param = #(String,  String,    fn(VXML) -> Bool,       fn(VXML) -> Bool)
 //             ↖        ↖          ↖                       ↖
 //             target   wrapper    condition for which     same, but dump
 //             tag      tag        children for children   below the node
-//                                 to steal and dump       
-//                                 above node in wrapper   
+//                                 to steal and dump
+//                                 above node in wrapper
 type InnerParam = #(String, VXML, fn(VXML) -> Bool, fn(VXML) -> Bool)
 fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
 

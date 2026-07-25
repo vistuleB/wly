@@ -28,7 +28,7 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
 }
 
 type Param = #(String, List(VXML))
-//             ↖       ↖      
+//             ↖       ↖
 //             tag     replacement
 type InnerParam = Param
 

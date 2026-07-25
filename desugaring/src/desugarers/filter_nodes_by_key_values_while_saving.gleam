@@ -23,22 +23,19 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
   Ok(param)
 }
 
-type Param =
-  #(List(#(String, String)), List(String))
-
-//                    ↖       ↖
-//                    key     value
-type InnerParam =
-  Param
+type Param = #(List(#(String, String)), List(String))
+//                    ↖                      ↖
+//                    key     value          saved
+type InnerParam = Param
 
 pub const name = "filter_nodes_by_key_values_while_saving"
 
 //------------------------------------------------53
 /// if inner.0 == [], filters nothing
-/// 
+///
 /// else filters by identifying nodes whose tag is
 /// in the 'saved' list inner.1, or else whose attrs
-/// match at least one of the given #(key, value) pairs, 
+/// match at least one of the given #(key, value) pairs,
 /// counting only perfectly literal matches; keeps only
 /// nodes that are descendants of such nodes, or
 /// ancestors of such nodes

@@ -17,7 +17,7 @@ fn nodemap(
         others,
       ) = list.partition(children, infra.is_v_and_tag_equals(_, "img"))
 
-      let #(src_attrs, attrs) = 
+      let #(src_attrs, attrs) =
         infra.attrs_extract_key_occurrences(attrs, "src")
 
       use #(width_attr, attrs) <- on.ok(
@@ -105,7 +105,7 @@ fn nodemap(
           }
         }
       )
-      
+
       Ok(V(..vxml, attrs: attrs, children: [imgs, others] |> list.flatten))
     }
 

@@ -39,7 +39,7 @@ pub const name = "check_proper_href_detokenization"
 // 🏖️🏖️ Desugarer 🏖️🏖️
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 //------------------------------------------------53
-/// 
+///
 pub fn constructor() -> Desugarer {
   Desugarer(
     name: name,

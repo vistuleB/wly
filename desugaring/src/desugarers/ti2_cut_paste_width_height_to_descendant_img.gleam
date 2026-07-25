@@ -97,7 +97,7 @@ fn img_case(
   let width_style = width_attr |> option.map(fn(x) {"width:" <> x.val})
   let height_style = height_attr |> option.map(fn(x) {"height:" <> x.val})
 
-  let local_style = 
+  let local_style =
     [width_style, height_style]
     |> option.values
     |> string.join(";")

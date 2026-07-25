@@ -374,10 +374,10 @@ pub const name = "fold_contents_into_text_if"
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 //------------------------------------------------53
 /// Replaces a specified tag (except if it occurs
-/// at the root) by its contents assuming that the 
+/// at the root) by its contents assuming that the
 /// tag contains exactly one child consisting of
 /// text.
-/// 
+///
 /// The text content gets folded into surrounding text
 /// nodes (in end-of-last-line to beginning-of-first-line
 /// fashion).

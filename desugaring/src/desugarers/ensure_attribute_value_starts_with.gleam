@@ -57,11 +57,11 @@ pub const name = "ensure_attribute_value_starts_with"
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 //------------------------------------------------53
 /// Used for changing the value of an attr.
-/// Takes an attr key and a replacement string 
-/// in which "()" is used as a stand-in for the 
-/// current value. For example, replacing attr 
-/// value "images/img.png" with the replacement 
-/// string "/()" will result in the new attr 
+/// Takes an attr key and a replacement string
+/// in which "()" is used as a stand-in for the
+/// current value. For example, replacing attr
+/// value "images/img.png" with the replacement
+/// string "/()" will result in the new attr
 /// value "/images/img.png"
 pub fn constructor(param: Param) -> Desugarer {
   Desugarer(

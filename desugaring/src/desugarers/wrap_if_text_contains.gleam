@@ -35,7 +35,7 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
 }
 
 type Param = #(String,  String,     String)
-//             ↖        ↖           ↖               
+//             ↖        ↖           ↖
 //             tag to   tag to      ...if some line
 //             wrap     wrap with   of descendant text contains
 type InnerParam = Param

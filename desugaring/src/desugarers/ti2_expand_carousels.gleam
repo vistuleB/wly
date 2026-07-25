@@ -13,7 +13,7 @@ fn nodemap(
     V(blame, tag, attrs, children) if tag == "Carousel" -> {
       case children {
         [] -> {
-          let #(src_attrs, attrs) = 
+          let #(src_attrs, attrs) =
             infra.attrs_extract_key_occurrences(attrs, "src")
 
           use #(width_attr, attrs) <- on.ok(

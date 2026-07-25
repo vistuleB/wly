@@ -44,8 +44,8 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
 }
 
 type Param = #(String,  String,     TrafficLight)
-//             ↖        ↖
-//             parent   wrapper
+//             ↖        ↖           ↖
+//             parent   wrapper     early return or not
 //             tag      tag
 type InnerParam = Param
 

@@ -17,7 +17,7 @@ fn lines_folder(
       True -> lines_folder(
         condition,
         bundled,
-        Line(current.blame, current.content <> first.content), 
+        Line(current.blame, current.content <> first.content),
         rest,
       )
     }

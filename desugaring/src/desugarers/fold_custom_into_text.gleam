@@ -17,7 +17,7 @@ fn accumulator(
   let ze_t = fn(
     node: VXML
   ) -> VXML {
-    let lines = 
+    let lines =
       inner.1(node)
       |> string.split("\n")
       |> list.map(fn(s) { Line(blame, s ) })

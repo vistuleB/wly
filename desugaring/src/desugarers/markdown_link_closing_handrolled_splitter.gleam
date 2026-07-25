@@ -73,7 +73,7 @@ fn line_map(
   use <- on.false_true(
     string.contains(maybe_href, "("),
     fn() {
-      [ 
+      [
         t_1_line(blame, before),
         V(
           bl.advance(blame, string.length(before) + 2),

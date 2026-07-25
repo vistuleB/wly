@@ -87,7 +87,7 @@ fn try_insert_id(
   )
 
   case list.find(ids, fn(x) { x.0 == id && x.1 == path }) {
-    Ok(x) -> 
+    Ok(x) ->
       Error(DesugaringError(
         attr.blame,
         "redefinition id '" <> id <> "' on page '" <> path <> "' (previously defined at " <> bl.blame_digest(x.2) <> ")"
@@ -263,27 +263,27 @@ fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
 //------------------------------------------------53
 /// Traverses the tree. Expects `handle` attrs
 /// to be in the form
-/// 
+///
 /// `handle=<name>|<value>|<id>`
 ///
-/// without spaces and where `|` is the literal 
+/// without spaces and where `|` is the literal
 /// vertical bar.
-/// 
-/// Also expects handles attrs to sit on nodes 
+///
+/// Also expects handles attrs to sit on nodes
 /// where one of the ancestors contains an attr
-/// of key param. (Typically param = "path".) Throws 
+/// of key param. (Typically param = "path".) Throws
 /// error otherwise, or if two handles are found with
 /// the same name.
 ///
 /// Wraps the root of the document in a node named
 /// 'GrandWrapper' and with attrs of the form
-/// 
+///
 /// handle=<name>|<#page>|<value>|<id>|<path>
-/// 
+///
 /// where <path> is the value of the afore-mentioned
 /// "path" attr associated to each handle
 /// (specifically the value of that attr at the
-/// closest ancestor to the node where the handle 
+/// closest ancestor to the node where the handle
 /// sits), and where <#page> is either the string
 /// "#page" or the empty string depending on whether
 /// original handle <name> ended with the suffix '#page'
@@ -294,17 +294,17 @@ fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
 /// Removes the original 'handle' attrs from their
 /// original positions, with all of the info stored at
 /// GrandWrapper.
-/// 
+///
 /// Also adds an attr of the form
-/// 
+///
 /// id=<id_val>|<path>
-/// 
+///
 /// to GrandWrapper for each id=<id_val> attr
 /// found in the document, with the same semantics of
 /// <path>. By contrast to handles, ids can be
 /// multiply-defined as long as they occur with
 /// different handles each time.
-/// 
+///
 /// Throws a DesugaringError if any 'id' or 'handle'
 /// occurs in a part of the tree where 'path' is not
 /// defined.

@@ -61,7 +61,7 @@ pub fn constructor(param: Param) -> Desugarer {
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
 fn assertive_tests_data() -> List(infra.AssertiveTestData(Param)) {
   [
-    
+
   ]
 }
 

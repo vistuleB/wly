@@ -60,7 +60,8 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
 }
 
 type Param = #(String, FancyConditionFn, String, String,   TrafficLight)
-//             ↖ tag   ↖ condition       ↖ attr  ↖ value   ↖ early return or not
+//             ↖       ↖                 ↖       ↖         ↖
+//             tag     condition         attr    value     early return or not
 type InnerParam = #(String, FancyConditionFn, List(Attr), TrafficLight)
 
 pub const name = "append_attribute_if_fancy"

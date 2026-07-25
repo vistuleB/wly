@@ -133,7 +133,7 @@ fn serialize_counter_bundles(
   let counter_string = render_counter(info)
   let #(bequeathed_split_char, echoed_prefix) = case insert_or_not {
     _ if insert_or_not == loud.string -> #(our_split_char, counter_string <> rest_split_char)
-    _ if insert_or_not == soft.string -> #(rest_split_char, "") 
+    _ if insert_or_not == soft.string -> #(rest_split_char, "")
     _ -> panic
   }
   let two_values = TwoValues(

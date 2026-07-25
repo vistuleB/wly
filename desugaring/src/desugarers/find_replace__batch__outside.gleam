@@ -17,7 +17,7 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
 }
 
 type Param = List(#(String, String))
-//           ↖            
+//           ↖
 //           from/to pairs
 type InnerParam = Param
 

@@ -43,7 +43,7 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
 }
 
 type Param = List(#(String, String))
-//                  ↖       ↖      
+//                  ↖       ↖
 //                  tag     class
 type InnerParam = Param
 

@@ -90,7 +90,7 @@ type InnerParam = Param
 ///
 /// 1. '-listing' suffix is removed and 'listing' is
 ///    is added as a class to the element instead
-/// 
+///
 /// 2. '-listing@52' will additionally result in
 ///    'counter-set:listing 52' being added as a
 ///    style to the pre

@@ -44,9 +44,9 @@ fn t_transform(
 
 fn nodemap_factory(inner: InnerParam) -> n2t.EarlyReturnOneToOptionNoErrorBeforeAndAfterV2StatefulNodemap(State) {
   n2t.EarlyReturnOneToOptionNoErrorBeforeAndAfterV2StatefulNodemap(
-    fn(v, s) { v_before(v, s, inner) }, 
-    v_after, 
-    fn(v, s) { t_transform(v, s, inner) }, 
+    fn(v, s) { v_before(v, s, inner) },
+    v_after,
+    fn(v, s) { t_transform(v, s, inner) },
   )
 }
 

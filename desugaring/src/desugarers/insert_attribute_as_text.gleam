@@ -51,7 +51,7 @@ pub const name = "insert_attribute_as_text"
 /// insert the value of the attr with key
 /// 'attr_key' into the first line of the first
 /// text node child of the tag, or else as a text
-/// node unto itself if the first child is not a 
+/// node unto itself if the first child is not a
 /// text node. If the attr doesn't exist, the node
 /// is left unchanged. The attr value is used
 /// as-is without any newline splitting. Empty

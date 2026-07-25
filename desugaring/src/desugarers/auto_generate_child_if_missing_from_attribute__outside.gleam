@@ -65,9 +65,9 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
 }
 
 type Param = #(String, String, String)
-//             ↖       ↖       ↖        
+//             ↖       ↖       ↖
 //             parent  child   attr
-//             tag     tag              
+//             tag     tag
 type InnerParam = #(String, String, String, Int)
 
 pub const name = "auto_generate_child_if_missing_from_attribute__outside"
@@ -83,13 +83,13 @@ fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
 /// ```
 /// will, for each node of tag `parent_tag`,
 /// generate, if the node has no existing children
-/// tag `child_tag`, by using the value of 
-/// attr_key as the contents of the child of 
+/// tag `child_tag`, by using the value of
+/// attr_key as the contents of the child of
 /// tag child_tag. If no such attr exists, does
 /// nothing to the node of tag parent_tag.
-/// 
+///
 /// Early-returns from subtree rooted at parent_tag.
-/// 
+///
 /// Stays outside of trees rooted at tags in last
 /// argument given to function.
 pub fn constructor(param: Param, outside: List(String)) -> Desugarer {

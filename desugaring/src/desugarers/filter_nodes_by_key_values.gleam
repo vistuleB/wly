@@ -28,7 +28,7 @@ pub const name = "filter_nodes_by_key_values"
 
 //------------------------------------------------53
 /// filters by identifying nodes whose attrs match
-/// at least one of the given #(key, value) pairs, 
+/// at least one of the given #(key, value) pairs,
 /// counting only perfectly literal matches; keeps only
 /// nodes that are descendants of such nodes, or
 /// ancestors of such nodes

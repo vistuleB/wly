@@ -33,7 +33,7 @@ pub const name = "filter_nodes_by_path_key_values_while_saving"
 
 //------------------------------------------------53
 /// if inner.0 == [], filters nothing
-/// 
+///
 /// else keeps only nodes (& descendants of such) if
 /// tag of the node is in inner.1, or if the attrs
 /// match one of the inner.0 tuples
@@ -43,9 +43,9 @@ pub const name = "filter_nodes_by_path_key_values_while_saving"
 ///    - 'path' is not contained in the node's
 ///      blame.path (so that selector is "aimed"
 ///      only at nodes with a certain path/blame)
-///    - the node is a V(..) and key=val is one of the 
+///    - the node is a V(..) and key=val is one of the
 ///      node's attributes
-/// 
+///
 /// in other words, if you *do* match the path, then
 /// and only then do you need to worry about matching
 /// one of the key-val pairs

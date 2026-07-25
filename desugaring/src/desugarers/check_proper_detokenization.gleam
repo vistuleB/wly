@@ -38,7 +38,7 @@ pub const name = "check_proper_detokenization"
 // 🏖️🏖️ Desugarer 🏖️🏖️
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 //------------------------------------------------53
-/// 
+///
 pub fn constructor() -> Desugarer {
   Desugarer(
     name: name,

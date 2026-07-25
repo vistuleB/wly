@@ -83,7 +83,7 @@ type InnerParam = Nil
 //------------------------------------------------53
 /// Adds beginning-of-line (BOL) span markers to pre
 /// elements with class="listing".
-/// 
+///
 /// Transforms each text line in listing pre elements by
 /// adding span elements with class="listing-bol" at the
 /// beginning of each line for proper formatting.

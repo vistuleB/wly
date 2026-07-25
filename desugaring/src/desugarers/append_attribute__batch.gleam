@@ -70,8 +70,8 @@ fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
 /// ```
 /// #(tag, key, value)
 /// ```
-/// and appends an attr key=value to the list 
-/// of attrs of each v-node of tag 'tag'. The 
+/// and appends an attr key=value to the list
+/// of attrs of each v-node of tag 'tag'. The
 /// 'tag' value can be repeated in the list, and all
 /// attrs for that tag will be added.
 pub fn constructor(param: Param) -> Desugarer {

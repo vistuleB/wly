@@ -65,8 +65,8 @@ fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
 // 🏖️🏖️ Desugarer 🏖️🏖️
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 //------------------------------------------------53
-/// adds an attr-pair to a tag when it is the 
-/// child of another specified tag; will not 
+/// adds an attr-pair to a tag when it is the
+/// child of another specified tag; will not
 /// overwrite if attr with that key already
 /// exists
 pub fn constructor(param: Param) -> Desugarer {

@@ -232,19 +232,19 @@ fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
 /// Globs sibling nodes of the given tag together
 /// when adjacent or separated only by text nodes
 /// that contain whitespace. In more detail:
-/// 
+///
 /// - when there are no whitespace text nodes between
 ///   the two adjacent siblings, the siblings are
 ///   concatated in last-to-first-line fashion
 ///   (vis-a-vis their own first & last child text node
 ///   if any, respectively)
-/// 
+///
 /// - in the remaining case, the intervening whitespace
 ///   nodes are replaced by a single space text node,
 ///   and a similar last-to-first line concatenation
 ///   ensues among the last child text node of the
-///   first node, if any, the single space text node, 
-///   first child text node of the second node, if 
+///   first node, if any, the single space text node,
+///   first child text node of the second node, if
 ///   any
 pub fn constructor(param: Param) -> Desugarer {
   Desugarer(

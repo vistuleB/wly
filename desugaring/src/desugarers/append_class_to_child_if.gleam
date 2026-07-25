@@ -29,9 +29,9 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
 }
 
 type Param = #(String,  String,     fn(VXML) -> Bool)
-//             ↖        ↖           ↖        
+//             ↖        ↖           ↖
 //             parent   class       condition
-//             tag      to append   function 
+//             tag      to append   function
 type InnerParam = Param
 
 pub const name = "append_class_to_child_if"

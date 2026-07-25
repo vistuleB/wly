@@ -16,7 +16,7 @@ fn add_in_list(
       case dict.get(inner, tag) {
         Error(Nil) ->
           [first, ..add_in_list([second, ..rest], inner)]
-        Ok(v) -> 
+        Ok(v) ->
           [first, v, ..add_in_list([second, ..rest], inner)]
       }
     }
@@ -31,7 +31,7 @@ fn nodemap(
   inner: InnerParam,
 ) -> VXML {
   case vxml {
-    V(_, _, _, children) -> 
+    V(_, _, _, children) ->
       V(..vxml, children: add_in_list(children, inner))
     _ -> vxml
   }
@@ -49,7 +49,7 @@ fn transform_factory(inner: InnerParam) -> DesugarerTransform {
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
   param
   |> list.map(
-    fn(triple) { 
+    fn(triple) {
       #(
         triple.0,
         infra.v_attrs_constructor(desugarer_blame(55), triple.1, triple.2),
@@ -74,7 +74,7 @@ fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
 // 🏖️🏖️ Desugarer 🏖️🏖️
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 //------------------------------------------------53
-/// adds new elements after specified tags but not 
+/// adds new elements after specified tags but not
 /// if they are the last child
 pub fn constructor(param: Param) -> Desugarer {
   Desugarer(

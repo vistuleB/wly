@@ -98,7 +98,7 @@ fn chapter_link(
   let margin_left = case sub_chapter_number {
     "0" -> "0"
     _ -> "40px"
-  } 
+  }
 
   let style_attr =
     Attr(desugarer_blame(104), "style", "margin-left: " <> margin_left)
@@ -148,7 +148,7 @@ fn at_root(
   use chapter_menu_items <- on.ok(
     sections
     |> list.map_fold(
-      0, 
+      0,
       fn(acc, chapter: VXML) {
         case get_section_index(chapter, acc) {
           Ok(section_index) -> #(

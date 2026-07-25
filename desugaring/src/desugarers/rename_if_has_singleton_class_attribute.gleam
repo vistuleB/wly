@@ -43,7 +43,7 @@ pub const name = "rename_if_has_singleton_class_attribute"
 /// renames tags when their attrs consist of a
 /// single 'class' attr with a given value;
 /// removes the class attr as part of the
-/// renaming process 
+/// renaming process
 pub fn constructor(param: Param) -> Desugarer {
   Desugarer(
     name: name,

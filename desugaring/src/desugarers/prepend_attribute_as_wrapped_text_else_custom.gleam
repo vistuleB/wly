@@ -59,10 +59,10 @@ fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
 /// ```
 /// tag, attr_key, wrapper, else_node
 /// ```
-/// prepends a node to nodes of tag 'tag'. 
+/// prepends a node to nodes of tag 'tag'.
 /// If the attribute 'attr_key' exists and is not empty,
 /// the 'wrapper' node is used as a wrapper for the
-/// attribute value (prepending it to its children). 
+/// attribute value (prepending it to its children).
 /// If the attribute doesn't exist or is empty,
 /// 'else_node' is prepended instead.
 ///

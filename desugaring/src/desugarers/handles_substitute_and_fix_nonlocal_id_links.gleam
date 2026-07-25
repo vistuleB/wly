@@ -181,7 +181,7 @@ fn process_line(
         inner,
       ))
       let text_nodes = splits_2_ts(splits, blame)
-      let vxmls = 
+      let vxmls =
         list.interleave([text_nodes, hyperlinks])
         |> infra.last_to_first_concatenation
       Ok(#(vxmls, warnings))
@@ -500,7 +500,7 @@ type Param = #(String,            String,                 String,               
 //             ↖                  ↖                       ↖                      ↖                          ↖                          ↖
 //             attr key           tag to use              tag to use             additional attribute       additional attribute       tags that count as
 //             to update the      when handle path        when handle path       key-value pairs for        key-value pairs for        "already being inside a link"
-//             local path         equals local path       !equals local path     former case                latter case 
+//             local path         equals local path       !equals local path     former case                latter case
 //                                at point of insertion   at point of insertion
 type InnerParam = #(String, String, String, List(Attr), List(Attr), List(String), Regexp)
 
@@ -550,7 +550,7 @@ fn desugarer_blame(line_no: Int) {
 /// links respectively. If the class list is empty
 /// no 'class' attr will be added at all to
 /// that type of link element.
-/// 
+///
 /// Secondly, substitutes each attr of the
 /// form
 ///

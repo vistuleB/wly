@@ -66,7 +66,7 @@ fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
 // 🏖️🏖️ Desugarer 🏖️🏖️
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 //------------------------------------------------53
-/// adds new elements between specified tags and 
+/// adds new elements between specified tags and
 /// following text nodes
 pub fn constructor(param: Param) -> Desugarer {
   Desugarer(

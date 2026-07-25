@@ -62,9 +62,9 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
 }
 
 type Param = #(String,   VXML,       List(String))
-//             ↖         ↖           ↖               
+//             ↖         ↖           ↖
 //             tag to    thing to    ...if not child of
-//             wrap      wrap with   any of these  
+//             wrap      wrap with   any of these
 type InnerParam = Param
 
 pub const name = "wrap_with_custom_if_not_child_of"

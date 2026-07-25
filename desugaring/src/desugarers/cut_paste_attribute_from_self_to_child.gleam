@@ -64,12 +64,12 @@ pub const name = "cut_paste_attribute_from_self_to_child"
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 //------------------------------------------------53
 /// For all nodes with a given 'parent_tag',
-/// removes all attrs of a given key. If the 
+/// removes all attrs of a given key. If the
 /// list of removed attrs is nonempty, pastes
 /// the first element of the list to all children
-/// of the `parent_tag` node that have a given 
+/// of the `parent_tag` node that have a given
 /// `child_tag` tag.
-/// 
+///
 /// Returns early after encountering a node of tag
 /// 'parent_tag'.
 pub fn constructor(param: Param) -> Desugarer {

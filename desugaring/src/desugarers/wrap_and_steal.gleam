@@ -40,8 +40,8 @@ type Param = #(String,  String,    List(String),           List(String))
 //             ↖        ↖          ↖                       ↖
 //             target   wrapper    list of names of        same, but dump
 //             tag      tag        children for children   below the node
-//                                 to steal and dump       
-//                                 above node in wrapper   
+//                                 to steal and dump
+//                                 above node in wrapper
 type InnerParam = #(String, VXML, List(String), List(String))
 fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
 

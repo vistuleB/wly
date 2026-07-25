@@ -37,9 +37,9 @@ pub const name = "filter_nodes_by_path_key_values"
 ///    - 'path' is not contained in the node's
 ///      blame.path (so that selector is "aimed"
 ///      only at nodes with a certain path/blame)
-///    - the node is a V(..) and key=val is one of the 
+///    - the node is a V(..) and key=val is one of the
 ///      node's attributes
-/// 
+///
 /// in other words, if you *do* match the path, then
 /// and only then do you need to worry about matching
 /// one of the key-val pairs

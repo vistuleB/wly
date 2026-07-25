@@ -144,12 +144,10 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
   ))
 }
 
-type Param =
-  #(String, String)
-
-//             ↖            ↖              
-//             local path   additional      
-//             of source    class, if any   
+type Param = #(String,      String)
+//             ↖            ↖
+//             local path   additional
+//             of source    class, if any
 type InnerParam =
   #(String, String, List(Attr), List(Attr))
 

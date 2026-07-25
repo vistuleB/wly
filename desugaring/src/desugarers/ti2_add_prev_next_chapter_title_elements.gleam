@@ -268,7 +268,7 @@ fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
 /// of the previous and next chapter/subchapter, if
 /// any, and dumps these into 'PrevChapterOrSubTitle'
 /// and 'NextChapterOrSubTitle' elements at the top
-/// each chapter, 
+/// each chapter,
 pub fn constructor() -> Desugarer {
   Desugarer(
     name: name,

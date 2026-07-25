@@ -47,7 +47,7 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
 }
 
 type Param = #(String,   String,   TrafficLight)
-//             ↖         ↖         ↖    
+//             ↖         ↖         ↖
 //             tag       tag to    return-early-or-not-after-appending
 //                       append
 type InnerParam = #(String, VXML, TrafficLight)

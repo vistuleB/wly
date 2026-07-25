@@ -39,7 +39,7 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
 
 type Param = #(String,   String,   String,  List(#(String, String)))
 //             ↖         ↖         ↖        ↖
-//             old_tag   new_tag   class    list of attrs 
+//             old_tag   new_tag   class    list of attrs
 //                                          as key value pairs
 type InnerParam = #(String, String, String, List(Attr))
 
@@ -50,7 +50,7 @@ fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
 // 🏖️🏖️ Desugarer 🏖️🏖️
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 //------------------------------------------------53
-/// renames tags and adds attrs to them; also 
+/// renames tags and adds attrs to them; also
 /// adds a class attr, that results in editing
 /// any existing class attr, if present
 pub fn constructor(param: Param) -> Desugarer {

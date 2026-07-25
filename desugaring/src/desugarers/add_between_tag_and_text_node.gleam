@@ -9,7 +9,7 @@ fn add_in_list(children: List(VXML), inner: InnerParam) -> List(VXML) {
   case children {
     [
       V(_, first_tag, _, _) as first,
-      T(_, _) as second, 
+      T(_, _) as second,
       ..rest
     ] if first_tag == inner.0 -> {
       [
@@ -65,7 +65,7 @@ fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
 // 🏖️🏖️ Desugarer 🏖️🏖️
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 //------------------------------------------------53
-/// adds new elements between specified tags and 
+/// adds new elements between specified tags and
 /// following text nodes
 pub fn constructor(param: Param) -> Desugarer {
   Desugarer(

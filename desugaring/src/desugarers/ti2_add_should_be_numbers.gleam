@@ -85,7 +85,7 @@ type InnerParam = #(Regexp, Regexp)
 //------------------------------------------------53
 /// Extracts chapter and subchapter numbers from file
 /// paths and adds them as "should-be-number" attrs.
-/// 
+///
 /// Processes Chapter and Sub elements by parsing their
 /// file paths using regex patterns to extract numeric
 /// identifiers and adding appropriate attrs.

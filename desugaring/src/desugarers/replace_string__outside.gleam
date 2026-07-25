@@ -55,7 +55,7 @@ pub const name = "replace_string__outside"
 //------------------------------------------------53
 /// replaces occurrences of a regex pattern with a
 /// replacement string in every line of every text node,
-/// while avoiding subtrees rooted at tags appearing 
+/// while avoiding subtrees rooted at tags appearing
 /// in the second argument
 pub fn constructor(param: Param, outside: List(String)) -> Desugarer {
   Desugarer(

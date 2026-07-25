@@ -56,9 +56,9 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
 }
 
 type Param = List(#(String,  String,     fn(VXML) -> Bool))
-//                  ↖        ↖           ↖               
-//                  parent   class       condition       
-//                  tag      to append   function        
+//                  ↖        ↖           ↖
+//                  parent   class       condition
+//                  tag      to append   function
 type InnerParam = Dict(String, List(#(String, fn(VXML) -> Bool)))
 
 pub const name = "append_class_to_child_if__batch"

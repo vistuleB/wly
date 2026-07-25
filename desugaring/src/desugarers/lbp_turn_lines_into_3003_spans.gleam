@@ -54,7 +54,7 @@ fn line_to_tooltip_span(line: Line, inner: InnerParam) -> #(Bool, VXML) {
   use <- on.eager_true_false(
     line.content == "",
     #(False, t),
-  ) 
+  )
   use location <- on.eager_error_ok(
     get_location(line.blame, inner.0),
     #(False, t),
@@ -186,8 +186,8 @@ pub fn constructor(param: Param, outside: List(String)) -> Desugarer {
 fn assertive_tests_data() -> List(infra.AssertiveTestDataWithOutside(Param)) {
   [
     // note: 'tst.source' is the filename assigned by the
-    // infrastructure.gleam test runner, which is why 
-    // '../path/to/content/tst.source' shows up in the expected 
+    // infrastructure.gleam test runner, which is why
+    // '../path/to/content/tst.source' shows up in the expected
     // output
     infra.AssertiveTestDataWithOutside(
       param: "../path/to/content/",

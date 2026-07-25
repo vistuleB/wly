@@ -43,7 +43,7 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
 }
 
 type Param = #(String,   List(VXML),     String,                   TrafficLight)
-//             ↖         ↖               ↖                         ↖    
+//             ↖         ↖               ↖                         ↖
 //             tag       thing to        before                    return-early-or-not-after-inserting
 //                       insert          first elt of this
 //                                       tag (or at end if none)
@@ -63,7 +63,7 @@ pub const name = "pour_custom_before_first"
 /// giving argument [A, B, C] as the list of nodes to
 /// insert will result in the sequence [C, B, A]
 /// showing up in the final sequence of nodes.
-/// 
+///
 /// Early-returns after operating on a node depending
 /// on the value of the last argument.
 pub fn constructor(param: Param) -> Desugarer {

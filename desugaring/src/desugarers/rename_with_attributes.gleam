@@ -34,7 +34,7 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
 
 type Param = #(String,   String,   List(#(String, String)))
 //             ↖         ↖         ↖
-//             old_tag   new_tag   list of attrs 
+//             old_tag   new_tag   list of attrs
 //                                 as key value pairs
 type InnerParam = #(String, String, List(Attr))
 

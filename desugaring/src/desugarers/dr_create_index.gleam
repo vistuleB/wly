@@ -184,7 +184,7 @@ fn chapter_info_information_collector(
       use title <- on.ok(gather_title(vxml, Section))
       Ok(#(state |> add_section_with_title_to_state(title), Continue))
     }
-    
+
     V(_, "SubSection", _, _) -> {
       use title <- on.ok(gather_title(vxml, SubSection))
       Ok(#(state |> add_subsection_with_title_to_state(title), GoBack))
@@ -216,7 +216,7 @@ fn href(chapter_no: Int, section_no: Int, subsection_no: Int) -> String {
 fn subsection_item(ch_no: Int, section_no: Int, subsection_no: Int, subsection: SubSectionInfo) -> VXML {
   let b = desugarer_blame(217)
   let SubSectionInfo(title) = subsection
-  
+
   V(
     b,
     "li",
@@ -248,7 +248,7 @@ fn section_item(ch_no: Int, section_no: Int, section: SectionInfo) -> VXML {
       ),
     ]
   }
-  
+
   V(
     b,
     "li",

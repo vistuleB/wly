@@ -41,7 +41,7 @@ pub const name = "rename_if_has_singleton_key_val"
 //------------------------------------------------53
 /// renames tags of a given tag whose attr list
 /// consists of a specific key-value pair
-/// 
+///
 /// removes the key-value pair, while at it
 pub fn constructor(param: Param) -> Desugarer {
   Desugarer(

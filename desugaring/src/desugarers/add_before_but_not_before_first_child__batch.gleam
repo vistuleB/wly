@@ -73,7 +73,7 @@ fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
 // 🏖️🏖️ Desugarer 🏖️🏖️
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 //------------------------------------------------53
-/// adds new elements before specified tags but not 
+/// adds new elements before specified tags but not
 /// if they are the first child
 pub fn constructor(param: Param) -> Desugarer {
   Desugarer(

@@ -43,7 +43,7 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
 }
 
 type Param = #(String,   VXML,      String,                   TrafficLight)
-//             ↖         ↖          ↖                         ↖    
+//             ↖         ↖          ↖                         ↖
 //             tag       thing to   before                    return-early-or-not-after-inserting
 //                       insert     first elt of this
 //                                  tag (or at end if none)
@@ -59,7 +59,7 @@ pub const name = "insert_custom_before_first"
 /// of that tag at the first position right before
 /// tags of another given string, or else as the last
 /// child if no such other tag is found.
-/// 
+///
 /// Early-returns after operating on a node depending
 /// on the value of the last argument.
 pub fn constructor(param: Param) -> Desugarer {

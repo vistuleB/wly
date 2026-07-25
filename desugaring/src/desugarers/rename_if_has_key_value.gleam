@@ -46,7 +46,7 @@ pub const name = "rename_if_has_key_val"
 //------------------------------------------------53
 /// renames tags of a given tag if their attr
 /// list contains a specific key-value pair
-/// 
+///
 /// removes all occurrences of the key-value pair
 /// while at it
 pub fn constructor(param: Param) -> Desugarer {

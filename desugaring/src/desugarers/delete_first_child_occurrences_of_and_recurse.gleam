@@ -50,7 +50,7 @@ pub const name = "delete_first_child_occurrences_of_and_recurse"
 /// occur as the first child of a node, and recurses
 /// (that guarantees the final tree has no such nodes as
 /// first children)
-/// 
+///
 /// is not efficient if the thing to be deleted has
 /// children; if you want to do that plz write another
 /// depth-first-search desugarer

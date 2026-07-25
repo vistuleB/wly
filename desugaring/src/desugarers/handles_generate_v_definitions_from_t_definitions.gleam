@@ -195,7 +195,7 @@ pub const name = "handles_generate_v_definitions_from_t_definitions"
 /// end of string, or unmatched closing bracket.
 ///
 /// For each match found, the desugarer:
-/// 
+///
 ///   1. Replaces the matched span with just
 ///      PRECEDING_CHAR + VALUE in the text, except
 ///      that a '#' preceding char is removed.

@@ -64,7 +64,7 @@ fn v_before(_: Nil, vxml: VXML) -> Result(#(Nil, List(Attr), List(DesugaringWarn
 
   use chapter_handle <- on.ok(infra.attrs_val_first_with_key_expected(attrs, "chapter", blame))
   let assert ">>" <> chapter_handle = chapter_handle
-        
+
   use _ <- on.stay(case chapter_handle {
     "exercise-graveyard" -> on.Stay(Nil)
     _ -> on.Return(Ok(#(Nil, [], [], infra.GoBack)))

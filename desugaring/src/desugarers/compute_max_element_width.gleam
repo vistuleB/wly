@@ -79,7 +79,7 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
 
 type Param = List(String)
 //           ↖
-//           tags to include in the 
+//           tags to include in the
 //           max width calculation
 type InnerParam = Param
 

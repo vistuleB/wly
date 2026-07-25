@@ -8,7 +8,7 @@ import blame as bl
 
 fn add_in_list(
   previous_tags: List(String),
-  upcoming: List(VXML), 
+  upcoming: List(VXML),
   inner: InnerParam,
 ) -> List(VXML) {
   case upcoming {

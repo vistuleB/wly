@@ -59,7 +59,7 @@ fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
 //------------------------------------------------53
 /// add a specific key-value pair to all tags of a
 /// given name and early-return after tag is added,
-/// while not entering subtrees specified by the 
+/// while not entering subtrees specified by the
 /// last argument to the desugarer
 pub fn constructor(param: Param, outside: List(String)) -> Desugarer {
   Desugarer(

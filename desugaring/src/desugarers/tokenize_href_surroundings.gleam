@@ -41,13 +41,13 @@ fn tokenize_string_acc(
   leftover: String,
 ) -> List(VXML) {
   case splitter.split(opening_parenthesis_splitter, leftover) {
-    #(_, "", _) -> 
+    #(_, "", _) ->
       case leftover == "" {
         True -> past_tokens |> list.reverse
         False ->
           [word_node(current_blame, leftover), ..past_tokens] |> list.reverse
       }
-    #("", " ", after) -> 
+    #("", " ", after) ->
       tokenize_string_acc(
         opening_parenthesis_splitter,
         [space_node(current_blame), ..past_tokens],
@@ -75,7 +75,7 @@ fn tokenize_string_acc(
         after,
       )
     }
-    #(before, non_space_punctuation, after) -> 
+    #(before, non_space_punctuation, after) ->
       tokenize_string_acc(
         opening_parenthesis_splitter,
         [

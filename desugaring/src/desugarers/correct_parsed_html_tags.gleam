@@ -40,7 +40,7 @@ pub const name = "correct_parsed_html_tags"
 // 🏖️🏖️ Desugarer 🏖️🏖️
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 //------------------------------------------------53
-/// corrects parsed HTML tags by removing 
+/// corrects parsed HTML tags by removing
 /// surrounding angle brackets
 pub fn constructor() -> Desugarer {
   Desugarer(

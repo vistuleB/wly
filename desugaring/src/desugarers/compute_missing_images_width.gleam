@@ -16,7 +16,7 @@ fn get_svg_width(blame: Blame, path: String) -> Result(Float, DesugaringError) {
   let assert Ok(file) = simplifile.read(path)
   let assert True = string.starts_with(file, "<svg ") || string.starts_with(file, "<?xml ")
   let assert Ok(width_pattern) = regexp.from_string("width=\"([0-9.]+)(.*)\"")
-  
+
   use match, _ <- on.empty_nonempty(
     regexp.scan(width_pattern, file),
     fn() { Error(DesugaringError(blame, "Could not find width attr in SVG file\n file: " <> path)) },
@@ -77,7 +77,7 @@ fn nodemap(
   node: VXML,
 ) -> Result(VXML, DesugaringError) {
   case node {
-    V(blame, tag, attrs, _) 
+    V(blame, tag, attrs, _)
       if tag == "ImageLeft" || tag == "ImageRight" || tag == "Image" -> {
         // if the image has a width attr, we don't need to do anything
         use <- on.some_none(
@@ -90,7 +90,7 @@ fn nodemap(
           infra.v_first_attr_with_key(node, "src"),
           on_none: fn() { Error(DesugaringError(blame, "Image tag must have a src attr")) },
         )
-       
+
         use width <- on.ok(get_image_width(attr.blame, "../../../MrChaker/little-bo-peep-solid/public" <> attr.val))
         Ok(V(..node, attrs: [Attr(blame, "width", ins(width) <> "px"), ..attrs]))
       }

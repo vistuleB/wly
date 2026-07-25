@@ -121,8 +121,8 @@ fn assertive_tests_data() -> List(infra.AssertiveTestDataWithOutside(Param)) {
     // stopped being used (but it might be correct)
     //
     // note 2: 'test' is the filename assigned by the
-    // infrastructure.gleam test runner, which is why 
-    // '../path/to/content/test' shows up in the expected 
+    // infrastructure.gleam test runner, which is why
+    // '../path/to/content/test' shows up in the expected
     // output
     infra.AssertiveTestDataWithOutside(
       param: "../path/to/content/",

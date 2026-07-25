@@ -81,7 +81,7 @@ type InnerParam = Param
 /// replace the attribute with key "info" by separate
 /// 'language', 'id', 'class', and 'style' attributes,
 /// according to the following schema:
-/// 
+///
 /// - anything before the first '.' or '#' in in the
 ///   info attribute becomes the language
 /// - anything after a '.' and the next '.' or '#'
@@ -90,9 +90,9 @@ type InnerParam = Param
 /// - anything after a '#' and the next '.' or '#'
 ///   becomes an id (hopefully unique, or else an error
 ///   is thrown
-/// 
+///
 /// Parsed styles overwrite existing styles, if any.
-/// 
+///
 /// Id conflicts results in a DesugaringError.
 pub fn constructor(param: Param) -> Desugarer {
   Desugarer(

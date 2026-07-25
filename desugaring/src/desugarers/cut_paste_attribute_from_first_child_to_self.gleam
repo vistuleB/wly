@@ -65,7 +65,7 @@ pub const name = "cut_paste_attribute_from_first_child_to_self"
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 //------------------------------------------------53
 /// Moves an attr with key `key` from the first
-/// child of a node with tag `parent_tag` to the 
+/// child of a node with tag `parent_tag` to the
 /// node itself.
 /// ```
 /// #Param:

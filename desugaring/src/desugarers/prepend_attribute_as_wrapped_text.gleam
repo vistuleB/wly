@@ -56,10 +56,10 @@ pub const name = "prepend_attribute_as_wrapped_text"
 /// ```
 /// tag, attr_key, wrapper
 /// ```
-/// prepends a node to nodes of tag 'tag'. 
+/// prepends a node to nodes of tag 'tag'.
 /// If the attribute 'attr_key' exists and is not empty,
 /// the 'wrapper' node is used as a wrapper for the
-/// attribute value (prepending it to its children). 
+/// attribute value (prepending it to its children).
 ///
 /// Processes all matching nodes depth-first.
 pub fn constructor(param: Param) -> Desugarer {

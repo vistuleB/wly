@@ -52,7 +52,8 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
 }
 
 type Param = #(String, fn(VXML) -> Bool, String, String,   TrafficLight)
-//             ↖ tag   ↖ condition       ↖ attr  ↖ value   ↖ early return or not
+//             ↖       ↖                 ↖       ↖         ↖
+//             tag     condition         attr    value     early return or not
 type InnerParam = #(String, fn(VXML) -> Bool, Attr, TrafficLight)
 
 pub const name = "prepend_attribute_if"
