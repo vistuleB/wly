@@ -3,16 +3,24 @@ import Something from "./Somewhere";
 const OurSuperComponent = () => {
   return (
     <>
-      <Chapter>
-        <WriterlyBlankLine />
-        {" "}{" "}
-        <InChapterLink
-          href="rr"
-          class=""
-        >
-          Theorem 1.2
-        </InChapterLink>
-      </Chapter>
+      {" "}
+        {" "}
+      <section class="smoke-section">
+        {" "}
+            {" "}
+        <Title>
+          Renderer smoke test
+        </Title>
+        {" "}
+            {" "}
+        <p>
+          Input is XML, transformed as VXML, and emitted as JSX-like output.
+        </p>
+        {" "}
+          {" "}
+      </section>
+      {" "}
+      {" "}
     </>
   );
 };
