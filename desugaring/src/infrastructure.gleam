@@ -82,6 +82,11 @@ pub type LatexDelimiterPair {
   BackslashSquareBracket
   BeginEndAlign
   BeginEndAlignStar
+  // a standalone display environment named `name`, i.e. the delimiter pair
+  // `\begin{name}` … `\end{name}` (e.g. name == "equation", "gather*", …). Which
+  // environments are recognized, and whether each is `$$`-wrapped, is a consumer
+  // policy decision (e.g. dr's formatter display_delimiter_dollar_policy).
+  BeginEndEnvironment(name: String)
 }
 
 pub type LatexDelimiterSingleton {
@@ -95,6 +100,8 @@ pub type LatexDelimiterSingleton {
   EndAlign
   BeginAlignStar
   EndAlignStar
+  BeginEnvironment(name: String)
+  EndEnvironment(name: String)
 }
 
 pub fn latex_inline_delimiters() -> List(LatexDelimiterPair) {
@@ -119,6 +126,10 @@ pub fn opening_and_closing_string_for_pair(
     BackslashSquareBracket -> #("\\[", "\\]")
     BeginEndAlign -> #("\\begin{align}", "\\end{align}")
     BeginEndAlignStar -> #("\\begin{align*}", "\\end{align*}")
+    BeginEndEnvironment(name) -> #(
+      "\\begin{" <> name <> "}",
+      "\\end{" <> name <> "}",
+    )
   }
 }
 
@@ -138,6 +149,7 @@ pub fn opening_and_closing_singletons_for_pair(
     )
     BeginEndAlign -> #(BeginAlign, EndAlign)
     BeginEndAlignStar -> #(BeginAlignStar, EndAlignStar)
+    BeginEndEnvironment(name) -> #(BeginEnvironment(name), EndEnvironment(name))
   }
 }
 
