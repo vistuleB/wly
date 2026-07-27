@@ -66,7 +66,7 @@ pub fn desugarers_2_decorateds(
 pub type Assembler(a) =
   fn(String) -> Result(#(List(InputLine), Option(DirTree)), a)    // the 'List(String)' is a feedback/success message on assembly
 
-pub fn default_other_files_assembler(
+pub fn default_file_assembler(
   path: String
 ) -> Result(#(List(InputLine), Option(DirTree)), simplifile.FileError) {
   io_l.read(path, 0)
@@ -360,6 +360,8 @@ pub fn empty_prettifier(
 // Renderer(a, b, c, d, e, f, z)
 // ************************************************************
 
+/// Wires source ingress, parsing, filtering, desugaring, splitting, emitting,
+/// writing, and optional prettification.
 pub type Renderer(
   a, // Assembler error
   b, // Parser error

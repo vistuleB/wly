@@ -1,6 +1,6 @@
 # Desugaring
 
-A collection of utilities for transforming [VXML](https://github.com/vistuleB/wly/tree/main/vxml) through composable desugaring pipelines, then splitting and emitting the result as one or more target documents such as HTML or JSX.
+A collection of utilities for transforming [VXML](https://github.com/vistuleB/wly/tree/main/vxml) through composable VXML pipelines, then splitting and emitting the result as one or more target documents such as HTML or JSX.
 
 The package is currently named `desugaring`, but its central abstraction is closer to a VXML pipeline: parse or assemble source material into VXML, run a sequence of `VXML -> VXML` transforms, split the transformed tree into output fragments, emit each fragment, and write the resulting files.
 

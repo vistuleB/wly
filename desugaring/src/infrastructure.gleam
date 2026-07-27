@@ -2937,6 +2937,7 @@ pub type DesugaringWarning {
 pub type DesugarerTransform =
   fn(VXML) -> Result(#(VXML, List(DesugaringWarning)), DesugaringError)
 
+/// One named VXML -> VXML transformation step.
 pub type Desugarer {
   Desugarer(
     name: String,
@@ -3334,6 +3335,7 @@ pub fn s_lines_table(
 // Pipeline
 // ************************************************************
 
+/// The ordered VXML -> VXML transformation stage, not the full render loop.
 pub type Pipeline =
   List(Desugarer)
 

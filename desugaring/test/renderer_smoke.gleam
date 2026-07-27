@@ -22,7 +22,7 @@ pub fn run_renderer_smoke_test() {
 
   let renderer =
     ds.Renderer(
-      assembler: ds.default_other_files_assembler,
+      assembler: ds.default_file_assembler,
       filterer: ds.default_filterer(_, options, []),
       parser: ds.default_xml_parser,
       pipeline: smoke_pipeline(),
