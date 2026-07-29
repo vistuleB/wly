@@ -131,7 +131,7 @@ fn advance_line(cl: ContentLine, by: Int) -> ContentLine {
 }
 
 fn is_ordinary_tag(input: String) -> Bool {
-  let pattern = "^[a-zA-Z][a-zA-Z0-9._-]*$"
+  let pattern = "^[a-zA-Z_][a-zA-Z0-9._-]*$"
   let assert Ok(re) = regexp.from_string(pattern)
   regexp.check(re, input)
 }

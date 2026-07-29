@@ -65,6 +65,16 @@ pub fn parse_and_serialize_roundtrip_test() {
   |> should.equal(source)
 }
 
+pub fn parse_string_accepts_underscore_start_tag_test() {
+  let source = "<> _Internal"
+
+  let assert Ok(parsed) = vxml.parse_string(source, "sample.vxml", True)
+
+  parsed
+  |> vxml.vxmls_to_string
+  |> should.equal(source)
+}
+
 pub fn parse_string_rejects_multiple_roots_when_unique_root_test() {
   "<> One\n<> Two"
   |> vxml.parse_string("sample.vxml", True)
@@ -77,17 +87,23 @@ pub fn validate_tag_accepts_serialized_vxml_tag_names_test() {
   |> should.equal(Ok("Chapter_2"))
 }
 
+pub fn validate_tag_accepts_underscore_start_test() {
+  "_Chapter"
+  |> vxml.validate_tag
+  |> should.equal(Ok("_Chapter"))
+}
+
 pub fn validate_tag_rejects_dot_and_hyphen_test() {
   "chapter.2"
   |> vxml.validate_tag
   |> should.equal(
-    Error(vxml.MalformedTag("chapter.2", "^[A-Za-z][A-Za-z0-9_]*$")),
+    Error(vxml.MalformedTag("chapter.2", vxml.tag_pattern)),
   )
 
   "chapter-2"
   |> vxml.validate_tag
   |> should.equal(
-    Error(vxml.MalformedTag("chapter-2", "^[A-Za-z][A-Za-z0-9_]*$")),
+    Error(vxml.MalformedTag("chapter-2", vxml.tag_pattern)),
   )
 }
 
@@ -95,13 +111,19 @@ pub fn validate_tag_rejects_digit_start_test() {
   "2Chapter"
   |> vxml.validate_tag
   |> should.equal(
-    Error(vxml.MalformedTag("2Chapter", "^[A-Za-z][A-Za-z0-9_]*$")),
+    Error(vxml.MalformedTag("2Chapter", vxml.tag_pattern)),
   )
 }
 
 pub fn html_parser_accepts_common_html_repairs_test() {
   "<html><body><img src=\"x\"><input disabled><p>fish & chips</p></body></html>"
   |> xmlm_based_html_parser("sample.html")
+  |> should.be_ok
+}
+
+pub fn xml_parser_accepts_underscore_start_tag_test() {
+  "<_Internal>Hi</_Internal>"
+  |> vxml.parse_xml("sample.xml")
   |> should.be_ok
 }
 
