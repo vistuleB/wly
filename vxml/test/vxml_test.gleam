@@ -82,9 +82,9 @@ pub fn parse_string_rejects_multiple_roots_when_unique_root_test() {
 }
 
 pub fn validate_tag_accepts_serialized_vxml_tag_names_test() {
-  "Chapter_2"
+  "Chapter_2.alpha"
   |> vxml.validate_tag
-  |> should.equal(Ok("Chapter_2"))
+  |> should.equal(Ok("Chapter_2.alpha"))
 }
 
 pub fn validate_tag_accepts_underscore_start_test() {
@@ -93,13 +93,7 @@ pub fn validate_tag_accepts_underscore_start_test() {
   |> should.equal(Ok("_Chapter"))
 }
 
-pub fn validate_tag_rejects_dot_and_hyphen_test() {
-  "chapter.2"
-  |> vxml.validate_tag
-  |> should.equal(
-    Error(vxml.MalformedTag("chapter.2", vxml.tag_pattern)),
-  )
-
+pub fn validate_tag_rejects_hyphen_test() {
   "chapter-2"
   |> vxml.validate_tag
   |> should.equal(

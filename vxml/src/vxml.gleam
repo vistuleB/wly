@@ -70,7 +70,7 @@ pub type VXMLParseFileError {
 
 const illegal_key_characters = [".", " ", "\"", ";"]
 
-pub const tag_pattern = "^[A-Za-z_][A-Za-z0-9_]*$"
+pub const tag_pattern = "^[A-Za-z_][A-Za-z0-9_.]*$"
 
 fn contains_chars(thing: String, substrings: List(String)) -> String {
   case substrings {
