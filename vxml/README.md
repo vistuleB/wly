@@ -12,9 +12,8 @@ VXML, a pipeline can transform the AST, and an emitter can serialize the result
 to HTML, XML-like text, JSX, or another target.
 
 VXML comes with its own indentation-based serialization format for human
-inspection and for persisting documents required by test suites, though VXML
-is typically expected to exist as data inside a running program, not as a
-persistent storage format.
+inspection and for persisting documents required by test suites. Ordinary
+pipeline use, however, keeps VXML as data inside a running program.
 
 For document-to-document transpilation, VXML also conveys _blame_ from the
 source document and/or an intervening transformation pipeline. Each atomic unit
@@ -34,6 +33,25 @@ In this package:
 - best-effort HTML repair helpers for making common damaged-HTML patterns
   palatable to XML-oriented parsers
 - serializers for HTML-, XML-, and JSX-like output, as well as VXML itself
+
+Minimal use:
+
+```gleam
+import gleam/result
+import gleam/string
+import simplifile
+import vxml
+import vxml/blame
+import vxml/io_lines
+
+pub fn xml_file_to_html(path: String) {
+  simplifile.read(path)
+  |> result.map_error(fn(e) { #(blame.no_blame, string.inspect(e)) })
+  |> result.try(vxml.parse_xml(_, path))
+  |> result.map(vxml.vxml_to_html_output_lines(_, 0, 2))
+  |> result.map(io_lines.output_lines_to_string)
+}
+```
 
 ## Model
 
@@ -100,8 +118,8 @@ whitespace easy to spot by human inspection.
 
 Rules & notes:
 
-- tag names must start with an ASCII letter and may then contain ASCII letters,
-  digits, or `_`
+- tag names must start with an ASCII letter or `_`, and may then contain ASCII
+  letters, digits, `_`, or `.`
 - attribute keys must be nonempty and directly followed by `=`; they may not
   contain the `=` char, or spaces
 - attribute values are not quoted, should follow `=` directly, and may be
