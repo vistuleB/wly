@@ -1,0 +1,127 @@
+import gleam/option
+import gleam/string
+import desugaring/core.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as core
+import desugaring/nodemaps_2_transform as n2t
+import vxml.{type VXML, V, T}
+import vxml/blame as bl
+
+fn nodemap(
+  vxml: VXML,
+) -> VXML {
+  case vxml {
+    V(_, "div", _, children) -> {
+      case {
+        core.v_has_class(vxml, "theorem") ||
+        core.v_has_class(vxml, "numbered-exercise") ||
+        core.v_has_class(vxml, "numbered-title")
+      } {
+        True -> {
+          case children {
+            [V(_, "span", _, span_children) as span, ..rest] -> {
+              case core.v_has_key_val(span, "class", "numbered-title") {
+                True -> {
+                  case span_children {
+                    [T(_, [one_line]), ..] -> {
+                      let title = one_line.content |> string.trim
+                      let title = core.drop_suffix(title, ".")
+                      let title = core.drop_suffix(title, ":")
+                      let title = case title {
+                        "Übungsaufgabe" -> "Exercise"
+                        "Beobachtung" -> "Observation"
+                        "Beispiel" -> "Example"
+                        "Behauptung" -> "Claim"
+                        "Algorithmus" -> "Algorithm"
+                        "Theroem" -> "Theorem"
+                        _ -> title
+                      }
+                      V(
+                        desugarer_blame(38),
+                        title,
+                        [],
+                        rest,
+                      )
+                    }
+                    _ -> {
+                      vxml
+                    }
+                  }
+                }
+                False -> vxml
+              }
+            }
+            _ -> vxml
+          }
+        }
+        False -> vxml
+      }
+    }
+    _ -> vxml
+  }
+}
+
+fn nodemap_factory(_inner: InnerParam) -> n2t.OneToOneNoErrorNodemap {
+  nodemap(_)
+}
+
+fn transform_factory(inner: InnerParam) -> DesugarerTransform {
+  nodemap_factory(inner)
+  |> n2t.one_to_one_no_error_nodemap_2_desugarer_transform()
+}
+
+fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
+  Ok(param)
+}
+
+type Param = Nil
+type InnerParam = Param
+
+pub const name = "ii2_class_well_container_theorem_2_statement"
+fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
+
+
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
+// 🏖️🏖️ Desugarer 🏖️🏖️
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
+//------------------------------------------------53
+/// unwraps nodes with a certain tag when they
+/// have a unique child of another designated tag
+pub fn constructor() -> Desugarer {
+  Desugarer(
+    name: name,
+    stringified_param: option.None,
+    stringified_outside: option.None,
+    transform: case param_to_inner_param(Nil) {
+      Error(error) -> fn(_) { Error(error) }
+      Ok(inner) -> transform_factory(inner)
+    },
+  )
+}
+
+// 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
+// 🌊🌊🌊 tests 🌊🌊🌊🌊🌊
+// 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
+fn assertive_tests_data() -> List(core.AssertiveTestDataNoParam) {
+  [
+    core.AssertiveTestDataNoParam(
+      source:   "
+                <> div
+                  class=well container theorem
+                  <> span
+                    class=numbered-title
+                    <>
+                      'Theorem'
+                  <>
+                    'a child'
+                ",
+      expected: "
+                <> Theorem
+                  <>
+                    'a child'
+                ",
+    )
+  ]
+}
+
+pub fn assertive_tests() {
+  core.assertive_test_collection_from_data_no_param(name, assertive_tests_data(), constructor)
+}

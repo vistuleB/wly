@@ -1,12 +1,12 @@
-import desugarer_library as dl
+import desugaring/desugarers as dl
 import desugaring as ds
-import infrastructure as infra
+import desugaring/core as core
 
-fn smoke_pipeline() -> infra.Pipeline {
+fn smoke_pipeline() -> core.Pipeline {
   [
     dl.identity(),
     dl.rename(#("Chapter", "section")),
-    dl.append_attribute(#("section", "class", "smoke-section", infra.GoBack)),
+    dl.append_attribute(#("section", "class", "smoke-section", core.GoBack)),
   ]
 }
 

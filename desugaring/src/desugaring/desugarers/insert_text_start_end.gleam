@@ -1,0 +1,68 @@
+import gleam/option
+import gleam/string.{inspect as ins}
+import desugaring/core.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as core
+import desugaring/nodemaps_2_transform as n2t
+import vxml.{type VXML, V}
+
+fn nodemap(
+  vxml: VXML,
+  inner: InnerParam,
+) -> VXML {
+  case vxml {
+    V(_, tag, _, _) if tag == inner.0 -> {
+      vxml
+      |> core.v_start_insert_text(inner.1)
+      |> core.v_end_insert_text(inner.2)
+    }
+    _ -> vxml
+  }
+}
+
+fn nodemap_factory(inner: InnerParam) -> n2t.OneToOneNoErrorNodemap {
+  nodemap(_, inner)
+}
+
+fn transform_factory(inner: InnerParam) -> DesugarerTransform {
+  nodemap_factory(inner)
+  |> n2t.one_to_one_no_error_nodemap_2_desugarer_transform
+}
+
+fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
+  #(param.0, param.1.0, param.1.1)
+  |> Ok
+}
+
+type Param = #(String, #(String,    String))
+//             ↖         ↖          ↖
+//             tag       insert     insert
+//                       at start   at end
+type InnerParam = #(String, String, String)
+
+pub const name = "insert_text_start_end"
+
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
+// 🏖️🏖️ Desugarer 🏖️🏖️
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
+//------------------------------------------------53
+/// inserts text at the beginning and end of a
+/// specified tag
+pub fn constructor(param: Param) -> Desugarer {
+  let assert Ok(inner) = param_to_inner_param(param)
+  Desugarer(
+    name: name,
+    stringified_param: option.Some(ins(inner)),
+    stringified_outside: option.None,
+    transform: transform_factory(inner),
+  )
+}
+
+// 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
+// 🌊🌊🌊 tests 🌊🌊🌊🌊🌊
+// 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
+fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
+  []
+}
+
+pub fn assertive_tests() {
+  core.assertive_test_collection_from_data(name, assertive_tests_data(), constructor)
+}

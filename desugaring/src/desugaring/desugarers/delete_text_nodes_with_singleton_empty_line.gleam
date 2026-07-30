@@ -1,0 +1,60 @@
+import gleam/option
+import desugaring/core.{ type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError } as core
+import desugaring/nodemaps_2_transform as n2t
+import vxml.{type VXML, T, Line}
+
+fn nodemap(
+  node: VXML,
+) -> List(VXML) {
+  case node {
+    T(_, [Line(_, "")]) -> []
+    _ -> [node]
+  }
+}
+
+fn nodemap_factory(_: InnerParam) -> n2t.OneToManyNoErrorNodemap {
+  nodemap
+}
+
+fn transform_factory(inner: InnerParam) -> DesugarerTransform {
+  nodemap_factory(inner)
+  |> n2t.one_to_many_no_error_nodemap_2_desugarer_transform()
+}
+
+fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
+  Ok(param)
+}
+
+type Param = Nil
+type InnerParam = Nil
+
+pub const name = "delete_text_nodes_with_singleton_empty_line"
+
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
+// 🏖️🏖️ Desugarer 🏖️🏖️
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
+//------------------------------------------------53
+/// removes text nodes containing a single line
+/// consisting of an empty string
+pub fn constructor() -> Desugarer {
+  Desugarer(
+    name: name,
+    stringified_param: option.None,
+    stringified_outside: option.None,
+    transform: case param_to_inner_param(Nil) {
+      Error(error) -> fn(_) { Error(error) }
+      Ok(inner) -> transform_factory(inner)
+    },
+  )
+}
+
+// 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
+// 🌊🌊🌊 tests 🌊🌊🌊🌊🌊
+// 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
+fn assertive_tests_data() -> List(core.AssertiveTestDataNoParam) {
+  []
+}
+
+pub fn assertive_tests() {
+  core.assertive_test_collection_from_data_no_param(name, assertive_tests_data(), constructor)
+}

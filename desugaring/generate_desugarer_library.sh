@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# Generates src/desugarer_library.gleam from the files in src/desugarers/
+# Generates src/desugaring/desugarers.gleam from the files in src/desugaring/desugarers/
 set -euo pipefail
 
-SRC_DIR="src/desugarers"
-OUT_FILE="src/desugarer_library.gleam"
+SRC_DIR="src/desugaring/desugarers"
+OUT_FILE="src/desugaring/desugarers.gleam"
 
 # Build a newline-separated list of module names (strip '__'-prefixed and '.gleam')
 MODULES=$(find "$SRC_DIR" -maxdepth 1 -type f -name '*.gleam' ! -name '__*' \
@@ -12,9 +12,9 @@ MODULES=$(find "$SRC_DIR" -maxdepth 1 -type f -name '*.gleam' ! -name '__*' \
 # Write the file
 {
   # imports
-  echo "import infrastructure as infra"
+  echo "import desugaring/core as core"
   printf '%s\n' "$MODULES" | while IFS= read -r m; do
-    echo "import desugarers/${m}"
+    echo "import desugaring/desugarers/${m}"
   done
   echo
 
@@ -25,7 +25,7 @@ MODULES=$(find "$SRC_DIR" -maxdepth 1 -type f -name '*.gleam' ! -name '__*' \
   echo
 
   # assertive_tests
-  echo "pub const assertive_tests : List(fn() -> infra.AssertiveTestCollection) = ["
+  echo "pub const assertive_tests : List(fn() -> core.AssertiveTestCollection) = ["
   printf '%s\n' "$MODULES" | while IFS= read -r m; do
     echo "  ${m}.assertive_tests,"
   done

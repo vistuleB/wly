@@ -1,0 +1,125 @@
+import gleam/list
+import gleam/option
+import desugaring/core.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as core
+import desugaring/nodemaps_2_transform as n2t
+import vxml.{type VXML, T, V}
+import either_or as eo
+
+fn child_must_escape(child: VXML, parent_tag: String, inner: InnerParam) -> Bool {
+  case child {
+    T(_, _) -> False
+    V(_, child_tag, _, _) -> list.contains(inner, #(child_tag, parent_tag))
+  }
+}
+
+fn nodemap(
+  node: VXML,
+  inner: InnerParam,
+) -> List(VXML) {
+  case node {
+    V(blame, tag, attrs, children) -> {
+      children
+      |> eo.discriminate(child_must_escape(_, tag, inner))
+      |> eo.group_ors
+      |> eo.map_resolve(
+        fn(either: VXML) -> VXML { either },
+        fn(or: List(VXML)) -> VXML { V(blame, tag, attrs, or) },
+      )
+    }
+    _ -> [node]
+  }
+}
+
+fn nodemap_factory(inner: InnerParam) -> n2t.OneToManyNoErrorNodemap {
+  nodemap(_, inner)
+}
+
+fn transform_factory(inner: InnerParam) -> DesugarerTransform {
+  nodemap_factory(inner)
+  |> n2t.one_to_many_no_error_nodemap_2_desugarer_transform()
+}
+
+fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
+  Ok(param)
+}
+
+type Param = List(#(String,      String))
+//                  ↖            ↖
+//                  tag of       ...when
+//                  child to     parent is
+//                  free from    this tag
+//                  parent
+type InnerParam = Param
+
+pub const name = "free_children__batch"
+
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
+// 🏖️🏖️ Desugarer 🏖️🏖️
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
+//------------------------------------------------53
+/// given a parent-child structure of the form
+///
+///     A[parent]
+///
+///         B[child]
+///
+///         C[child]
+///
+///         B[child]
+///
+///         D[child]
+///
+///         C[child]
+///
+///         B[child]
+///
+/// where A, B, C, D represent tags, a call to
+///
+/// free_children__batch([#(A, C)])
+///
+/// will for example result in the updated
+/// structure
+///
+///     A[parent]
+///
+///         B[child]
+///
+///     C[parent]
+///
+///     A[parent]
+///
+///         B[child]
+///
+///         D[child]
+///
+///     C[parent]
+///
+///     A[parent]
+///
+///         B[child]
+///
+/// with the original attr values of A
+/// copied over to the newly created 'copies' of
+/// A
+pub fn constructor(param: Param) -> Desugarer {
+  Desugarer(
+    name: name,
+    stringified_param: option.Some(param |> core.list_param_stringifier),
+    stringified_outside: option.None,
+    transform: case param_to_inner_param(param) {
+      Error(error) -> fn(_) { Error(error) }
+      Ok(inner) -> transform_factory(inner)
+    },
+  )
+}
+
+// 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
+// 🌊🌊🌊 tests 🌊🌊🌊🌊🌊
+// 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
+fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
+  []
+}
+
+pub fn assertive_tests() {
+  core.assertive_test_collection_from_data(name, assertive_tests_data(), constructor)
+}

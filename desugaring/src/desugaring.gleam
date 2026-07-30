@@ -12,12 +12,12 @@ import gleam/time/duration.{type Duration}
 import gleam/time/timestamp
 import vxml/blame.{Ext, type Blame} as bl
 import vxml/io_lines.{type InputLine, type OutputLine, OutputLine} as io_l
-import desugarer_library as dl
-import infrastructure.{type Desugarer, type Pipeline, type Selector} as infra
-import selector_library as sl
+import desugaring/desugarers as dl
+import desugaring/core.{type Desugarer, type Pipeline, type Selector} as core
+import desugaring/selectors as sl
 import shellout
 import simplifile
-import table_and_co_printer as pr
+import desugaring/tables as pr
 import vxml.{type VXML, V} as vp
 import on
 import input
@@ -165,7 +165,7 @@ pub fn stub_html_emitter(
         OutputLine(blame, 0, "<body>"),
       ],
       fragment.payload
-      |> infra.v_get_children
+      |> core.v_get_children
       |> list.map(fn(vxml) { vp.vxml_to_html_output_lines(vxml, 2, 2) })
       |> list.flatten,
       [
@@ -189,7 +189,7 @@ pub fn stub_jsx_emitter(
         OutputLine(blame, 2, "return ("),
         OutputLine(blame, 4, "<>"),
       ],
-      vp.vxmls_to_jsx_output_lines(fragment.payload |> infra.v_get_children, 6, 2),
+      vp.vxmls_to_jsx_output_lines(fragment.payload |> core.v_get_children, 6, 2),
       [
         OutputLine(blame, 4, "</>"),
         OutputLine(blame, 2, ");"),
@@ -455,7 +455,7 @@ pub fn vanilla_options() -> RendererOptions(z) {
 
 pub type Tracker {
   Tracker(
-    selector: Option(infra.Selector),
+    selector: Option(core.Selector),
     steps_with_tracking_on_change: List(Int),
     steps_with_tracking_forced: List(Int),
     interactive_mode: Bool,
@@ -714,12 +714,12 @@ pub fn process_command_line_arguments(
           use arg <- on.ok(
             parse_times_args(values)
           )
-          Ok(CommandLineAmendments(..amendments, times: arg |> infra.with_default(default_times_table_char_width)))
+          Ok(CommandLineAmendments(..amendments, times: arg |> core.with_default(default_times_table_char_width)))
         }
 
         "--input-dir" -> {
           case values {
-            [one] -> Ok(CommandLineAmendments(..amendments, input_dir: Some(one |> infra.drop_ending_slash)))
+            [one] -> Ok(CommandLineAmendments(..amendments, input_dir: Some(one |> core.drop_ending_slash)))
             [] -> Error(MissingArgumentToOption("--input-dir"))
             _ -> Error(TooManyArgumentsToOption("--input-dir"))
           }
@@ -727,7 +727,7 @@ pub fn process_command_line_arguments(
 
         "--output-dir" -> {
           case values {
-            [one] -> Ok(CommandLineAmendments(..amendments, output_dir: Some(one |> infra.drop_ending_slash)))
+            [one] -> Ok(CommandLineAmendments(..amendments, output_dir: Some(one |> core.drop_ending_slash)))
             [] -> Error(MissingArgumentToOption("--output-dir"))
             _ -> Error(TooManyArgumentsToOption("--output-dir"))
           }
@@ -1079,7 +1079,7 @@ fn parse_step_numbers(
         True -> #(True, string.drop_start(val, 1))
         False -> #(False, val)
       }
-      let val = infra.drop_prefix(val, "+")
+      let val = core.drop_prefix(val, "+")
       let multiply_first = fn(x: Int) {
         case first_val_negative {
           True -> -x
@@ -1147,15 +1147,15 @@ fn parse_track_args(
 
   let values = list.map(values, fn(v) { string.replace(v, "-with", "with") })
 
-  let #(with_enter, values) = infra.delete(values, "-i")
-  let #(with_ancestors, values) = infra.delete(values, "with-ancestors")
-  let #(with_elder_siblings, values) = infra.delete(values, "with-elder-siblings")
-  let #(with_attrs, values) = infra.delete(values, "with-attrs")
-  let #(with_attrs_v2, values) = infra.delete(values, "with-attributes")
-  let #(with_ancestor_attrs, values) = infra.delete(values, "with-ancestor-attrs")
-  let #(with_ancestor_attrs_v2, values) = infra.delete(values, "with-ancestor-attributes")
-  let #(with_elder_sibling_attrs, values) = infra.delete(values, "with-elder-sibling-attrs")
-  let #(with_elder_sibling_attrs_v2, values) = infra.delete(values, "with-elder-sibling-attributes")
+  let #(with_enter, values) = core.delete(values, "-i")
+  let #(with_ancestors, values) = core.delete(values, "with-ancestors")
+  let #(with_elder_siblings, values) = core.delete(values, "with-elder-siblings")
+  let #(with_attrs, values) = core.delete(values, "with-attrs")
+  let #(with_attrs_v2, values) = core.delete(values, "with-attributes")
+  let #(with_ancestor_attrs, values) = core.delete(values, "with-ancestor-attrs")
+  let #(with_ancestor_attrs_v2, values) = core.delete(values, "with-ancestor-attributes")
+  let #(with_elder_sibling_attrs, values) = core.delete(values, "with-elder-sibling-attrs")
+  let #(with_elder_sibling_attrs_v2, values) = core.delete(values, "with-elder-sibling-attributes")
 
   let with_attrs = with_attrs || with_attrs_v2
   let with_elder_sibling_attrs = with_elder_sibling_attrs || with_elder_sibling_attrs_v2 || with_attrs
@@ -1165,7 +1165,7 @@ fn parse_track_args(
 
   let selector = case with_ancestors {
     False -> selector
-    True -> infra.extend_selector_to_ancestors(
+    True -> core.extend_selector_to_ancestors(
       selector,
       with_elder_siblings,
       with_ancestor_attrs,
@@ -1198,8 +1198,8 @@ fn parse_track_args(
 
   let selector =
     selector
-    |> infra.extend_selector_up(plus_minus.minus)
-    |> infra.extend_selector_down(plus_minus.plus)
+    |> core.extend_selector_up(plus_minus.minus)
+    |> core.extend_selector_down(plus_minus.plus)
 
   use #(on_change, force, named) <- on.ok(parse_step_numbers(values))
 
@@ -1216,7 +1216,7 @@ fn parse_track_steps_args(
   values: List(String),
 ) -> Result(Tracker, CommandLineError) {
   use #(on_change, force, named) <- on.ok(parse_step_numbers(values))
-  let #(with_enter, _) = infra.delete(values, "-i")
+  let #(with_enter, _) = core.delete(values, "-i")
   Ok(Tracker(
     selector: None,
     steps_with_tracking_on_change: on_change,
@@ -1241,7 +1241,7 @@ fn join_trackers(
     )
   Tracker(
     selector: case pm1.selector, pm2.selector {
-      Some(s1), Some(s2) -> Some(infra.or_selectors(s1, s2))
+      Some(s1), Some(s2) -> Some(core.or_selectors(s1, s2))
       _, _ -> option.or(pm1.selector, pm2.selector)
     },
     steps_with_tracking_on_change: restrict,
@@ -1668,13 +1668,13 @@ fn producer(
           False -> {
             let selected_2_print =
               vxml
-              |> infra.vxml_to_s_lines
+              |> core.vxml_to_s_lines
               |> selector
             let next_tracking_output =
               selected_2_print
-              |> infra.s_lines_table("", True, 0)
+              |> core.s_lines_table("", True, 0)
             let selected_2_print = case dump {
-              True -> vxml |> infra.vxml_to_s_lines |> sl.all()
+              True -> vxml |> core.vxml_to_s_lines |> sl.all()
               False -> selected_2_print
             }
             #(selected_2_print, next_tracking_output)
@@ -1688,15 +1688,15 @@ fn producer(
 
         let #(got_arrow, lines) = case must_print {
           True -> {
-            let lines = infra.pour(
+            let lines = core.pour(
               pr.name_and_param_string_lines(desugarer, step_no, 4),
               lines,
             )
             let lines = ["    💠", ..lines] 
             let lines = 
               selected_2_print
-              |> infra.s_lines_table_lines("", False, 2)
-              |> infra.pour(lines)
+              |> core.s_lines_table_lines("", False, 2)
+              |> core.pour(lines)
             send(main_process_subject, ProducedString(lines |> list.reverse, step_no))
             #(False, [])
           }
@@ -1844,14 +1844,14 @@ fn run_pipeline(
 fn sanitize_input_output_dirs(parameters: RendererParameters) -> RendererParameters {
   RendererParameters(
     ..parameters,
-    input_dir: infra.drop_ending_slash(parameters.input_dir),
-    output_dir: infra.drop_ending_slash(parameters.output_dir),
+    input_dir: core.drop_ending_slash(parameters.input_dir),
+    output_dir: core.drop_ending_slash(parameters.output_dir),
   )
 }
 
 fn create_dirs_on_path_to_file(path_to_file: String) -> Result(Nil, simplifile.FileError) {
   let pieces = path_to_file |> string.split("/")
-  let pieces = infra.drop_last(pieces)
+  let pieces = core.drop_last(pieces)
   list.try_fold(pieces, ".", fn(acc, piece) {
     let acc = acc <> "/" <> piece
     use exists <- on.ok(simplifile.is_directory(acc))
@@ -1999,7 +1999,7 @@ pub fn run_renderer(
   // use #(filtered, filtration_warnings) <- on.error_ok(
   //   dl.filter_nodes_by_key_values(options.only_key_vals).transform(parsed),
   //   on_error: fn(error) {
-  //     let infra.DesugaringError(blame, msg) = error
+  //     let core.DesugaringError(blame, msg) = error
   //     io.println("  ...key-value filtration error:")
   //     io.println("")
   //     [
@@ -2016,7 +2016,7 @@ pub fn run_renderer(
   // use #(filtered, filtration_warnings) <- on.error_ok(
   //   dl.filter_nodes_by_path_key_values(options.only_path_key_vals).transform(filtered),
   //   on_error: fn(error) {
-  //     let infra.DesugaringError(blame, msg) = error
+  //     let core.DesugaringError(blame, msg) = error
   //     io.println("  ...path-key-value filtration error:")
   //     io.println("")
   //     [

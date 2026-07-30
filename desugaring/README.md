@@ -26,23 +26,23 @@ source path
   -> output files
 ```
 
-A `Pipeline` is a list of `Desugarer` values. Each desugarer is a named transformation over a VXML tree, with structured errors and warnings. Many desugarers are implemented as nodemaps: the desugarer supplies local node logic and the infrastructure performs the tree walk.
+A `Pipeline` is a list of `Desugarer` values. Each desugarer is a named transformation over a VXML tree, with structured errors and warnings. Many desugarers are implemented as nodemaps: the desugarer supplies local node logic and the core nodemap-to-transform machinery performs the tree walk.
 
 ## Main Modules
 
 - `desugaring` contains the renderer types, default parser/assembler/filterer/splitter/emitter/writer utilities, command-line option handling, tracking, dumping, and `run_renderer`.
-- `infrastructure` contains the `Desugarer` and `Pipeline` types, warning/error types, VXML helpers, selector helpers, and shared desugarer utilities.
-- `nodemaps_2_desugarer_transforms` contains the tree-walking machinery used by many desugarers.
-- `desugarer_library` is generated and re-exports desugarer constructors.
-- `prefabricated_pipelines` contains reusable groups of desugarers for common text-splitting patterns such as math delimiters, markdown links, and inline markup.
-- `writerly_defaults` contains Writerly adapter defaults for the generic renderer.
+- `desugaring/core` contains the `Desugarer` and `Pipeline` types, warning/error types, VXML helpers, selector helpers, and shared desugarer utilities.
+- `desugaring/nodemaps_2_transform` contains the tree-walking machinery used by many desugarers.
+- `desugaring/desugarers` is generated and re-exports desugarer constructors.
+- `desugaring/pipelines` contains reusable groups of desugarers for common text-splitting patterns such as math delimiters, markdown links, and inline markup.
+- `desugaring/writerly_defaults` contains Writerly adapter defaults for the generic renderer.
 
 ## Writerly Adapter
 
-The renderer core is input-format-agnostic. Writerly-specific assembly, parsing, and emitting live in `writerly_defaults`:
+The renderer core is input-format-agnostic. Writerly-specific assembly, parsing, and emitting live in `desugaring/writerly_defaults`:
 
 ```gleam
-import writerly_defaults as wd
+import desugaring/writerly_defaults as wd
 
 wd.default_writerly_assembler
 wd.default_writerly_parser
@@ -69,7 +69,7 @@ gleam check
 
 ## Current Boundaries
 
-The package still contains both generic and project-specific desugarers. Files prefixed with names such as `lbp_`, `ti2_`, `ii2_`, and `dr_` are project-specific and are expected to move or be separated later. The generated `desugarer_library` currently exports all desugarers together, so package consumers should treat that surface as transitional.
+The package still contains both generic and project-specific desugarers. Files prefixed with names such as `lbp_`, `ti2_`, `ii2_`, and `dr_` are project-specific and are expected to move or be separated later. The generated `desugaring/desugarers` module currently exports all desugarers together, so package consumers should treat that surface as transitional.
 
 The intended future shape is:
 

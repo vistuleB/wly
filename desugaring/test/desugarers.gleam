@@ -1,5 +1,5 @@
 import argv
-import assertive_testing
+import desugaring/assertive_testing
 
 pub fn main() {
   let args = argv.load().arguments

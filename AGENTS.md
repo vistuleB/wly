@@ -232,7 +232,7 @@ The desugaring library is the engine that transforms VXML trees through a compos
 
 #### `Desugarer`
 
-A `Desugarer` (defined in `./src/infrastructure.gleam`) is the atomic unit of transformation:
+A `Desugarer` (defined in `./src/desugaring/core.gleam`) is the atomic unit of transformation:
 
 ```gleam
 pub type DesugarerTransform =
@@ -293,18 +293,17 @@ Pre-built defaults are available:
 | File | Purpose |
 |---|---|
 | `desugaring.gleam` | `Renderer`, stage type aliases, CLI processing, `run_renderer` |
-| `infrastructure.gleam` | `Desugarer`, `Pipeline`, `Blame`-aware list/string utilities, nodemap walker types |
-| `nodemaps_2_desugarer_transforms.gleam` | Converts nodemap functions into `DesugarerTransform`s (the "walk" machinery) |
-| `desugarer_library.gleam` | **Auto-generated** — re-exports all desugarers as `pub const`s + `assertive_tests` list |
-| `selector_library.gleam` | **Auto-generated** — re-exports all selectors as `pub const`s |
-| `prefabricated_pipelines.gleam` | Higher-level pipeline fragments (LaTeX math splitting, markdown links, italic/bold, …) |
-| `assertive_testing.gleam` | Test runner for desugarer unit tests |
-| `group_replacement_splitting.gleam` | Regex-based text splitting helpers used by desugarers |
-| `table_and_co_printer.gleam` | Pretty-printing tables for debug output |
+| `desugaring/core.gleam` | `Desugarer`, `Pipeline`, `Blame`-aware list/string utilities, nodemap-to-transform types |
+| `desugaring/nodemaps_2_transform.gleam` | Converts nodemap functions into `DesugarerTransform`s (the "walk" machinery) |
+| `desugaring/desugarers.gleam` | **Auto-generated** — re-exports all desugarers as `pub const`s + `assertive_tests` list |
+| `desugaring/selectors.gleam` | **Auto-generated** — re-exports all selectors as `pub const`s |
+| `desugaring/pipelines.gleam` | Higher-level pipeline fragments (LaTeX math splitting, markdown links, italic/bold, …) |
+| `desugaring/assertive_testing.gleam` | Test runner for desugarer unit tests |
+| `desugaring/group_replacement_splitting.gleam` | Regex-based text splitting helpers used by desugarers |
+| `desugaring/tables.gleam` | Pretty-printing tables for debug output |
 | `roman.gleam` | Roman numeral utilities |
-| `prefabricated_pipelines.gleam` | Reusable multi-step pipeline sub-sequences |
 
-### Desugarer Directory (`./src/desugarers/`)
+### Desugarer Directory (`./src/desugaring/desugarers/`)
 
 All individual desugarers live here (one file per desugarer). There are ~160 desugarers covering operations such as:
 
@@ -338,17 +337,17 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) { .
 // 5. Public name constant
 pub const name = "rename"
 
-// 6. Public constructor  ← this is what desugarer_library.gleam re-exports
+// 6. Public constructor  ← this is what desugaring/desugarers.gleam re-exports
 pub fn constructor(param: Param) -> Desugarer { ... }
 
 // 7. Assertive tests
 pub fn assertive_tests() -> AssertiveTestCollection { ... }
 ```
 
-The `constructor` function is the public API. `desugarer_library.gleam` re-exports every constructor as a `pub const` so consumer projects can write:
+The `constructor` function is the public API. `desugaring/desugarers.gleam` re-exports every constructor as a `pub const` so consumer projects can write:
 
 ```gleam
-import desugarer_library as dl
+import desugaring/desugarers as dl
 
 dl.rename(#("OldTag", "NewTag"))
 dl.delete("WriterlyComment")
@@ -361,7 +360,7 @@ dl.append_class(#("div", "my-class"))
 - Files ending in `__outside` operate on nodes that are *outside* (not inside) certain subtrees.
 - Files starting with `lbp_` or `ti2_` or `ii2_` or `dr_` are project-specific desugarers for particular consumer projects.
 
-### Selectors Directory (`./src/selectors/`)
+### Selectors Directory (`./src/desugaring/selectors/`)
 
 A `Selector` narrows which lines of the VXML serialization are shown in tracking/diff output:
 
@@ -371,7 +370,7 @@ pub type Selector = fn(List(SLine)) -> List(SLine)
 
 Currently two selectors exist: `all` (keeps every line) and `verbatim`.
 
-### Nodemap Walker Types (`nodemaps_2_desugarer_transforms.gleam`)
+### Nodemap Walker Types (`desugaring/nodemaps_2_transform.gleam`)
 
 Rather than writing recursive tree-walk logic directly, desugarers supply a *nodemap* — a function that handles one node — and the framework walks the tree. Many nodemap shapes exist (named after their arity/error/statefulness):
 
@@ -386,7 +385,7 @@ Rather than writing recursive tree-walk logic directly, desugarers supply a *nod
 
 Each variant has a corresponding `*_2_desugarer_transform` function that wraps it into a full `DesugarerTransform`.
 
-### Prefabricated Pipelines (`prefabricated_pipelines.gleam`)
+### Prefabricated Pipelines (`desugaring/pipelines.gleam`)
 
 Higher-order helpers that produce multi-step `Pipeline` sub-sequences:
 
@@ -400,8 +399,8 @@ Higher-order helpers that produce multi-step `Pipeline` sub-sequences:
 
 ### Adding a New Desugarer
 
-1. Create `./src/desugarers/<your_desugarer_name>.gleam` following the anatomy above.
-2. Run `./generate_desugarer_library.sh` (or `./generate_all.sh`) from inside the `desugaring` directory. This regenerates `./src/desugarer_library.gleam`.
+1. Create `./src/desugaring/desugarers/<your_desugarer_name>.gleam` following the anatomy above.
+2. Run `./generate_desugarer_library.sh` (or `./generate_all.sh`) from inside the `desugaring` directory. This regenerates `./src/desugaring/desugarers.gleam`.
 3. Test it: from inside `./desugaring`, run:
    ```
    gleam run -m desugarers <your_desugarer_name>
@@ -412,9 +411,9 @@ Higher-order helpers that produce multi-step `Pipeline` sub-sequences:
    ```
 
 `generate_all.sh` runs all three generation scripts:
-- `generate_desugarer_library.sh` → `src/desugarer_library.gleam`
-- `generate_selector_library.sh` → `src/selector_library.gleam`
-- `generate_desugarer_blames.sh` → renumbers `desugarer_blame(N)` calls with correct line numbers inside `src/desugarers/`.
+- `generate_desugarer_library.sh` → `src/desugaring/desugarers.gleam`
+- `generate_selector_library.sh` → `src/desugaring/selectors.gleam`
+- `generate_desugarer_blames.sh` → renumbers `desugarer_blame(N)` calls with correct line numbers inside `src/desugaring/desugarers/`.
 
 ### CLI options (via `desugaring.gleam`)
 
@@ -464,10 +463,10 @@ A consumer project (e.g., `../dr`) depends on `desugaring` (which transitively b
 Builds a `List(Desugarer)` (historically called `List(Pipe)` — `Pipe` is the old name for `Desugarer`, not yet renamed in `dr`):
 
 ```gleam
-import desugarer_library as dl
-import infrastructure as infra
+import desugaring/desugarers as dl
+import desugaring/core as core
 
-pub fn pipeline() -> List(infra.Pipeline) {
+pub fn pipeline() -> List(core.Pipeline) {
   [
     dl.check_tags(#(allowed_tags, "pre-transformation")),
     dl.delete("WriterlyComment"),
@@ -475,7 +474,7 @@ pub fn pipeline() -> List(infra.Pipeline) {
     // ...
   ]
   |> list.flatten
-  // Note: in dr the list is returned directly; infra.desugarers_2_pipeline
+  // Note: in dr the list is returned directly; core.desugarers_2_pipeline
   // wraps Desugarers into DecoratedDesugarers for the Renderer
 }
 ```
