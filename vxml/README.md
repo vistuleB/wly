@@ -4,34 +4,28 @@ This package is the reference implementation of VXML ("Vanilla XML"): a
 datatype and document format representing a simplified subset of XML for
 document processing and markup-language transpilation.
 
-VXML keeps only recursive nodes with tags and attributes, plus text nodes.
+VXML keeps from XML only recursive nodes with tags and attributes, plus text nodes.
 
 VXML is intended to operate as an intermediate between different
 light-markup-style document formats. A parser can convert a source document into
 VXML, a pipeline can transform the AST, and an emitter can serialize the result
-to HTML, XML-like text, JSX, or another target. VXML's deliberately simple
-shape makes it easy to reason about encoding and decoding contracts.
-Transforms that map VXML to VXML are easy to write and can be composed
-and shared atomically.
+to HTML, XML-like text, JSX, or another target.
 
 VXML comes with its own indentation-based serialization format for human
-inspection and for persisting documents required by test suites. However, VXML
+inspection and for persisting documents required by test suites, though VXML
 is typically expected to exist as data inside a running program, not as a
 persistent storage format.
-Nor is VXML expected or designed to be typed out by hand, save in limited
-situations such as writing small tests.
 
 For document-to-document transpilation, VXML also conveys _blame_ from the
 source document and/or an intervening transformation pipeline. Each atomic unit
 such as a tag, an attribute, or a line of text carries a `Blame`. This provides
 a built-in traceability mechanism. Blames are not encoded in VXML's default
-serialization, but a specific emitter can choose to be blame-aware, e.g., to
+serialization but a specific emitter can choose to be blame-aware, e.g., to
 provide "click to jump back to source"-type functionality.
 
 In this package:
 
-- the `VXML` tree type with recursive element nodes and terminal text nodes,
-  built on `Blame`, `Line`, and `Attr`
+- the `VXML` tree type with recursive element nodes and terminal text nodes
 - `InputLine`/`OutputLine` datatypes that allow `Blame`-aware inspection of line
   sequences before parsing and after emitting
 - `vxml_table` for pretty-printing "live" VXML documents with blames in
@@ -43,7 +37,7 @@ In this package:
 
 ## Model
 
-The upstream non-recursive payloads are:
+The smaller data-bearing types are:
 
 - `Blame`: a type for encoding provenance of data, detailed below
 - `Line`: `Line(blame: Blame, content: String)` encodes single-line text payload
