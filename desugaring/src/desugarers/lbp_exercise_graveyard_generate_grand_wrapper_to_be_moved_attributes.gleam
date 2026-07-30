@@ -12,7 +12,7 @@ import infrastructure.{
 import vxml.{type Attr, type VXML, V, T, Attr, type Line}
 import on
 import desugarers/grand_wrapper_append_attributes
-import blame as bl
+import vxml/blame as bl
 
 fn harvest_handle_attrs_from_line(line: Line) -> Result(Attr, DesugaringWarning) {
   case line.content {

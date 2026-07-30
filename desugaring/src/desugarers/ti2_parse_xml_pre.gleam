@@ -1,4 +1,4 @@
-import io_lines
+import vxml/io_lines
 import gleam/option
 import gleam/string
 import gleam/list
@@ -6,7 +6,7 @@ import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type 
 import nodemaps_2_desugarer_transforms as n2t
 import vxml.{type VXML, V, T, Attr, Line}
 import xml_streamer as xs
-import blame.{type Blame} as bl
+import vxml/blame.{type Blame} as bl
 
 const newline_t =
   T(

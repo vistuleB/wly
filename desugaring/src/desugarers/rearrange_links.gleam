@@ -9,7 +9,7 @@ import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type 
 import nodemaps_2_desugarer_transforms as n2t
 import splitter.{type Splitter}
 import vxml.{type VXML, T, V, Attr, type Line, Line}
-import blame.{type Blame} as bl
+import vxml/blame.{type Blame} as bl
 import on
 
 type PatternToken {

@@ -4,7 +4,7 @@ import gleam/option
 import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as infra
 import nodemaps_2_desugarer_transforms as n2t
 import vxml.{type Attr, Attr, type VXML, T, V}
-import blame as bl
+import vxml/blame as bl
 
 fn nodemap(
   vxml: VXML,

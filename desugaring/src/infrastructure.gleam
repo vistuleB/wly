@@ -1,4 +1,4 @@
-import blame.{type Blame} as bl
+import vxml/blame.{type Blame} as bl
 import either_or.{type EitherOr, Either, Or} as eo
 import gleam/dict.{type Dict}
 import gleam/float
@@ -9,7 +9,7 @@ import gleam/option.{type Option, None, Some}
 import gleam/pair
 import gleam/result
 import gleam/string.{inspect as ins}
-import io_lines.{type OutputLine, OutputLine} as io_l
+import vxml/io_lines.{type OutputLine, OutputLine} as io_l
 import on
 import splitter
 import vxml.{type Attr, type Line, type VXML, Attr, Line, T, V}

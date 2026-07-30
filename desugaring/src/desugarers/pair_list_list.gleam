@@ -4,7 +4,7 @@ import gleam/string.{inspect as ins}
 import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as infra
 import nodemaps_2_desugarer_transforms as n2t
 import vxml.{type VXML, T, V}
-import blame.{type Blame, Src} as bl
+import vxml/blame.{type Blame, Src} as bl
 
 fn pairing_msg(
   local: Blame,

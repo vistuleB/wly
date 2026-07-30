@@ -4,7 +4,7 @@ import gleam/list
 import gleam/option.{None, Some}
 import gleam/string.{inspect as ins}
 import infrastructure.{type Desugarer}
-import blame.{type Blame} as bl
+import vxml/blame.{type Blame} as bl
 import either_or.{type EitherOr, Either, Or} as eo
 import on
 

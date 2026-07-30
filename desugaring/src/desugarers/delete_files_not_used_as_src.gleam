@@ -3,7 +3,7 @@ import gleam/list
 import gleam/option
 import gleam/result
 import gleam/string.{inspect as ins}
-import blame as bl
+import vxml/blame as bl
 import infrastructure.{
   type Desugarer,
   type DesugaringError,

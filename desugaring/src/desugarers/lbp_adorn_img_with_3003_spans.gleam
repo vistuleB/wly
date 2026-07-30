@@ -1,4 +1,4 @@
-import blame as bl
+import vxml/blame as bl
 import gleam/option.{None, Some}
 import gleam/string.{inspect as ins}
 import infrastructure.{

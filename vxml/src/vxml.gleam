@@ -4,14 +4,14 @@
 //// and text nodes (`T`). It can be serialized to a readable VXML text format,
 //// HTML, or JSX-like output. This module also includes XML/HTML parsing helpers.
 
-import blame.{type Blame, prepend_comment as pc} as bl
+import vxml/blame.{type Blame, prepend_comment as pc} as bl
 import gleam/int
 import gleam/list
 import gleam/option.{None, Some}
 import gleam/regexp
 import gleam/result
 import gleam/string.{inspect as ins}
-import io_lines.{type InputLine, type OutputLine, InputLine, OutputLine} as io_l
+import vxml/io_lines.{type InputLine, type OutputLine, InputLine, OutputLine} as io_l
 import on
 import simplifile
 import vxml_html_repair

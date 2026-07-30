@@ -16,7 +16,7 @@ import infrastructure.{
 import gleam/regexp.{type Regexp}
 import nodemaps_2_desugarer_transforms as n2t
 import vxml.{type VXML, T, V, Attr}
-import blame as bl
+import vxml/blame as bl
 import on
 
 const const_blame = bl.Des([], name, 22)

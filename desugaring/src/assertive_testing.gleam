@@ -1,4 +1,4 @@
-import io_lines.{
+import vxml/io_lines.{
   OutputLine,
 } as io_l
 import gleam/list

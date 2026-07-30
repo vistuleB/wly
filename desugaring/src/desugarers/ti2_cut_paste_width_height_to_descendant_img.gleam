@@ -4,7 +4,7 @@ import gleam/string
 import infrastructure.{type Desugarer, Desugarer, type DesugaringError, DesugaringError, type DesugarerTransform} as infra
 import vxml.{type VXML, type Attr, V}
 import nodemaps_2_desugarer_transforms as n2t
-import blame.{type Blame}
+import vxml/blame.{type Blame}
 import on
 
 fn extract_height_width_from_style_and_attrs(

@@ -13,7 +13,7 @@ import vxml.{
   type VXML,
   V,
 }
-import blame.{type Blame} as bl
+import vxml/blame.{type Blame} as bl
 
 fn nodemap(
   vxml: VXML,

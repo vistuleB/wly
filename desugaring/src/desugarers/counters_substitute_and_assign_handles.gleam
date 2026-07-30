@@ -9,7 +9,7 @@ import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type 
 import roman
 import nodemaps_2_desugarer_transforms as n2t
 import vxml.{type Attr, type Line, type VXML, Attr, Line, T, V}
-import blame.{type Blame} as bl
+import vxml/blame.{type Blame} as bl
 import on
 
 type CounterType {

@@ -11,7 +11,7 @@ import infrastructure.{
 } as infra
 import nodemaps_2_desugarer_transforms as n2t
 import vxml.{type VXML, Attr, V}
-import blame as bl
+import vxml/blame as bl
 import on
 
 fn prepand_0(number: String) {

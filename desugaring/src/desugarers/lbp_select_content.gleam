@@ -1,4 +1,4 @@
-import blame as bl
+import vxml/blame as bl
 import gleam/dict.{type Dict}
 import gleam/list
 import gleam/int

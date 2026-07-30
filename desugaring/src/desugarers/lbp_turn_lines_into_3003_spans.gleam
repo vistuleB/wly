@@ -1,4 +1,4 @@
-import blame as bl
+import vxml/blame as bl
 import gleam/list
 import gleam/option
 import gleam/string.{inspect as ins}

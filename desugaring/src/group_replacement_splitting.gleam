@@ -4,7 +4,7 @@ import gleam/regexp.{type Regexp}
 import gleam/string.{inspect as ins}
 import infrastructure as infra
 import vxml.{type Line, type VXML, Attr, Line, T, V}
-import blame.{type Blame} as bl
+import vxml/blame.{type Blame} as bl
 
 pub type SplitReplacementInstruction {
   Keep

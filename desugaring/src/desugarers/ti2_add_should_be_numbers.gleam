@@ -15,7 +15,7 @@ import infrastructure.{
 import gleam/regexp.{type Regexp}
 import nodemaps_2_desugarer_transforms as n2t
 import vxml.{type VXML, V}
-import blame as bl
+import vxml/blame as bl
 import on
 
 fn process_sub(

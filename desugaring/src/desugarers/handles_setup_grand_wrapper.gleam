@@ -8,7 +8,7 @@ import infrastructure.{
 } as infra
 import nodemaps_2_desugarer_transforms as n2t
 import vxml.{type VXML, V}
-import blame as bl
+import vxml/blame as bl
 
 fn at_root(vxml: VXML) -> Result(VXML, DesugaringError) {
   let assert V(_, tag, _, _) = vxml

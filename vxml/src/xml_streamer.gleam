@@ -5,11 +5,11 @@
 //// when an application needs to inspect or transform XML
 //// events before they become a VXML tree.
 
-import blame.{type Blame} as bl
+import vxml/blame.{type Blame} as bl
 import gleam/list
 import gleam/regexp
 import gleam/string.{inspect as ins}
-import io_lines.{type InputLine}
+import vxml/io_lines.{type InputLine}
 import on
 import splitter as sp
 

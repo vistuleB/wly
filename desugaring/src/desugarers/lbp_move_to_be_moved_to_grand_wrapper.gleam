@@ -10,7 +10,7 @@ import infrastructure.{
 } as infra
 import vxml.{type VXML, V, Attr}
 import desugarers/grand_wrapper_move_nodes_to_wrapper
-import blame as bl
+import vxml/blame as bl
 import on
 
 fn harvest_handles_2b_cut_from_grand_wrapper(vxml: VXML) -> List(String) {

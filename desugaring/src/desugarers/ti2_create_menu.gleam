@@ -20,7 +20,7 @@ import vxml.{
   T,
 }
 import nodemaps_2_desugarer_transforms as n2t
-import blame as bl
+import vxml/blame as bl
 import on
 
 const prev_page_id_attr = Attr(bl.Des([], name, 26), "id", "prev-page")

@@ -1,4 +1,4 @@
-import blame.{type Blame}
+import vxml/blame.{type Blame}
 import gleam/list
 import gleam/option
 import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as infra

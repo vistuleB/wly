@@ -12,7 +12,7 @@ import infrastructure.{
 } as infra
 import nodemaps_2_desugarer_transforms as n2t
 import vxml.{type VXML, V}
-import blame as bl
+import vxml/blame as bl
 
 fn nodemap(
   node: VXML,

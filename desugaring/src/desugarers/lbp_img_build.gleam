@@ -11,7 +11,7 @@ import gleam/regexp
 import gleam/result
 import gleam/string.{inspect as ins}
 import gleam/crypto
-import blame.{type Blame} as bl
+import vxml/blame.{type Blame} as bl
 import infrastructure.{
   type Desugarer,
   type DesugaringError,

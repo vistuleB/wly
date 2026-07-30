@@ -13,7 +13,7 @@ import infrastructure.{
 } as infra
 import vxml.{type VXML, Attr, V}
 import nodemaps_2_desugarer_transforms as n2t
-import blame as bl
+import vxml/blame as bl
 import on
 
 // ---- Page address types ----

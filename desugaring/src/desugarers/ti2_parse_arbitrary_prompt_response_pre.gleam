@@ -5,7 +5,7 @@ import gleam/result
 import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as infra
 import nodemaps_2_desugarer_transforms as n2t
 import vxml.{type Line, type VXML, Attr, Line, T, V}
-import blame as bl
+import vxml/blame as bl
 
 const newline_t =
   T(

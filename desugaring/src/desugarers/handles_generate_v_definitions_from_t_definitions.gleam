@@ -1,4 +1,4 @@
-import blame.{type Blame}
+import vxml/blame.{type Blame}
 import gleam/list
 import gleam/option.{Some}
 import gleam/regexp.{type Regexp}

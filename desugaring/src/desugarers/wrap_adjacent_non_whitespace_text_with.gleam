@@ -4,7 +4,7 @@ import gleam/string.{inspect as ins}
 import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as infra
 import nodemaps_2_desugarer_transforms as n2t
 import vxml.{type VXML, T, V}
-import blame.{type Blame}
+import vxml/blame.{type Blame}
 import on
 
 fn wrap_second_element_if_its_math_and_recurse(

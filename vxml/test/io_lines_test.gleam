@@ -1,6 +1,6 @@
 import gleam/list
 import gleeunit/should
-import io_lines
+import vxml/io_lines
 
 pub fn normalize_line_endings_test() {
   "one\r\ntwo\rthree"

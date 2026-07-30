@@ -294,11 +294,11 @@ this prints:
 
 - `vxml`: core tree types, validation, serialized VXML parsing,
   HTML/XML/JSX-like serialization, XML-like parsing, and HTML repair helpers
-- `blame`: provenance data and formatting utilities
-- `io_lines`: input/output line types and conversion helpers
+- `vxml/blame`: provenance data and formatting utilities
+- `vxml/io_lines`: input/output line types and conversion helpers
 - `xml_streamer`: advanced XML token stream helpers
 
-Most users should start with `vxml`, `blame`, and `io_lines`. Use
+Most users should start with `vxml`, `vxml/blame`, and `vxml/io_lines`. Use
 `xml_streamer` when token-level XML processing is needed.
 
 ## Tests

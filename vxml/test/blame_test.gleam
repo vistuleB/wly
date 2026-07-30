@@ -1,4 +1,4 @@
-import blame
+import vxml/blame
 import gleeunit/should
 
 pub fn advance_moves_movable_source_cursor_test() {

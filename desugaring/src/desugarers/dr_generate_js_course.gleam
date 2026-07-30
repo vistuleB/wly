@@ -13,7 +13,7 @@ import infrastructure.{
   GoBack,
 } as infra
 import nodemaps_2_desugarer_transforms as n2t
-import blame as bl
+import vxml/blame as bl
 import on
 import simplifile
 import vxml.{type VXML, V}

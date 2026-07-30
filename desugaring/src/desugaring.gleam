@@ -10,8 +10,8 @@ import gleam/result
 import gleam/string.{inspect as ins}
 import gleam/time/duration.{type Duration}
 import gleam/time/timestamp
-import blame.{Ext, type Blame} as bl
-import io_lines.{type InputLine, type OutputLine, OutputLine} as io_l
+import vxml/blame.{Ext, type Blame} as bl
+import vxml/io_lines.{type InputLine, type OutputLine, OutputLine} as io_l
 import desugarer_library as dl
 import infrastructure.{type Desugarer, type Pipeline, type Selector} as infra
 import selector_library as sl

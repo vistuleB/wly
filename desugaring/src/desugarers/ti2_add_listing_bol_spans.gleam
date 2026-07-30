@@ -3,7 +3,7 @@ import gleam/option.{None}
 import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as infra
 import nodemaps_2_desugarer_transforms as n2t
 import vxml.{type Line, type VXML, Attr, T, V}
-import blame as bl
+import vxml/blame as bl
 import on
 
 const bol_span =

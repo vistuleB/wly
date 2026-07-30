@@ -13,7 +13,7 @@ import infrastructure.{
   GoBack,
 
 } as infra
-import blame as bl
+import vxml/blame as bl
 import on
 
 pub fn add_no_warnings(vxml: VXML) {

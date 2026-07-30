@@ -1,5 +1,5 @@
-import blame.{type Blame, prepend_comment as pc} as bl
-import io_lines.{type InputLine, InputLine, type OutputLine, OutputLine} as io_l
+import vxml/blame.{type Blame, prepend_comment as pc} as bl
+import vxml/io_lines.{type InputLine, InputLine, type OutputLine, OutputLine} as io_l
 import gleam/list
 import gleam/option.{None, Some}
 import gleam/pair

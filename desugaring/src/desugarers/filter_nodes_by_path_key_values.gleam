@@ -5,7 +5,7 @@ import gleam/string.{inspect as ins}
 import infrastructure.{type DesugaringError, type Desugarer, Desugarer} as infra
 import vxml.{type VXML, V, T}
 import nodemaps_2_desugarer_transforms as n2t
-import blame as bl
+import vxml/blame as bl
 
 fn matches_a_path_key_value(vxml: VXML, inner: InnerParam) -> Bool {
   case vxml {

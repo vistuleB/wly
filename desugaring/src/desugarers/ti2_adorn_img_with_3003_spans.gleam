@@ -18,7 +18,7 @@ import vxml.{
   T,
   V,
 }
-import blame.{type Blame} as bl
+import vxml/blame.{type Blame} as bl
 import filepath
 
 const tooltip_classname = "t-3003 t-3003-i"

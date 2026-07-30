@@ -9,7 +9,7 @@ import vxml.{type VXML, Attr, V}
 import gleam/regexp
 import nodemaps_2_desugarer_transforms as n2t
 import ansel/image.{read, get_width}
-import blame.{type Blame}
+import vxml/blame.{type Blame}
 import on
 
 fn get_svg_width(blame: Blame, path: String) -> Result(Float, DesugaringError) {

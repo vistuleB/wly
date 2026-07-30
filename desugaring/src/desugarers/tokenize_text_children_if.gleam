@@ -5,7 +5,7 @@ import infrastructure.{type Desugarer, Desugarer, type DesugarerTransform, type 
 import nodemaps_2_desugarer_transforms as n2t
 import splitter.{type Splitter}
 import vxml.{type VXML, Attr, V, T}
-import blame.{type Blame} as bl
+import vxml/blame.{type Blame} as bl
 
 fn start_node(blame: Blame) {
   V(blame, "__StartTokenizedT", [], [])

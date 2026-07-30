@@ -84,9 +84,9 @@ Every node/attribute/line carries a `Blame` (see below).
 
 | File | Purpose |
 |---|---|
-| `blame.gleam` | `Blame` type & utilities |
-| `io_lines.gleam` | `InputLine` / `OutputLine` types and file I/O helpers |
 | `vxml.gleam` | Core VXML types, parser, serializers (VXML, HTML, JSX) |
+| `vxml/blame.gleam` | `Blame` type & utilities |
+| `vxml/io_lines.gleam` | `InputLine` / `OutputLine` types and file I/O helpers |
 | `xml_streamer.gleam` | Streaming XML parser utilities |
 
 ### The `Blame` Type
@@ -109,7 +109,7 @@ pub type Blame {
 
 ### `InputLine` and `OutputLine`
 
-Defined in `./src/io_lines.gleam`. Both carry a `Blame`, an indentation level (`indent: Int`), and a content string (`suffix: String`). `InputLine` comes from reading source files; `OutputLine` is produced during the emit stage.
+Defined in `./src/vxml/io_lines.gleam`. Both carry a `Blame`, an indentation level (`indent: Int`), and a content string (`suffix: String`). `InputLine` comes from reading source files; `OutputLine` is produced during the emit stage.
 
 ### VXML Text Format
 

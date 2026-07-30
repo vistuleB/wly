@@ -15,7 +15,7 @@ import vxml.{
   Attr,
   V,
 }
-import blame as bl
+import vxml/blame as bl
 
 fn nodemap(
   vxml: VXML,

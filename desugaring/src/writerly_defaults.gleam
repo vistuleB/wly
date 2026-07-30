@@ -1,11 +1,11 @@
-import blame.{type Blame}
+import vxml/blame.{type Blame}
 import desugaring.{type OutputFragment, type RendererOptions, OutputFragment}
 import dirtree.{type DirTree}
 import gleam/list
 import gleam/option.{type Option, Some}
 import gleam/result
 import gleam/string.{inspect as ins}
-import io_lines.{type InputLine, type OutputLine}
+import vxml/io_lines.{type InputLine, type OutputLine}
 import vxml.{type VXML}
 import writerly as wl
 

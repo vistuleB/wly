@@ -1,4 +1,4 @@
-import blame
+import vxml/blame
 import gleam/list
 import gleam/option
 import gleam/regexp

@@ -4,8 +4,8 @@ import gleam/string
 import gleam/list
 import writerly.{type Writerly, Paragraph} as wl
 import dirtree.{Dirpath, Filepath} as _dt
-import blame.{Anchored, Movable, Src} as _bl
-import io_lines.{InputLine} as io_l
+import vxml/blame.{Anchored, Movable, Src} as _bl
+import vxml/io_lines.{InputLine} as io_l
 import simplifile
 import vxml.{Attr, Line}
 

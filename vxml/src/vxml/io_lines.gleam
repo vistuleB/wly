@@ -4,7 +4,7 @@
 //// They provide a small bridge between files/strings and VXML parsers or
 //// serializers.
 
-import blame.{type Blame} as bl
+import vxml/blame.{type Blame} as bl
 import gleam/list
 import gleam/result
 import gleam/string.{length as len}

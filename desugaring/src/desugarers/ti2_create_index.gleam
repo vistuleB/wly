@@ -17,7 +17,7 @@ import vxml.{
   T,
 }
 import nodemaps_2_desugarer_transforms as n2t
-import blame.{type Blame} as bl
+import vxml/blame.{type Blame} as bl
 import on
 
 // 🌸🌸🌸🌸🌸🌸🌸

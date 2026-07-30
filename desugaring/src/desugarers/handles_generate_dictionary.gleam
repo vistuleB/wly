@@ -1,4 +1,4 @@
-import blame.{type Blame} as bl
+import vxml/blame.{type Blame} as bl
 import gleam/dict.{type Dict}
 import gleam/list
 import gleam/option.{type Option, None, Some}

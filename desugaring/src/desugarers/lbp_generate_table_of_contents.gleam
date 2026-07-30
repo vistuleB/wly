@@ -9,7 +9,7 @@ import infrastructure.{
   Desugarer,
 } as infra
 import vxml.{type VXML, Attr, V}
-import blame as bl
+import vxml/blame as bl
 import nodemaps_2_desugarer_transforms as n2t
 import on
 

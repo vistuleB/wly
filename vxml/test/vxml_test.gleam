@@ -1,9 +1,9 @@
-import blame.{Anchored, Movable, Src}
+import vxml/blame.{Anchored, Movable, Src}
 import gleam/list
 import gleam/string
 import gleeunit
 import gleeunit/should
-import io_lines
+import vxml/io_lines
 import simplifile
 import vxml.{type Attr, type VXML, Attr, Line, T, V}
 import xmlm

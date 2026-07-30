@@ -2,7 +2,7 @@ import gleam/io
 import gleam/list
 import gleam/result
 import gleam/string.{inspect as ins}
-import io_lines as io_l
+import vxml/io_lines as io_l
 import on
 import simplifile
 import vxml
