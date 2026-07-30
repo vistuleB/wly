@@ -4,16 +4,19 @@ This package is the reference implementation of VXML ("Vanilla XML"): a
 datatype and document format representing a simplified subset of XML for
 document processing and markup-language transpilation.
 
-VXML keeps from XML only recursive nodes with tags and attributes, plus text nodes.
+From XML, VXML keeps only recursive nodes with tags and attributes, plus text
+nodes. Other XML features are not expressible in VXML.
 
 VXML is intended to operate as an intermediate between different
 light-markup-style document formats. A parser can convert a source document into
 VXML, a pipeline can transform the AST, and an emitter can serialize the result
-to HTML, XML-like text, JSX, or another target.
+to HTML, XML-like text, JSX, or another target. VXML's deliberately simple shape
+forces equally simple rules for encoding to and decoding from other document
+formats.
 
 VXML comes with its own indentation-based serialization format for human
 inspection and for persisting documents required by test suites. Ordinary
-pipeline use, however, keeps VXML as data inside a running program.
+pipeline use, however, will keep VXML as data inside a running program.
 
 For document-to-document transpilation, VXML also conveys _blame_ from the
 source document and/or an intervening transformation pipeline. Each atomic unit
@@ -55,7 +58,7 @@ pub fn xml_file_to_html(path: String) {
 
 ## Model
 
-The smaller data-bearing types are:
+The supporting data-bearing types are:
 
 - `Blame`: a type for encoding provenance of data, detailed below
 - `Line`: `Line(blame: Blame, content: String)` encodes single-line text payload
