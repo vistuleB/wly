@@ -78,11 +78,11 @@ Here:
 - `V` is an element node: tag, attributes, and children; note that 'V' stands for 'VXML', since `V` is the recursive variant
 - `T` is a text node, that is always a terminal of the tree; a text node should carry one or more lines of text
 
-Note that `Blame`s aside, VXML is built on only four types: `V`, `T`, `Line`
-and `Attr`.
+Blame aside, VXML is built on four data-bearing types: `V`, `T`, `Line`, and
+`Attr`.
 
-Moreover, `V`, `T`, `Line`, and `Attr` each carry one `Blame`, stored as their
-first field, making for a simple mental model.
+Moreover, each `V`, `T`, `Line`, and `Attr` value carries one `Blame`, stored as
+its first field, for a simple one-blame-per-value mental model.
 
 VXML is semantics-agnostic: tags and attributes are names, not behaviors.
 
