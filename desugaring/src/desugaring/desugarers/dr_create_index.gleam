@@ -356,6 +356,48 @@ fn exercises_link(root: VXML) -> option.Option(VXML) {
   }
 }
 
+// Bibliography link: same standalone-unit shape as the exercises link, but a
+// plain TOC entry (class `index__standalone-link`) rather than the exercises
+// pill styling.
+fn gather_bibliography_title_from_node(vxml: VXML) -> Result(Title, DesugaringError) {
+  use title_element <- on.ok(core.v_unique_child(vxml, "BibliographyTitle"))
+  let assert V(_, _, _, children) = title_element
+  case children {
+    [V(_, "p", _, children)] -> Ok(children)
+    _ -> Ok(children)
+  }
+}
+
+fn gather_bibliography_title(root: VXML) -> option.Option(Title) {
+  let assert V(_, "Document", _, children) = root
+  case list.find(children, fn(v) {
+    case v { V(_, "Bibliography", _, _) -> True _ -> False }
+  }) {
+    Error(_) -> option.None
+    Ok(bibliography) ->
+      case gather_bibliography_title_from_node(bibliography) {
+        Ok(t) -> option.Some(t)
+        Error(_) -> option.None
+      }
+  }
+}
+
+fn bibliography_link(root: VXML) -> option.Option(VXML) {
+  let b = desugarer_blame(344)
+  case gather_bibliography_title(root) {
+    option.None -> option.None
+    option.Some(title) ->
+      option.Some(
+        V(
+          b,
+          "p",
+          [Attr(b, "class", "index__standalone-link")],
+          [V(b, "a", [Attr(b, "href", "./bibliography.html")], title)],
+        ),
+      )
+  }
+}
+
 // 🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸
 // 🌸 index navigation~~ 🌸
 // 🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸
@@ -399,13 +441,23 @@ fn index(root: VXML) -> Result(VXML, DesugaringError) {
     option.Some(link) -> [link]
   }
 
+  let bibliography = case bibliography_link(root) {
+    option.None -> []
+    option.Some(link) -> [link]
+  }
+
   Ok(V(
     b,
     "Index",
     [
       Attr(desugarer_blame(406), "path", "./index.html"),
     ],
-    list.flatten([nav, [header(root), chapter_ol(chapter_infos)], exercises]),
+    list.flatten([
+      nav,
+      [header(root), chapter_ol(chapter_infos)],
+      exercises,
+      bibliography,
+    ]),
   ))
 }
 

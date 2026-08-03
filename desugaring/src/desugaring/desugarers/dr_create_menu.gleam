@@ -23,6 +23,7 @@ type PageAddr {
   SectionAddr(ch_no: Int, sec_no: Int)
   SubSectionAddr(ch_no: Int, sec_no: Int, sub_no: Int)
   ExercisesAddr
+  BibliographyAddr
 }
 
 fn page_href(addr: PageAddr) -> String {
@@ -40,6 +41,7 @@ fn page_href(addr: PageAddr) -> String {
       <> int.to_string(sub)
       <> ".html"
     ExercisesAddr -> "./exercises.html"
+    BibliographyAddr -> "./bibliography.html"
   }
 }
 
@@ -106,6 +108,12 @@ fn gather_nodemap(
     V(_, "Exercises", _, _) -> {
       Ok(#(
         GatherState(..state, pages: [ExercisesAddr, ..state.pages]),
+        GoBack,
+      ))
+    }
+    V(_, "Bibliography", _, _) -> {
+      Ok(#(
+        GatherState(..state, pages: [BibliographyAddr, ..state.pages]),
         GoBack,
       ))
     }
@@ -225,6 +233,12 @@ fn v_before(
     V(_, "Exercises", _, _) -> {
       let #(prev_href, next_href) =
         result.unwrap(dict.get(nav_dict, ExercisesAddr), #(None, None))
+      let nav = make_navigation(prev_href, next_href)
+      #(core.v_prepend_child(node, nav), state)
+    }
+    V(_, "Bibliography", _, _) -> {
+      let #(prev_href, next_href) =
+        result.unwrap(dict.get(nav_dict, BibliographyAddr), #(None, None))
       let nav = make_navigation(prev_href, next_href)
       #(core.v_prepend_child(node, nav), state)
     }
