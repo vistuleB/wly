@@ -1,31 +1,53 @@
 # VXML
 
-This package is the reference implementation of VXML ("Vanilla XML"): a
+This package is the reference implementation of VXML ("Vanilla XML"), a
 datatype and document format representing a simplified subset of XML for
 document processing and markup-language transpilation.
 
-From XML, VXML keeps only recursive nodes with tags and attributes, plus text
-nodes. Other XML features are not expressible in VXML.
+From XML, VXML keeps only recursive nodes, attributes, and text nodes.
+Other XML features are not expressible in VXML.
 
 VXML is intended to operate as an intermediate between different
 light-markup-style document formats. A parser can convert a source document into
 VXML, a pipeline can transform the AST, and an emitter can serialize the result
-to HTML, XML-like text, JSX, or another target. VXML's deliberately simple shape
-forces equally simple rules for encoding to and decoding from other document
-formats.
+to HTML, XML-like text, JSX, or any other target for which an emitter has been
+written. VXML's deliberately simple shape encourages equally simple
+encoding and decoding contracts.
 
 VXML comes with its own indentation-based serialization format for human
-inspection and for persisting documents required by test suites. Ordinary
-pipeline use, however, will keep VXML as data inside a running program.
+inspection and for persisting documents required by test suites.
 
-For document-to-document transpilation, VXML also conveys _blame_ from the
-source document and/or an intervening transformation pipeline. Each atomic unit
-such as a tag, an attribute, or a line of text carries a `Blame`. This provides
-a built-in traceability mechanism. Blames are not encoded in VXML's default
-serialization but a specific emitter can choose to be blame-aware, e.g., to
-provide "click to jump back to source"-type functionality.
+The in-program VXML datatype also conveys _blame_ from the source document or
+an intervening transformation pipeline. Each atomic unit such as a tag, an
+attribute, or a line of text carries a `Blame`. This provides a built-in
+traceability mechanism for document transpilation. Blames are not encoded in
+VXML's default serialization but a specific emitter can choose to be blame-aware,
+e.g., to provide "click to jump back to source"-type functionality.
 
-In this package:
+## Example
+
+This code parses an XML file to VXML and serializes the result as pretty-printed HTML:
+
+```gleam
+import gleam/result
+import gleam/string
+import simplifile
+import vxml
+import vxml/blame
+import vxml/io_lines
+
+pub fn xml_file_to_html(path: String) -> Result(String, #(blame.Blame, String)) {
+  simplifile.read(path)
+  |> result.map_error(fn(e) { #(blame.no_blame, string.inspect(e)) })
+  |> result.try(vxml.parse_xml(_, path))
+  |> result.map(vxml.vxml_to_html_output_lines(_, 0, 2))
+  |> result.map(io_lines.output_lines_to_string)
+}
+```
+
+## Package Contents
+
+This package includes:
 
 - the `VXML` tree type with recursive element nodes and terminal text nodes
 - `InputLine`/`OutputLine` datatypes that allow `Blame`-aware inspection of line
@@ -36,25 +58,6 @@ In this package:
 - best-effort HTML repair helpers for making common damaged-HTML patterns
   palatable to XML-oriented parsers
 - serializers for HTML-, XML-, and JSX-like output, as well as VXML itself
-
-Minimal use:
-
-```gleam
-import gleam/result
-import gleam/string
-import simplifile
-import vxml
-import vxml/blame
-import vxml/io_lines
-
-pub fn xml_file_to_html(path: String) {
-  simplifile.read(path)
-  |> result.map_error(fn(e) { #(blame.no_blame, string.inspect(e)) })
-  |> result.try(vxml.parse_xml(_, path))
-  |> result.map(vxml.vxml_to_html_output_lines(_, 0, 2))
-  |> result.map(io_lines.output_lines_to_string)
-}
-```
 
 ## Model
 
@@ -119,7 +122,7 @@ quoted lines form text nodes:
 Each line of text appears as a visible quoted line, making newline placement and
 whitespace easy to spot by human inspection.
 
-Rules & notes:
+Rules:
 
 - tag names must start with an ASCII letter or `_`, and may then contain ASCII
   letters, digits, `_`, or `.`
@@ -226,7 +229,6 @@ JSX-like output is available through:
 let lines = vxml.vxml_to_jsx_output_lines(tree, 0, 2)
 let source = vxml.vxml_to_jsx(tree, 0, 2)
 ```
-
 
 ## Blame
 

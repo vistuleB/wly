@@ -2,7 +2,7 @@ name = "vxml"
 version = "1.0.0"
 description = "A small XML-like tree datatype and serialization format for document processing."
 licences = ["MIT"]
-repository = { type = "github", user = "vistuleB", repo = "wly" }
+repository = { type = "github", user = "vistuleB", repo = "vxml" }
 
 [dependencies]
 gleam_stdlib = ">= 0.34.0 and < 2.0.0"
