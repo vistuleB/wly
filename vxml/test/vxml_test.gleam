@@ -1,11 +1,11 @@
-import vxml/blame.{Anchored, Movable, Src}
 import gleam/list
 import gleam/string
 import gleeunit
 import gleeunit/should
-import vxml/io_lines
 import simplifile
 import vxml.{type Attr, type VXML, Attr, Line, T, V}
+import vxml/blame.{Anchored, Movable, Src}
+import vxml/io_lines
 import xmlm
 
 fn xmlm_attr_to_vxml_attrs(
@@ -96,17 +96,13 @@ pub fn validate_tag_accepts_underscore_start_test() {
 pub fn validate_tag_rejects_hyphen_test() {
   "chapter-2"
   |> vxml.validate_tag
-  |> should.equal(
-    Error(vxml.MalformedTag("chapter-2", vxml.tag_pattern)),
-  )
+  |> should.equal(Error(vxml.MalformedTag("chapter-2", vxml.tag_pattern)))
 }
 
 pub fn validate_tag_rejects_digit_start_test() {
   "2Chapter"
   |> vxml.validate_tag
-  |> should.equal(
-    Error(vxml.MalformedTag("2Chapter", vxml.tag_pattern)),
-  )
+  |> should.equal(Error(vxml.MalformedTag("2Chapter", vxml.tag_pattern)))
 }
 
 pub fn html_parser_accepts_common_html_repairs_test() {

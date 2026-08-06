@@ -2,10 +2,10 @@ import gleam/io
 import gleam/list
 import gleam/result
 import gleam/string.{inspect as ins}
-import vxml/io_lines as io_l
 import on
 import simplifile
 import vxml
+import vxml/io_lines as io_l
 
 fn streaming_parser_engine_light() -> Result(Nil, String) {
   io.println("\n### STREAMING PARSER ENGINE LIGHT ###\n")

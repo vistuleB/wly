@@ -1,5 +1,5 @@
-import vxml/blame
 import gleeunit/should
+import vxml/blame
 
 pub fn advance_moves_movable_source_cursor_test() {
   blame.Src([], "doc.wly", 3, 5, blame.Movable)

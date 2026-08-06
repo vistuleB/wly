@@ -4,11 +4,11 @@
 //// They provide a small bridge between files/strings and VXML parsers or
 //// serializers.
 
-import vxml/blame.{type Blame} as bl
 import gleam/list
 import gleam/result
 import gleam/string.{length as len}
 import simplifile.{type FileError}
+import vxml/blame.{type Blame} as bl
 
 /// A source line with indentation and blame.
 pub type InputLine {
