@@ -2822,6 +2822,7 @@ pub type FirstDifferentLine =
 
 pub type AssertiveTestError {
   VXMLParseError(vxml.VXMLParseError)
+  VXMLSerializationError(vxml.VXMLSerializationError)
   TestDesugaringError(DesugaringError)
   InequalityError(
     name: String,

@@ -1849,6 +1849,16 @@ fn sanitize_input_output_dirs(parameters: RendererParameters) -> RendererParamet
   )
 }
 
+fn echo_vxml(vxml: VXML, banner: String, indent: Int) -> Nil {
+  case vp.vxml_to_output_lines(vxml) {
+    Ok(lines) -> lines |> io_l.output_lines_table(banner, indent) |> io.println
+    Error(error) -> {
+      error.partial |> io_l.output_lines_table(banner, indent) |> io.println
+      io.println("VXML serialization error: " <> ins(error))
+    }
+  }
+}
+
 fn create_dirs_on_path_to_file(path_to_file: String) -> Result(Nil, simplifile.FileError) {
   let pieces = path_to_file |> string.split("/")
   let pieces = core.drop_last(pieces)
@@ -1974,12 +1984,7 @@ pub fn run_renderer(
 
   case options.echo_parsed_vxml {
     False -> Nil
-    True -> {
-      parsed
-      |> vp.vxml_to_output_lines
-      |> io_l.output_lines_table("parsed:", 2)
-      |> io.println
-    }
+    True -> echo_vxml(parsed, "parsed:", 2)
   }
 
   use filtered <- on.error_ok(
@@ -2032,12 +2037,7 @@ pub fn run_renderer(
 
   case options.echo_filtered_vxml {
     False -> Nil
-    True -> {
-      filtered
-      |> vp.vxml_to_output_lines
-      |> io_l.output_lines_table("filtered:", 2)
-      |> io.println
-    }
+    True -> echo_vxml(filtered, "filtered:", 2)
   }
 
   // 🌸 pipeline 🌸
@@ -2198,12 +2198,7 @@ pub fn run_renderer(
   |> list.each(fn(fr) {
     case options.echo_vxml_fragments(fr) {
       False -> Nil
-      True -> {
-        fr.payload
-        |> vp.vxml_to_output_lines
-        |> io_l.output_lines_table("fr:" <> fr.path, 2)
-        |> io.println
-      }
+      True -> echo_vxml(fr.payload, "fr:" <> fr.path, 2)
     }
   })
 

@@ -13,6 +13,7 @@ import desugaring/core.{
   NonMatchingDesugarerName,
   TestDesugaringError,
   VXMLParseError,
+  VXMLSerializationError,
 }
 import desugaring/desugarers as dl
 import colours
@@ -49,8 +50,8 @@ pub fn run_assertive_test(name: String, tst: AssertiveTest) -> Result(Nil, Asser
     desugarer.transform(input)
     |> result.map_error(fn(e) { TestDesugaringError(e) })
   )
-  let output_string = vxml.vxml_to_string(output)
-  let expected_string = vxml.vxml_to_string(expected)
+  use output_string <- on.ok(vxml.vxml_to_string(output) |> result.map_error(fn(e) { VXMLSerializationError(e) }))
+  use expected_string <- on.ok(vxml.vxml_to_string(expected) |> result.map_error(fn(e) { VXMLSerializationError(e) }))
   case output_string == expected_string {
     True -> Ok(Nil)
     False -> Error(
@@ -69,18 +70,21 @@ pub fn highlight_and_echo(
   above: Int,
   banner: String,
 ) -> Nil {
-  vxml
-  |> vxml.vxml_to_output_lines
-  |> list.index_map(
-    fn(line, i) {
-      case i >= above {
-        False -> line
-        True -> OutputLine(..line, suffix: colours.fgred(line.suffix))
-      }
-    }
-  )
-  |> io_l.output_lines_table(banner, 0)
-  |> io.println
+  case vxml.vxml_to_output_lines(vxml) {
+    Error(error) -> io.println(ins(error))
+    Ok(lines) ->
+      lines
+      |> list.index_map(
+        fn(line, i) {
+          case i >= above {
+            False -> line
+            True -> OutputLine(..line, suffix: colours.fgred(line.suffix))
+          }
+        }
+      )
+      |> io_l.output_lines_table(banner, 0)
+      |> io.println
+  }
 }
 
 pub fn run_and_announce_results(

@@ -13,7 +13,10 @@ fn nodemap(
   case vxml {
     V(_, tag, _, children) if tag == inner.0 -> {
       case list.any(children, core.is_t_and_text_contains(_, inner.1)) {
-        True -> vxml.vxml_table(vxml, name, 2) |> io.println
+        True -> case vxml.vxml_table(vxml, name, 2) {
+          Ok(table) -> io.println(table)
+          Error(error) -> io.println(ins(error))
+        }
         False -> Nil
       }
       vxml

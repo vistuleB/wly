@@ -11,19 +11,19 @@ The renderer in `src/desugaring.gleam` wires together these stages:
 ```text
 source path
   -> Assembler
-  -> List(InputLine)
+    -> List(InputLine)
   -> Parser
-  -> VXML
+    -> VXML
   -> Filterer
-  -> VXML
+    -> VXML
   -> Pipeline
-  -> VXML
+    -> VXML
   -> Splitter
-  -> List(OutputFragment(_, VXML))
+    -> List(OutputFragment(_, VXML))
   -> Emitter
-  -> List(OutputFragment(_, List(OutputLine)))
+    -> List(OutputFragment(_, List(OutputLine)))
   -> Writer
-  -> output files
+    -> output files
 ```
 
 A `Pipeline` is a list of `Desugarer` values. Each desugarer is a named transformation over a VXML tree, with structured errors and warnings. Many desugarers are implemented as nodemaps: the desugarer supplies local node logic and the core nodemap-to-transform machinery performs the tree walk.

@@ -2,7 +2,7 @@ name = "desugaring"
 version = "1.0.0"
 
 [dependencies]
-vxml = ">= 1.0.0 and < 2.0.0"
+vxml = ">= 1.0.3 and < 2.0.0"
 writerly = { "path" = "../writerly" }
 
 gleam_stdlib = ">= 0.34.0 and < 2.0.0"
