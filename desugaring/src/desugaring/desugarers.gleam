@@ -13,6 +13,7 @@ import desugaring/desugarers/add_between_all_pairs_2
 import desugaring/desugarers/add_between_tag_and_text_node
 import desugaring/desugarers/add_between_tag_and_text_node__batch
 import desugaring/desugarers/add_between_tags__batch
+import desugaring/desugarers/add_class_to_next_sibling
 import desugaring/desugarers/add_if_missing_before_but_not_before_first_child
 import desugaring/desugarers/append
 import desugaring/desugarers/append_attribute
@@ -295,6 +296,7 @@ pub const add_between_all_pairs_2 = add_between_all_pairs_2.constructor
 pub const add_between_tag_and_text_node = add_between_tag_and_text_node.constructor
 pub const add_between_tag_and_text_node__batch = add_between_tag_and_text_node__batch.constructor
 pub const add_between_tags__batch = add_between_tags__batch.constructor
+pub const add_class_to_next_sibling = add_class_to_next_sibling.constructor
 pub const add_if_missing_before_but_not_before_first_child = add_if_missing_before_but_not_before_first_child.constructor
 pub const append = append.constructor
 pub const append_attribute = append_attribute.constructor
@@ -578,6 +580,7 @@ pub const assertive_tests : List(fn() -> core.AssertiveTestCollection) = [
   add_between_tag_and_text_node.assertive_tests,
   add_between_tag_and_text_node__batch.assertive_tests,
   add_between_tags__batch.assertive_tests,
+  add_class_to_next_sibling.assertive_tests,
   add_if_missing_before_but_not_before_first_child.assertive_tests,
   append.assertive_tests,
   append_attribute.assertive_tests,
