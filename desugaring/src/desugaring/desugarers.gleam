@@ -79,6 +79,7 @@ import desugaring/desugarers/detokenize_href_surroundings
 import desugaring/desugarers/dr_create_index
 import desugaring/desugarers/dr_create_menu
 import desugaring/desugarers/dr_generate_js_course
+import desugaring/desugarers/dr_insert_cover_image
 import desugaring/desugarers/echo_v_if_see_text
 import desugaring/desugarers/ensure_attribute_value_starts_with
 import desugaring/desugarers/ensure_attribute_value_starts_with_prefix
@@ -362,6 +363,7 @@ pub const detokenize_href_surroundings = detokenize_href_surroundings.constructo
 pub const dr_create_index = dr_create_index.constructor
 pub const dr_create_menu = dr_create_menu.constructor
 pub const dr_generate_js_course = dr_generate_js_course.constructor
+pub const dr_insert_cover_image = dr_insert_cover_image.constructor
 pub const echo_v_if_see_text = echo_v_if_see_text.constructor
 pub const ensure_attribute_value_starts_with = ensure_attribute_value_starts_with.constructor
 pub const ensure_attribute_value_starts_with_prefix = ensure_attribute_value_starts_with_prefix.constructor
@@ -646,6 +648,7 @@ pub const assertive_tests : List(fn() -> core.AssertiveTestCollection) = [
   dr_create_index.assertive_tests,
   dr_create_menu.assertive_tests,
   dr_generate_js_course.assertive_tests,
+  dr_insert_cover_image.assertive_tests,
   echo_v_if_see_text.assertive_tests,
   ensure_attribute_value_starts_with.assertive_tests,
   ensure_attribute_value_starts_with_prefix.assertive_tests,
