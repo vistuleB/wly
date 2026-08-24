@@ -1,4 +1,3 @@
-import vxml/blame.{type Blame} as bl
 import either_or.{type EitherOr, Either, Or} as eo
 import gleam/dict.{type Dict}
 import gleam/float
@@ -9,10 +8,11 @@ import gleam/option.{type Option, None, Some}
 import gleam/pair
 import gleam/result
 import gleam/string.{inspect as ins}
-import vxml/io_lines.{type OutputLine, OutputLine} as io_l
 import on
 import splitter
 import vxml.{type Attr, type Line, type VXML, Attr, Line, T, V}
+import vxml/blame.{type Blame} as bl
+import vxml/io_lines.{type OutputLine, OutputLine} as io_l
 
 // ************************************************************
 // Traffic Light for early returns
@@ -422,7 +422,7 @@ pub fn try_map_fold(
 }
 
 pub fn list_set(ze_list: List(a), index: Int, element: a) -> List(a) {
-  let assert True = 0 <= index && index <= list.length(ze_list)
+  let assert True = 0 <= index && index < list.length(ze_list)
   let prefix = list.take(ze_list, index)
   let suffix = list.drop(ze_list, index + 1)
   [
@@ -1745,11 +1745,6 @@ pub fn append_if_not_present(ze_list: List(a), ze_thing: a) -> List(a) {
   }
 }
 
-pub fn v_preprend_attr(node: VXML, attr: Attr) {
-  let assert V(_, _, attrs, _) = node
-  V(..node, attrs: [attr, ..attrs])
-}
-
 pub fn pour_before_first_in_list(
   nodes: List(VXML),
   to_insert: List(VXML),
@@ -2466,8 +2461,6 @@ pub fn vxmls_digest(vxmls: List(VXML)) -> String {
   |> string.join(", ")
 }
 
-pub const node_digest = vxml_digest
-
 // ************************************************************
 // style
 // ************************************************************
@@ -3023,7 +3016,7 @@ fn t_s_line(blame: Blame, indent: Int) {
 }
 
 fn l_s_line(blame: Blame, indent: Int, content: String) {
-  TSLine(
+  LSLine(
     blame,
     indent,
     vxml.vxml_line_delimiter <> content <> vxml.vxml_line_delimiter,
