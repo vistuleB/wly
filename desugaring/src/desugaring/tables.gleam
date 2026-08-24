@@ -492,3 +492,10 @@ pub fn two_column_error_announcer(
   [opening_line, ..q] |> list.append([closing_line])
   |> string.join("\n")
 }
+
+pub fn mushroom_error_announcement(
+  title: String,
+  fields: List(#(String, String)),
+) -> String {
+  two_column_error_announcer(fields, 0, 68, "🍄", 2, "/ " <> title <> " /")
+}

@@ -27,6 +27,12 @@ import vxml/io_lines.{type InputLine, type OutputLine, OutputLine} as io_l
 
 const default_times_table_char_width = 90
 
+const pipeline_runner_margin = 4
+
+const tracking_progress_interval = 10
+
+const tracking_progress_quiet_steps = 3
+
 // MacBook 16' can take 140
 
 pub type MonitorOutputMargin {
@@ -1153,10 +1159,7 @@ pub fn process_command_line_arguments(
   )
 }
 
-// 🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠
-// process_command_line_arguments HELPERS no 1:
-// getting the --keys & value lists 👇👇👇👇👇👇
-// 🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠
+// General command-line tokenization
 
 fn take_strings_while_not_key(
   upcoming: List(String),
@@ -1193,10 +1196,7 @@ fn double_dash_keys(
   }
 }
 
-// 🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠
-// process_command_line_arguments HELPERS no 2:
-// for --only 👇👇👇👇👇👇👇👇👇👇👇👇👇👇👇👇👇👇👇👇
-// 🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠
+// --only parsing
 
 fn amend_only_args(
   amendments: CommandLineAmendments,
@@ -1247,10 +1247,7 @@ fn parse_attr_value_args_in_filename(
   }
 }
 
-// 🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠
-// process_command_line_arguments HELPERS no 3:
-// for --track (& --track-steps) 👇👇👇👇👇👇👇👇
-// 🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠
+// --track, --track-steps, and --dump parsing
 
 type SelectorLineWindow {
   SelectorLineWindow(lines_after: Int, lines_before: Int)
@@ -1493,6 +1490,15 @@ type SelectorDefinition {
   )
 }
 
+type SelectorNormalizationState {
+  SelectorNormalizationState(
+    remaining_anchors: List(#(SelectorTarget, SelectorLineWindow)),
+    common_modifiers: List(String),
+    current_definition: Option(SelectorDefinition),
+    completed_definitions: List(SelectorDefinition),
+  )
+}
+
 fn selector_modifier(input: String) -> Bool {
   let input = string.replace(input, "-with", "with")
   list.contains(
@@ -1602,41 +1608,62 @@ fn normalize_selector_definitions(
       Ok(#(track, SelectorDefinition(PrintSelector, default_window, values)))
     }
     _ -> {
-      let assert Ok(#([], common, current, definitions)) =
-        list.try_fold(values, #(assigned, [], None, []), fn(acc, value) {
-          use anchor <- on.ok(parse_selector_anchor(value))
-          case anchor {
-            None ->
-              case acc.2 {
-                None -> Ok(#(acc.0, list.append(acc.1, [value]), None, acc.3))
-                Some(definition) ->
-                  Ok(#(
-                    acc.0,
-                    acc.1,
-                    Some(
-                      SelectorDefinition(
-                        ..definition,
-                        modifiers: list.append(definition.modifiers, [value]),
+      let assert Ok(SelectorNormalizationState(
+        remaining_anchors: [],
+        common_modifiers: common,
+        current_definition: current,
+        completed_definitions: definitions,
+      )) =
+        list.try_fold(
+          values,
+          SelectorNormalizationState(assigned, [], None, []),
+          fn(acc, value) {
+            use anchor <- on.ok(parse_selector_anchor(value))
+            case anchor {
+              None ->
+                case acc.current_definition {
+                  None ->
+                    Ok(
+                      SelectorNormalizationState(
+                        ..acc,
+                        common_modifiers: list.append(acc.common_modifiers, [
+                          value,
+                        ]),
                       ),
-                    ),
-                    acc.3,
-                  ))
+                    )
+                  Some(definition) ->
+                    Ok(
+                      SelectorNormalizationState(
+                        ..acc,
+                        current_definition: Some(
+                          SelectorDefinition(
+                            ..definition,
+                            modifiers: list.append(definition.modifiers, [value]),
+                          ),
+                        ),
+                      ),
+                    )
+                }
+              Some(_) -> {
+                let assert [#(target, window), ..remaining] =
+                  acc.remaining_anchors
+                let definitions = case acc.current_definition {
+                  None -> acc.completed_definitions
+                  Some(definition) ->
+                    list.append(acc.completed_definitions, [definition])
+                }
+                Ok(SelectorNormalizationState(
+                  remaining_anchors: remaining,
+                  common_modifiers: acc.common_modifiers,
+                  current_definition: Some(
+                    SelectorDefinition(target, window, []),
+                  ),
+                  completed_definitions: definitions,
+                ))
               }
-            Some(_) -> {
-              let assert [#(target, window), ..remaining] = acc.0
-              let definitions = case acc.2 {
-                None -> acc.3
-                Some(definition) -> list.append(acc.3, [definition])
-              }
-              Ok(#(
-                remaining,
-                acc.1,
-                Some(SelectorDefinition(target, window, [])),
-                definitions,
-              ))
             }
-          }
-        })
+          },
+        )
       let definitions = case current {
         None -> definitions
         Some(definition) -> list.append(definitions, [definition])
@@ -1798,10 +1825,7 @@ fn parse_dump_args(
   parse_pipeline_step_specs(values)
 }
 
-// 🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠
-// process_command_line_arguments HELPERS no 4:
-// parsing --times potential Int 👇👇👇👇👇👇
-// 🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠
+// --times parsing
 
 fn parse_times_args(
   values: List(String),
@@ -1947,6 +1971,10 @@ fn list_int_cleaner(ze_list: List(Int)) -> List(Int) {
   ze_list |> list.unique |> list.sort(int.compare)
 }
 
+type ResolvedStepSelection {
+  ResolvedStepSelection(on_change: List(Int), forced: List(Int))
+}
+
 fn resolve_absolute_step_range(
   range: AbsoluteStepRange,
   pipeline: Pipeline,
@@ -1998,7 +2026,7 @@ fn resolve_desugarer_relative_step_range(
 fn resolve_pipeline_step_specs(
   specs: List(PipelineStepSpec),
   pipeline: Pipeline,
-) -> Result(#(List(Int), List(Int)), String) {
+) -> Result(ResolvedStepSelection, String) {
   use #(on_change, forced) <- on.ok(
     list.try_fold(specs, #([], []), fn(acc, spec) {
       let PipelineStepSpec(range, mode) = spec
@@ -2018,7 +2046,7 @@ fn resolve_pipeline_step_specs(
     on_change
     |> list_int_cleaner
     |> list.filter(fn(step) { !list.contains(forced, step) })
-  Ok(#(on_change, forced))
+  Ok(ResolvedStepSelection(on_change, forced))
 }
 
 fn monitor_output_heading(context: PipelineStepContext) -> List(String) {
@@ -2066,10 +2094,9 @@ fn make_tracking_monitor(
   tracker: Tracker,
   pipeline: Pipeline,
 ) -> Result(Monitor, String) {
-  use #(on_change_steps, forced_steps) <- on.ok(resolve_pipeline_step_specs(
-    tracker.step_specs,
-    pipeline,
-  ))
+  use ResolvedStepSelection(on_change_steps, forced_steps) <- on.ok(
+    resolve_pipeline_step_specs(tracker.step_specs, pipeline),
+  )
   let track_all = on_change_steps == [] && forced_steps == []
   let printing_selector =
     option.unwrap(tracker.printing_selector, fn(lines) { lines })
@@ -2091,10 +2118,14 @@ fn make_tracking_monitor(
       }
     }
     let outputs = case outputs, context.previous_desugarer {
-      [], Some(desugarer) if context.step_no > 0 && context.step_no % 10 == 0 -> {
+      [], Some(desugarer)
+        if context.step_no > 0
+        && context.step_no % tracking_progress_interval == 0
+      -> {
         let enough_steps_since_last_output = case last_output_step {
           None -> True
-          Some(step_no) -> context.step_no - step_no >= 3
+          Some(step_no) ->
+            context.step_no - step_no >= tracking_progress_quiet_steps
         }
         case enough_steps_since_last_output {
           True -> [
@@ -2121,10 +2152,9 @@ fn make_dump_monitor(
   specs: List(PipelineStepSpec),
   pipeline: Pipeline,
 ) -> Result(Monitor, String) {
-  use #(on_change_steps, forced_steps) <- on.ok(resolve_pipeline_step_specs(
-    specs,
-    pipeline,
-  ))
+  use ResolvedStepSelection(on_change_steps, forced_steps) <- on.ok(
+    resolve_pipeline_step_specs(specs, pipeline),
+  )
   let selected_steps =
     list.append(on_change_steps, forced_steps) |> list_int_cleaner
   let dump_all = specs == []
@@ -2207,6 +2237,15 @@ pub type PipelineExecutionError {
   PipelineMonitorError(MonitorFailure)
 }
 
+type PipelineProducerState {
+  PipelineProducerState(
+    vxml: VXML,
+    warnings: List(InSituDesugaringWarning),
+    durations: List(Duration),
+    monitors: List(Monitor),
+  )
+}
+
 type Message {
   MonitorProducedOutput(MonitorOutput, Int)
   ProducerFinished(
@@ -2264,52 +2303,59 @@ fn producer(
     Ok(monitors) ->
       pipeline
       |> list.index_map(fn(desugarer, index) { #(desugarer, index) })
-      |> list.try_fold(#(vxml, [], [], monitors), fn(acc, indexed_desugarer) {
-        let #(desugarer, index) = indexed_desugarer
-        let #(vxml, warnings, durations, monitors) = acc
-        let step_no = index + 1
-        let now = timestamp.system_time()
-        use #(vxml, new_warnings) <- on.error_ok(
-          desugarer.transform(vxml),
-          fn(error) {
-            InSituDesugaringError(
-              desugarer: desugarer,
-              step_no: step_no,
-              blame: error.blame,
-              message: error.message,
-            )
-            |> PipelineDesugaringError
-            |> Error
-          },
-        )
-        let then = timestamp.system_time()
-        let durations = [timestamp.difference(now, then), ..durations]
-        let new_warnings =
-          list.map(new_warnings, fn(warning) {
-            InSituDesugaringWarning(
-              desugarer: desugarer,
-              step_no: step_no,
-              blame: warning.blame,
-              message: warning.message,
-            )
-          })
-        let next_desugarer = case list.first(list.drop(pipeline, step_no)) {
-          Ok(desugarer) -> Some(desugarer)
-          Error(_) -> None
-        }
-        let context =
-          PipelineStepContext(
-            step_no: step_no,
-            previous_desugarer: Some(desugarer),
-            next_desugarer: next_desugarer,
+      |> list.try_fold(
+        PipelineProducerState(vxml, [], [], monitors),
+        fn(state, indexed_desugarer) {
+          let #(desugarer, index) = indexed_desugarer
+          let step_no = index + 1
+          let now = timestamp.system_time()
+          use #(vxml, new_warnings) <- on.error_ok(
+            desugarer.transform(state.vxml),
+            fn(error) {
+              InSituDesugaringError(
+                desugarer: desugarer,
+                step_no: step_no,
+                blame: error.blame,
+                message: error.message,
+              )
+              |> PipelineDesugaringError
+              |> Error
+            },
           )
-        use monitors <- on.error_ok(
-          update_monitors(main_process_subject, monitors, vxml, context),
-          fn(failure) { Error(PipelineMonitorError(failure)) },
-        )
-        Ok(#(vxml, list.append(warnings, new_warnings), durations, monitors))
-      })
-      |> result.map(fn(acc) { #(acc.0, acc.1, acc.2) })
+          let then = timestamp.system_time()
+          let durations = [timestamp.difference(now, then), ..state.durations]
+          let new_warnings =
+            list.map(new_warnings, fn(warning) {
+              InSituDesugaringWarning(
+                desugarer: desugarer,
+                step_no: step_no,
+                blame: warning.blame,
+                message: warning.message,
+              )
+            })
+          let next_desugarer = case list.first(list.drop(pipeline, step_no)) {
+            Ok(desugarer) -> Some(desugarer)
+            Error(_) -> None
+          }
+          let context =
+            PipelineStepContext(
+              step_no: step_no,
+              previous_desugarer: Some(desugarer),
+              next_desugarer: next_desugarer,
+            )
+          use monitors <- on.error_ok(
+            update_monitors(main_process_subject, state.monitors, vxml, context),
+            fn(failure) { Error(PipelineMonitorError(failure)) },
+          )
+          Ok(PipelineProducerState(
+            vxml: vxml,
+            warnings: list.append(state.warnings, new_warnings),
+            durations: durations,
+            monitors: monitors,
+          ))
+        },
+      )
+      |> result.map(fn(state) { #(state.vxml, state.warnings, state.durations) })
   }
 
   send(main_process_subject, ProducerFinished(final))
@@ -2337,7 +2383,7 @@ fn loop(
 ) {
   case receive(subject, within: 100_000) {
     Ok(MonitorProducedOutput(output, step_no)) -> {
-      print_monitor_output(output, 4)
+      print_monitor_output(output, pipeline_runner_margin)
       case countdown == 0 {
         False -> {
           loop(subject, countdown - 1)
@@ -2564,40 +2610,6 @@ pub fn run_renderer(
     Error(FiltrationError(c))
   })
 
-  // use #(filtered, filtration_warnings) <- on.error_ok(
-  //   dl.filter_nodes_by_key_values(options.only_key_vals).transform(parsed),
-  //   on_error: fn(error) {
-  //     let core.DesugaringError(blame, msg) = error
-  //     io.println("  ...key-value filtration error:")
-  //     io.println("")
-  //     [
-  //       #("", ins(msg) |> pr.strip_quotes),
-  //     ]
-  //     |> pr.two_column_error_announcer(0, 70, "💥", 2, "/ filtration error /")
-  //     |> io.println
-  //     Error(KeyValueFiltrationError(blame, msg))
-  //   },
-  // )
-
-  // assert filtration_warnings == []
-
-  // use #(filtered, filtration_warnings) <- on.error_ok(
-  //   dl.filter_nodes_by_path_key_values(options.only_path_key_vals).transform(filtered),
-  //   on_error: fn(error) {
-  //     let core.DesugaringError(blame, msg) = error
-  //     io.println("  ...path-key-value filtration error:")
-  //     io.println("")
-  //     [
-  //       #("", ins(msg) |> pr.strip_quotes),
-  //     ]
-  //     |> pr.two_column_error_announcer(0, 70, "💥", 2, "/ filtration error /")
-  //     |> io.println
-  //     Error(KeyValueFiltrationError(blame, msg))
-  //   },
-  // )
-
-  // assert filtration_warnings == []
-
   case options.echo_filtered_vxml {
     False -> Nil
     True -> echo_vxml(filtered, "filtered:", 2)
@@ -2649,7 +2661,7 @@ pub fn run_renderer(
             #(" blame:", pr.our_blame_digest(e.blame)),
             #(" message:", e.message),
           ]
-          |> pr.two_column_error_announcer(0, 68, "🍄", 2, "/ DesugaringError /")
+          |> pr.mushroom_error_announcement("DesugaringError", _)
           |> io.println
           Error(PipelineError(e))
         }
@@ -2661,13 +2673,7 @@ pub fn run_renderer(
             #(" step:", ins(step_no)),
             #(" message:", message),
           ]
-          |> pr.two_column_error_announcer(
-            0,
-            68,
-            "🍄",
-            2,
-            "/ '" <> name <> "' monitor error /",
-          )
+          |> pr.mushroom_error_announcement("'" <> name <> "' monitor error", _)
           |> io.println
           Error(MonitorError(failure))
         }
@@ -2745,7 +2751,7 @@ pub fn run_renderer(
       [
         #("", ins(error)),
       ]
-      |> pr.two_column_error_announcer(0, 68, "🍄", 2, "/ splitter error /")
+      |> pr.mushroom_error_announcement("splitter error", _)
       |> io.println
       Error(SplitterError(error))
     },
@@ -2824,7 +2830,7 @@ pub fn run_renderer(
     [
       #("", ins(error)),
     ]
-    |> pr.two_column_error_announcer(0, 68, "🍄", 2, "/ emitter error /")
+    |> pr.mushroom_error_announcement("emitter error", _)
     |> io.println
   })
 
