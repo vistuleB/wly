@@ -28,6 +28,7 @@ import simplifile
 import ansel/image
 import desugaring/tables as pr
 import either_or.{Either}
+import filepath
 import vxml.{
   type VXML,
   type Attr,
@@ -60,6 +61,8 @@ fn build_img_info_prettified_json_string(
   <> margin2 <> "\"original-size\": " <> { json.int(info.original_size) |> json.to_string } <> ",\n"
   <> margin2 <> "\"compressed-size\": " <> { json.int(info.compressed_size) |> json.to_string } <> ",\n"
   <> margin2 <> "\"compression\": " <> { json.string(info.compression) |> json.to_string } <> ",\n"
+  <> margin2 <> "\"intrinsic-width\": " <> { json.string(info.intrinsic_width) |> json.to_string } <> ",\n"
+  <> margin2 <> "\"intrinsic-height\": " <> { json.string(info.intrinsic_height) |> json.to_string } <> ",\n"
   <> margin2 <> "\"used-last-build\": " <> { json.bool(info.used_last_build) |> json.to_string } <> ",\n"
   <> margin2 <> "\"3chars\": " <> { json.array(info.three_chars, json.string) |> json.to_string } <> "\n"
   <> margin1 <> "}"
@@ -85,6 +88,8 @@ fn build_img_info_decoder() -> decode.Decoder(BuildImgInfo) {
   use original_size <- decode.field("original-size", decode.int)
   use compressed_size <- decode.field("compressed-size", decode.int)
   use compression <- decode.field("compression", decode.string)
+  use intrinsic_width <- decode.optional_field("intrinsic-width", "", decode.string)
+  use intrinsic_height <- decode.optional_field("intrinsic-height", "", decode.string)
   use _used_last_build <- decode.field("used-last-build", decode.bool)
   use _three_chars <- decode.optional_field("3chars", [], decode.list(decode.string))
 
@@ -102,6 +107,8 @@ fn build_img_info_decoder() -> decode.Decoder(BuildImgInfo) {
     original_size: original_size,
     compressed_size: compressed_size,
     compression: compression,
+    intrinsic_width: intrinsic_width,
+    intrinsic_height: intrinsic_height,
     used_last_build: False,
     three_chars: [],
   )
@@ -182,26 +189,51 @@ fn image_map_stats(image_map: ImageMap) -> Nil {
 fn save_image_map(image_map: ImageMap, exec_to_image_map_path: String) -> Result(Nil, DesugaringError) {
   image_map_stats(image_map)
   let content = image_map_prettified_json_string(image_map, 2)
-  use error <- on.error(simplifile.write(exec_to_image_map_path, content))
-  Error(DesugaringError(bl.no_blame, "failed to save image map to '" <> exec_to_image_map_path <> "' (" <> simplifile.describe_error(error) <> ")"))
-}
-
-fn last_modified_date(file_path: String) -> Int {
-  case simplifile.file_info(file_path) {
-    Ok(info) -> info.mtime_seconds
-    Error(_) -> panic as "unable to read last modified time from supposedly existing file"
+  case simplifile.read(exec_to_image_map_path) == Ok(content) {
+    True -> Ok(Nil)
+    False -> {
+      use error <- on.error(simplifile.write(exec_to_image_map_path, content))
+      Error(DesugaringError(bl.no_blame, "failed to save image map to '" <> exec_to_image_map_path <> "' (" <> simplifile.describe_error(error) <> ")"))
+    }
   }
 }
 
+fn load_last_modified_time_entries(
+  root: String,
+  directory: String,
+) -> Result(List(#(String, Int)), DesugaringError) {
+  use names <- on.error_ok(simplifile.read_directory(directory), fn(error) {
+    Error(DesugaringError(desugarer_blame(199), simplifile.describe_error(error)))
+  })
+  list.try_fold(names, [], fn(entries, name) {
+    let path = filepath.join(directory, name)
+    use info <- on.error_ok(simplifile.file_info(path), fn(error) {
+      Error(DesugaringError(desugarer_blame(210), simplifile.describe_error(error)))
+    })
+    case simplifile.file_info_type(info) {
+      simplifile.File -> Ok([#(core.assert_drop_prefix(path, root), info.mtime_seconds), ..entries])
+      simplifile.Directory -> {
+        use nested <- on.ok(load_last_modified_time_entries(root, path))
+        Ok(list.append(nested, entries))
+      }
+      _ -> Ok(entries)
+    }
+  })
+}
+
 fn load_last_modified_times(exec_2_src_img: String) -> Result(LastModifiedTimes, DesugaringError) {
-  use paths <- on.error_ok(
-    simplifile.get_files(exec_2_src_img),
-    fn(err) { Error(DesugaringError(desugarer_blame(199), simplifile.describe_error(err))) }
-  )
-  paths
-  |> list.map( fn(path) { #(path |> core.assert_drop_prefix(exec_2_src_img), last_modified_date(path)) })
-  |> dict.from_list
-  |> Ok
+  use entries <- on.ok(load_last_modified_time_entries(exec_2_src_img, exec_2_src_img))
+  Ok(dict.from_list(entries))
+}
+
+fn load_relative_file_set(directory: String) -> FileSet {
+  case simplifile.get_files(directory) {
+    Ok(paths) ->
+      paths
+      |> list.map(fn(path) { #(core.assert_drop_prefix(path, directory), Nil) })
+      |> dict.from_list
+    Error(_) -> dict.new()
+  }
 }
 
 fn img_extension(src: String, blame: Blame) -> Result(String, DesugaringError) {
@@ -216,6 +248,18 @@ fn img_extension(src: String, blame: Blame) -> Result(String, DesugaringError) {
   }
 }
 
+fn hash_is_used(image_map: ImageMap, hash: String) -> Bool {
+  image_map
+  |> dict.values
+  |> list.any(fn(info) {
+    info.build_version
+    |> string.split("/")
+    |> list.last
+    |> result.map(string.starts_with(_, hash))
+    |> result.unwrap(False)
+  })
+}
+
 fn get_hashed_filename(original_name: String, image_map: ImageMap) -> String {
   let big_string =
     original_name
@@ -223,16 +267,16 @@ fn get_hashed_filename(original_name: String, image_map: ImageMap) -> String {
     |> crypto.hash(crypto.Md5, _)
     |> bit_array.base64_url_encode(False)
   let s1 = string.slice(big_string, 0, 4)
-  use <- on.eager_false_true(dict.has_key(image_map, s1), s1)
+  use <- on.eager_false_true(hash_is_used(image_map, s1), s1)
   let s2 = string.slice(big_string, 4, 8)
-  use <- on.false_true(dict.has_key(image_map, s1 <> s2), fn() { s1 <> s2 })
+  use <- on.false_true(hash_is_used(image_map, s1 <> s2), fn() { s1 <> s2 })
   let s3 = string.slice(big_string, 8, 12)
   s1 <> s2 <> s3 // 64^(-12) = 2^{-72} seems pretty unlucky! let us know!
 }
 
-fn get_created_date(path: String) -> Result(Int, simplifile.FileError) {
+fn get_modified_date(path: String) -> Result(Int, simplifile.FileError) {
   use info <- result.try(simplifile.file_info(path))
-  Ok(info.ctime_seconds)
+  Ok(info.mtime_seconds)
 }
 
 fn get_file_size(path: String) -> Result(Int, simplifile.FileError) {
@@ -316,7 +360,7 @@ fn build_or_miraculously_retrieve_existing_build_image(
   use _ <- on.ok(
     case {
       { simplifile.is_file(exec_2_build_version) == Ok(True) } &&
-      { get_created_date(exec_2_build_version) |> result.unwrap(-1) } > original_last_modified
+      { get_modified_date(exec_2_build_version) |> result.unwrap(-1) } > original_last_modified
     } {
       True -> {
         io.println(whoami <> ": found existing " <> {via |> build_method_to_string |> string.uppercase} <> "-build of " <> exec_2_src_version <> "; adding back to dictionary")
@@ -326,8 +370,8 @@ fn build_or_miraculously_retrieve_existing_build_image(
     }
   )
 
-  use created_date <- on.error_ok(
-    get_created_date(exec_2_build_version),
+  use modified_date <- on.error_ok(
+    get_modified_date(exec_2_build_version),
     fn(err) {
       Error(DesugaringError(
         desugarer_blame(333),
@@ -360,12 +404,14 @@ fn build_or_miraculously_retrieve_existing_build_image(
 
   BuildImgInfo(
     build_version: build_img_2_build_version,
-    build_version_created_on: created_date,
+    build_version_created_on: modified_date,
     build_method: via,
     build_version_size: new_size,
     original_size: original_size,
     compressed_size: new_size,
     compression: compression,
+    intrinsic_width: "",
+    intrinsic_height: "",
     used_last_build: True,
     three_chars: [],
   )
@@ -376,8 +422,7 @@ fn update_src_attr(attrs: List(Attr), src: String) -> List(Attr) {
   core.attrs_set(attrs, desugarer_blame(376), "src", src)
 }
 
-fn first_regexp_submatch(pattern: String, content: String) -> Option(String) {
-  let assert Ok(pattern) = regexp.from_string(pattern)
+fn first_regexp_submatch(pattern: regexp.Regexp, content: String) -> Option(String) {
   case regexp.scan(pattern, content) {
     [match, ..] -> case match.submatches {
       [Some(value), ..] -> Some(value)
@@ -387,8 +432,7 @@ fn first_regexp_submatch(pattern: String, content: String) -> Option(String) {
   }
 }
 
-fn first_two_regexp_submatches(pattern: String, content: String) -> Option(#(String, String)) {
-  let assert Ok(pattern) = regexp.from_string(pattern)
+fn first_two_regexp_submatches(pattern: regexp.Regexp, content: String) -> Option(#(String, String)) {
   case regexp.scan(pattern, content) {
     [match, ..] -> case match.submatches {
       [Some(first), Some(second), ..] -> Some(#(first, second))
@@ -398,23 +442,23 @@ fn first_two_regexp_submatches(pattern: String, content: String) -> Option(#(Str
   }
 }
 
-fn svg_intrinsic_dimensions(blame: Blame, path: String) -> Result(#(String, String), DesugaringError) {
+fn svg_intrinsic_dimensions(blame: Blame, path: String, patterns: SvgPatterns) -> Result(#(String, String), DesugaringError) {
   use content <- on.error_ok(
     simplifile.read(path),
     fn(error) { Error(DesugaringError(blame, "could not read image dimensions from '" <> path <> "' (" <> simplifile.describe_error(error) <> ")")) },
   )
   use svg_tag <- on.none_some(
-    first_regexp_submatch("(<svg[^>]*>)", content),
+    first_regexp_submatch(patterns.svg, content),
     fn() { Error(DesugaringError(blame, "could not find root svg element in '" <> path <> "'")) },
   )
 
-  let width = first_regexp_submatch("(?:^|[[:space:]])width=['\"]([0-9]+(?:\\.[0-9]+)?)(?:[a-zA-Z%]*)['\"]", svg_tag)
-  let height = first_regexp_submatch("(?:^|[[:space:]])height=['\"]([0-9]+(?:\\.[0-9]+)?)(?:[a-zA-Z%]*)['\"]", svg_tag)
+  let width = first_regexp_submatch(patterns.width, svg_tag)
+  let height = first_regexp_submatch(patterns.height, svg_tag)
   case width, height {
     Some(width), Some(height) -> Ok(#(width, height))
     _, _ -> {
       use dimensions <- on.none_some(
-        first_two_regexp_submatches("(?:^|[[:space:]])viewBox=['\"][[:space:]]*[-+0-9.]+[[:space:],]+[-+0-9.]+[[:space:],]+([0-9]+(?:\\.[0-9]+)?)[[:space:],]+([0-9]+(?:\\.[0-9]+)?)['\"]", svg_tag),
+        first_two_regexp_submatches(patterns.viewbox, svg_tag),
         fn() { Error(DesugaringError(blame, "could not determine intrinsic dimensions of '" <> path <> "'")) },
       )
       Ok(dimensions)
@@ -422,9 +466,9 @@ fn svg_intrinsic_dimensions(blame: Blame, path: String) -> Result(#(String, Stri
   }
 }
 
-fn intrinsic_dimensions(blame: Blame, path: String) -> Result(#(String, String), DesugaringError) {
+fn intrinsic_dimensions(blame: Blame, path: String, patterns: SvgPatterns) -> Result(#(String, String), DesugaringError) {
   case string.ends_with(string.lowercase(path), ".svg") {
-    True -> svg_intrinsic_dimensions(blame, path)
+    True -> svg_intrinsic_dimensions(blame, path, patterns)
     False -> case image.read(path) {
       Ok(bitmap) -> Ok(#(
         image.get_width(bitmap) |> int.to_string,
@@ -446,9 +490,30 @@ fn add_intrinsic_dimensions(
     _ -> inner.exec_2_src <> src
   }
   use <- on.false_true(simplifile.is_file(path) == Ok(True), fn() { Ok(attrs) })
-  use dimensions <- on.ok(intrinsic_dimensions(src_attr.blame, path))
+  use dimensions <- on.ok(intrinsic_dimensions(src_attr.blame, path, inner.svg_patterns))
   let attrs = core.attrs_set(attrs, desugarer_blame(450), "intrinsicWidth", dimensions.0)
   Ok(core.attrs_set(attrs, desugarer_blame(451), "intrinsicHeight", dimensions.1))
+}
+
+fn add_cached_intrinsic_dimensions(attrs: List(Attr), info: BuildImgInfo) -> List(Attr) {
+  attrs
+  |> core.attrs_set(desugarer_blame(462), "intrinsicWidth", info.intrinsic_width)
+  |> core.attrs_set(desugarer_blame(463), "intrinsicHeight", info.intrinsic_height)
+}
+
+fn ensure_intrinsic_dimensions(
+  info: BuildImgInfo,
+  src_attr: Attr,
+  path: String,
+  inner: InnerParam,
+) -> Result(BuildImgInfo, DesugaringError) {
+  case info.intrinsic_width != "" && info.intrinsic_height != "" {
+    True -> Ok(info)
+    False -> {
+      use dimensions <- on.ok(intrinsic_dimensions(src_attr.blame, path, inner.svg_patterns))
+      Ok(BuildImgInfo(..info, intrinsic_width: dimensions.0, intrinsic_height: dimensions.1))
+    }
+  }
 }
 
 fn v_before(
@@ -478,13 +543,13 @@ fn v_before(
 
   let src = src_attr.val |> core.drop_prefix("./") |> core.drop_prefix("/")
 
-  use attrs <- on.ok(add_intrinsic_dimensions(attrs, src, src_attr, inner))
-  let vxml = V(..vxml, attrs: attrs)
-
   // escape #3: src does not start with the expected src_2_src_img prefix
   use <- on.false_true(
     string.starts_with(src, inner.src_2_src_img),
-    fn() { Ok(#(vxml, image_map, [])) },
+    fn() {
+      use attrs <- on.ok(add_intrinsic_dimensions(attrs, src, src_attr, inner))
+      Ok(#(V(..vxml, attrs: attrs), image_map, []))
+    },
   )
 
   let src_img_2_src_version = src |> string.drop_start(inner.src_2_src_img_length)
@@ -533,7 +598,7 @@ fn v_before(
       None,
     )
     use <- on.true_false(
-      simplifile.is_file(inner.exec_2_build_img <> img_info.build_version) == Ok(True),
+      img_info.used_last_build || dict.has_key(inner.build_img_files, img_info.build_version),
       fn() { Some(img_info) },
     )
     io.println(whoami <> ": " <> img_info.build_version <> " missing from " <> inner.exec_2_build_img <> " (!!)")
@@ -544,7 +609,11 @@ fn v_before(
   use <- on.some_none(
     up_to_date_img_info,
     fn (up_to_date_img_info) {
-      let attrs = attrs |> update_src_attr("/" <> inner.build_2_build_img <> up_to_date_img_info.build_version)
+      use up_to_date_img_info <- on.ok(ensure_intrinsic_dimensions(up_to_date_img_info, src_attr, inner.exec_2_src_img <> src_img_2_src_version, inner))
+      let attrs =
+        attrs
+        |> add_cached_intrinsic_dimensions(up_to_date_img_info)
+        |> update_src_attr("/" <> inner.build_2_build_img <> up_to_date_img_info.build_version)
       let up_to_date_img_info =
         BuildImgInfo(
           ..up_to_date_img_info,
@@ -569,7 +638,12 @@ fn v_before(
     last_modified,
   ))
 
-  let attrs = attrs |> update_src_attr("/" <> inner.build_2_build_img <> img_info.build_version)
+  use img_info <- on.ok(ensure_intrinsic_dimensions(img_info, src_attr, inner.exec_2_src_img <> src_img_2_src_version, inner))
+
+  let attrs =
+    attrs
+    |> add_cached_intrinsic_dimensions(img_info)
+    |> update_src_attr("/" <> inner.build_2_build_img <> img_info.build_version)
 
   let img_info =
     BuildImgInfo(..img_info, three_chars: list.append(img_info.three_chars, [three_chars_val]))
@@ -586,12 +660,16 @@ fn remove_files_from_build_img_that_have_no_image_map_preimage(
     simplifile.get_files(inner.exec_2_build_img),
     fn(err) { Error(DesugaringError(desugarer_blame(587), "could not read build_img files at "  <> inner.exec_2_build_img <> " for cleanup: "  <> simplifile.describe_error(err))) }
   )
-  let values = dict.values(state) |> list.map(fn(info) { info.build_version })
+  let build_versions =
+    state
+    |> dict.values
+    |> list.map(fn(info) { #(info.build_version, Nil) })
+    |> dict.from_list
   list.each(
     paths,
     fn (path) {
       let key = path |> core.assert_drop_prefix(inner.exec_2_build_img)
-      case list.contains(values, key) {
+      case dict.has_key(build_versions, key) {
         True -> Nil
         False -> {
           io.println(whoami <> ": rm " <> path)
@@ -696,6 +774,14 @@ fn ensure_suffix_if_nonempty(s: String, t: String) -> String {
   }
 }
 
+fn compile_svg_patterns() -> SvgPatterns {
+  let assert Ok(svg) = regexp.from_string("(<svg[^>]*>)")
+  let assert Ok(width) = regexp.from_string("(?:^|[[:space:]])width=['\"]([0-9]+(?:\\.[0-9]+)?)(?:[a-zA-Z%]*)['\"]")
+  let assert Ok(height) = regexp.from_string("(?:^|[[:space:]])height=['\"]([0-9]+(?:\\.[0-9]+)?)(?:[a-zA-Z%]*)['\"]")
+  let assert Ok(viewbox) = regexp.from_string("(?:^|[[:space:]])viewBox=['\"][[:space:]]*[-+0-9.]+[[:space:],]+[-+0-9.]+[[:space:],]+([0-9]+(?:\\.[0-9]+)?)[[:space:],]+([0-9]+(?:\\.[0-9]+)?)['\"]")
+  SvgPatterns(svg, width, height, viewbox)
+}
+
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
   assert param.0 != ""
   assert param.1 != ""
@@ -713,6 +799,7 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
   let exec_2_src_img = exec_2_src <> src_2_src_img
   let exec_2_build_img = exec_2_build <> build_2_build_img
   let src_2_src_img_length = src_2_src_img |> string.length()
+  let build_img_files = load_relative_file_set(exec_2_build_img)
 
   use src_img_mod_times <- on.ok(load_last_modified_times(exec_2_src_img))
 
@@ -726,9 +813,11 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
     build_2_build_img: build_2_build_img,
     image_map_path: param.4,
     src_img_mod_times: src_img_mod_times,
+    build_img_files: build_img_files,
     cleanup_image_map: param.5,
     cleanup_build_img: param.6,
     quick_mode: param.7,
+    svg_patterns: compile_svg_patterns(),
   )
   |> Ok
 }
@@ -745,6 +834,8 @@ type BuildImgInfo {
     original_size: Int,
     compressed_size: Int,
     compression: String, // e.g. "38.85%"
+    intrinsic_width: String,
+    intrinsic_height: String,
     used_last_build: Bool,
     three_chars: List(String),
   )
@@ -752,7 +843,12 @@ type BuildImgInfo {
 
 type ImageMap = Dict(String, BuildImgInfo)
 type LastModifiedTimes = Dict(String, Int) // path -> last_modified timestamp
+type FileSet = Dict(String, Nil)
 type State = ImageMap
+
+type SvgPatterns {
+  SvgPatterns(svg: regexp.Regexp, width: regexp.Regexp, height: regexp.Regexp, viewbox: regexp.Regexp)
+}
 
 type Param = #(
   // **********************************************************
@@ -809,9 +905,11 @@ type InnerParam {
     build_2_build_img: String,
     image_map_path: String,
     src_img_mod_times: LastModifiedTimes,
+    build_img_files: FileSet,
     cleanup_image_map: Bool,
     cleanup_build_img: Bool,
     quick_mode: Bool,
+    svg_patterns: SvgPatterns,
   )
 }
 
