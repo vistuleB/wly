@@ -649,116 +649,23 @@ pub fn basic_cli_usage(header: String) {
     margin <> "--track <string> [<selector arguments>] [<step ranges>]",
   )
   io.println(
-    margin <> "  -> track changes near the document fragment given by <string>,",
+    margin <> "  -> track changes near the document fragment matching <string>",
   )
   io.println(
-    margin
-    <> "     that can refer to any part of the printed VXML output except",
+    margin <> "     (run with '--track-help' for complete instructions)",
   )
-  io.println(margin <> "     for leading whitespace; e.g.:")
   io.println("")
   io.println(margin <> "     gleam run -- --track \"lorem ipsum\"")
-  io.println(margin <> "     gleam run -- --track src=img/23.svg")
-  io.println(margin <> "     gleam run -- --track \"<> ImageRight\"")
-  io.println("")
-  io.println(
-    margin <> "     • signed windows have form +<after>-<before> or the reverse",
-  )
-  io.println(
-    margin <> "       e.g., '+15-5'; '+-5' is symmetric; '+0' selects one line",
-  )
-  io.println(
-    margin <> "       one-sided nonzero forms such as '+5' are not accepted",
-  )
-  io.println("")
-  io.println(margin <> "     • with no window, both default to symmetric '-+1'")
-  io.println(
-    margin <> "       with one unlabeled or '-track' window, printing copies it",
-  )
+  io.println(margin <> "     gleam run -- --track src=img/23.svg +5-2")
   io.println(
     margin
-    <> "       with only '-print', tracking defaults to '-track-+1'; common",
-  )
-  io.println(
-    margin <> "       modifiers before '-print' apply to both selectors",
-  )
-  io.println(
-    margin
-    <> "       with two, the first tracks changes and the second is printed",
-  )
-  io.println(
-    margin
-    <> "       use '-track<window>' and '-print<window>' for explicit roles",
+    <> "     gleam run -- --track \"<> ImageRight\" -track+0 -print+-5 \\",
   )
   io.println("")
+  io.println(margin <> "--track-help")
   io.println(
-    margin <> "     • <step ranges> specify which desugaring steps to track:",
+    margin <> "  -> print detailed '--track' instructions and examples",
   )
-  io.println(
-    margin
-    <> "         • <x-y> to track changes in desugaring steps x to y only",
-  )
-  io.println(margin <> "         • <x-> to track from step x through the end")
-  io.println(margin <> "         • negative indices count back from the end")
-  io.println(margin <> "         • !x to force a printout at step x")
-  io.println(
-    margin
-    <> "         • add <desugarer-name> before <step numbers> to make the",
-  )
-  io.println(
-    margin <> "           step numbers relative to occurrences of a given",
-  )
-  io.println(
-    margin <> "           desugarer in the pipeline; in this case, leaving",
-  )
-  io.println(
-    margin <> "           its range empty defaults to that desugarer's own step",
-  )
-  io.println("")
-  io.println(margin <> "     leave <step numbers> empty to track all steps")
-  io.println("")
-  io.println(margin <> "  -> additional examples for --track:")
-  io.println("")
-  io.println(
-    margin <> "     gleam run -- --track \"lorem ipsum\" +5-5 my_desugarer_name",
-  )
-  io.println(
-    margin
-    <> "     gleam run -- --track \"lorem ipsum\" +5-5 my_desugarer_name-2+2",
-  )
-  io.println("")
-  io.println(margin <> "  -> additional options for --track:")
-  io.println("")
-  io.println(
-    margin <> "     • 'with-ancestors': trigger selection of ancestor tags of",
-  )
-  io.println(margin <> "        selected lines")
-  io.println(
-    margin <> "     • 'with-elder-siblings': trigger selection of ancestor tags",
-  )
-  io.println(margin <> "        and elder sibling tags of selected lines")
-  io.println(
-    margin
-    <> "     • 'with-ancestor-attrs' | 'with-attrs': trigger selection of",
-  )
-  io.println(
-    margin <> "        ancestor tags of selected lines and their attributes",
-  )
-  io.println(
-    margin <> "     • 'with-elder-sibling-attrs': trigger selection of ancestor",
-  )
-  io.println(
-    margin <> "        tags and elder siblings tags of selected lines and their",
-  )
-  io.println(margin <> "        attributes")
-  io.println(
-    margin
-    <> "     • '-i': \"interactive mode\": pauses for user input after each",
-  )
-  io.println(margin <> "        output; type 'enter' for next chunk, else:")
-  io.println(margin <> "          • 'e' to escape the interactive mode;")
-  io.println(margin <> "          • <n> to fast-forward past n next outputs;")
-  io.println(margin <> "          • 'c' to cancel the desugaring entirely;")
   io.println("")
   io.println(margin <> "--verbose")
   io.println(margin <> "  -> verbose renderer output")
@@ -778,6 +685,174 @@ pub fn basic_cli_usage(header: String) {
     margin <> "  -> include performance table (how long it takes each desugarer",
   )
   io.println(margin <> "     to run) using <cols> columns")
+  io.println("")
+}
+
+pub fn track_cli_usage(header: String) {
+  case header {
+    "" -> Nil
+    _ -> io.println(header <> "\n")
+  }
+  let margin = "   "
+  io.println(
+    margin <> "--track <string> [<selector arguments>] [<step ranges>]",
+  )
+  io.println(
+    margin <> "  -> print document fragments when the selected VXML changes",
+  )
+  io.println("")
+  io.println(margin <> "  <string>")
+  io.println(
+    margin <> "     Matches any part of a line in the printed VXML, excluding",
+  )
+  io.println(
+    margin <> "     leading whitespace. Quote strings containing spaces.",
+  )
+  io.println("")
+  io.println(margin <> "     gleam run -- --track \"lorem ipsum\"")
+  io.println(margin <> "     gleam run -- --track src=img/23.svg")
+  io.println(margin <> "     gleam run -- --track \"<> ImageRight\"")
+  io.println("")
+  io.println(margin <> "  selector windows")
+  io.println(
+    margin <> "     A signed window selects lines before and after each match.",
+  )
+  io.println(
+    margin <> "     Write +<after>-<before>, or put the minus part first:",
+  )
+  io.println("")
+  io.println(margin <> "       +5-2   five lines after and two before")
+  io.println(margin <> "       -2+5   equivalent to +5-2")
+  io.println(margin <> "       +-5    five lines on either side")
+  io.println(margin <> "       -+5    equivalent to +-5")
+  io.println(margin <> "       +0     only the matching line")
+  io.println("")
+  io.println(
+    margin <> "     A nonzero one-sided form such as '+5' or '-5' is rejected.",
+  )
+  io.println(
+    margin <> "     With no window, tracking and printing both use '-+1'.",
+  )
+  io.println("")
+  io.println(margin <> "  tracking versus printing")
+  io.println(
+    margin <> "     The tracking selector decides whether the VXML changed; the",
+  )
+  io.println(
+    margin <> "     printing selector decides which lines appear in the output.",
+  )
+  io.println("")
+  io.println(
+    margin
+    <> "     One unlabeled window is used for both tracking and printing.",
+  )
+  io.println(
+    margin <> "     With two, the first tracks and the second prints. The roles",
+  )
+  io.println(
+    margin <> "     can instead be labeled '-track' and '-print' explicitly.",
+  )
+  io.println("")
+  io.println(margin <> "       +0 +-5                 track +0; print +-5")
+  io.println(margin <> "       -track+0 -print+-5     the explicit equivalent")
+  io.println("")
+  io.println(
+    margin
+    <> "     If only '-track' is present, its complete selector is copied",
+  )
+  io.println(
+    margin <> "     to '-print'. If only '-print' is present, tracking defaults",
+  )
+  io.println(margin <> "     to '-track-+1'.")
+  io.println("")
+  io.println(margin <> "  selector modifiers")
+  io.println(margin <> "     with-ancestors            include ancestor tags")
+  io.println(
+    margin <> "     with-elder-siblings       also include elder sibling tags",
+  )
+  io.println(
+    margin <> "     with-ancestor-attrs       include ancestor attributes",
+  )
+  io.println(
+    margin <> "     with-attrs                alias for with-ancestor-attrs",
+  )
+  io.println(
+    margin <> "     with-elder-sibling-attrs  also include elder sibling attrs",
+  )
+  io.println("")
+  io.println(
+    margin <> "     Modifiers before the first labeled window apply to both",
+  )
+  io.println(
+    margin <> "     selectors. Modifiers after a label apply only to that one.",
+  )
+  io.println("")
+  io.println(
+    margin <> "       with-ancestors -track+0 -print+-5 with-ancestor-attrs",
+  )
+  io.println("")
+  io.println(margin <> "  pipeline step ranges")
+  io.println(
+    margin <> "     Leave step ranges empty to observe changes at every step.",
+  )
+  io.println(margin <> "     Otherwise, use absolute step numbers and ranges:")
+  io.println("")
+  io.println(margin <> "       50        step 50")
+  io.println(margin <> "       50-60     steps 50 through 60")
+  io.println(margin <> "       50-       step 50 through the end")
+  io.println(margin <> "       -5--1     the final five steps")
+  io.println(margin <> "       !123      force output at step 123")
+  io.println("")
+  io.println(
+    margin
+    <> "     A leading '!' forces output even if the tracked fragment did",
+  )
+  io.println(
+    margin <> "     not change. Negative absolute indices count from the end.",
+  )
+  io.println("")
+  io.println(
+    margin <> "     A desugarer name selects its occurrences in the pipeline.",
+  )
+  io.println(
+    margin <> "     Signed offsets following the name are relative to each",
+  )
+  io.println(margin <> "     occurrence:")
+  io.println("")
+  io.println(margin <> "       rename          each 'rename' step")
+  io.println(
+    margin <> "       rename-5        five steps before through rename",
+  )
+  io.println(margin <> "       rename+5        rename through five steps after")
+  io.println(margin <> "       rename-2+3      two before through three after")
+  io.println(margin <> "       rename+2+5      two through five steps after")
+  io.println("")
+  io.println(
+    margin <> "     Prefix an absolute range with '!' when its text could be",
+  )
+  io.println(
+    margin
+    <> "     mistaken for a desugarer-relative range, or to force output.",
+  )
+  io.println("")
+  io.println(margin <> "  interactive mode")
+  io.println(
+    margin <> "     Add '-i' to pause after each monitor output. At the prompt:",
+  )
+  io.println(margin <> "       <enter>  continue to the next output")
+  io.println(margin <> "       <n>      skip pauses for the next n outputs")
+  io.println(margin <> "       e        leave interactive mode")
+  io.println(margin <> "       c        cancel the pipeline")
+  io.println("")
+  io.println(margin <> "  complete examples")
+  io.println("")
+  io.println(
+    margin <> "     gleam run -- --track \"lorem ipsum\" +0 +-5 50-100",
+  )
+  io.println(
+    margin <> "     gleam run -- --track \"<> ImageRight\" -track+0 -print+-5",
+  )
+  io.println(margin <> "       with-ancestor-attrs rename-2+2 !-1")
   io.println("")
 }
 
@@ -891,6 +966,15 @@ pub fn process_command_line_arguments(
             False -> Error(UnexpectedArgumentsToOption("option"))
           }
         }
+
+        "--track-help" ->
+          case list.is_empty(values) {
+            True -> {
+              track_cli_usage("\nrenderer '--track' command line instructions:")
+              Ok(CommandLineAmendments(..amendments, help: True))
+            }
+            False -> Error(UnexpectedArgumentsToOption("--track-help"))
+          }
 
         "--esoteric" -> {
           advanced_cli_usage("\nrenderer advanced command line options:")
