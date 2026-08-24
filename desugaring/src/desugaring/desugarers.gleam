@@ -112,7 +112,6 @@ import desugaring/desugarers/handles_generate_dictionary_and_id_list
 import desugaring/desugarers/handles_generate_v_definitions_from_t_definitions
 import desugaring/desugarers/handles_setup_grand_wrapper
 import desugaring/desugarers/handles_substitute
-import desugaring/desugarers/handles_substitute_and_fix_nonlocal_id_links
 import desugaring/desugarers/handles_warn_unused
 import desugaring/desugarers/identity
 import desugaring/desugarers/ii2_carousel_component
@@ -395,7 +394,6 @@ pub const handles_generate_dictionary_and_id_list = handles_generate_dictionary_
 pub const handles_generate_v_definitions_from_t_definitions = handles_generate_v_definitions_from_t_definitions.constructor
 pub const handles_setup_grand_wrapper = handles_setup_grand_wrapper.constructor
 pub const handles_substitute = handles_substitute.constructor
-pub const handles_substitute_and_fix_nonlocal_id_links = handles_substitute_and_fix_nonlocal_id_links.constructor
 pub const handles_warn_unused = handles_warn_unused.constructor
 pub const identity = identity.constructor
 pub const ii2_carousel_component = ii2_carousel_component.constructor
@@ -679,7 +677,6 @@ pub const assertive_tests : List(fn() -> core.AssertiveTestCollection) = [
   handles_generate_v_definitions_from_t_definitions.assertive_tests,
   handles_setup_grand_wrapper.assertive_tests,
   handles_substitute.assertive_tests,
-  handles_substitute_and_fix_nonlocal_id_links.assertive_tests,
   handles_warn_unused.assertive_tests,
   identity.assertive_tests,
   ii2_carousel_component.assertive_tests,

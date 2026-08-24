@@ -668,8 +668,8 @@ fn desugarer_blame(line_no: Int) {
 /// path equals the current local path. A handle using #page links to the page
 /// path without appending #id.
 ///
-/// Unlike handles_substitute_and_fix_nonlocal_id_links, this desugarer does
-/// not rewrite href=#id links and does not remove the GrandWrapper node.
+/// This desugarer does not rewrite href=#id links and does not remove the
+/// GrandWrapper node.
 ///
 /// On its way out it appends a 6th 'used' column to every GrandWrapper
 /// handle entry, recording whether the handle was referenced anywhere in
