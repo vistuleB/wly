@@ -195,9 +195,7 @@ pub fn descendant_lines(v: VXML) -> List(Line) {
   case v {
     T(_, lines) -> lines
     V(_, _, _, children) -> {
-      children
-      |> list.map(descendant_lines)
-      |> list.flatten
+      list.flat_map(children, descendant_lines)
     }
   }
 }
@@ -218,17 +216,12 @@ pub fn filter_descendants(
   condition: fn(VXML) -> Bool,
 ) -> List(VXML) {
   case vxml {
-    T(_, _) -> []
+    T(..) -> []
     V(_, _, _, children) -> {
       let matching_children = list.filter(children, condition)
       let descendants_from_children =
-        list.map(children, filter_descendants(_, condition))
-        |> list.flatten
-
-      list.flatten([
-        matching_children,
-        descendants_from_children,
-      ])
+        list.flat_map(children, filter_descendants(_, condition))
+      list.append(matching_children, descendants_from_children)
     }
   }
 }
@@ -420,12 +413,7 @@ pub fn list_set(items: List(a), index: Int, element: a) -> List(a) {
   let assert True = 0 <= index && index < list.length(items)
   let prefix = list.take(items, index)
   let suffix = list.drop(items, index + 1)
-  [
-    prefix,
-    [element],
-    suffix,
-  ]
-  |> list.flatten
+  list.append(prefix, [element, ..suffix])
 }
 
 pub fn get_at(items: List(a), index: Int) -> Result(a, Nil) {
@@ -695,7 +683,7 @@ pub fn t_find_replace(node: VXML, from: String, to: String) -> VXML {
 
 pub fn find_replace_if_t(node: VXML, from: String, to: String) -> VXML {
   case node {
-    T(_, _) -> t_find_replace(node, from, to)
+    T(..) -> t_find_replace(node, from, to)
     _ -> node
   }
 }
@@ -709,8 +697,11 @@ fn find_replace_in_line__batch(
   })
 }
 
-pub fn t_find_replace__batch(t: VXML, pairs: List(#(String, String))) {
-  let assert T(blame, lines) = t
+pub fn t_find_replace__batch(
+  vxml: VXML,
+  pairs: List(#(String, String)),
+) -> VXML {
+  let assert T(blame, lines) = vxml
   T(
     blame,
     lines
@@ -723,7 +714,7 @@ pub fn find_replace_if_t__batch(
   pairs: List(#(String, String)),
 ) -> VXML {
   case node {
-    T(_, _) -> t_find_replace__batch(node, pairs)
+    T(..) -> t_find_replace__batch(node, pairs)
     _ -> node
   }
 }
@@ -946,9 +937,7 @@ pub fn first_line_ends_with(lines: List(Line), s: String) -> Bool {
 }
 
 pub fn lines_total_chars(lines: List(Line)) -> Int {
-  lines
-  |> list.map(fn(line) { string.length(line.content) })
-  |> int.sum
+  list.fold(lines, 0, fn(total, line) { total + string.length(line.content) })
 }
 
 // ************************************************************
@@ -1239,7 +1228,7 @@ fn last_to_first_concatenation_internal(
         None -> already_done |> list.reverse
         Some(t) -> [t, ..already_done] |> list.reverse
       }
-    [V(_, _, _, _) as first, ..rest] ->
+    [V(..) as first, ..rest] ->
       case current_t {
         None ->
           last_to_first_concatenation_internal(
@@ -1254,7 +1243,7 @@ fn last_to_first_concatenation_internal(
             None,
           )
       }
-    [T(_, _) as first, ..rest] ->
+    [T(..) as first, ..rest] ->
       case current_t {
         None ->
           last_to_first_concatenation_internal(rest, already_done, Some(first))
@@ -1342,9 +1331,7 @@ pub fn total_chars(
     T(_, lines) -> lines_total_chars(lines)
 
     V(_, _, _, children) ->
-      children
-      |> list.map(total_chars)
-      |> int.sum
+      list.fold(children, 0, fn(total, child) { total + total_chars(child) })
   }
 }
 
@@ -1498,11 +1485,11 @@ pub fn break_out_first_word(input: String) -> #(String, String) {
 ///
 /// returns -> #(
 ///   node leftover with last word taken out,
-///   Option(new T(_, _) containing last word),
+///   Option(new T(..) containing last word),
 /// )
 pub fn extract_last_word_from_t_node_if_t(vxml: VXML) -> #(VXML, Option(VXML)) {
   case vxml {
-    V(_, _, _, _) -> #(vxml, None)
+    V(..) -> #(vxml, None)
     T(blame, contents) -> {
       let reversed = contents |> list.reverse
       let assert [last, ..rest] = reversed
@@ -1526,14 +1513,14 @@ pub fn extract_last_word_from_t_node_if_t(vxml: VXML) -> #(VXML, Option(VXML)) {
 /// starts with whitespace
 ///
 /// returns -> #(
-///   Option(new T(_, _) containing first word),
+///   Option(new T(..) containing first word),
 ///   node leftover with word taken out,
 /// )
 pub fn extract_first_word_from_t_node_if_t(
   vxml: VXML,
 ) -> #(Option(VXML), VXML) {
   case vxml {
-    V(_, _, _, _) -> #(None, vxml)
+    V(..) -> #(None, vxml)
     T(blame, contents) -> {
       let assert [first, ..rest] = contents
       case break_out_first_word(first.content) {
@@ -1569,14 +1556,14 @@ pub fn v_attrs_constructor(
 }
 
 pub fn v_set_tag(v: VXML, tag: String) -> VXML {
-  let assert V(_, _, _, _) = v
+  let assert V(..) = v
   V(..v, tag: tag)
 }
 
 pub fn v_extract_starting_spaces(node: VXML) -> #(Option(VXML), VXML) {
   let assert V(blame, tag, attrs, children) = node
   case children {
-    [T(_, _) as first, ..rest] -> {
+    [T(..) as first, ..rest] -> {
       case t_extract_starting_spaces(first) {
         #(None, _) -> #(None, node)
         #(Some(guy), first) -> #(
@@ -1592,7 +1579,7 @@ pub fn v_extract_starting_spaces(node: VXML) -> #(Option(VXML), VXML) {
 pub fn v_extract_ending_spaces(node: VXML) -> #(Option(VXML), VXML) {
   let assert V(blame, tag, attrs, children) = node
   case children |> list.reverse {
-    [T(_, _) as first, ..rest] -> {
+    [T(..) as first, ..rest] -> {
       case t_extract_ending_spaces(first) {
         #(None, _) -> #(None, node)
         #(Some(guy), first) -> #(
@@ -1608,7 +1595,7 @@ pub fn v_extract_ending_spaces(node: VXML) -> #(Option(VXML), VXML) {
 pub fn v_trim_start(node: VXML) -> VXML {
   let assert V(_, _, _, children) = node
   case children {
-    [T(_, _) as first, ..rest] -> {
+    [T(..) as first, ..rest] -> {
       case t_trim_start(first) {
         None -> v_trim_start(V(..node, children: rest))
         Some(guy) -> V(..node, children: [guy, ..rest])
@@ -1621,7 +1608,7 @@ pub fn v_trim_start(node: VXML) -> VXML {
 pub fn v_trim_end(node: VXML) -> VXML {
   let assert V(_, _, _, children) = node
   case children |> list.reverse {
-    [T(_, _) as first, ..rest] -> {
+    [T(..) as first, ..rest] -> {
       case t_trim_end(first) {
         None -> v_trim_end(V(..node, children: rest |> list.reverse))
         Some(guy) -> V(..node, children: [guy, ..rest] |> list.reverse)
@@ -1634,7 +1621,7 @@ pub fn v_trim_end(node: VXML) -> VXML {
 pub fn v_remove_starting_empty_lines(node: VXML) -> VXML {
   let assert V(_, _, _, children) = node
   case children {
-    [T(_, _) as first, ..rest] -> {
+    [T(..) as first, ..rest] -> {
       case t_remove_starting_empty_lines(first) {
         None -> v_remove_starting_empty_lines(V(..node, children: rest))
         Some(guy) -> V(..node, children: [guy, ..rest])
@@ -1647,7 +1634,7 @@ pub fn v_remove_starting_empty_lines(node: VXML) -> VXML {
 pub fn v_remove_ending_empty_lines(node: VXML) -> VXML {
   let assert V(_, _, _, children) = node
   case children |> list.reverse {
-    [T(_, _) as first, ..rest] -> {
+    [T(..) as first, ..rest] -> {
       case t_remove_ending_empty_lines(first) {
         None ->
           v_remove_ending_empty_lines(V(..node, children: rest |> list.reverse))
@@ -1661,7 +1648,7 @@ pub fn v_remove_ending_empty_lines(node: VXML) -> VXML {
 pub fn v_start_insert_line(vxml: VXML, line: Line) -> VXML {
   let assert V(blame, _, _, children) = vxml
   let children = case children {
-    [T(_, _) as first, ..rest] -> [t_start_insert_line(first, line), ..rest]
+    [T(..) as first, ..rest] -> [t_start_insert_line(first, line), ..rest]
     _ -> [T(blame, [line]), ..children]
   }
   V(..vxml, children: children)
@@ -1670,7 +1657,7 @@ pub fn v_start_insert_line(vxml: VXML, line: Line) -> VXML {
 pub fn v_end_insert_line(vxml: VXML, line: Line) -> VXML {
   let assert V(blame, _, _, children) = vxml
   let children = case children |> list.reverse {
-    [T(_, _) as first, ..rest] -> [t_end_insert_line(first, line), ..rest]
+    [T(..) as first, ..rest] -> [t_end_insert_line(first, line), ..rest]
     _ -> [T(blame, [line]), ..children]
   }
   V(..vxml, children: children |> list.reverse)
@@ -1679,7 +1666,7 @@ pub fn v_end_insert_line(vxml: VXML, line: Line) -> VXML {
 pub fn v_start_insert_text(vxml: VXML, text: String) -> VXML {
   let assert V(blame, _, _, children) = vxml
   let children = case children {
-    [T(_, _) as first, ..rest] -> [t_start_insert_text(first, text), ..rest]
+    [T(..) as first, ..rest] -> [t_start_insert_text(first, text), ..rest]
     _ -> [T(blame, [Line(blame, text)]), ..children]
   }
   V(..vxml, children: children)
@@ -1688,7 +1675,7 @@ pub fn v_start_insert_text(vxml: VXML, text: String) -> VXML {
 pub fn v_end_insert_text(vxml: VXML, text: String) -> VXML {
   let assert V(blame, _, _, children) = vxml
   let children = case children |> list.reverse {
-    [T(_, _) as first, ..rest] -> [t_end_insert_text(first, text), ..rest]
+    [T(..) as first, ..rest] -> [t_end_insert_text(first, text), ..rest]
     _ -> [T(blame, [Line(blame, text)]), ..children]
   }
   V(..vxml, children: children |> list.reverse)
@@ -1818,14 +1805,12 @@ pub fn v_attrs_with_key(vxml: VXML, key: String) -> List(Attr) {
 
 pub fn v_has_attr_with_key(vxml: VXML, key: String) -> Bool {
   let assert V(_, _, attrs, _) = vxml
-  let to_return = list.any(attrs, fn(b) { b.key == key })
-  let assert True = to_return == attrs_have_key(attrs, key)
-  to_return
+  attrs_have_key(attrs, key)
 }
 
 pub fn is_v_and_has_attr_with_key(vxml: VXML, key: String) -> Bool {
   case vxml {
-    V(_, _, _, _) -> v_has_attr_with_key(vxml, key)
+    V(..) -> v_has_attr_with_key(vxml, key)
     _ -> False
   }
 }
@@ -1911,10 +1896,10 @@ pub fn v_first_child_with_tag(vxml: VXML, tag: String) -> Option(VXML) {
   first_with_tag(children, tag)
 }
 
-pub fn v_replace_children_with(node: VXML, children: List(VXML)) {
-  case node {
-    V(b, t, a, _) -> V(b, t, a, children)
-    _ -> node
+pub fn v_replace_children_with(vxml: VXML, children: List(VXML)) -> VXML {
+  case vxml {
+    V(..) -> V(..vxml, children: children)
+    _ -> vxml
   }
 }
 
@@ -2356,17 +2341,11 @@ pub fn replace_attr_val_recursive(
 // ************************************************************
 
 pub fn valid_tag(tag: String) -> Bool {
-  case vxml.validate_tag(tag) {
-    Ok(_) -> True
-    Error(_) -> False
-  }
+  vxml.validate_tag(tag) |> result.is_ok
 }
 
 pub fn invalid_tag(tag: String) -> Bool {
-  case vxml.validate_tag(tag) {
-    Ok(_) -> False
-    Error(_) -> True
-  }
+  !valid_tag(tag)
 }
 
 // ************************************************************
@@ -2744,8 +2723,8 @@ pub fn merge_attrs(attrs: List(Attr)) -> List(Attr) {
 pub fn v_map(vxmls: List(VXML), f: fn(VXML) -> VXML) -> List(VXML) {
   list.map(vxmls, fn(vxml) {
     case vxml {
-      T(_, _) -> vxml
-      V(_, _, _, _) -> f(vxml)
+      T(..) -> vxml
+      V(..) -> f(vxml)
     }
   })
 }
@@ -2753,8 +2732,8 @@ pub fn v_map(vxmls: List(VXML), f: fn(VXML) -> VXML) -> List(VXML) {
 pub fn t_map(vxmls: List(VXML), f: fn(VXML) -> VXML) -> List(VXML) {
   list.map(vxmls, fn(vxml) {
     case vxml {
-      T(_, _) -> f(vxml)
-      V(_, _, _, _) -> vxml
+      T(..) -> f(vxml)
+      V(..) -> vxml
     }
   })
 }
@@ -3038,7 +3017,7 @@ fn vxml_to_s_lines_internal(
         fn(acc, child) { vxml_to_s_lines_internal(acc, child, indent + 2) },
       )
     }
-    T(_, _) -> {
+    T(..) -> {
       pour(t_s_lines(vxml, indent), previous_lines)
     }
   }
