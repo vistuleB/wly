@@ -402,11 +402,11 @@ pub fn index_map_fold(
 }
 
 pub fn try_map_fold(
-  over ze_list: List(q),
+  over items: List(q),
   from state: a,
   with f: fn(a, q) -> Result(#(q, a), c),
 ) -> Result(#(List(q), a), c) {
-  case ze_list {
+  case items {
     [] -> Ok(#([], state))
     [first, ..rest] -> {
       use #(mapped_first, state) <- on.ok(f(state, first))
@@ -416,10 +416,10 @@ pub fn try_map_fold(
   }
 }
 
-pub fn list_set(ze_list: List(a), index: Int, element: a) -> List(a) {
-  let assert True = 0 <= index && index < list.length(ze_list)
-  let prefix = list.take(ze_list, index)
-  let suffix = list.drop(ze_list, index + 1)
+pub fn list_set(items: List(a), index: Int, element: a) -> List(a) {
+  let assert True = 0 <= index && index < list.length(items)
+  let prefix = list.take(items, index)
+  let suffix = list.drop(items, index + 1)
   [
     prefix,
     [element],
@@ -428,10 +428,10 @@ pub fn list_set(ze_list: List(a), index: Int, element: a) -> List(a) {
   |> list.flatten
 }
 
-pub fn get_at(ze_list: List(a), index: Int) -> Result(a, Nil) {
-  case index >= list.length(ze_list) || index < 0 {
+pub fn get_at(items: List(a), index: Int) -> Result(a, Nil) {
+  case index >= list.length(items) || index < 0 {
     True -> Error(Nil)
-    False -> list.drop(ze_list, index) |> list.first
+    False -> list.drop(items, index) |> list.first
   }
 }
 
@@ -466,16 +466,16 @@ pub fn assert_drop_last(z: List(a)) -> List(a) {
   rest |> list.reverse
 }
 
-fn index_of_internal(ze_list: List(a), thing: a, current_index: Int) -> Int {
-  case ze_list {
+fn index_of_internal(items: List(a), thing: a, current_index: Int) -> Int {
+  case items {
     [] -> -1
     [first, ..] if first == thing -> current_index
     [_, ..rest] -> index_of_internal(rest, thing, current_index + 1)
   }
 }
 
-pub fn index_of(ze_list: List(a), thing: a) -> Int {
-  index_of_internal(ze_list, thing, 0)
+pub fn index_of(items: List(a), thing: a) -> Int {
+  index_of_internal(items, thing, 0)
 }
 
 pub type SingletonError {
@@ -491,12 +491,12 @@ pub fn read_singleton(z: List(a)) -> Result(a, SingletonError) {
   }
 }
 
-pub fn delete(ze_list: List(a), ze_thing: a) -> #(Bool, List(a)) {
-  case ze_list {
+pub fn delete(items: List(a), item: a) -> #(Bool, List(a)) {
+  case items {
     [] -> #(False, [])
-    [first, ..rest] if first == ze_thing -> #(True, delete(rest, ze_thing).1)
+    [first, ..rest] if first == item -> #(True, delete(rest, item).1)
     [first, ..rest] -> {
-      let #(b, rest) = delete(rest, ze_thing)
+      let #(b, rest) = delete(rest, item)
       #(b, [first, ..rest])
     }
   }
@@ -785,7 +785,10 @@ pub fn extract_trim_end(content: String) -> #(String, String) {
 // lines
 // ************************************************************
 
-pub fn lines_map_content(lines: List(Line), m: fn(String) -> String) {
+pub fn lines_map_content(
+  lines: List(Line),
+  m: fn(String) -> String,
+) -> List(Line) {
   lines |> list.map(fn(l) { Line(l.blame, m(l.content)) })
 }
 
@@ -870,7 +873,7 @@ pub fn split_lines(lines: List(Line), splitter: String) -> List(List(Line)) {
   split_lines_internal([], [], lines, splitter)
 }
 
-pub fn trim_starting_spaces_except_first_line(vxml: VXML) {
+pub fn trim_starting_spaces_except_first_line(vxml: VXML) -> VXML {
   let assert T(blame, lines) = vxml
   let assert [first_line, ..rest] = lines
   let updated_rest =
@@ -882,7 +885,7 @@ pub fn trim_starting_spaces_except_first_line(vxml: VXML) {
   T(blame, [first_line, ..updated_rest])
 }
 
-pub fn trim_ending_spaces_except_last_line(vxml: VXML) {
+pub fn trim_ending_spaces_except_last_line(vxml: VXML) -> VXML {
   let assert T(blame, lines) = vxml
   let assert [last_line, ..rest] = lines |> list.reverse()
   let updated_rest =
@@ -1438,24 +1441,24 @@ pub fn t_extract_ending_spaces(node: VXML) -> #(Option(VXML), VXML) {
   }
 }
 
-pub fn t_start_insert_line(node: VXML, line: Line) {
-  let assert T(blame, lines) = node
+pub fn t_start_insert_line(vxml: VXML, line: Line) -> VXML {
+  let assert T(blame, lines) = vxml
   T(blame, [line, ..lines])
 }
 
-pub fn t_end_insert_line(node: VXML, line: Line) {
-  let assert T(blame, lines) = node
+pub fn t_end_insert_line(vxml: VXML, line: Line) -> VXML {
+  let assert T(blame, lines) = vxml
   T(blame, list.append(lines, [line]))
 }
 
-pub fn t_start_insert_text(node: VXML, text: String) {
-  let assert T(blame, lines) = node
+pub fn t_start_insert_text(vxml: VXML, text: String) -> VXML {
+  let assert T(blame, lines) = vxml
   let assert [Line(blame_first, content_first), ..other_lines] = lines
   T(blame, [Line(blame_first, text <> content_first), ..other_lines])
 }
 
-pub fn t_end_insert_text(node: VXML, text: String) {
-  let assert T(blame, lines) = node
+pub fn t_end_insert_text(vxml: VXML, text: String) -> VXML {
+  let assert T(blame, lines) = vxml
   let assert [Line(blame_last, content_last), ..other_lines] =
     lines |> list.reverse
   T(
@@ -1701,7 +1704,7 @@ pub fn v_get_tag(vxml: VXML) -> String {
   tag
 }
 
-pub fn v_prepend_attr(vxml: VXML, attr: Attr) {
+pub fn v_prepend_attr(vxml: VXML, attr: Attr) -> VXML {
   let assert V(_, _, attrs, _) = vxml
   V(..vxml, attrs: [attr, ..attrs])
 }
@@ -1713,30 +1716,30 @@ pub fn v_prepend_unique_key_attr(vxml: VXML, attr: Attr) -> Result(VXML, Nil) {
   }
 }
 
-pub fn v_prepend_child(node: VXML, child: VXML) {
-  let assert V(_, _, _, children) = node
-  V(..node, children: [child, ..children])
+pub fn v_prepend_child(vxml: VXML, child: VXML) -> VXML {
+  let assert V(_, _, _, children) = vxml
+  V(..vxml, children: [child, ..children])
 }
 
-pub fn v_prepend_children(node: VXML, new: List(VXML)) {
-  let assert V(_, _, _, children) = node
-  V(..node, children: list.append(new, children))
+pub fn v_prepend_children(vxml: VXML, new: List(VXML)) -> VXML {
+  let assert V(_, _, _, children) = vxml
+  V(..vxml, children: list.append(new, children))
 }
 
-pub fn v_pour_children(node: VXML, new: List(VXML)) {
-  let assert V(_, _, _, children) = node
-  V(..node, children: pour(new, children))
+pub fn v_pour_children(vxml: VXML, new: List(VXML)) -> VXML {
+  let assert V(_, _, _, children) = vxml
+  V(..vxml, children: pour(new, children))
 }
 
-pub fn v_append_child(node: VXML, child: VXML) {
-  let assert V(_, _, _, children) = node
-  V(..node, children: list.append(children, [child]))
+pub fn v_append_child(vxml: VXML, child: VXML) -> VXML {
+  let assert V(_, _, _, children) = vxml
+  V(..vxml, children: list.append(children, [child]))
 }
 
-pub fn append_if_not_present(ze_list: List(a), ze_thing: a) -> List(a) {
-  case list.contains(ze_list, ze_thing) {
-    True -> ze_list
-    False -> list.append(ze_list, [ze_thing])
+pub fn append_if_not_present(items: List(a), item: a) -> List(a) {
+  case list.contains(items, item) {
+    True -> items
+    False -> list.append(items, [item])
   }
 }
 
@@ -1756,33 +1759,41 @@ pub fn insert_child_before_first_in_list(
   insert_before_first(nodes, child, is_v_and_tag_equals(_, before))
 }
 
-pub fn v_pour_before_first(node: VXML, to_insert: List(VXML), before: String) {
-  let assert V(_, _, _, children) = node
-  V(..node, children: pour_before_first_in_list(children, to_insert, before))
+pub fn v_pour_before_first(
+  vxml: VXML,
+  to_insert: List(VXML),
+  before: String,
+) -> VXML {
+  let assert V(_, _, _, children) = vxml
+  V(..vxml, children: pour_before_first_in_list(children, to_insert, before))
 }
 
-pub fn v_insert_child_before_first(node: VXML, child: VXML, before: String) {
-  let assert V(_, _, _, children) = node
+pub fn v_insert_child_before_first(
+  vxml: VXML,
+  child: VXML,
+  before: String,
+) -> VXML {
+  let assert V(_, _, _, children) = vxml
   V(
-    ..node,
+    ..vxml,
     children: insert_child_before_first_in_list(children, child, before),
   )
 }
 
-pub fn v_assert_append_to_last_child(node: VXML, child: VXML) {
-  let assert V(_, _, _, children) = node
+pub fn v_assert_append_to_last_child(vxml: VXML, child: VXML) -> VXML {
+  let assert V(_, _, _, children) = vxml
   let assert [last, ..rest] = children |> list.reverse
   let assert V(_, _, _, last_children) = last
   let last = V(..last, children: list.append(last_children, [child]))
-  V(..node, children: [last, ..rest] |> list.reverse)
+  V(..vxml, children: [last, ..rest] |> list.reverse)
 }
 
-pub fn v_assert_append_to_second_child(node: VXML, child: VXML) {
-  let assert V(_, _, _, children) = node
+pub fn v_assert_append_to_second_child(vxml: VXML, child: VXML) -> VXML {
+  let assert V(_, _, _, children) = vxml
   let assert [first, second, ..rest] = children
   let assert V(_, _, _, second_children) = second
   let second = V(..second, children: list.append(second_children, [child]))
-  V(..node, children: [first, second, ..rest])
+  V(..vxml, children: [first, second, ..rest])
 }
 
 pub fn v_set_attr(vxml: VXML, blame: Blame, key: String, val: String) -> VXML {
@@ -2046,9 +2057,6 @@ pub fn html_info_shorthand_to_attrs(
 
 // ************************************************************
 // constructors, including from_tag & expand_selector_shorthand
-//
-// NOTE: the `expand_selector_shorthand` might or might not be profitably simplified using above html_info_shorthand_to_attrs !!
-// TO BE SEEN! TODO!
 // ************************************************************
 
 pub type SelectorError {
@@ -2061,13 +2069,13 @@ fn expand_selector_split_while(
   s: splitter.Splitter,
   suffix: String,
 ) -> #(String, List(#(String, String))) {
-  let #(before, q, after) = splitter.split(s, suffix)
-  use _ <- on.stay(case q {
+  let #(before, delimiter, after) = splitter.split(s, suffix)
+  use _ <- on.stay(case delimiter {
     "" -> on.Return(#(before, []))
     _ -> on.Stay(Nil)
   })
-  let #(u, others) = expand_selector_split_while(s, after)
-  #(before, [#(q, u), ..others])
+  let #(payload, others) = expand_selector_split_while(s, after)
+  #(before, [#(delimiter, payload), ..others])
 }
 
 pub fn expand_selector_shorthand(
@@ -2084,21 +2092,21 @@ pub fn expand_selector_shorthand(
 
   use <- on.false_true(valid_tag(tag), fn() { Error(InvalidTag) })
 
-  let addendum_2_attr = fn(mod: #(String, String)) -> Attr {
-    case mod.0 {
-      "." -> Attr(blame, "class", mod.1)
-      "#" -> Attr(blame, "id", mod.1)
+  let addendum_to_attr = fn(addendum: #(String, String)) -> Attr {
+    case addendum.0 {
+      "." -> Attr(blame, "class", addendum.1)
+      "#" -> Attr(blame, "id", addendum.1)
       "&" ->
-        case string.split_once(mod.1, "=") {
+        case string.split_once(addendum.1, "=") {
           Ok(#(bef, aft)) -> Attr(blame, bef, aft)
-          _ -> Attr(blame, mod.1, "")
+          _ -> Attr(blame, addendum.1, "")
         }
-      _ -> panic as "some bug"
+      _ -> panic as "unexpected selector shorthand delimiter"
     }
   }
 
   let attrs =
-    list.map(addenda, addendum_2_attr)
+    list.map(addenda, addendum_to_attr)
     |> merge_attrs
 
   Ok(V(blame, tag, attrs, []))
@@ -2131,11 +2139,14 @@ pub fn attrs_have_key_val(attrs: List(Attr), key: String, val: String) -> Bool {
   list.any(attrs, fn(x) { x.key == key && x.val == val })
 }
 
-pub fn string_pair_to_attr(pair: #(String, String), blame: Blame) {
+pub fn string_pair_to_attr(pair: #(String, String), blame: Blame) -> Attr {
   Attr(blame, pair.0, pair.1)
 }
 
-pub fn string_pairs_to_attrs(pairs: List(#(String, String)), blame: Blame) {
+pub fn string_pairs_to_attrs(
+  pairs: List(#(String, String)),
+  blame: Blame,
+) -> List(Attr) {
   pairs
   |> list.map(string_pair_to_attr(_, blame))
 }
@@ -2418,8 +2429,8 @@ pub fn is_t_or_is_one_of(node: VXML, tags: List(String)) -> Bool {
   }
 }
 
-pub fn has_text_child(node: VXML) {
-  case node {
+pub fn has_text_child(vxml: VXML) -> Bool {
+  case vxml {
     V(_, _, _, children) -> list.any(children, is_t)
     _ -> False
   }
@@ -2957,18 +2968,8 @@ pub type SLine {
     key: String,
     val: String,
   )
-  TSLine(
-    blame: Blame,
-    indent: Int,
-    content: String,
-    selected: SelectionStatus,
-  )
-  LSLine(
-    blame: Blame,
-    indent: Int,
-    content: String,
-    selected: SelectionStatus,
-  )
+  TSLine(blame: Blame, indent: Int, content: String, selected: SelectionStatus)
+  LSLine(blame: Blame, indent: Int, content: String, selected: SelectionStatus)
 }
 
 pub type SelectionStatus {
@@ -2987,19 +2988,19 @@ pub type Selector =
 // tracking-related part 2: VXML -> List(SLine)
 // ************************************************************
 
-fn v_s_line(blame: Blame, indent: Int, tag: String) {
+fn v_s_line(blame: Blame, indent: Int, tag: String) -> SLine {
   VSLine(blame, indent, "<> " <> tag, NotSelected, tag)
 }
 
-fn a_s_line(blame: Blame, indent: Int, key: String, val: String) {
+fn a_s_line(blame: Blame, indent: Int, key: String, val: String) -> SLine {
   ASLine(blame, indent, key <> "=" <> val, NotSelected, key, val)
 }
 
-fn t_s_line(blame: Blame, indent: Int) {
+fn t_s_line(blame: Blame, indent: Int) -> SLine {
   TSLine(blame, indent, "<>", NotSelected)
 }
 
-fn l_s_line(blame: Blame, indent: Int, content: String) {
+fn l_s_line(blame: Blame, indent: Int, content: String) -> SLine {
   LSLine(
     blame,
     indent,
@@ -3221,9 +3222,9 @@ fn or_two_lists_of_s_lines(l1: List(SLine), l2: List(SLine)) -> List(SLine) {
 }
 
 pub fn or_selectors(s1: Selector, s2: Selector) -> Selector {
-  fn(pigeons) {
-    let l1 = pigeons |> s1
-    let l2 = pigeons |> s2
+  fn(lines) {
+    let l1 = lines |> s1
+    let l2 = lines |> s2
     or_two_lists_of_s_lines(l1, l2)
   }
 }
@@ -3231,6 +3232,14 @@ pub fn or_selectors(s1: Selector, s2: Selector) -> Selector {
 // ************************************************************
 // tracking-related part 6: pretty-printing selections
 // ************************************************************
+
+type SelectionOutputState {
+  SelectionOutputState(
+    has_selected_lines: Bool,
+    omitted_lines: Option(#(Int, Int)),
+    output_lines: List(OutputLine),
+  )
+}
 
 pub fn s_line_to_output_line(line: SLine) -> OutputLine {
   OutputLine(line.blame, line.indent, line.content)
@@ -3242,45 +3251,62 @@ pub fn s_lines_to_output_lines(
 ) -> List(OutputLine) {
   let s2l = s_line_to_output_line
   lines
-  |> list.fold(#(False, None, []), fn(acc, line) {
+  |> list.fold(SelectionOutputState(False, None, []), fn(state, line) {
     case line.selected {
       OG | Bystander ->
-        case acc.1 {
-          None -> #(True, None, [line |> s2l, ..acc.2])
+        case state.omitted_lines {
+          None ->
+            SelectionOutputState(
+              has_selected_lines: True,
+              omitted_lines: None,
+              output_lines: [line |> s2l, ..state.output_lines],
+            )
 
-          Some(#(indentation, num_lines)) -> #(True, None, [
-            line |> s2l,
-            OutputLine(
-              bl.NoBlame([
-                ins(case dry_run {
-                  True -> 0
-                  False -> num_lines
-                })
-                <> " unselected lines",
-              ]),
-              indentation,
-              "...",
-            ),
-            ..acc.2
-          ])
+          Some(#(indentation, num_lines)) ->
+            SelectionOutputState(
+              has_selected_lines: True,
+              omitted_lines: None,
+              output_lines: [
+                line |> s2l,
+                OutputLine(
+                  bl.NoBlame([
+                    ins(case dry_run {
+                      True -> 0
+                      False -> num_lines
+                    })
+                    <> " unselected lines",
+                  ]),
+                  indentation,
+                  "...",
+                ),
+                ..state.output_lines
+              ],
+            )
         }
       NotSelected ->
-        case acc.0, acc.1 {
-          False, None -> #(False, None, acc.2)
+        case state.has_selected_lines, state.omitted_lines {
+          False, None -> state
 
-          True, None -> #(True, Some(#(line.indent, 1)), acc.2)
+          True, None ->
+            SelectionOutputState(
+              ..state,
+              omitted_lines: Some(#(line.indent, 1)),
+            )
 
-          True, Some(#(indentation, num_lines)) -> #(
-            True,
-            Some(#(int.min(line.indent, indentation), num_lines + 1)),
-            acc.2,
-          )
+          True, Some(#(indentation, num_lines)) ->
+            SelectionOutputState(
+              ..state,
+              omitted_lines: Some(#(
+                int.min(line.indent, indentation),
+                num_lines + 1,
+              )),
+            )
 
           False, Some(_) -> panic as "shouldn't reach this combo"
         }
     }
   })
-  |> triple_3rd
+  |> fn(state) { state.output_lines }
   |> list.reverse
 }
 

@@ -336,7 +336,6 @@ pub fn one_to_many_no_error_nodemap_walk(
       // option 2:
       // let children =
       //   children
-      //   |> core.our_flat_map(one_to_many_no_error_nodemap_walk(_, nodemap))
       // option 3:
       let children =
         list.fold(
