@@ -1,60 +1,79 @@
-import gleam/function
+import desugaring/core.{type Desugarer, type Pipeline, type Selector}
+import desugaring/desugarers as dl
+import desugaring/selectors as sl
+import desugaring/tables as pr
+import dirtree.{type DirTree} as dt
+import either_or.{Either, Or}
 import gleam/dict.{type Dict}
+import gleam/erlang/process.{type Subject, receive, send, spawn}
 import gleam/float
-import gleam/pair
 import gleam/int
 import gleam/io
 import gleam/list
 import gleam/option.{type Option, None, Some}
+import gleam/pair
+import gleam/regexp
 import gleam/result
 import gleam/string.{inspect as ins}
 import gleam/time/duration.{type Duration}
 import gleam/time/timestamp
-import vxml/blame.{Ext, type Blame} as bl
-import vxml/io_lines.{type InputLine, type OutputLine, OutputLine} as io_l
-import desugaring/desugarers as dl
-import desugaring/core.{type Desugarer, type Pipeline, type Selector} as core
-import desugaring/selectors as sl
+import input
+import on
 import shellout
 import simplifile
-import desugaring/tables as pr
 import vxml.{type VXML, V} as vp
-import on
-import input
-import gleam/erlang/process.{type Subject, spawn, send, receive}
-import dirtree.{type DirTree} as dt
-import gleam/regexp
-import splitter
-import either_or.{Either, Or}
+import vxml/blame.{type Blame, Ext} as bl
+import vxml/io_lines.{type InputLine, type OutputLine, OutputLine} as io_l
 
-const default_times_table_char_width = 90 // MacBook 16' can take 140
+const default_times_table_char_width = 90
 
-pub type TrackingMode {
-  TrackingOff
-  TrackingOnChange
-  TrackingForced
+// MacBook 16' can take 140
+
+pub type MonitorOutputMargin {
+  AtRunnerMargin
+  Verbatim
 }
 
-pub type DecoratedDesugarer {
-  DecoratedDesugarer(
-    desugarer: Desugarer,
-    selector: Selector,
-    tracking_mode: TrackingMode,
-    dump: Bool,
+pub type MonitorOutput {
+  MonitorOutput(lines: List(String), margin: MonitorOutputMargin)
+}
+
+pub type PipelineStepContext {
+  PipelineStepContext(
+    step_no: Int,
+    previous_desugarer: Option(Desugarer),
+    next_desugarer: Option(Desugarer),
   )
 }
 
-pub fn desugarers_2_decorateds(
-  desugarers: List(Desugarer),
-) -> List(DecoratedDesugarer) {
-  desugarers
-  |> list.map(fn (d) {
-    DecoratedDesugarer(
-      desugarer: d,
-      selector: function.identity,
-      tracking_mode: TrackingOff,
-      dump: False,
-    )
+type MonitorUpdate {
+  MonitorUpdate(next: Monitor, outputs: List(MonitorOutput))
+}
+
+pub opaque type Monitor {
+  Monitor(
+    name: String,
+    update: fn(VXML, PipelineStepContext) -> Result(MonitorUpdate, String),
+  )
+}
+
+pub opaque type MonitorFactory {
+  TrackingMonitorFactory(Tracker)
+  DumpMonitorFactory(List(PipelineStepSpec))
+}
+
+pub fn new_monitor(
+  name: String,
+  state: state,
+  update: fn(VXML, state, PipelineStepContext) ->
+    Result(#(state, List(MonitorOutput)), String),
+) -> Monitor {
+  Monitor(name: name, update: fn(vxml, context) {
+    use #(next_state, outputs) <- on.ok(update(vxml, state, context))
+    Ok(MonitorUpdate(
+      next: new_monitor(name, next_state, update),
+      outputs: outputs,
+    ))
   })
 }
 
@@ -64,10 +83,12 @@ pub fn desugarers_2_decorateds(
 // ************************************************************
 
 pub type Assembler(a) =
-  fn(String) -> Result(#(List(InputLine), Option(DirTree)), a)    // the 'List(String)' is a feedback/success message on assembly
+  fn(String) -> Result(#(List(InputLine), Option(DirTree)), a)
+
+// the 'List(String)' is a feedback/success message on assembly
 
 pub fn default_file_assembler(
-  path: String
+  path: String,
 ) -> Result(#(List(InputLine), Option(DirTree)), simplifile.FileError) {
   io_l.read(path, 0)
   |> result.map(fn(lines) { #(lines, None) })
@@ -104,13 +125,18 @@ pub fn default_filterer(
   saving: List(String),
 ) -> Result(VXML, String) {
   use #(vxml, warnings) <- on.error_ok(
-    dl.filter_nodes_by_path_key_values_while_saving(#(options.only_path_key_vals, saving)).transform(vxml),
-    fn(e) { Error(e.message) }
+    dl.filter_nodes_by_path_key_values_while_saving(#(
+      options.only_path_key_vals,
+      saving,
+    )).transform(vxml),
+    fn(e) { Error(e.message) },
   )
   assert warnings == []
   use #(vxml, warnings) <- on.error_ok(
-    dl.filter_nodes_by_key_values_while_saving(#(options.only_key_vals, saving)).transform(vxml),
-    fn(e) { Error(e.message) }
+    dl.filter_nodes_by_key_values_while_saving(#(options.only_key_vals, saving)).transform(
+      vxml,
+    ),
+    fn(e) { Error(e.message) },
   )
   assert warnings == []
   Ok(vxml)
@@ -121,7 +147,8 @@ pub fn default_filterer(
 // VXML -> List(OutputFragment)
 // ************************************************************
 
-pub type OutputFragment(z, p) {                  // 'z' is fragment classifier type, 'p' is payload type (VXML or List(OutputLine))
+pub type OutputFragment(z, p) {
+  // 'z' is fragment classifier type, 'p' is payload type (VXML or List(OutputLine))
   OutputFragment(classifier: z, path: String, payload: p)
 }
 
@@ -156,18 +183,34 @@ pub fn stub_html_emitter(
         OutputLine(blame, 0, "<!DOCTYPE html>"),
         OutputLine(blame, 0, "<html>"),
         OutputLine(blame, 0, "<head>"),
-        OutputLine(blame, 2, "<link rel=\"icon\" type=\"image/x-icon\" href=\"logo.png\">"),
+        OutputLine(
+          blame,
+          2,
+          "<link rel=\"icon\" type=\"image/x-icon\" href=\"logo.png\">",
+        ),
         OutputLine(blame, 2, "<meta charset=\"utf-8\">"),
-        OutputLine(blame, 2, "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">"),
-        OutputLine(blame, 2, "<script type=\"text/javascript\" src=\"./mathjax_setup.js\"></script>"),
-        OutputLine(blame, 2, "<script type=\"text/javascript\" id=\"MathJax-script\" async src=\"https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js\"></script>"),
+        OutputLine(
+          blame,
+          2,
+          "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">",
+        ),
+        OutputLine(
+          blame,
+          2,
+          "<script type=\"text/javascript\" src=\"./mathjax_setup.js\"></script>",
+        ),
+        OutputLine(
+          blame,
+          2,
+          "<script type=\"text/javascript\" id=\"MathJax-script\" async src=\"https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js\"></script>",
+        ),
         OutputLine(blame, 0, "</head>"),
         OutputLine(blame, 0, "<body>"),
       ],
       fragment.payload
-      |> core.v_get_children
-      |> list.map(fn(vxml) { vp.vxml_to_html_output_lines(vxml, 2, 2) })
-      |> list.flatten,
+        |> core.v_get_children
+        |> list.map(fn(vxml) { vp.vxml_to_html_output_lines(vxml, 2, 2) })
+        |> list.flatten,
       [
         OutputLine(blame, 0, "</body>"),
         OutputLine(blame, 0, ""),
@@ -183,13 +226,17 @@ pub fn stub_jsx_emitter(
   let lines =
     list.flatten([
       [
-        OutputLine(blame, 0, "import Something from \"./Somewhere\";",),
+        OutputLine(blame, 0, "import Something from \"./Somewhere\";"),
         OutputLine(blame, 0, ""),
         OutputLine(blame, 0, "const OurSuperComponent = () => {"),
         OutputLine(blame, 2, "return ("),
         OutputLine(blame, 4, "<>"),
       ],
-      vp.vxmls_to_jsx_output_lines(fragment.payload |> core.v_get_children, 6, 2),
+      vp.vxmls_to_jsx_output_lines(
+        fragment.payload |> core.v_get_children,
+        6,
+        2,
+      ),
       [
         OutputLine(blame, 4, "</>"),
         OutputLine(blame, 2, ");"),
@@ -225,12 +272,16 @@ pub fn default_writer(
   output_dir: String,
   fragment: OutputFragment(z, String),
 ) -> Result(GhostOfOutputFragment(z), String) {
-  case output_dir_local_path_printer(output_dir, fragment.path, fragment.payload) {
+  case
+    output_dir_local_path_printer(output_dir, fragment.path, fragment.payload)
+  {
     Ok(Nil) -> {
       Ok(GhostOfOutputFragment(fragment.classifier, fragment.path))
     }
     Error(file_error) -> {
-      Error(ins(file_error) <> " on path " <> output_dir <> "/" <> fragment.path)
+      Error(
+        ins(file_error) <> " on path " <> output_dir <> "/" <> fragment.path,
+      )
     }
   }
 }
@@ -248,21 +299,27 @@ pub type PrettifierFeedback {
 }
 
 pub type Prettifier(z) =
-  fn(String, GhostOfOutputFragment(z), Option(String)) -> Option(PrettifierFeedback)
+  fn(String, GhostOfOutputFragment(z), Option(String)) ->
+    Option(PrettifierFeedback)
 
-pub fn run_prettier(in: String, path: String, check: Bool) -> PrettifierFeedback {
-  let result = shellout.command(
-    run: "prettier",
-    in: in,
-    with: [
-      case check {
-        True -> "--check"
-        False -> "--write"
-      },
-      path
-    ],
-    opt: [],
-  )
+pub fn run_prettier(
+  in: String,
+  path: String,
+  check: Bool,
+) -> PrettifierFeedback {
+  let result =
+    shellout.command(
+      run: "prettier",
+      in: in,
+      with: [
+        case check {
+          True -> "--check"
+          False -> "--write"
+        },
+        path,
+      ],
+      opt: [],
+    )
   let output = case result {
     Ok(s) -> s
     Error(#(_, s)) -> s
@@ -271,11 +328,11 @@ pub fn run_prettier(in: String, path: String, check: Bool) -> PrettifierFeedback
   let warnings =
     lines
     |> list.filter(fn(l) { string.starts_with(l, "[warn]") })
-    |> list.map(fn (s) { string.drop_start(s, 6) |> string.trim })
+    |> list.map(fn(s) { string.drop_start(s, 6) |> string.trim })
   let error_lines =
     lines
     |> list.filter(fn(l) { string.starts_with(l, "[error]") })
-    |> list.map(fn (s) { string.drop_start(s, 7) |> string.trim })
+    |> list.map(fn(s) { string.drop_start(s, 7) |> string.trim })
   let errors = case result {
     Ok(_) -> error_lines
     Error(#(_, _)) ->
@@ -303,47 +360,54 @@ pub fn default_prettier_prettifier(
 ) -> Option(PrettifierFeedback) {
   use <- on.eager_false_true(
     list.any([".html", ".tsx"], string.ends_with(ghost.path, _)),
-    None
+    None,
   )
 
   let source_path = output_dir <> "/" <> ghost.path
 
-  use #(dest_path, check) <- on.stay(
-    case prettier_dir {
-      None -> on.Stay(#(source_path, True))
+  use #(dest_path, check) <- on.stay(case prettier_dir {
+    None -> on.Stay(#(source_path, True))
 
-      Some(dir) -> {
-        let dest_path = dir <> "/" <> ghost.path
-        use <- on.true_false(
-          source_path == dest_path,
-          fn() { on.Stay(#(dest_path, False)) }
+    Some(dir) -> {
+      let dest_path = dir <> "/" <> ghost.path
+      use <- on.true_false(source_path == dest_path, fn() {
+        on.Stay(#(dest_path, False))
+      })
+      use _ <- on.error_ok(create_dirs_on_path_to_file(dest_path), fn(e) {
+        on.Return(
+          Some(
+            PrettifierFeedback(warnings: [], errors: [
+              "could not create directories on path " <> ins(e),
+            ]),
+          ),
         )
-        use _ <- on.error_ok(
-          create_dirs_on_path_to_file(dest_path),
-          fn(e) {
-            on.Return(Some(PrettifierFeedback(
-              warnings: [],
-              errors: ["could not create directories on path " <> ins(e)]
-            )))
-          }
-        )
-        case shellout.command(
+      })
+      case
+        shellout.command(
           run: "cp",
           in: ".",
           with: [source_path, dest_path],
           opt: [],
-        ) {
-          Error(#(_, msg)) -> {
-            on.Return(Some(PrettifierFeedback(
-              warnings: [],
-              errors: ["unable to copy '" <> source_path <> "' to '" <> dest_path <> "':" <> string.trim(msg)])
-            ))
-          }
-          _ -> on.Stay(#(dest_path, False))
+        )
+      {
+        Error(#(_, msg)) -> {
+          on.Return(
+            Some(
+              PrettifierFeedback(warnings: [], errors: [
+                "unable to copy '"
+                <> source_path
+                <> "' to '"
+                <> dest_path
+                <> "':"
+                <> string.trim(msg),
+              ]),
+            ),
+          )
         }
+        _ -> on.Stay(#(dest_path, False))
       }
     }
-  )
+  })
 
   run_prettier(".", dest_path, check) |> Some
 }
@@ -363,13 +427,20 @@ pub fn empty_prettifier(
 /// Wires source ingress, parsing, filtering, desugaring, splitting, emitting,
 /// writing, and optional prettification.
 pub type Renderer(
-  a, // Assembler error
-  b, // Parser error
-  c, // Filterer error
-  d, // Splitter error
-  e, // Emitter error
-  f, // Writer error
-  z, // VXML Fragment enum
+  a,
+  b,
+  c,
+  d,
+  e,
+  f,
+  z,
+  // Assembler error
+  // Parser error
+  // Filterer error
+  // Splitter error
+  // Emitter error
+  // Writer error
+  // VXML Fragment enum
 ) {
   Renderer(
     assembler: Assembler(a),
@@ -412,9 +483,8 @@ pub type RendererOptions(z) {
     only_paths: List(String),
     only_key_vals: List(#(String, String)),
     only_path_key_vals: List(#(String, String, String)),
-    dump: Option(List(Int)),
-    dump_named: List(#(String, Int, Int)),
-    tracker: Option(Tracker),
+    monitors: List(Monitor),
+    monitor_factories: List(MonitorFactory),
     echo_assembled_lines: Bool,
     echo_parsed_vxml: Bool,
     echo_filtered_vxml: Bool,
@@ -436,14 +506,15 @@ pub fn vanilla_options() -> RendererOptions(z) {
     only_paths: [],
     only_key_vals: [],
     only_path_key_vals: [],
-    dump: None,
-    dump_named: [],
-    tracker: None,
+    monitors: [],
+    monitor_factories: [],
     echo_assembled_lines: False,
     echo_parsed_vxml: False,
     echo_filtered_vxml: False,
-    echo_vxml_fragments: fn (_) { False },
-    echo_output_lines_fragments: fn(_: OutputFragment(z, List(OutputLine))) { False },
+    echo_vxml_fragments: fn(_) { False },
+    echo_output_lines_fragments: fn(_: OutputFragment(z, List(OutputLine))) {
+      False
+    },
     echo_string_fragments: fn(_: OutputFragment(z, String)) { False },
     echo_prettified_fragments: fn(_: GhostOfOutputFragment(z)) { False },
   )
@@ -453,13 +524,12 @@ pub fn vanilla_options() -> RendererOptions(z) {
 // CommandLineAmendments
 // ************************************************************
 
-pub type Tracker {
+type Tracker {
   Tracker(
-    selector: Option(core.Selector),
-    steps_with_tracking_on_change: List(Int),
-    steps_with_tracking_forced: List(Int),
+    printing_selector: Option(core.Selector),
+    change_selector: Option(core.Selector),
+    step_specs: List(PipelineStepSpec),
     interactive_mode: Bool,
-    desugarer_named_ranges: List(#(String, Int, Int, Bool)),
   )
 }
 
@@ -472,9 +542,9 @@ pub type CommandLineAmendments {
     only_key_vals: List(#(String, String)),
     only_path_key_vals: List(#(String, String, String)),
     prettier: Option(PrettifierMode),
-    tracker: Option(Tracker),
-    dump: Option(List(Int)),
-    dump_named: List(#(String, Int, Int)),
+    tracking_monitor_factory: Option(MonitorFactory),
+    dump_monitor_factory: Option(MonitorFactory),
+    tracker_interactive_mode: Bool,
     table: Option(Bool),
     times: Option(Int),
     verbose: Option(Bool),
@@ -505,9 +575,9 @@ fn empty_command_line_amendments() -> CommandLineAmendments {
     only_key_vals: [],
     only_path_key_vals: [],
     prettier: None,
-    tracker: None,
-    dump: None,
-    dump_named: [],
+    tracking_monitor_factory: None,
+    dump_monitor_factory: None,
+    tracker_interactive_mode: False,
     table: None,
     times: None,
     verbose: None,
@@ -536,64 +606,149 @@ pub fn basic_cli_usage(header: String) {
   }
   let margin = "   "
   io.println(margin <> "--help")
-  io.println(margin <> "  -> print the basic command line options (this message)")
+  io.println(
+    margin <> "  -> print the basic command line options (this message)",
+  )
   io.println("")
   io.println(margin <> "--esoteric")
   io.println(margin <> "  -> print advanced command line options")
   io.println("")
   io.println(margin <> "--only <string1> <string2> ...")
-  io.println(margin <> "  -> restrict source to files whose paths contain at least one of")
+  io.println(
+    margin
+    <> "  -> restrict source to files whose paths contain at least one of",
+  )
   io.println(margin <> "     the given strings as a substring")
   io.println("")
   io.println(margin <> "--only <key1=val1> <key2=val2> ...")
-  io.println(margin <> "  -> restrict source to elements that have at least one of the")
-  io.println(margin <> "     given key-value pairs as attrs (& ancestors of such)")
+  io.println(
+    margin <> "  -> restrict source to elements that have at least one of the",
+  )
+  io.println(
+    margin <> "     given key-value pairs as attrs (& ancestors of such)",
+  )
   io.println("")
   io.println(margin <> "--dump <step numbers>")
-  io.println(margin <> "  -> show entire document at given pipeline step numbers; leave")
-  io.println(margin <> "     step numbers empty to output document at all steps; use")
-  io.println(margin <> "     negative indices to indicate steps from end of pipeline")
+  io.println(
+    margin <> "  -> show entire document at given pipeline step numbers; leave",
+  )
+  io.println(
+    margin <> "     step numbers empty to output document at all steps; use",
+  )
+  io.println(
+    margin <> "     negative indices to indicate steps from end of pipeline",
+  )
   io.println("")
-  io.println(margin <> "--track <string> +<p>-<m> [<step numbers>]")
-  io.println(margin <> "  -> track changes near the document fragment given by <string>,")
-  io.println(margin <> "     that can refer to any part of the printed VXML output except")
+  io.println(
+    margin <> "--track <string> [<selector arguments>] [<step ranges>]",
+  )
+  io.println(
+    margin <> "  -> track changes near the document fragment given by <string>,",
+  )
+  io.println(
+    margin
+    <> "     that can refer to any part of the printed VXML output except",
+  )
   io.println(margin <> "     for leading whitespace; e.g.:")
   io.println("")
   io.println(margin <> "     gleam run -- --track \"lorem ipsum\"")
   io.println(margin <> "     gleam run -- --track src=img/23.svg")
   io.println(margin <> "     gleam run -- --track \"<> ImageRight\"")
   io.println("")
-  io.println(margin <> "     • +<p>-<m>: track p lines beyond and m lines before <string>")
-  io.println(margin <> "       e.g., '+15-5' to track 15 lines beyond and 5 lines before")
-  io.println(margin <> "       lines where the marker appears")
+  io.println(
+    margin <> "     • signed windows have form +<after>-<before> or the reverse",
+  )
+  io.println(
+    margin <> "       e.g., '+15-5'; '+-5' is symmetric; '+0' selects one line",
+  )
+  io.println(
+    margin <> "       one-sided nonzero forms such as '+5' are not accepted",
+  )
   io.println("")
-  io.println(margin <> "     • <step numbers> specificy which desugaring steps to track:")
-  io.println(margin <> "         • <x-y> to track changes in desugaring steps x to y only")
+  io.println(margin <> "     • with no window, both default to symmetric '-+1'")
+  io.println(
+    margin <> "       with one unlabeled or '-track' window, printing copies it",
+  )
+  io.println(
+    margin
+    <> "       with only '-print', tracking defaults to '-track-+1'; common",
+  )
+  io.println(
+    margin <> "       modifiers before '-print' apply to both selectors",
+  )
+  io.println(
+    margin
+    <> "       with two, the first tracks changes and the second is printed",
+  )
+  io.println(
+    margin
+    <> "       use '-track<window>' and '-print<window>' for explicit roles",
+  )
+  io.println("")
+  io.println(
+    margin <> "     • <step ranges> specify which desugaring steps to track:",
+  )
+  io.println(
+    margin
+    <> "         • <x-y> to track changes in desugaring steps x to y only",
+  )
+  io.println(margin <> "         • <x-> to track from step x through the end")
+  io.println(margin <> "         • negative indices count back from the end")
   io.println(margin <> "         • !x to force a printout at step x")
-  io.println(margin <> "         • add <desugarer-name> before <step numbers> to make the")
-  io.println(margin <> "           step numbers relative to occurrences of a given")
-  io.println(margin <> "           desugarer in the pipeline; in this case, leaving")
-  io.println(margin <> "           <steps number> empty defaults to step numbers '+0-0'")
+  io.println(
+    margin
+    <> "         • add <desugarer-name> before <step numbers> to make the",
+  )
+  io.println(
+    margin <> "           step numbers relative to occurrences of a given",
+  )
+  io.println(
+    margin <> "           desugarer in the pipeline; in this case, leaving",
+  )
+  io.println(
+    margin <> "           its range empty defaults to that desugarer's own step",
+  )
   io.println("")
   io.println(margin <> "     leave <step numbers> empty to track all steps")
   io.println("")
   io.println(margin <> "  -> additional examples for --track:")
   io.println("")
-  io.println(margin <> "     gleam run -- --track \"lorem ipsum\" +5-5 my_desugarer_name")
-  io.println(margin <> "     gleam run -- --track \"lorem ipsum\" +5-5 my_desugarer_name-2+2")
+  io.println(
+    margin <> "     gleam run -- --track \"lorem ipsum\" +5-5 my_desugarer_name",
+  )
+  io.println(
+    margin
+    <> "     gleam run -- --track \"lorem ipsum\" +5-5 my_desugarer_name-2+2",
+  )
   io.println("")
   io.println(margin <> "  -> additional options for --track:")
   io.println("")
-  io.println(margin <> "     • 'with-ancestors': trigger selection of ancestor tags of")
+  io.println(
+    margin <> "     • 'with-ancestors': trigger selection of ancestor tags of",
+  )
   io.println(margin <> "        selected lines")
-  io.println(margin <> "     • 'with-elder-siblings': trigger selection of ancestor tags")
+  io.println(
+    margin <> "     • 'with-elder-siblings': trigger selection of ancestor tags",
+  )
   io.println(margin <> "        and elder sibling tags of selected lines")
-  io.println(margin <> "     • 'with-ancestor-attrs' | 'with-attrs': trigger selection of")
-  io.println(margin <> "        ancestor tags of selected lines and their attributes")
-  io.println(margin <> "     • 'with-elder-sibling-attrs': trigger selection of ancestor")
-  io.println(margin <> "        tags and elder siblings tags of selected lines and their")
+  io.println(
+    margin
+    <> "     • 'with-ancestor-attrs' | 'with-attrs': trigger selection of",
+  )
+  io.println(
+    margin <> "        ancestor tags of selected lines and their attributes",
+  )
+  io.println(
+    margin <> "     • 'with-elder-sibling-attrs': trigger selection of ancestor",
+  )
+  io.println(
+    margin <> "        tags and elder siblings tags of selected lines and their",
+  )
   io.println(margin <> "        attributes")
-  io.println(margin <> "     • '-i': \"interactive mode\": pauses for user input after each")
+  io.println(
+    margin
+    <> "     • '-i': \"interactive mode\": pauses for user input after each",
+  )
   io.println(margin <> "        output; type 'enter' for next chunk, else:")
   io.println(margin <> "          • 'e' to escape the interactive mode;")
   io.println(margin <> "          • <n> to fast-forward past n next outputs;")
@@ -603,13 +758,19 @@ pub fn basic_cli_usage(header: String) {
   io.println(margin <> "  -> verbose renderer output")
   io.println("")
   io.println(margin <> "--artifacts")
-  io.println(margin <> "  -> subset of '--verbose' to show which files were printed")
+  io.println(
+    margin <> "  -> subset of '--verbose' to show which files were printed",
+  )
   io.println("")
   io.println(margin <> "--table")
   io.println(margin <> "  -> include a printout of the pipeline steps")
   io.println("")
-  io.println(margin <> "--times [<cols=" <> ins(default_times_table_char_width) <> ">]")
-  io.println(margin <> "  -> include performance table (how long it takes each desugarer")
+  io.println(
+    margin <> "--times [<cols=" <> ins(default_times_table_char_width) <> ">]",
+  )
+  io.println(
+    margin <> "  -> include performance table (how long it takes each desugarer",
+  )
   io.println(margin <> "     to run) using <cols> columns")
   io.println("")
 }
@@ -627,10 +788,15 @@ pub fn advanced_cli_usage(header: String) {
   io.println(margin <> "  -> run prettier --write on each output file in place")
   io.println("")
   io.println(margin <> "--prettier-check")
-  io.println(margin <> "  -> run prettier --check on each output file (read-only)")
+  io.println(
+    margin <> "  -> run prettier --check on each output file (read-only)",
+  )
   io.println("")
   io.println(margin <> "--prettier <dir>")
-  io.println(margin <> "  -> run prettier --write, outputting to <dir> instead of output_dir")
+  io.println(
+    margin
+    <> "  -> run prettier --write, outputting to <dir> instead of output_dir",
+  )
   io.println("")
   io.println(margin <> "--warnings/--no-warnings")
   io.println(margin <> "  -> force/suppress long-form printout of warnings")
@@ -642,20 +808,39 @@ pub fn advanced_cli_usage(header: String) {
   io.println(margin <> "  -> print the parsed VXML")
   io.println("")
   io.println(margin <> "--echo-filtered")
-  io.println(margin <> "  -> print the parsed VXML filtered for key-value pairs")
+  io.println(
+    margin <> "  -> print the parsed VXML filtered for key-value pairs",
+  )
   io.println("")
   io.println(margin <> "--echo-vxml-fragments <subpath1> <subpath2> ...")
-  io.println(margin <> "  -> echo fragments whose paths contain one of the given subpaths")
-  io.println(margin <> "     before conversion to output lines, list none to match all", )
+  io.println(
+    margin
+    <> "  -> echo fragments whose paths contain one of the given subpaths",
+  )
+  io.println(
+    margin <> "     before conversion to output lines, list none to match all",
+  )
   io.println("")
   io.println(margin <> "--echo-ol-fragments <subpath1> <subpath2> ...")
-  io.println(margin <> "  -> echo fragments whose paths contain one of the given subpaths")
-  io.println(margin <> "     after conversion to output lines, list none to match all", )
+  io.println(
+    margin
+    <> "  -> echo fragments whose paths contain one of the given subpaths",
+  )
+  io.println(
+    margin <> "     after conversion to output lines, list none to match all",
+  )
   io.println("")
   io.println(margin <> "--track-steps")
-  io.println(margin <> "  -> (re)set the tracking step numbers of the current tracker, if")
-  io.println(margin <> "     any; takes arguments in the same form as the <step numbers>")
-  io.println(margin <> "     sub-option of '--track' (e.g., '50-60 !123-125 !-1')", )
+  io.println(
+    margin
+    <> "  -> (re)set the tracking step numbers of the current tracker, if",
+  )
+  io.println(
+    margin <> "     any; takes arguments in the same form as the <step numbers>",
+  )
+  io.println(
+    margin <> "     sub-option of '--track' (e.g., '50-60 !123-125 !-1')",
+  )
   io.println("")
 }
 
@@ -679,10 +864,9 @@ pub fn process_command_line_arguments(
   arguments: List(String),
   user_keys: List(String),
 ) -> Result(CommandLineAmendments, CommandLineError) {
-  use list_key_values <- on.error_ok(
-    double_dash_keys(arguments),
-    fn(bad_key) { Error(ExpectedDoubleDashString(bad_key)) },
-  )
+  use list_key_values <- on.error_ok(double_dash_keys(arguments), fn(bad_key) {
+    Error(ExpectedDoubleDashString(bad_key))
+  })
 
   list_key_values
   |> list.fold(
@@ -711,15 +895,24 @@ pub fn process_command_line_arguments(
         }
 
         "--times" -> {
-          use arg <- on.ok(
-            parse_times_args(values)
+          use arg <- on.ok(parse_times_args(values))
+          Ok(
+            CommandLineAmendments(
+              ..amendments,
+              times: arg |> core.with_default(default_times_table_char_width),
+            ),
           )
-          Ok(CommandLineAmendments(..amendments, times: arg |> core.with_default(default_times_table_char_width)))
         }
 
         "--input-dir" -> {
           case values {
-            [one] -> Ok(CommandLineAmendments(..amendments, input_dir: Some(one |> core.drop_ending_slash)))
+            [one] ->
+              Ok(
+                CommandLineAmendments(
+                  ..amendments,
+                  input_dir: Some(one |> core.drop_ending_slash),
+                ),
+              )
             [] -> Error(MissingArgumentToOption("--input-dir"))
             _ -> Error(TooManyArgumentsToOption("--input-dir"))
           }
@@ -727,7 +920,13 @@ pub fn process_command_line_arguments(
 
         "--output-dir" -> {
           case values {
-            [one] -> Ok(CommandLineAmendments(..amendments, output_dir: Some(one |> core.drop_ending_slash)))
+            [one] ->
+              Ok(
+                CommandLineAmendments(
+                  ..amendments,
+                  output_dir: Some(one |> core.drop_ending_slash),
+                ),
+              )
             [] -> Error(MissingArgumentToOption("--output-dir"))
             _ -> Error(TooManyArgumentsToOption("--output-dir"))
           }
@@ -739,7 +938,10 @@ pub fn process_command_line_arguments(
             |> list.map(parse_attr_value_args_in_filename)
             |> list.flatten()
 
-          CommandLineAmendments(..amendments, warnings: Some(option.unwrap(amendments.warnings, False)))
+          CommandLineAmendments(
+            ..amendments,
+            warnings: Some(option.unwrap(amendments.warnings, False)),
+          )
           |> amend_only_args(args)
           |> Ok
         }
@@ -758,25 +960,49 @@ pub fn process_command_line_arguments(
 
         "--prettier-off" ->
           case values {
-            [] -> Ok(CommandLineAmendments(..amendments, prettier: Some(PrettifierOff)))
+            [] ->
+              Ok(
+                CommandLineAmendments(
+                  ..amendments,
+                  prettier: Some(PrettifierOff),
+                ),
+              )
             _ -> Error(UnexpectedArgumentsToOption("--prettier-off"))
           }
 
         "--prettier-on" ->
           case values {
-            [] -> Ok(CommandLineAmendments(..amendments, prettier: Some(PrettifierOverwriteOutputDir)))
+            [] ->
+              Ok(
+                CommandLineAmendments(
+                  ..amendments,
+                  prettier: Some(PrettifierOverwriteOutputDir),
+                ),
+              )
             _ -> Error(UnexpectedArgumentsToOption("--prettier-on"))
           }
 
         "--prettier-check" ->
           case values {
-            [] -> Ok(CommandLineAmendments(..amendments, prettier: Some(PrettifierToBespokeDir(None))))
+            [] ->
+              Ok(
+                CommandLineAmendments(
+                  ..amendments,
+                  prettier: Some(PrettifierToBespokeDir(None)),
+                ),
+              )
             _ -> Error(UnexpectedArgumentsToOption("--prettier-check"))
           }
 
         "--prettier" ->
           case values {
-            [dir] -> Ok(CommandLineAmendments(..amendments, prettier: Some(PrettifierToBespokeDir(Some(dir)))))
+            [dir] ->
+              Ok(
+                CommandLineAmendments(
+                  ..amendments,
+                  prettier: Some(PrettifierToBespokeDir(Some(dir))),
+                ),
+              )
             _ -> Error(UnexpectedArgumentsToOption("--prettier"))
           }
 
@@ -785,7 +1011,13 @@ pub fn process_command_line_arguments(
           Ok(
             CommandLineAmendments(
               ..amendments,
-              tracker: Some(join_trackers(amendments.tracker, tracker)),
+              tracking_monitor_factory: Some(join_tracking_monitor_factory(
+                amendments.tracking_monitor_factory,
+                tracker,
+              )),
+              tracker_interactive_mode: {
+                amendments.tracker_interactive_mode || tracker.interactive_mode
+              },
             ),
           )
         }
@@ -795,22 +1027,35 @@ pub fn process_command_line_arguments(
           Ok(
             CommandLineAmendments(
               ..amendments,
-              tracker: Some(join_trackers(amendments.tracker, tracker)),
+              tracking_monitor_factory: Some(join_tracking_monitor_factory(
+                amendments.tracking_monitor_factory,
+                tracker,
+              )),
+              tracker_interactive_mode: {
+                amendments.tracker_interactive_mode || tracker.interactive_mode
+              },
             ),
           )
         }
 
         "--dump" -> {
-          use #(numbers, named) <- on.ok(parse_dump_args(values))
-          case amendments.dump {
-            None -> Ok(CommandLineAmendments(..amendments, dump: Some(numbers), dump_named: list.append(amendments.dump_named, named)))
+          use specs <- on.ok(parse_dump_args(values))
+          case amendments.dump_monitor_factory {
+            None ->
+              Ok(
+                CommandLineAmendments(
+                  ..amendments,
+                  dump_monitor_factory: Some(DumpMonitorFactory(specs)),
+                ),
+              )
             _ -> Error(DuplicateOption(option))
           }
         }
 
         "--echo-assembled" ->
           case list.is_empty(values) {
-            True -> Ok(CommandLineAmendments(..amendments, echo_assembled: True))
+            True ->
+              Ok(CommandLineAmendments(..amendments, echo_assembled: True))
             False -> Error(UnexpectedArgumentsToOption(option))
           }
 
@@ -828,55 +1073,78 @@ pub fn process_command_line_arguments(
 
         "--echo-vxml-fragments" ->
           case list.is_empty(values) {
-            True -> Ok(CommandLineAmendments(..amendments, vxml_fragments_local_paths_to_echo: Some(values)))
+            True ->
+              Ok(
+                CommandLineAmendments(
+                  ..amendments,
+                  vxml_fragments_local_paths_to_echo: Some(values),
+                ),
+              )
             False -> Error(UnexpectedArgumentsToOption(option))
           }
 
         "--echo-ol-fragments" ->
           case list.is_empty(values) {
-            True -> Ok(CommandLineAmendments(..amendments, output_lines_fragments_local_paths_to_echo: Some(values)))
+            True ->
+              Ok(
+                CommandLineAmendments(
+                  ..amendments,
+                  output_lines_fragments_local_paths_to_echo: Some(values),
+                ),
+              )
             False -> Error(UnexpectedArgumentsToOption(option))
           }
 
         "--succinct" ->
           case list.is_empty(values) {
-            True -> Ok(CommandLineAmendments(..amendments, verbose: Some(False)))
+            True ->
+              Ok(CommandLineAmendments(..amendments, verbose: Some(False)))
             False -> Error(UnexpectedArgumentsToOption(option))
           }
-        
+
         "--verbose" ->
           case list.is_empty(values) {
             True -> Ok(CommandLineAmendments(..amendments, verbose: Some(True)))
             False -> Error(UnexpectedArgumentsToOption(option))
           }
-        
+
         "--artifacts" ->
           case list.is_empty(values) {
-            True -> Ok(CommandLineAmendments(..amendments, artifacts: Some(True)))
+            True ->
+              Ok(CommandLineAmendments(..amendments, artifacts: Some(True)))
             False -> Error(UnexpectedArgumentsToOption(option))
           }
-        
+
         "--no-artifacts" ->
           case list.is_empty(values) {
-            True -> Ok(CommandLineAmendments(..amendments, artifacts: Some(False)))
+            True ->
+              Ok(CommandLineAmendments(..amendments, artifacts: Some(False)))
             False -> Error(UnexpectedArgumentsToOption(option))
           }
-        
+
         "--warnings" ->
           case list.is_empty(values) {
-            True -> Ok(CommandLineAmendments(..amendments, warnings: Some(True)))
+            True ->
+              Ok(CommandLineAmendments(..amendments, warnings: Some(True)))
             False -> Error(UnexpectedArgumentsToOption(option))
           }
-        
+
         "--no-warnings" ->
           case list.is_empty(values) {
-            True -> Ok(CommandLineAmendments(..amendments, warnings: Some(False)))
+            True ->
+              Ok(CommandLineAmendments(..amendments, warnings: Some(False)))
             False -> Error(UnexpectedArgumentsToOption(option))
           }
-        
+
         _ -> {
           case list.contains(user_keys, option) {
-            True -> Ok(CommandLineAmendments(..amendments, user_args: dict.insert(amendments.user_args, option, values)))
+            True ->
+              Ok(
+                CommandLineAmendments(
+                  ..amendments,
+                  user_args: dict.insert(amendments.user_args, option, values),
+                ),
+              )
             False -> Error(UnknownOptionArgument(option))
           }
         }
@@ -939,19 +1207,19 @@ fn amend_only_args(
     only_paths: list.append(
       amendments.only_paths,
       args
-      |> list.filter(fn(a) { a.0 != "" })
-      |> list.map(fn(a) { a.0 })
+        |> list.filter(fn(a) { a.0 != "" })
+        |> list.map(fn(a) { a.0 }),
     ),
     only_key_vals: list.append(
       amendments.only_key_vals,
       args
-      |> list.filter(fn(a) {a.0 == "" && { a.1 != "" || a.2 != ""} })
-      |> list.map(fn(a) { #(a.1, a.2) })
+        |> list.filter(fn(a) { a.0 == "" && { a.1 != "" || a.2 != "" } })
+        |> list.map(fn(a) { #(a.1, a.2) }),
     ),
     only_path_key_vals: list.append(
       amendments.only_path_key_vals,
       args
-      |> list.filter(fn(a) { a.0 != "" && { a.1 != "" || a.2 != ""} })
+        |> list.filter(fn(a) { a.0 != "" && { a.1 != "" || a.2 != "" } }),
     ),
   )
 }
@@ -984,24 +1252,68 @@ fn parse_attr_value_args_in_filename(
 // for --track (& --track-steps) 👇👇👇👇👇👇👇👇
 // 🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠
 
-pub type PlusMinusRange {
-  PlusMinusRange(plus: Int, minus: Int)
+type SelectorLineWindow {
+  SelectorLineWindow(lines_after: Int, lines_before: Int)
 }
 
-fn parse_plus_minus(s: String) -> Result(PlusMinusRange, Nil) {
+type AbsoluteStepRange {
+  ClosedAbsoluteStepRange(first: Int, last: Int)
+  AbsoluteStepsFrom(first: Int)
+}
+
+type DesugarerRelativeStepRange {
+  DesugarerRelativeStepRange(
+    desugarer_name: String,
+    first_offset: Int,
+    last_offset: Int,
+  )
+}
+
+type PipelineStepRange {
+  AbsoluteSteps(AbsoluteStepRange)
+  DesugarerRelativeSteps(DesugarerRelativeStepRange)
+}
+
+type PipelineStepOutputMode {
+  OnChange
+  Forced
+}
+
+type PipelineStepSpec {
+  PipelineStepSpec(
+    range: PipelineStepRange,
+    output_mode: PipelineStepOutputMode,
+  )
+}
+
+fn parse_selector_line_window(s: String) -> Result(SelectorLineWindow, Nil) {
+  case string.starts_with(s, "+-"), string.starts_with(s, "-+") {
+    True, _ ->
+      int.parse(string.drop_start(s, 2))
+      |> result.map(fn(size) { SelectorLineWindow(size, size) })
+    _, True ->
+      int.parse(string.drop_start(s, 2))
+      |> result.map(fn(size) { SelectorLineWindow(size, size) })
+    _, _ -> parse_asymmetric_selector_line_window(s)
+  }
+}
+
+fn parse_asymmetric_selector_line_window(
+  s: String,
+) -> Result(SelectorLineWindow, Nil) {
   case string.starts_with(s, "+"), string.starts_with(s, "-") {
     True, _ -> {
       let s = string.drop_start(s, 1)
       case string.split_once(s, "-") {
         Ok(#(before, after)) -> {
           case int.parse(before), int.parse(after) {
-            Ok(p), Ok(m) -> Ok(PlusMinusRange(plus: p, minus: m))
+            Ok(p), Ok(m) -> Ok(SelectorLineWindow(p, m))
             _, _ -> Error(Nil)
           }
         }
         _ ->
           case int.parse(s) {
-            Ok(p) -> Ok(PlusMinusRange(plus: p, minus: 0))
+            Ok(0) -> Ok(SelectorLineWindow(0, 0))
             _ -> Error(Nil)
           }
       }
@@ -1012,13 +1324,13 @@ fn parse_plus_minus(s: String) -> Result(PlusMinusRange, Nil) {
       case string.split_once(s, "+") {
         Ok(#(before, after)) -> {
           case int.parse(before), int.parse(after) {
-            Ok(m), Ok(p) -> Ok(PlusMinusRange(plus: p, minus: m))
+            Ok(m), Ok(p) -> Ok(SelectorLineWindow(p, m))
             _, _ -> Error(Nil)
           }
         }
         _ ->
           case int.parse(s) {
-            Ok(m) -> Ok(PlusMinusRange(plus: 0, minus: m))
+            Ok(0) -> Ok(SelectorLineWindow(0, 0))
             _ -> Error(Nil)
           }
       }
@@ -1035,235 +1347,455 @@ fn lo_hi_ints(lo: Int, hi: Int) -> List(Int) {
   }
 }
 
-fn unique_ints(g: List(Int)) -> List(Int) {
-  g
-  |> list.sort(int.compare)
-  |> list.unique
-}
-
-fn cleanup_step_numbers(
-  restrict: List(Int),
-  force: List(Int),
-) -> #(List(Int), List(Int)) {
-  let force = force |> unique_ints
-  let restrict =
-    restrict |> unique_ints |> list.filter(fn(x) { !list.contains(force, x) })
-  #(restrict, force)
-}
-
 pub fn extract_desugarer_name(input: String) -> #(String, String) {
   let assert Ok(re) = regexp.from_string("^([a-z_][a-z0-9_]*)(.*)")
   case regexp.scan(with: re, content: input) {
-    [regexp.Match(_, [Some(prefix), rest, ..])] -> 
-      #(prefix, option.unwrap(rest, ""))
+    [regexp.Match(_, [Some(prefix), rest, ..])] -> #(
+      prefix,
+      option.unwrap(rest, ""),
+    )
     _ -> #("", input)
   }
 }
 
-fn parse_step_numbers(
-  values: List(String),
-) -> Result(#(List(Int), List(Int), List(#(String, Int, Int, Bool))), CommandLineError) {
-  use #(on_change, force, named) <- on.ok(
-    list.try_fold(values, #([], [], []), fn(acc, val) {
-      let original_val = val
-      let #(forced, val) = case string.starts_with(val, "!") {
-        True -> #(True, string.drop_start(val, 1))
-        False -> #(False, val)
-      }
-      let #(desugarer_name, val) = extract_desugarer_name(val)
-      let #(forced, val) = case string.starts_with(val, "!") {
-        True -> #(True, string.drop_start(val, 1))
-        False -> #(forced, val)
-      }
-      let #(first_val_negative, val) = case string.starts_with(val, "-") {
-        True -> #(True, string.drop_start(val, 1))
-        False -> #(False, val)
-      }
-      let val = core.drop_prefix(val, "+")
-      let multiply_first = fn(x: Int) {
-        case first_val_negative {
-          True -> -x
-          False -> x
+fn regex_captures(pattern: String, input: String) -> List(Option(String)) {
+  let assert Ok(regex) = regexp.from_string(pattern)
+  case regexp.scan(with: regex, content: input) {
+    [regexp.Match(_, captures)] -> captures
+    _ -> []
+  }
+}
+
+fn parse_absolute_step_range(
+  input: String,
+) -> Result(AbsoluteStepRange, CommandLineError) {
+  case regex_captures("^(-?[0-9]+)-(-?[0-9]+)$", input) {
+    [Some(first), Some(last), ..] -> {
+      let assert Ok(first) = int.parse(first)
+      let assert Ok(last) = int.parse(last)
+      Ok(ClosedAbsoluteStepRange(first, last))
+    }
+    _ ->
+      case regex_captures("^(-?[0-9]+)-$", input) {
+        [Some(first), ..] -> {
+          let assert Ok(first) = int.parse(first)
+          Ok(AbsoluteStepsFrom(first))
         }
-      }
-      use #(lo, hi) <- on.ok(case splitter.split(splitter.new(["-", "+"]), val) {
-        #(before, _, after) if after != "" -> {
-          case int.parse(before), int.parse(after) {
-            Ok(lo), Ok(hi) -> Ok(#(Some(lo), Some(hi)))
-            _, _ -> Error(StepNoValues(
-              "unable to parse integer range in '" <> original_val <> "'",
-            ))
-          }
-        }
-        _ -> {
-          case val {
-            "" -> Ok(#(None, None))
-            _ -> case int.parse(val) {
-              Ok(lo) -> Ok(#(Some(lo), None))
-              Error(Nil) -> Error(StepNoValues(
-                "unable to parse '" <> original_val <> "' as integer range (1)",
+        _ ->
+          case int.parse(input) {
+            Ok(step) -> Ok(ClosedAbsoluteStepRange(step, step))
+            Error(_) ->
+              Error(StepNoValues(
+                "unable to parse absolute step range '" <> input <> "'",
               ))
+          }
+      }
+  }
+}
+
+fn parse_signed_offset(input: String) -> Result(Int, Nil) {
+  case string.starts_with(input, "+") {
+    True -> int.parse(string.drop_start(input, 1))
+    False -> int.parse(input)
+  }
+}
+
+fn parse_desugarer_relative_step_range(
+  input: String,
+) -> Result(DesugarerRelativeStepRange, CommandLineError) {
+  let #(name, suffix) = extract_desugarer_name(input)
+  use _ <- on.stay(case name {
+    "" ->
+      on.Return(
+        Error(StepNoValues(
+          "unable to parse desugarer-relative step range '" <> input <> "'",
+        )),
+      )
+    _ -> on.Stay(Nil)
+  })
+  case suffix {
+    "" -> Ok(DesugarerRelativeStepRange(name, 0, 0))
+    _ ->
+      case regex_captures("^([+-][0-9]+)([+-][0-9]+)?$", suffix) {
+        [Some(first), ..] as captures -> {
+          let assert Ok(first) = parse_signed_offset(first)
+          let second = case list.drop(captures, 1) {
+            [Some(second), ..] -> {
+              let assert Ok(second) = parse_signed_offset(second)
+              second
             }
+            _ -> 0
+          }
+          Ok(DesugarerRelativeStepRange(
+            name,
+            int.min(first, second),
+            int.max(first, second),
+          ))
+        }
+        _ ->
+          Error(StepNoValues(
+            "unable to parse desugarer-relative step range '" <> input <> "'",
+          ))
+      }
+  }
+}
+
+fn parse_pipeline_step_spec(
+  input: String,
+) -> Result(PipelineStepSpec, CommandLineError) {
+  let #(mode, payload) = case string.starts_with(input, "!") {
+    True -> #(Forced, string.drop_start(input, 1))
+    False -> #(OnChange, input)
+  }
+  use _ <- on.stay(case payload {
+    "" -> on.Return(Error(StepNoValues("missing step range after '!'")))
+    _ -> on.Stay(Nil)
+  })
+  case string.starts_with(payload, "+") {
+    True ->
+      Error(StepNoValues(
+        "absolute step ranges cannot start with '+' [" <> input <> "]",
+      ))
+    False -> {
+      let #(name, _) = extract_desugarer_name(payload)
+      case name {
+        "" ->
+          parse_absolute_step_range(payload)
+          |> result.map(fn(range) {
+            PipelineStepSpec(AbsoluteSteps(range), mode)
+          })
+        _ ->
+          parse_desugarer_relative_step_range(payload)
+          |> result.map(fn(range) {
+            PipelineStepSpec(DesugarerRelativeSteps(range), mode)
+          })
+      }
+    }
+  }
+}
+
+fn parse_pipeline_step_specs(
+  values: List(String),
+) -> Result(List(PipelineStepSpec), CommandLineError) {
+  list.try_map(values, parse_pipeline_step_spec)
+}
+
+type SelectorTarget {
+  TrackSelector
+  PrintSelector
+}
+
+type SelectorDefinition {
+  SelectorDefinition(
+    target: SelectorTarget,
+    window: SelectorLineWindow,
+    modifiers: List(String),
+  )
+}
+
+fn selector_modifier(input: String) -> Bool {
+  let input = string.replace(input, "-with", "with")
+  list.contains(
+    [
+      "with-ancestors",
+      "with-elder-siblings",
+      "with-attrs",
+      "with-attributes",
+      "with-ancestor-attrs",
+      "with-ancestor-attributes",
+      "with-elder-sibling-attrs",
+      "with-elder-sibling-attributes",
+    ],
+    input,
+  )
+}
+
+fn parse_selector_anchor(
+  input: String,
+) -> Result(
+  Option(#(Option(SelectorTarget), SelectorLineWindow)),
+  CommandLineError,
+) {
+  let #(target, payload) = case
+    string.starts_with(input, "-track"),
+    string.starts_with(input, "-print")
+  {
+    True, _ -> #(Some(TrackSelector), string.drop_start(input, 6))
+    _, True -> #(Some(PrintSelector), string.drop_start(input, 6))
+    _, _ -> #(None, input)
+  }
+  case parse_selector_line_window(payload) {
+    Ok(window) -> Ok(Some(#(target, window)))
+    Error(_) ->
+      case target {
+        Some(_) ->
+          Error(SelectorValues("invalid selector line window '" <> input <> "'"))
+        None -> Ok(None)
+      }
+  }
+}
+
+fn partition_track_arguments(
+  values: List(String),
+) -> Result(#(Bool, List(String), List(PipelineStepSpec)), CommandLineError) {
+  list.try_fold(values, #(False, [], []), fn(acc, value) {
+    case value {
+      "-i" -> Ok(#(True, acc.1, acc.2))
+      _ -> {
+        use anchor <- on.ok(parse_selector_anchor(value))
+        case anchor != None || selector_modifier(value) {
+          True -> Ok(#(acc.0, list.append(acc.1, [value]), acc.2))
+          False -> {
+            use spec <- on.ok(parse_pipeline_step_spec(value))
+            Ok(#(acc.0, acc.1, list.append(acc.2, [spec])))
           }
         }
-      })
-      case desugarer_name {
-        "" -> {
-          use lo <- on.none_some(
-            lo,
-            fn() { Error(StepNoValues("unable to parse '" <> original_val <> "' as integer range (2)")) }
-          )
-          let hi = option.unwrap(hi, lo)
-          let ints = lo_hi_ints(lo |> multiply_first, hi)
-          case forced {
-            False -> Ok(#(list.append(acc.0, ints), acc.1, acc.2))
-            True -> Ok(#(acc.0, list.append(acc.1, ints), acc.2))
-          }
-        }
-        _ -> {
-          let lo = option.unwrap(lo, 0) |> multiply_first
-          let hi = option.unwrap(hi, lo)
-          let lo = int.min(lo, 0)
-          let hi = int.max(hi, 0)
-          Ok(#(acc.0, acc.1, [#(desugarer_name, lo, hi, forced), ..acc.2]))
-        }
+      }
+    }
+  })
+}
+
+fn assign_selector_targets(
+  anchors: List(#(Option(SelectorTarget), SelectorLineWindow)),
+) -> Result(List(#(SelectorTarget, SelectorLineWindow)), CommandLineError) {
+  case anchors {
+    [] -> Ok([])
+    [#(None, window)] -> Ok([#(TrackSelector, window)])
+    [#(Some(target), window)] -> Ok([#(target, window)])
+    [#(None, first), #(None, second)] ->
+      Ok([#(TrackSelector, first), #(PrintSelector, second)])
+    [#(Some(TrackSelector), first), #(None, second)] ->
+      Ok([#(TrackSelector, first), #(PrintSelector, second)])
+    [#(Some(PrintSelector), first), #(None, second)] ->
+      Ok([#(PrintSelector, first), #(TrackSelector, second)])
+    [#(None, first), #(Some(TrackSelector), second)] ->
+      Ok([#(PrintSelector, first), #(TrackSelector, second)])
+    [#(None, first), #(Some(PrintSelector), second)] ->
+      Ok([#(TrackSelector, first), #(PrintSelector, second)])
+    [#(Some(first_target), first), #(Some(second_target), second)] ->
+      case first_target == second_target {
+        True -> Error(SelectorValues("duplicate -track or -print selector"))
+        False -> Ok([#(first_target, first), #(second_target, second)])
+      }
+    _ -> Error(SelectorValues("--track accepts at most two selector windows"))
+  }
+}
+
+fn normalize_selector_definitions(
+  values: List(String),
+) -> Result(#(SelectorDefinition, SelectorDefinition), CommandLineError) {
+  use anchors <- on.ok(
+    values
+    |> list.try_fold([], fn(anchors, value) {
+      use anchor <- on.ok(parse_selector_anchor(value))
+      case anchor {
+        None -> Ok(anchors)
+        Some(anchor) -> Ok(list.append(anchors, [anchor]))
       }
     }),
   )
-  let #(on_change, force) = cleanup_step_numbers(on_change, force)
-  #(on_change, force, named) |> Ok
+  use assigned <- on.ok(assign_selector_targets(anchors))
+  let default_window = SelectorLineWindow(1, 1)
+  case assigned {
+    [] -> {
+      let track = SelectorDefinition(TrackSelector, default_window, values)
+      Ok(#(track, SelectorDefinition(PrintSelector, default_window, values)))
+    }
+    _ -> {
+      let assert Ok(#([], common, current, definitions)) =
+        list.try_fold(values, #(assigned, [], None, []), fn(acc, value) {
+          use anchor <- on.ok(parse_selector_anchor(value))
+          case anchor {
+            None ->
+              case acc.2 {
+                None -> Ok(#(acc.0, list.append(acc.1, [value]), None, acc.3))
+                Some(definition) ->
+                  Ok(#(
+                    acc.0,
+                    acc.1,
+                    Some(
+                      SelectorDefinition(
+                        ..definition,
+                        modifiers: list.append(definition.modifiers, [value]),
+                      ),
+                    ),
+                    acc.3,
+                  ))
+              }
+            Some(_) -> {
+              let assert [#(target, window), ..remaining] = acc.0
+              let definitions = case acc.2 {
+                None -> acc.3
+                Some(definition) -> list.append(acc.3, [definition])
+              }
+              Ok(#(
+                remaining,
+                acc.1,
+                Some(SelectorDefinition(target, window, [])),
+                definitions,
+              ))
+            }
+          }
+        })
+      let definitions = case current {
+        None -> definitions
+        Some(definition) -> list.append(definitions, [definition])
+      }
+      let definitions =
+        list.map(definitions, fn(definition) {
+          SelectorDefinition(
+            ..definition,
+            modifiers: list.append(common, definition.modifiers),
+          )
+        })
+      case definitions {
+        [SelectorDefinition(TrackSelector, window, modifiers)] ->
+          Ok(#(
+            SelectorDefinition(TrackSelector, window, modifiers),
+            SelectorDefinition(PrintSelector, window, modifiers),
+          ))
+        [SelectorDefinition(PrintSelector, window, modifiers)] ->
+          Ok(#(
+            SelectorDefinition(TrackSelector, default_window, common),
+            SelectorDefinition(PrintSelector, window, modifiers),
+          ))
+        [first, second] ->
+          case first.target {
+            TrackSelector -> Ok(#(first, second))
+            PrintSelector -> Ok(#(second, first))
+          }
+        _ -> Error(SelectorValues("unable to normalize selector arguments"))
+      }
+    }
+  }
 }
 
-fn parse_track_args(
-  values: List(String),
-) -> Result(Tracker, CommandLineError) {
-  use first_payload, values <- on.empty_nonempty(
-    values,
-    fn() { Error(SelectorValues("missing 1st argument")) },
-  )
-
-  let assert True = first_payload != ""
-  let selector = sl.verbatim(first_payload)
-
-  let values = list.map(values, fn(v) { string.replace(v, "-with", "with") })
-
-  let #(with_enter, values) = core.delete(values, "-i")
+fn selector_from_definition(
+  base_selector: Selector,
+  definition: SelectorDefinition,
+) -> Result(Selector, CommandLineError) {
+  let values =
+    list.map(definition.modifiers, fn(value) {
+      string.replace(value, "-with", "with")
+    })
   let #(with_ancestors, values) = core.delete(values, "with-ancestors")
-  let #(with_elder_siblings, values) = core.delete(values, "with-elder-siblings")
+  let #(with_elder_siblings, values) =
+    core.delete(values, "with-elder-siblings")
   let #(with_attrs, values) = core.delete(values, "with-attrs")
   let #(with_attrs_v2, values) = core.delete(values, "with-attributes")
-  let #(with_ancestor_attrs, values) = core.delete(values, "with-ancestor-attrs")
-  let #(with_ancestor_attrs_v2, values) = core.delete(values, "with-ancestor-attributes")
-  let #(with_elder_sibling_attrs, values) = core.delete(values, "with-elder-sibling-attrs")
-  let #(with_elder_sibling_attrs_v2, values) = core.delete(values, "with-elder-sibling-attributes")
-
-  let with_attrs = with_attrs || with_attrs_v2
-  let with_elder_sibling_attrs = with_elder_sibling_attrs || with_elder_sibling_attrs_v2 || with_attrs
-  let with_ancestor_attrs = with_ancestor_attrs || with_ancestor_attrs_v2 || with_elder_sibling_attrs
-  let with_elder_siblings = with_elder_siblings || with_elder_sibling_attrs
-  let with_ancestors = with_ancestors || with_elder_siblings || with_ancestor_attrs
-
-  let selector = case with_ancestors {
-    False -> selector
-    True -> core.extend_selector_to_ancestors(
-      selector,
-      with_elder_siblings,
-      with_ancestor_attrs,
-      with_elder_sibling_attrs,
-    )
-  }
-
-  use second_payload, values <- on.empty_nonempty(
-    values,
-    fn() {
-      Tracker(
-        selector: Some(selector),
-        steps_with_tracking_on_change: [],
-        steps_with_tracking_forced: [],
-        interactive_mode: with_enter,
-        desugarer_named_ranges: [],
+  let #(with_ancestor_attrs, values) =
+    core.delete(values, "with-ancestor-attrs")
+  let #(with_ancestor_attrs_v2, values) =
+    core.delete(values, "with-ancestor-attributes")
+  let #(with_elder_sibling_attrs, values) =
+    core.delete(values, "with-elder-sibling-attrs")
+  let #(with_elder_sibling_attrs_v2, values) =
+    core.delete(values, "with-elder-sibling-attributes")
+  use _ <- on.stay(case values {
+    [] -> on.Stay(Nil)
+    _ ->
+      on.Return(
+        Error(SelectorValues("unexpected selector arguments " <> ins(values))),
       )
-      |> Ok
-    },
-  )
-
-  use plus_minus <- on.error_ok(
-    parse_plus_minus(second_payload),
-    fn(_) {
-      Error(SelectorValues(
-        "2nd argument to --track should have form +<p>-<m> or -<m>+<p> where p, m are integers [" <> second_payload <> "]",
-      ))
-    },
-  )
-
+  })
+  let with_attrs = with_attrs || with_attrs_v2
+  let with_elder_sibling_attrs =
+    with_elder_sibling_attrs || with_elder_sibling_attrs_v2 || with_attrs
+  let with_ancestor_attrs =
+    with_ancestor_attrs || with_ancestor_attrs_v2 || with_elder_sibling_attrs
+  let with_elder_siblings = with_elder_siblings || with_elder_sibling_attrs
+  let with_ancestors =
+    with_ancestors || with_elder_siblings || with_ancestor_attrs
   let selector =
-    selector
-    |> core.extend_selector_up(plus_minus.minus)
-    |> core.extend_selector_down(plus_minus.plus)
+    base_selector
+    |> core.extend_selector_up(definition.window.lines_before)
+    |> core.extend_selector_down(definition.window.lines_after)
+  case with_ancestors {
+    False -> Ok(selector)
+    True ->
+      Ok(core.extend_selector_to_ancestors(
+        selector,
+        with_elder_siblings,
+        with_ancestor_attrs,
+        with_elder_sibling_attrs,
+      ))
+  }
+}
 
-  use #(on_change, force, named) <- on.ok(parse_step_numbers(values))
+fn parse_track_args(values: List(String)) -> Result(Tracker, CommandLineError) {
+  use first_payload, values <- on.empty_nonempty(values, fn() {
+    Error(SelectorValues("missing 1st argument"))
+  })
+
+  let assert True = first_payload != ""
+  use #(with_enter, selector_arguments, step_specs) <- on.ok(
+    partition_track_arguments(values),
+  )
+  use #(track_definition, print_definition) <- on.ok(
+    normalize_selector_definitions(selector_arguments),
+  )
+  let base_selector = sl.verbatim(first_payload)
+  use change_selector <- on.ok(selector_from_definition(
+    base_selector,
+    track_definition,
+  ))
+  use printing_selector <- on.ok(selector_from_definition(
+    base_selector,
+    print_definition,
+  ))
 
   Ok(Tracker(
-    selector: Some(selector),
-    steps_with_tracking_on_change: on_change,
-    steps_with_tracking_forced: force,
+    printing_selector: Some(printing_selector),
+    change_selector: Some(change_selector),
+    step_specs: step_specs,
     interactive_mode: with_enter,
-    desugarer_named_ranges: named,
   ))
 }
 
 fn parse_track_steps_args(
   values: List(String),
 ) -> Result(Tracker, CommandLineError) {
-  use #(on_change, force, named) <- on.ok(parse_step_numbers(values))
-  let #(with_enter, _) = core.delete(values, "-i")
+  let #(with_enter, values) = core.delete(values, "-i")
+  use step_specs <- on.ok(parse_pipeline_step_specs(values))
   Ok(Tracker(
-    selector: None,
-    steps_with_tracking_on_change: on_change,
-    steps_with_tracking_forced: force,
+    printing_selector: None,
+    change_selector: None,
+    step_specs: step_specs,
     interactive_mode: with_enter,
-    desugarer_named_ranges: named,
   ))
 }
 
-fn join_trackers(
-  pm1: Option(Tracker),
-  pm2: Tracker,
-) -> Tracker {
+fn join_trackers(pm1: Option(Tracker), pm2: Tracker) -> Tracker {
   use pm1 <- on.eager_none_some(pm1, pm2)
-  let #(restrict, force) =
-    cleanup_step_numbers(
-      list.append(pm1.steps_with_tracking_forced, pm2.steps_with_tracking_forced),
-      list.append(
-        pm1.steps_with_tracking_on_change,
-        pm2.steps_with_tracking_on_change,
-      ),
-    )
   Tracker(
-    selector: case pm1.selector, pm2.selector {
+    printing_selector: case pm1.printing_selector, pm2.printing_selector {
       Some(s1), Some(s2) -> Some(core.or_selectors(s1, s2))
-      _, _ -> option.or(pm1.selector, pm2.selector)
+      _, _ -> option.or(pm1.printing_selector, pm2.printing_selector)
     },
-    steps_with_tracking_on_change: restrict,
-    steps_with_tracking_forced: force,
-    interactive_mode: {
-      pm1.interactive_mode ||
-      pm2.interactive_mode
+    change_selector: case pm1.change_selector, pm2.change_selector {
+      Some(s1), Some(s2) -> Some(core.or_selectors(s1, s2))
+      _, _ -> option.or(pm1.change_selector, pm2.change_selector)
     },
-    desugarer_named_ranges: list.append(
-      pm1.desugarer_named_ranges,
-      pm2.desugarer_named_ranges,
-    ),
+    step_specs: list.append(pm1.step_specs, pm2.step_specs),
+    interactive_mode: { pm1.interactive_mode || pm2.interactive_mode },
   )
 }
 
+fn join_tracking_monitor_factory(
+  existing: Option(MonitorFactory),
+  tracker: Tracker,
+) -> MonitorFactory {
+  case existing {
+    Some(TrackingMonitorFactory(existing_tracker)) ->
+      TrackingMonitorFactory(join_trackers(Some(existing_tracker), tracker))
+    _ -> TrackingMonitorFactory(tracker)
+  }
+}
+
 fn parse_dump_args(
-  values: List(String)
-) -> Result(#(List(Int), List(#(String, Int, Int))), CommandLineError) {
-  use #(on_change, force, named) <- on.ok(parse_step_numbers(values))
-  let numbers = list.append(on_change, force) |> unique_ints
-  let named = list.map(named, fn(n) { #(n.0, n.1, n.2) })
-  Ok(#(numbers, named))
+  values: List(String),
+) -> Result(List(PipelineStepSpec), CommandLineError) {
+  parse_pipeline_step_specs(values)
 }
 
 // 🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠
@@ -1272,22 +1804,22 @@ fn parse_dump_args(
 // 🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠🐠
 
 fn parse_times_args(
-  values: List(String)
+  values: List(String),
 ) -> Result(Option(Int), CommandLineError) {
   case values {
     [] -> Ok(None)
     [x] -> {
-      use x <- on.error_ok(
-        int.parse(x),
-        fn(_) { Error(TimesValues("could not parse --times argument '" <> x <> "' as integer")) }
-      )
+      use x <- on.error_ok(int.parse(x), fn(_) {
+        Error(TimesValues(
+          "could not parse --times argument '" <> x <> "' as integer",
+        ))
+      })
       let x = int.max(x, 1)
       Ok(Some(x))
     }
     _ -> Error(UnexpectedArgumentsToOption("--times"))
   }
 }
-
 
 // ************************************************************
 // RendererParameters + CommandLineAmendments -> RendererParameters
@@ -1300,7 +1832,10 @@ pub fn amend_renderer_parameters_by_command_line_amendments(
   RendererParameters(
     input_dir: option.unwrap(amendments.input_dir, parameters.input_dir),
     output_dir: option.unwrap(amendments.output_dir, parameters.output_dir),
-    prettifier_behavior: option.unwrap(amendments.prettier, parameters.prettifier_behavior),
+    prettifier_behavior: option.unwrap(
+      amendments.prettier,
+      parameters.prettifier_behavior,
+    ),
   )
 }
 
@@ -1309,8 +1844,10 @@ pub fn amend_renderer_parameters_by_command_line_amendments(
 // ************************************************************
 
 fn exists_match(
-  z: Option(List(a)), // List(a) = list of things that might cause a match, left empty if we always want a match
-  e: fn(a) -> Bool,   // match tester
+  z: Option(List(a)),
+  // List(a) = list of things that might cause a match, left empty if we always want a match
+  e: fn(a) -> Bool,
+  // match tester
 ) -> Bool {
   case z {
     None -> False
@@ -1326,6 +1863,16 @@ pub fn amend_renderer_by_command_line_amendments(
   renderer
 }
 
+fn append_optional_monitor_factory(
+  factories: List(MonitorFactory),
+  factory: Option(MonitorFactory),
+) -> List(MonitorFactory) {
+  case factory {
+    None -> factories
+    Some(factory) -> list.append(factories, [factory])
+  }
+}
+
 pub fn amend_renderer_options_by_command_line_amendments(
   options: RendererOptions(z),
   amendments: CommandLineAmendments,
@@ -1336,50 +1883,47 @@ pub fn amend_renderer_options_by_command_line_amendments(
     steps_table: option.unwrap(amendments.table, options.steps_table),
     profiling_table: option.or(amendments.times, options.profiling_table),
     interactive_mode: {
-      options.interactive_mode ||
-      option.map(amendments.tracker, fn(x){x.interactive_mode}) |> option.unwrap(False)
+      options.interactive_mode || amendments.tracker_interactive_mode
     },
     warnings: option.unwrap(amendments.warnings, options.warnings),
     only_paths: list.append(options.only_paths, amendments.only_paths),
     only_key_vals: list.append(options.only_key_vals, amendments.only_key_vals),
-    only_path_key_vals: list.append(options.only_path_key_vals, amendments.only_path_key_vals),
-    dump: case options.dump, amendments.dump {
-      None, _ -> amendments.dump
-      _, None -> options.dump
-      Some(x), Some(y) -> Some(list.append(x, y) |> list.sort(int.compare) |> list.unique)
-    },
-    dump_named: list.append(options.dump_named, amendments.dump_named),
-    tracker: case amendments.tracker {
-      None -> options.tracker
-      Some(x) -> Some(join_trackers(options.tracker, x))
-    },
-    echo_assembled_lines: amendments.echo_assembled || options.echo_assembled_lines,
+    only_path_key_vals: list.append(
+      options.only_path_key_vals,
+      amendments.only_path_key_vals,
+    ),
+    monitors: options.monitors,
+    monitor_factories: options.monitor_factories
+      |> append_optional_monitor_factory(amendments.tracking_monitor_factory)
+      |> append_optional_monitor_factory(amendments.dump_monitor_factory),
+    echo_assembled_lines: amendments.echo_assembled
+      || options.echo_assembled_lines,
     echo_parsed_vxml: amendments.echo_parsed || options.echo_parsed_vxml,
-    echo_filtered_vxml: amendments.echo_filtered || options.echo_filtered_vxml || { option.unwrap(amendments.dump, []) |> list.contains(0) },
+    echo_filtered_vxml: amendments.echo_filtered || options.echo_filtered_vxml,
     echo_vxml_fragments: fn(fr: OutputFragment(z, VXML)) {
-      options.echo_vxml_fragments(fr) ||
-      exists_match(
+      options.echo_vxml_fragments(fr)
+      || exists_match(
         amendments.vxml_fragments_local_paths_to_echo,
         string.contains(fr.path, _),
       )
     },
     echo_output_lines_fragments: fn(fr: OutputFragment(z, List(OutputLine))) {
-      options.echo_output_lines_fragments(fr) ||
-      exists_match(
+      options.echo_output_lines_fragments(fr)
+      || exists_match(
         amendments.output_lines_fragments_local_paths_to_echo,
         string.contains(fr.path, _),
       )
     },
     echo_string_fragments: fn(fr: OutputFragment(z, String)) {
-      options.echo_string_fragments(fr) ||
-      exists_match(
+      options.echo_string_fragments(fr)
+      || exists_match(
         amendments.string_fragments_local_paths_to_echo,
         string.contains(fr.path, _),
       )
     },
     echo_prettified_fragments: fn(fr: GhostOfOutputFragment(z)) {
-      options.echo_prettified_fragments(fr) ||
-      exists_match(
+      options.echo_prettified_fragments(fr)
+      || exists_match(
         amendments.prettified_fragments_local_paths_to_echo,
         string.contains(fr.path, _),
       )
@@ -1387,46 +1931,11 @@ pub fn amend_renderer_options_by_command_line_amendments(
   )
 }
 
-fn apply_dump_named(
-  decorateds: List(DecoratedDesugarer),
-  dump_named: List(#(String, Int, Int))
-) -> Result(List(DecoratedDesugarer), RendererError(a, b, c, d, e, f)) {
-  let dump_named = list.map(dump_named, fn(dn) {#(dn.0, dn.1, dn.2, False)})
-  use #(on_change, _) <- on.ok(extract_all_on_change_and_forced_steps_from_named_ranges(dump_named, decorateds))
-  assert list.length(on_change) >= list.length(dump_named)
-  list.index_map(decorateds, fn(decorated, i) {
-    let step_no = i + 1
-    DecoratedDesugarer(..decorated, dump: list.contains(on_change, step_no))
-  })
-  |> Ok
-}
-
-fn apply_dump_numbers(
-  decorateds: List(DecoratedDesugarer),
-  dump_numbers: Option(List(Int)),
-) -> List(DecoratedDesugarer) {
-  use dump_numbers <- on.eager_none_some(dump_numbers, decorateds)
-  let num_steps = list.length(decorateds)
-  let wraparound = fn(x: Int) {
-    case x < 0 {
-      True -> num_steps + x + 1
-      False -> x
-    }
-  }
-  let apply_to_all = dump_numbers == []
-  let dumping_steps = list.map(dump_numbers, wraparound)
-  case apply_to_all {
-    True -> list.map(
-      decorateds,
-      fn(decorated) { DecoratedDesugarer(..decorated, dump: True) }
-    )
-    False -> list.index_map(
-      decorateds,
-      fn(decorated, i) {
-        let step_no = i + 1
-        DecoratedDesugarer(..decorated, dump: list.contains(dumping_steps, step_no) )
-      }
-    )
+fn resolve_absolute_step(step: Int, pipeline: Pipeline) -> Int {
+  let num_steps = list.length(pipeline)
+  case step < 0 {
+    True -> num_steps + step + 1
+    False -> step
   }
 }
 
@@ -1438,125 +1947,229 @@ fn list_int_cleaner(ze_list: List(Int)) -> List(Int) {
   ze_list |> list.unique |> list.sort(int.compare)
 }
 
-fn extract_on_change_and_forced_steps_from_name_and_pipeline(
-  params: #(String, Int, Int, Bool),
-  pipeline: List(DecoratedDesugarer),
-) -> Result(#(List(Int), List(Int)), RendererError(a, b, c, d, e, f)) {
-  let #(name, lo, hi, forced) = params
-  let indices = list.index_fold(
-    pipeline,
-    [],
-    fn(acc, dd, i) {
-      case dd.desugarer.name == name {
+fn resolve_absolute_step_range(
+  range: AbsoluteStepRange,
+  pipeline: Pipeline,
+) -> List(Int) {
+  let num_steps = list.length(pipeline)
+  let #(first, last) = case range {
+    ClosedAbsoluteStepRange(first, last) -> #(
+      resolve_absolute_step(first, pipeline),
+      resolve_absolute_step(last, pipeline),
+    )
+    AbsoluteStepsFrom(first) -> #(
+      resolve_absolute_step(first, pipeline),
+      num_steps,
+    )
+  }
+  lo_hi_ints(int.min(first, last), int.max(first, last))
+  |> list.filter(fn(step) { step >= 0 && step <= num_steps })
+}
+
+fn resolve_desugarer_relative_step_range(
+  range: DesugarerRelativeStepRange,
+  pipeline: Pipeline,
+) -> Result(List(Int), String) {
+  let DesugarerRelativeStepRange(name, first_offset, last_offset) = range
+  let indices =
+    list.index_fold(pipeline, [], fn(acc, desugarer, i) {
+      case desugarer.name == name {
         True -> [i, ..acc]
         False -> acc
       }
-    }
-  )
-  use _ <- on.stay(
-    case indices {
-      [] -> on.Return(Error(DesugarerNameNotFoundError(name)))
-      _ -> on.Stay(Nil)
-    }
-  )
-  let #(lo, hi) = case lo > hi {
-    True -> #(hi, lo)
-    False -> #(lo, hi)
-  }
-  let relative_range = int.range(lo, hi + 1, [], fn(acc, i) { [i, ..acc] })
-  let final_range = list.fold(
-    indices,
-    [],
-    fn(acc, index) {
+    })
+  use _ <- on.stay(case indices {
+    [] -> on.Return(Error("desugarer name not found: " <> name))
+    _ -> on.Stay(Nil)
+  })
+  let num_steps = list.length(pipeline)
+  let relative_range = lo_hi_ints(first_offset, last_offset)
+  let final_range =
+    list.fold(indices, [], fn(acc, index) {
       let step_no = index + 1
-      list.fold(
-        relative_range,
-        acc,
-        fn(sub_acc, x) { [step_no + x, ..sub_acc] },
-      )
-    },
-  )
-  assert final_range != []
-  let final_range = list.unique(final_range)
-  case forced {
-    True -> #([], final_range)
-    False -> #(final_range, [])
-  }
+      list.fold(relative_range, acc, fn(sub_acc, x) { [step_no + x, ..sub_acc] })
+    })
+  final_range
+  |> list.filter(fn(step) { step >= 0 && step <= num_steps })
+  |> list_int_cleaner
   |> Ok
 }
 
-fn extract_all_on_change_and_forced_steps_from_named_ranges(
-  named_ranges: List(#(String, Int, Int, Bool)),
-  pipeline: List(DecoratedDesugarer),
-) -> Result(#(List(Int), List(Int)), RendererError(a, b, c, d, e, f)) {
-  use #(oa, fo) <- on.ok(list.try_fold(
-    named_ranges,
-    #([], []),
-    fn(acc, named_range) {
-      use #(oa, fo) <- on.ok(extract_on_change_and_forced_steps_from_name_and_pipeline(named_range, pipeline))
-      #(list.append(acc.0, oa), list.append(acc.1, fo)) |> Ok
-    }
-  ))
-  #(oa |> list_int_cleaner, fo |> list_int_cleaner) |> Ok
-}
-
-fn apply_pipeline_tracking_modifier(
-  decorateds: List(DecoratedDesugarer),
-  tracker: Option(Tracker),
-) -> Result(List(DecoratedDesugarer), RendererError(a, b, c, d, e, f)) {
-  // if mod is None return the pipeline
-  use tracker <- on.eager_none_some(tracker, Ok(decorateds))
-  // else...
-  let num_steps = list.length(decorateds)
-  let wraparound = fn(x: Int) {
-    case x < 0 {
-      True -> num_steps + x + 1
-      False -> x
-    }
-  }
-  let on_change_steps = list.map(tracker.steps_with_tracking_on_change, wraparound)
-  let force = list.map(tracker.steps_with_tracking_forced, wraparound)
-  use #(named_oa, named_f) <- on.ok(
-    extract_all_on_change_and_forced_steps_from_named_ranges(tracker.desugarer_named_ranges, decorateds)
-  )
-  let on_change_steps = list.append(named_oa, on_change_steps) |> list_int_cleaner
-  let force = list.append(named_f, force) |> list_int_cleaner
-  let apply_to_all = on_change_steps == [] && force == []
-  case apply_to_all {
-    True -> {
-      list.map(
-        decorateds,
-        fn(decorated) {
-          DecoratedDesugarer(
-            desugarer: decorated.desugarer,
-            selector: option.unwrap(tracker.selector, decorated.selector),
-            tracking_mode: TrackingOnChange,
-            dump: decorated.dump,
-          )
-        }
-      )
-    }
-
-    False -> {
-      list.index_map(decorateds, fn(decorated, i) {
-        let step_no = i + 1
-        let on_change = list.contains(on_change_steps, step_no)
-        let forced = list.contains(force, step_no)
-        let mode = case on_change, forced {
-          _, True -> TrackingForced
-          True, _ -> TrackingOnChange
-          _, _ -> TrackingOff
-        }
-        DecoratedDesugarer(
-          desugarer: decorated.desugarer,
-          selector: option.unwrap(tracker.selector, decorated.selector),
-          tracking_mode: mode,
-          dump: decorated.dump,
-        )
+fn resolve_pipeline_step_specs(
+  specs: List(PipelineStepSpec),
+  pipeline: Pipeline,
+) -> Result(#(List(Int), List(Int)), String) {
+  use #(on_change, forced) <- on.ok(
+    list.try_fold(specs, #([], []), fn(acc, spec) {
+      let PipelineStepSpec(range, mode) = spec
+      use steps <- on.ok(case range {
+        AbsoluteSteps(range) -> Ok(resolve_absolute_step_range(range, pipeline))
+        DesugarerRelativeSteps(range) ->
+          resolve_desugarer_relative_step_range(range, pipeline)
       })
-    }
+      case mode {
+        OnChange -> Ok(#(list.append(acc.0, steps), acc.1))
+        Forced -> Ok(#(acc.0, list.append(acc.1, steps)))
+      }
+    }),
+  )
+  let forced = list_int_cleaner(forced)
+  let on_change =
+    on_change
+    |> list_int_cleaner
+    |> list.filter(fn(step) { !list.contains(forced, step) })
+  Ok(#(on_change, forced))
+}
+
+fn monitor_output_heading(context: PipelineStepContext) -> List(String) {
+  case context.previous_desugarer {
+    None -> ["0. initial pipeline state"]
+    Some(desugarer) ->
+      pr.name_and_param_string_lines(desugarer, context.step_no, 0)
   }
+}
+
+fn selected_vxml(vxml: VXML, selector: Selector) {
+  vxml
+  |> core.vxml_to_s_lines
+  |> selector
+}
+
+fn selected_output_lines(vxml: VXML, selector: Selector) -> List(String) {
+  selected_vxml(vxml, selector)
+  |> core.s_lines_table_lines("", False, 2)
+}
+
+fn selected_comparison_string(vxml: VXML, selector: Selector) -> String {
+  selected_vxml(vxml, selector)
+  |> core.s_lines_table("", True, 0)
+}
+
+fn tracking_monitor_output(
+  vxml: VXML,
+  selector: Selector,
+  context: PipelineStepContext,
+) -> MonitorOutput {
+  MonitorOutput(
+    lines: [
+      "💠",
+      ..list.append(monitor_output_heading(context), [
+        "💠",
+        ..selected_output_lines(vxml, selector)
+      ])
+    ],
+    margin: AtRunnerMargin,
+  )
+}
+
+fn make_tracking_monitor(
+  tracker: Tracker,
+  pipeline: Pipeline,
+) -> Result(Monitor, String) {
+  use #(on_change_steps, forced_steps) <- on.ok(resolve_pipeline_step_specs(
+    tracker.step_specs,
+    pipeline,
+  ))
+  let track_all = on_change_steps == [] && forced_steps == []
+  let printing_selector =
+    option.unwrap(tracker.printing_selector, fn(lines) { lines })
+  let change_selector =
+    option.unwrap(tracker.change_selector, printing_selector)
+  new_monitor("track", #(None, None), fn(vxml, state, context) {
+    let #(previous, last_output_step) = state
+    let forced = list.contains(forced_steps, context.step_no)
+    let on_change = track_all || list.contains(on_change_steps, context.step_no)
+    let #(previous, outputs) = case forced || on_change {
+      False -> #(previous, [])
+      True -> {
+        let comparison = selected_comparison_string(vxml, change_selector)
+        let output = tracking_monitor_output(vxml, printing_selector, context)
+        case forced || Some(comparison) != previous {
+          True -> #(Some(comparison), [output])
+          False -> #(Some(comparison), [])
+        }
+      }
+    }
+    let outputs = case outputs, context.previous_desugarer {
+      [], Some(desugarer) if context.step_no > 0 && context.step_no % 10 == 0 -> {
+        let enough_steps_since_last_output = case last_output_step {
+          None -> True
+          Some(step_no) -> context.step_no - step_no >= 3
+        }
+        case enough_steps_since_last_output {
+          True -> [
+            MonitorOutput(
+              lines: ["..." <> ins(context.step_no) <> ". " <> desugarer.name],
+              margin: AtRunnerMargin,
+            ),
+          ]
+          False -> []
+        }
+      }
+      _, _ -> outputs
+    }
+    let last_output_step = case outputs {
+      [] -> last_output_step
+      _ -> Some(context.step_no)
+    }
+    Ok(#(#(previous, last_output_step), outputs))
+  })
   |> Ok
+}
+
+fn make_dump_monitor(
+  specs: List(PipelineStepSpec),
+  pipeline: Pipeline,
+) -> Result(Monitor, String) {
+  use #(on_change_steps, forced_steps) <- on.ok(resolve_pipeline_step_specs(
+    specs,
+    pipeline,
+  ))
+  let selected_steps =
+    list.append(on_change_steps, forced_steps) |> list_int_cleaner
+  let dump_all = specs == []
+  new_monitor("dump", Nil, fn(vxml, state, context) {
+    case dump_all || list.contains(selected_steps, context.step_no) {
+      False -> Ok(#(state, []))
+      True -> {
+        let output =
+          MonitorOutput(
+            lines: [
+              "💠",
+              ..list.append(monitor_output_heading(context), [
+                "💠",
+                ..{
+                  vxml
+                  |> core.vxml_to_s_lines
+                  |> sl.all()
+                  |> core.s_lines_table_lines("", False, 2)
+                }
+              ])
+            ],
+            margin: AtRunnerMargin,
+          )
+        Ok(#(state, [output]))
+      }
+    }
+  })
+  |> Ok
+}
+
+fn make_monitors(
+  options: RendererOptions(z),
+  pipeline: Pipeline,
+) -> Result(List(Monitor), RendererError(a, b, c, d, e, f)) {
+  use built <- on.error_ok(
+    list.try_map(options.monitor_factories, fn(factory) {
+      case factory {
+        TrackingMonitorFactory(tracker) ->
+          make_tracking_monitor(tracker, pipeline)
+        DumpMonitorFactory(specs) -> make_dump_monitor(specs, pipeline)
+      }
+    }),
+    fn(message) { Error(DesugarerNameNotFoundError(message)) },
+  )
+  Ok(list.append(options.monitors, built))
 }
 
 // ************************************************************
@@ -1585,213 +2198,177 @@ pub type InSituDesugaringWarning {
   )
 }
 
+pub type MonitorFailure {
+  MonitorFailure(monitor_name: String, step_no: Int, message: String)
+}
+
+pub type PipelineExecutionError {
+  PipelineDesugaringError(InSituDesugaringError)
+  PipelineMonitorError(MonitorFailure)
+}
+
 type Message {
-  ProducedString(List(String), Int)
+  MonitorProducedOutput(MonitorOutput, Int)
   ProducerFinished(
     Result(
-      #(
-        VXML,
-        List(InSituDesugaringWarning),
-        List(Duration),
-        List(String),
-      ),
-      InSituDesugaringError,
+      #(VXML, List(InSituDesugaringWarning), List(Duration)),
+      PipelineExecutionError,
     ),
   )
+}
+
+fn update_monitors(
+  main_process_subject: Subject(Message),
+  monitors: List(Monitor),
+  vxml: VXML,
+  context: PipelineStepContext,
+) -> Result(List(Monitor), MonitorFailure) {
+  monitors
+  |> list.try_fold([], fn(next_monitors, monitor) {
+    use update <- on.error_ok(monitor.update(vxml, context), fn(message) {
+      Error(MonitorFailure(
+        monitor_name: monitor.name,
+        step_no: context.step_no,
+        message: message,
+      ))
+    })
+    let MonitorUpdate(next, outputs) = update
+    list.each(outputs, fn(output) {
+      send(main_process_subject, MonitorProducedOutput(output, context.step_no))
+    })
+    Ok([next, ..next_monitors])
+  })
+  |> result.map(list.reverse)
 }
 
 fn producer(
   main_process_subject: Subject(Message),
   vxml: VXML,
-  pipeline: List(DecoratedDesugarer),
+  pipeline: Pipeline,
+  monitors: List(Monitor),
 ) -> Nil {
-  let track_any = list.any(pipeline, fn(p) { p.tracking_mode != TrackingOff })
-  let last_step = list.length(pipeline)
-
-  let final =
-    pipeline
-    |> list.try_fold(
-      #(vxml, [], [], [], 1, "", False),
-      fn(acc, pipe) {
-        let #(
-          vxml,
-          warnings,
-          durations,
-          lines,
-          step_no,
-          last_tracking_output,
-          got_arrow,
-        ) = acc
-
-        let DecoratedDesugarer(desugarer, selector, mode, dump) = pipe
-
-        let #(printed_arrow, lines) = case track_any && !got_arrow {
-          True -> {
-            #(True, ["    💠", ..lines])
-          }
-          False -> #(False, lines)
-        }
-
+  let first_desugarer = case list.first(pipeline) {
+    Ok(desugarer) -> Some(desugarer)
+    Error(_) -> None
+  }
+  let initial_context =
+    PipelineStepContext(
+      step_no: 0,
+      previous_desugarer: None,
+      next_desugarer: first_desugarer,
+    )
+  let final = case
+    update_monitors(main_process_subject, monitors, vxml, initial_context)
+  {
+    Error(failure) -> Error(PipelineMonitorError(failure))
+    Ok(monitors) ->
+      pipeline
+      |> list.index_map(fn(desugarer, index) { #(desugarer, index) })
+      |> list.try_fold(#(vxml, [], [], monitors), fn(acc, indexed_desugarer) {
+        let #(desugarer, index) = indexed_desugarer
+        let #(vxml, warnings, durations, monitors) = acc
+        let step_no = index + 1
         let now = timestamp.system_time()
-
         use #(vxml, new_warnings) <- on.error_ok(
           desugarer.transform(vxml),
           fn(error) {
-            Error(InSituDesugaringError(
+            InSituDesugaringError(
               desugarer: desugarer,
               step_no: step_no,
               blame: error.blame,
               message: error.message,
-            ))
-          }
+            )
+            |> PipelineDesugaringError
+            |> Error
+          },
         )
-
         let then = timestamp.system_time()
-        let duration = timestamp.difference(now, then)
-        let durations = [duration, ..durations]
-
-        let new_warnings = list.map(
-          new_warnings,
-          fn(warning) {
+        let durations = [timestamp.difference(now, then), ..durations]
+        let new_warnings =
+          list.map(new_warnings, fn(warning) {
             InSituDesugaringWarning(
               desugarer: desugarer,
               step_no: step_no,
               blame: warning.blame,
               message: warning.message,
             )
-          }
-        )
-
-        let #(selected_2_print, next_tracking_output) = case mode == TrackingOff && !dump {
-          True -> #([], last_tracking_output)
-
-          False -> {
-            let selected_2_print =
-              vxml
-              |> core.vxml_to_s_lines
-              |> selector
-            let next_tracking_output =
-              selected_2_print
-              |> core.s_lines_table("", True, 0)
-            let selected_2_print = case dump {
-              True -> vxml |> core.vxml_to_s_lines |> sl.all()
-              False -> selected_2_print
-            }
-            #(selected_2_print, next_tracking_output)
-          }
+          })
+        let next_desugarer = case list.first(list.drop(pipeline, step_no)) {
+          Ok(desugarer) -> Some(desugarer)
+          Error(_) -> None
         }
-
-        let must_print = 
-          dump ||
-          mode == TrackingForced ||
-          { mode == TrackingOnChange && next_tracking_output != last_tracking_output }
-
-        let #(got_arrow, lines) = case must_print {
-          True -> {
-            let lines = core.pour(
-              pr.name_and_param_string_lines(desugarer, step_no, 4),
-              lines,
-            )
-            let lines = ["    💠", ..lines] 
-            let lines = 
-              selected_2_print
-              |> core.s_lines_table_lines("", False, 2)
-              |> core.pour(lines)
-            send(main_process_subject, ProducedString(lines |> list.reverse, step_no))
-            #(False, [])
-          }
-
-          False -> case printed_arrow && step_no < last_step {
-            True -> {
-              let lines = ["    ⋮", ..lines]
-              #(True, lines)
-            }
-            False -> #(True, lines)
-          }
-        }
-
-        #(
-          vxml,
-          list.append(warnings, new_warnings),
-          durations,
-          lines,
-          step_no + 1,
-          next_tracking_output,
-          got_arrow,
+        let context =
+          PipelineStepContext(
+            step_no: step_no,
+            previous_desugarer: Some(desugarer),
+            next_desugarer: next_desugarer,
+          )
+        use monitors <- on.error_ok(
+          update_monitors(main_process_subject, monitors, vxml, context),
+          fn(failure) { Error(PipelineMonitorError(failure)) },
         )
-        |> Ok
-      }
-    )
-    |> result.map(fn(acc) { #(acc.0, acc.1, acc.2, acc.3) })
+        Ok(#(vxml, list.append(warnings, new_warnings), durations, monitors))
+      })
+      |> result.map(fn(acc) { #(acc.0, acc.1, acc.2) })
+  }
 
   send(main_process_subject, ProducerFinished(final))
 }
 
+fn print_monitor_output(output: MonitorOutput, runner_margin: Int) -> Nil {
+  let MonitorOutput(lines, margin) = output
+  let margin = case margin {
+    AtRunnerMargin -> string.repeat(" ", runner_margin)
+    Verbatim -> ""
+  }
+  lines
+  |> list.map(fn(line) { margin <> line })
+  |> string.join("\n")
+  |> io.println
+}
+
 fn loop(
   subject: Subject(Message),
-  countdown: Int, // pause for user only when countdown == 0
-) -> Result(#(
-    VXML,
-    List(InSituDesugaringWarning),
-    List(Duration),
-  ),
-  Result(
-    UserExit,
-    InSituDesugaringError,
-  )
+  countdown: Int,
+  // pause for user only when countdown == 0
+) -> Result(
+  #(VXML, List(InSituDesugaringWarning), List(Duration)),
+  Result(UserExit, PipelineExecutionError),
 ) {
-  case receive(subject, within: 100000) {
-    Ok(ProducedString(lines, step_no)) -> {
-      io.print(lines |> string.join("\n"))
-      io.print(" (@" <> ins(step_no) <> ") ")
+  case receive(subject, within: 100_000) {
+    Ok(MonitorProducedOutput(output, step_no)) -> {
+      print_monitor_output(output, 4)
       case countdown == 0 {
         False -> {
-          io.println("")
           loop(subject, countdown - 1)
         }
-        True -> case input.input("(↵|<n>|e|c) ") {
-          Ok(msg) -> {
-            let #(countdown, quit) = case int.parse(msg) {
-              Ok(q) -> #(q, False)
-              Error(_) -> case msg {
-                "e" -> #(-1, False)
-                "c" -> #(-1, True)
-                _ -> #(1, False)
+        True ->
+          case input.input("(↵|<n>|e|c) ") {
+            Ok(msg) -> {
+              let #(countdown, quit) = case int.parse(msg) {
+                Ok(q) -> #(q, False)
+                Error(_) ->
+                  case msg {
+                    "e" -> #(-1, False)
+                    "c" -> #(-1, True)
+                    _ -> #(1, False)
+                  }
+              }
+              case quit {
+                True -> Error(Ok(UserExit(step_no)))
+                False -> loop(subject, countdown - 1)
               }
             }
-            case quit {
-              True -> Error(Ok(UserExit(step_no)))
-              False -> loop(subject, countdown - 1)
+            Error(_) -> {
+              panic as "error reading input"
             }
           }
-          Error(_) -> {
-            panic as "error reading input"
-          }
-        }
       }
     }
 
     Ok(ProducerFinished(result)) -> {
       case result {
-        Ok(#(
-          vxml,
-          in_situ_warnings,
-          durations,
-          last_lines,
-        )) -> {
-          case last_lines != [] {
-            True -> {
-              io.print(last_lines |> string.join("\n"))
-              io.println("")
-            }
-            False -> Nil
-          }
-          Ok(#(
-            vxml,
-            in_situ_warnings,
-            durations,
-          ))
-        }
+        Ok(value) -> Ok(value)
         Error(error) -> Error(Error(error))
       }
     }
@@ -1803,29 +2380,19 @@ fn loop(
   }
 }
 
-fn run_pipeline(
+pub fn run_pipeline(
   vxml: VXML,
-  decorateds: List(DecoratedDesugarer),
+  pipeline: Pipeline,
+  monitors: List(Monitor),
   interactive_mode: Bool,
-) -> Result(#(
-    VXML,
-    List(InSituDesugaringWarning),
-    List(Duration),
-  ),
-  Result(
-    UserExit,
-    InSituDesugaringError,
-  ),
+) -> Result(
+  #(VXML, List(InSituDesugaringWarning), List(Duration)),
+  Result(UserExit, PipelineExecutionError),
 ) {
   let main_subject = process.new_subject()
 
-  let producer_pid = spawn(fn() {
-    producer(
-      main_subject,
-      vxml,
-      decorateds,
-    )
-  })
+  let producer_pid =
+    spawn(fn() { producer(main_subject, vxml, pipeline, monitors) })
 
   process.link(producer_pid)
 
@@ -1841,7 +2408,9 @@ fn run_pipeline(
 // other run_renderer helpers
 // ************************************************************
 
-fn sanitize_input_output_dirs(parameters: RendererParameters) -> RendererParameters {
+fn sanitize_input_output_dirs(
+  parameters: RendererParameters,
+) -> RendererParameters {
   RendererParameters(
     ..parameters,
     input_dir: core.drop_ending_slash(parameters.input_dir),
@@ -1859,18 +2428,18 @@ fn echo_vxml(vxml: VXML, banner: String, indent: Int) -> Nil {
   }
 }
 
-fn create_dirs_on_path_to_file(path_to_file: String) -> Result(Nil, simplifile.FileError) {
+fn create_dirs_on_path_to_file(
+  path_to_file: String,
+) -> Result(Nil, simplifile.FileError) {
   let pieces = path_to_file |> string.split("/")
   let pieces = core.drop_last(pieces)
   list.try_fold(pieces, ".", fn(acc, piece) {
     let acc = acc <> "/" <> piece
     use exists <- on.ok(simplifile.is_directory(acc))
-    use _ <- on.ok(
-      case exists {
-        True  -> Ok(Nil)
-        False -> simplifile.create_directory(acc)
-      }
-    )
+    use _ <- on.ok(case exists {
+      True -> Ok(Nil)
+      False -> simplifile.create_directory(acc)
+    })
     Ok(acc)
   })
   |> result.map(fn(_) { Nil })
@@ -1891,6 +2460,7 @@ pub type RendererError(a, b, c, d, e, f) {
   FiltrationError(c)
   DesugarerNameNotFoundError(String)
   PipelineError(InSituDesugaringError)
+  MonitorError(MonitorFailure)
   UserExitError(Int)
   SplitterError(d)
   EmittingOrWritingErrors(List(TwoPossibilities(e, f)))
@@ -1907,11 +2477,7 @@ pub fn run_renderer(
 ) -> Result(List(String), RendererError(a, b, c, d, e, f)) {
   let parameters = sanitize_input_output_dirs(parameters)
 
-  let RendererParameters(
-    input_dir,
-    output_dir,
-    prettifier_mode,
-  ) = parameters
+  let RendererParameters(input_dir, output_dir, prettifier_mode) = parameters
 
   case options.steps_table {
     True -> pr.print_pipeline(renderer.pipeline)
@@ -1938,17 +2504,17 @@ pub fn run_renderer(
 
   case options.verbose, tree {
     True, Some(tree) -> {
-      let spaces = 
-        string.repeat(" ", string.length("  -> assembled "))
+      let spaces = string.repeat(" ", string.length("  -> assembled "))
 
-      list.index_map(
-        tree |> dt.pretty_print(1),
-        fn(line, i) {
-          case i == 0 { True -> "  -> assembled " False -> spaces}
-          <> line
+      list.index_map(tree |> dt.pretty_print(1), fn(line, i) {
+        case i == 0 {
+          True -> "  -> assembled "
+          False -> spaces
         }
-      )
-      |> string.join("\n") |> io.println
+        <> line
+      })
+      |> string.join("\n")
+      |> io.println
     }
     _, _ -> Nil
   }
@@ -1957,7 +2523,7 @@ pub fn run_renderer(
     False -> Nil
     True -> {
       assembled
-      |> io_l.input_lines_table("",  2)
+      |> io_l.input_lines_table("", 2)
       |> io.println
     }
   }
@@ -1987,19 +2553,16 @@ pub fn run_renderer(
     True -> echo_vxml(parsed, "parsed:", 2)
   }
 
-  use filtered <- on.error_ok(
-    renderer.filterer(parsed),
-    fn (c) {
-      io.println("  ...filtration error:")
-      io.println("")
-      [
-        #("", ins(c) |> pr.strip_quotes),
-      ]
-      |> pr.two_column_error_announcer(0, 70, "💥", 2, "/ filtration error /")
-      |> io.println
-      Error(FiltrationError(c))
-    }
-  )
+  use filtered <- on.error_ok(renderer.filterer(parsed), fn(c) {
+    io.println("  ...filtration error:")
+    io.println("")
+    [
+      #("", ins(c) |> pr.strip_quotes),
+    ]
+    |> pr.two_column_error_announcer(0, 70, "💥", 2, "/ filtration error /")
+    |> io.println
+    Error(FiltrationError(c))
+  })
 
   // use #(filtered, filtration_warnings) <- on.error_ok(
   //   dl.filter_nodes_by_key_values(options.only_key_vals).transform(parsed),
@@ -2045,29 +2608,19 @@ pub fn run_renderer(
   io.println("• starting pipeline...")
   let t0 = timestamp.system_time()
 
-  use decorateds <- on.error_ok(
-    renderer.pipeline
-    |> desugarers_2_decorateds
-    |> apply_pipeline_tracking_modifier(options.tracker),
+  use monitors <- on.error_ok(
+    make_monitors(options, renderer.pipeline),
     on_error: fn(error) {
       io.println("  ...error:")
       io.println("")
       [#("", ins(error))]
-      |> pr.two_column_error_announcer(0, 70, "💥", 2, "/ '--track' option error: /")
-      |> io.println
-      Error(error)
-    },
-  )
-
-  use decorateds <- on.error_ok(
-    decorateds
-    |> apply_dump_numbers(options.dump)
-    |> apply_dump_named(options.dump_named),
-    on_error: fn(error) {
-      io.println("  ...error:")
-      io.println("")
-      [#("", ins(error))]
-      |> pr.two_column_error_announcer(0, 70, "💥", 2, "/ '--dump' option error /")
+      |> pr.two_column_error_announcer(
+        0,
+        70,
+        "💥",
+        2,
+        "/ monitor option error /",
+      )
       |> io.println
       Error(error)
     },
@@ -2076,7 +2629,8 @@ pub fn run_renderer(
   use #(desugared, warnings, durations) <- on.error_ok(
     run_pipeline(
       filtered,
-      decorateds,
+      renderer.pipeline,
+      monitors,
       options.interactive_mode,
     ),
     on_error: fn(e) {
@@ -2086,7 +2640,7 @@ pub fn run_renderer(
           io.println("user exit at step_no " <> ins(step_no))
           Error(UserExitError(step_no))
         }
-        Error(e) -> {
+        Error(PipelineDesugaringError(e)) -> {
           io.println("  ...desugaring error:")
           io.println("")
           [
@@ -2098,9 +2652,27 @@ pub fn run_renderer(
           |> pr.two_column_error_announcer(0, 68, "🍄", 2, "/ DesugaringError /")
           |> io.println
           Error(PipelineError(e))
-        } 
+        }
+        Error(PipelineMonitorError(failure)) -> {
+          let MonitorFailure(name, step_no, message) = failure
+          io.println("  ...pipeline stopped by monitor:")
+          io.println("")
+          [
+            #(" step:", ins(step_no)),
+            #(" message:", message),
+          ]
+          |> pr.two_column_error_announcer(
+            0,
+            68,
+            "🍄",
+            2,
+            "/ '" <> name <> "' monitor error /",
+          )
+          |> io.println
+          Error(MonitorError(failure))
+        }
       }
-    }
+    },
   )
 
   let t1 = timestamp.system_time()
@@ -2113,32 +2685,31 @@ pub fn run_renderer(
     }
 
     Some(total_chars) -> {
-      let all_seconds = durations |> list.map(duration.to_seconds) |> list.reverse
+      let all_seconds =
+        durations |> list.map(duration.to_seconds) |> list.reverse
       let assert Ok(max_secs) = list.max(all_seconds, float.compare)
       let num_hundreth_seconds = float.ceiling(max_secs *. 100.0)
-      let one_hundreth_seconds_num_bars = int.to_float(total_chars) /. num_hundreth_seconds
+      let one_hundreth_seconds_num_bars =
+        int.to_float(total_chars) /. num_hundreth_seconds
       let scale =
         list.repeat(Nil, float.round(num_hundreth_seconds) + 1)
         |> list.map_fold(0.0, fn(x, _) { #(x +. 0.01, x) })
         |> pair.second
-        |> list.index_fold(
-          "",
-          fn(acc, seconds, i) {
-            let start_char = float.round(int.to_float(i) *. one_hundreth_seconds_num_bars)
-            let num_spaces = start_char - string.length(acc)
-            case num_spaces > 0 || acc == "" {
-              False -> acc
-              True -> {
-                let label = ins(seconds |> float.to_precision(2)) <> "s"
-                acc <> string.repeat(" ", num_spaces) <> label
-              }
+        |> list.index_fold("", fn(acc, seconds, i) {
+          let start_char =
+            float.round(int.to_float(i) *. one_hundreth_seconds_num_bars)
+          let num_spaces = start_char - string.length(acc)
+          case num_spaces > 0 || acc == "" {
+            False -> acc
+            True -> {
+              let label = ins(seconds |> float.to_precision(2)) <> "s"
+              acc <> string.repeat(" ", num_spaces) <> label
             }
           }
-        )
+        })
       assert list.length(all_seconds) == list.length(renderer.pipeline)
-      let bars = list.index_map(
-        list.zip(renderer.pipeline, all_seconds),
-        fn (pair, i) {
+      let bars =
+        list.index_map(list.zip(renderer.pipeline, all_seconds), fn(pair, i) {
           let #(desugarer, seconds) = pair
           case desugarer.name {
             "table_marker" -> [" ", "% table_marker %", " "] |> list.map(Or)
@@ -2147,13 +2718,15 @@ pub fn run_renderer(
               ["/", "/ " <> header <> " /", "/"] |> list.map(Or)
             }
             _ -> {
-              let num_bars = float.round(seconds *. 100.0 *. one_hundreth_seconds_num_bars)
-              [Either(#(ins(i + 1) <> ".", desugarer.name, pr.blocks(num_bars)))]
+              let num_bars =
+                float.round(seconds *. 100.0 *. one_hundreth_seconds_num_bars)
+              [
+                Either(#(ins(i + 1) <> ".", desugarer.name, pr.blocks(num_bars))),
+              ]
             }
           }
-        }
-      )
-      |> list.flatten
+        })
+        |> list.flatten
       pr.three_column_table([Either(#("#.", "name", scale)), ..bars])
       |> pr.print_lines_at_indent(2)
       io.println("  ...ended pipeline in " <> ins(seconds) <> "s")
@@ -2184,10 +2757,17 @@ pub fn run_renderer(
 
   case options.verbose {
     False -> {
-      io.println("  -> obtained " <> pr.how_many("fragment", "fragments", list.length(fragments)))
+      io.println(
+        "  -> obtained "
+        <> pr.how_many("fragment", "fragments", list.length(fragments)),
+      )
     }
     True -> {
-      io.println("  -> obtained " <> pr.how_many("fragment", "fragments", list.length(fragments)) <> ":")
+      io.println(
+        "  -> obtained "
+        <> pr.how_many("fragment", "fragments", list.length(fragments))
+        <> ":",
+      )
       [#("classifier", "path"), ..fragments_types_and_paths_4_table]
       |> pr.two_column_table
       |> pr.print_lines_at_indent(2)
@@ -2229,26 +2809,24 @@ pub fn run_renderer(
     }
   })
 
-  let num_emitter_errors = list.fold(fragments, 0, fn(acc, fr) {
-    case fr {
-      Ok(_) -> acc
-      _ -> acc + 1
-    }
-  })
+  let num_emitter_errors =
+    list.fold(fragments, 0, fn(acc, fr) {
+      case fr {
+        Ok(_) -> acc
+        _ -> acc + 1
+      }
+    })
 
-  list.each(
-    fragments,
-    fn (fr) {
-      use error <- on.ok_error(fr, fn(_){ Nil })
-      io.println("  emitter error:")
-      io.println("")
-      [
-        #("", ins(error)),
-      ]
-      |> pr.two_column_error_announcer(0, 68, "🍄", 2, "/ emitter error /")
-      |> io.println
-    }
-  )
+  list.each(fragments, fn(fr) {
+    use error <- on.ok_error(fr, fn(_) { Nil })
+    io.println("  emitter error:")
+    io.println("")
+    [
+      #("", ins(error)),
+    ]
+    |> pr.two_column_error_announcer(0, 68, "🍄", 2, "/ emitter error /")
+    |> io.println
+  })
 
   case num_emitter_errors {
     0 -> Nil
@@ -2260,15 +2838,11 @@ pub fn run_renderer(
   let fragments = {
     fragments
     |> list.map(
-      on.error_ok(
-        _,
-        fn(error) {
-          Error(P1(error))
-        },
-        fn(fr) {
-          Ok(OutputFragment(..fr, payload: io_l.output_lines_to_string(fr.payload)))
-        },
-      )
+      on.error_ok(_, fn(error) { Error(P1(error)) }, fn(fr) {
+        Ok(
+          OutputFragment(..fr, payload: io_l.output_lines_to_string(fr.payload)),
+        )
+      }),
     )
   }
 
@@ -2284,7 +2858,10 @@ pub fn run_renderer(
         case options.echo_string_fragments(fr) {
           False -> Nil
           True -> {
-            let header = "────────────────── writer echo: " <> fr.path <> " ──────────────────"
+            let header =
+              "────────────────── writer echo: "
+              <> fr.path
+              <> " ──────────────────"
             io.println(header)
             io.println(fr.payload)
             io.println(pr.dashes(string.length(header)))
@@ -2302,37 +2879,43 @@ pub fn run_renderer(
 
   let #(count, fragments) =
     fragments
-    |> list.map_fold(
-      0,
-      fn(acc, result) {
-        use fr <- on.error_ok(
-          result,
-          fn(e) { #(acc, Error(e)) }
-        )
-        case renderer.writer(output_dir, fr) {
-          Error(e) -> #(acc, Error(P2(e)))
-          Ok(z) -> {
-            case singleton_fragment {
-              True -> io.println("  -> wrote [" <> output_dir <> "/]" <> fr.path)
-              False -> case options.verbose || options.artifacts {
+    |> list.map_fold(0, fn(acc, result) {
+      use fr <- on.error_ok(result, fn(e) { #(acc, Error(e)) })
+      case renderer.writer(output_dir, fr) {
+        Error(e) -> #(acc, Error(P2(e)))
+        Ok(z) -> {
+          case singleton_fragment {
+            True -> io.println("  -> wrote [" <> output_dir <> "/]" <> fr.path)
+            False ->
+              case options.verbose || options.artifacts {
                 True -> io.println("  wrote [" <> output_dir <> "/]" <> fr.path)
                 False -> Nil
               }
-            }
-            #(acc + 1, Ok(z))
           }
+          #(acc + 1, Ok(z))
         }
       }
-    )
+    })
 
   case options.verbose || options.artifacts {
-    False -> case count {
-      1 -> case singleton_fragment { 
-        True -> Nil // we already announced (see above)
-        False -> io.println("  -> wrote 1 file (use '--artifacts' or '--verbose' to see)")
+    False ->
+      case count {
+        1 ->
+          case singleton_fragment {
+            True -> Nil
+            // we already announced (see above)
+            False ->
+              io.println(
+                "  -> wrote 1 file (use '--artifacts' or '--verbose' to see)",
+              )
+          }
+        _ ->
+          io.println(
+            "  -> wrote "
+            <> ins(count)
+            <> " files (use '--artifacts' or '--verbose' to see)",
+          )
       }
-      _ -> io.println("  -> wrote " <> ins(count) <> " files (use '--artifacts' or '--verbose' to see)")
-    }
     True -> Nil
   }
 
@@ -2342,11 +2925,20 @@ pub fn run_renderer(
     use fr: GhostOfOutputFragment(z) <- on.eager_error_ok(result, Nil)
     case dest_dir {
       None ->
-        io.print("  prettify-checking [" <> output_dir <> "]" <> fr.path <> "...")
+        io.print(
+          "  prettify-checking [" <> output_dir <> "]" <> fr.path <> "...",
+        )
       Some(dir) ->
         io.print(
-          "  prettifying [" <> output_dir <> "/]" <> fr.path
-          <> " -> [" <> dir <> "/]" <> fr.path <> "...",
+          "  prettifying ["
+          <> output_dir
+          <> "/]"
+          <> fr.path
+          <> " -> ["
+          <> dir
+          <> "/]"
+          <> fr.path
+          <> "...",
         )
     }
     case renderer.prettifier(output_dir, fr, dest_dir) {
@@ -2365,8 +2957,14 @@ pub fn run_renderer(
           False -> "\n"
         }
         io.print(
-          " " <> ins(x) <> " warnings" <> warn_suffix
-          <> " " <> ins(y) <> " errors" <> end,
+          " "
+          <> ins(x)
+          <> " warnings"
+          <> warn_suffix
+          <> " "
+          <> ins(y)
+          <> " errors"
+          <> end,
         )
         case options.warnings {
           True ->
@@ -2375,9 +2973,7 @@ pub fn run_renderer(
             })
           False -> Nil
         }
-        list.each(errs, fn(e) {
-          io.println("  🍄🍄--- error ---🍄🍄: " <> e)
-        })
+        list.each(errs, fn(e) { io.println("  🍄🍄--- error ---🍄🍄: " <> e) })
       }
     }
   }
@@ -2402,17 +2998,15 @@ pub fn run_renderer(
       False -> Nil
       True -> {
         let path = output_dir <> "/" <> fr.path
-        use file_contents <- on.error_ok(
-          simplifile.read(path),
-          fn(error) {
-            io.println("")
-            io.println(
-              "could not read back printed file " <> path <> ":" <> ins(error),
-            )
-          },
-        )
+        use file_contents <- on.error_ok(simplifile.read(path), fn(error) {
+          io.println("")
+          io.println(
+            "could not read back printed file " <> path <> ":" <> ins(error),
+          )
+        })
         io.println("")
-        let header = "───────────── prettifier echo: " <> fr.path <> " ──────────────────"
+        let header =
+          "───────────── prettifier echo: " <> fr.path <> " ──────────────────"
         io.println(header)
         io.println(file_contents)
         io.println(pr.dashes(string.length(header)))
@@ -2428,29 +3022,38 @@ pub fn run_renderer(
     _ -> {
       case options.warnings {
         True ->
-          io.println("\n👉 " <> pr.how_many("warning", "warnings", list.length(warnings)) <> ":")
+          io.println(
+            "\n👉 "
+            <> pr.how_many("warning", "warnings", list.length(warnings))
+            <> ":",
+          )
         False ->
-          io.println("\n[" <> pr.how_many("suppressed warning", "suppressed warnings", list.length(warnings)) <> " (use '--warnings' option to see)]")
+          io.println(
+            "\n["
+            <> pr.how_many(
+              "suppressed warning",
+              "suppressed warnings",
+              list.length(warnings),
+            )
+            <> " (use '--warnings' option to see)]",
+          )
       }
     }
   }
 
   case options.warnings {
     True ->
-      list.each(
-        warnings,
-        fn (w) {
-          io.println("")
-          [
-            #(" from:", w.desugarer.name <> " (desugarer)"),
-            #(" pipeline step: ", ins(w.step_no)),
-            #(" blame:", bl.blame_digest(w.blame)),
-            #(" message:", w.message),
-          ]
-          |> pr.two_column_error_announcer(0, 60, "👾", 2, "")
-          |> io.println
-        }
-      )
+      list.each(warnings, fn(w) {
+        io.println("")
+        [
+          #(" from:", w.desugarer.name <> " (desugarer)"),
+          #(" pipeline step: ", ins(w.step_no)),
+          #(" blame:", bl.blame_digest(w.blame)),
+          #(" message:", w.message),
+        ]
+        |> pr.two_column_error_announcer(0, 60, "👾", 2, "")
+        |> io.println
+      })
     False -> Nil
   }
 

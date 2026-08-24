@@ -3214,9 +3214,6 @@ pub fn extend_selector_to_ancestors(
   with_ancestor_attrs w2: Bool,
   with_elder_sibling_attrs w3: Bool,
 ) -> Selector {
-  echo w1
-  echo w2
-  echo w3
   fn(lines) {
     lines
     |> f
