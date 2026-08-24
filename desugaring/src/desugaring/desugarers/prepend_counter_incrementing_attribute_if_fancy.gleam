@@ -5,7 +5,7 @@ import desugaring/core.{
   type DesugarerTransform,
   type DesugaringError,
   type TrafficLight,
-  type FancyConditionFn,
+  type ContextualVXMLCondition,
   Continue,
   Desugarer,
 } as core
@@ -58,10 +58,10 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
   |> Ok
 }
 
-type Param = #(String, String, FancyConditionFn, TrafficLight)
+type Param = #(String, String, ContextualVXMLCondition, TrafficLight)
 //             ↖       ↖        ↖                ↖
 //             tag     counter  condition        early return
-type InnerParam = #(String, Attr, FancyConditionFn, TrafficLight)
+type InnerParam = #(String, Attr, ContextualVXMLCondition, TrafficLight)
 fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
 
 pub const name = "prepend_counter_incrementing_attribute"

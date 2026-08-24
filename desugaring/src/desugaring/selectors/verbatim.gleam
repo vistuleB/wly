@@ -1,10 +1,10 @@
-import desugaring/core.{type Selector, type SLine, type SLineSelectedStatus} as core
+import desugaring/core.{type SelectionStatus, type Selector, type SLine} as core
 import gleam/string
 
 fn line_selector(
   line: SLine,
   s: String,
-) -> SLineSelectedStatus {
+) -> SelectionStatus {
   case string.contains(line.content, s) {
     True -> core.OG
     _ -> core.NotSelected

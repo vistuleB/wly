@@ -5,7 +5,7 @@ import desugaring/core.{
   type Desugarer,
   type DesugarerTransform,
   type DesugaringError,
-  type FancyConditionFn,
+  type ContextualVXMLCondition,
   type TrafficLight,
   Continue,
   Desugarer,
@@ -59,10 +59,10 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
   |> Ok
 }
 
-type Param = #(String, FancyConditionFn, String, String,   TrafficLight)
+type Param = #(String, ContextualVXMLCondition, String, String,   TrafficLight)
 //             ↖       ↖                 ↖       ↖         ↖
 //             tag     condition         attr    value     early return or not
-type InnerParam = #(String, FancyConditionFn, List(Attr), TrafficLight)
+type InnerParam = #(String, ContextualVXMLCondition, List(Attr), TrafficLight)
 
 pub const name = "append_attribute_if_fancy"
 fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }

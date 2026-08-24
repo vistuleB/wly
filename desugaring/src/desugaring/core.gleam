@@ -36,7 +36,7 @@ pub type CSSUnit {
 // ************************************************************
 // Helper Types
 // ************************************************************
-pub type FancyConditionFn =
+pub type ContextualVXMLCondition =
   fn(VXML, List(VXML), List(VXML), List(VXML), List(VXML)) -> Bool
 
 pub fn parse_to_float(s: String) -> Result(Float, Nil) {
@@ -153,7 +153,7 @@ pub fn opening_and_closing_singletons_for_pair(
   }
 }
 
-pub fn left_right_delim_strings(
+pub fn opening_and_closing_delimiter_strings(
   delimiters: List(LatexDelimiterPair),
 ) -> #(List(String), List(String)) {
   delimiters
@@ -360,11 +360,6 @@ pub fn pour(from: List(a), into: List(a)) -> List(a) {
     [first, ..rest] -> pour(rest, [first, ..into])
     [] -> into
   }
-}
-
-pub fn our_flat_map(over: List(a), with: fn(a) -> List(b)) -> List(b) {
-  list.fold(over, [], fn(acc, child) { pour(with(child), acc) })
-  |> list.reverse
 }
 
 pub fn pour_but_last(from: List(a), into: List(a)) -> #(List(a), a) {
@@ -751,7 +746,7 @@ pub fn drop_ending_slash(path: String) -> String {
   }
 }
 
-pub fn kabob_case_to_camel_case(input: String) -> String {
+pub fn kebab_case_to_camel_case(input: String) -> String {
   input
   |> string.split("-")
   |> list.index_map(fn(word, index) {
@@ -1900,17 +1895,6 @@ pub fn first_with_tag(nodes: List(VXML), tag: String) -> Option(VXML) {
   }
 }
 
-pub fn first_is(vxmls: List(VXML), tag: String) -> Bool {
-  case vxmls {
-    [V(_, t, _, _), ..] -> t == tag
-    _ -> False
-  }
-}
-
-pub fn contains(vxmls: List(VXML), tag: String) -> Bool {
-  list.any(vxmls, is_v_and_tag_equals(_, tag))
-}
-
 pub fn v_first_child_with_tag(vxml: VXML, tag: String) -> Option(VXML) {
   let assert V(_, _, _, children) = vxml
   first_with_tag(children, tag)
@@ -2147,13 +2131,13 @@ pub fn attrs_have_key_val(attrs: List(Attr), key: String, val: String) -> Bool {
   list.any(attrs, fn(x) { x.key == key && x.val == val })
 }
 
-pub fn string_pair_2_attr(pair: #(String, String), blame: Blame) {
+pub fn string_pair_to_attr(pair: #(String, String), blame: Blame) {
   Attr(blame, pair.0, pair.1)
 }
 
-pub fn string_pairs_2_attrs(pairs: List(#(String, String)), blame: Blame) {
+pub fn string_pairs_to_attrs(pairs: List(#(String, String)), blame: Blame) {
   pairs
-  |> list.map(string_pair_2_attr(_, blame))
+  |> list.map(string_pair_to_attr(_, blame))
 }
 
 pub fn attrs_have_class(attrs: List(Attr), class: String) -> Bool {
@@ -2962,14 +2946,14 @@ pub type SLine {
     blame: Blame,
     indent: Int,
     content: String,
-    selected: SLineSelectedStatus,
+    selected: SelectionStatus,
     tag: String,
   )
   ASLine(
     blame: Blame,
     indent: Int,
     content: String,
-    selected: SLineSelectedStatus,
+    selected: SelectionStatus,
     key: String,
     val: String,
   )
@@ -2977,24 +2961,24 @@ pub type SLine {
     blame: Blame,
     indent: Int,
     content: String,
-    selected: SLineSelectedStatus,
+    selected: SelectionStatus,
   )
   LSLine(
     blame: Blame,
     indent: Int,
     content: String,
-    selected: SLineSelectedStatus,
+    selected: SelectionStatus,
   )
 }
 
-pub type SLineSelectedStatus {
+pub type SelectionStatus {
   NotSelected
   OG
   Bystander
 }
 
 pub type LineSelector =
-  fn(SLine) -> SLineSelectedStatus
+  fn(SLine) -> SelectionStatus
 
 pub type Selector =
   fn(List(SLine)) -> List(SLine)
@@ -3248,15 +3232,15 @@ pub fn or_selectors(s1: Selector, s2: Selector) -> Selector {
 // tracking-related part 6: pretty-printing selections
 // ************************************************************
 
-pub fn s_line_2_output_line(line: SLine) -> OutputLine {
+pub fn s_line_to_output_line(line: SLine) -> OutputLine {
   OutputLine(line.blame, line.indent, line.content)
 }
 
-pub fn s_lines_2_output_lines(
+pub fn s_lines_to_output_lines(
   lines: List(SLine),
   dry_run: Bool,
 ) -> List(OutputLine) {
-  let s2l = s_line_2_output_line
+  let s2l = s_line_to_output_line
   lines
   |> list.fold(#(False, None, []), fn(acc, line) {
     case line.selected {
@@ -3307,7 +3291,7 @@ pub fn s_lines_table_lines(
   indent: Int,
 ) -> List(String) {
   lines
-  |> s_lines_2_output_lines(dry_run)
+  |> s_lines_to_output_lines(dry_run)
   |> io_l.output_lines_table_lines(banner, indent)
 }
 
@@ -3318,7 +3302,7 @@ pub fn s_lines_table(
   indent: Int,
 ) -> String {
   lines
-  |> s_lines_2_output_lines(dry_run)
+  |> s_lines_to_output_lines(dry_run)
   |> io_l.output_lines_table(banner, indent)
 }
 

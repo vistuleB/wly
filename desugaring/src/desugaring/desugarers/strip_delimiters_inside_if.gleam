@@ -111,7 +111,8 @@ pub const name = "strip_delimiters_inside_if"
 /// ```
 /// .
 pub fn constructor(param: Param) -> Desugarer {
-  let #(opening, closing) = core.left_right_delim_strings(param.1)
+  let #(opening, closing) =
+    core.opening_and_closing_delimiter_strings(param.1)
   let inner = #(param.0, opening, closing, param.2)
   Desugarer(
     name: name,

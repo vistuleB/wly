@@ -63,7 +63,7 @@ pub fn constructor(param: Param) -> Desugarer {
 fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
   [
     core.AssertiveTestData(
-      param: core.kabob_case_to_camel_case,
+      param: core.kebab_case_to_camel_case,
       source:   "
                 <> div
                   data-test=value1

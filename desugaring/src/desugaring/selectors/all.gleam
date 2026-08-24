@@ -1,8 +1,8 @@
-import desugaring/core.{type Selector, type SLine, type SLineSelectedStatus} as core
+import desugaring/core.{type SelectionStatus, type Selector, type SLine} as core
 
 fn line_selector(
   _line: SLine,
-) -> SLineSelectedStatus {
+) -> SelectionStatus {
   core.OG
 }
 

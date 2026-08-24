@@ -468,8 +468,8 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
     param.0,
     param.1,
     param.2,
-    param.3 |> core.string_pairs_2_attrs(desugarer_blame(471)),
-    param.4 |> core.string_pairs_2_attrs(desugarer_blame(472)),
+    param.3 |> core.string_pairs_to_attrs(desugarer_blame(471)),
+    param.4 |> core.string_pairs_to_attrs(desugarer_blame(472)),
     param.5,
     handles_regexp,
   )

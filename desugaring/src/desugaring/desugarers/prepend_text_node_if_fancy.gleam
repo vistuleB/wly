@@ -50,10 +50,10 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
   |> Ok
 }
 
-type Param = #(String, String, core.FancyConditionFn)
+type Param = #(String, String, core.ContextualVXMLCondition)
 //             ↖       ↖       ↖
 //             tag     text    condition
-type InnerParam = #(String, VXML, core.FancyConditionFn)
+type InnerParam = #(String, VXML, core.ContextualVXMLCondition)
 
 pub const name = "prepend_text_node_if_fancy"
 fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
