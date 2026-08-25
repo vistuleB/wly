@@ -2255,7 +2255,7 @@ fn make_dump_monitor(
                 ..{
                   vxml
                   |> core.vxml_to_s_lines
-                  |> sl.all()
+                  |> sl.all()()
                   |> core.s_lines_table_lines("", False, 2)
                 }
               ])

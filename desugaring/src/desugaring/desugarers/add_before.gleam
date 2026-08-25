@@ -1,78 +1,71 @@
-import gleam/option
-import gleam/string.{inspect as ins}
-import desugaring/core.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as core
+import desugaring/authoring
+import desugaring/core.{
+  type Desugarer, type DesugarerTransform, type DesugaringError,
+}
 import desugaring/nodemaps_2_transform as n2t
 import vxml.{type VXML, V}
-import vxml/blame as bl
 
-fn add_in_list(
-  vxmls: List(VXML),
-  inner: InnerParam,
-) -> List(VXML) {
+/// inserts an empty element of the specified tag immediately before each
+/// element of the target tag
+pub const name = "add_before"
+
+type Param =
+  #(
+    // Tag before whose elements insertion occurs.
+    String,
+    // Tag of the inserted element.
+    String,
+  )
+
+type InnerParam {
+  InnerParam(target_tag: String, inserted_vxml: VXML)
+}
+
+fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
+  let #(target_tag, inserted_tag) = param
+  InnerParam(target_tag, V(authoring.blame(name, 26), inserted_tag, [], []))
+  |> Ok
+}
+
+// ⚙️⚙️⚙️⚙️⚙️⚙️⚙️⚙️⚙️⚙️⚙️⚙️️️️⚙️️️️⚙️️️️
+// ⚙️⚙️ implementation ⚙️⚙️
+// ⚙️⚙️⚙️⚙️⚙️⚙️⚙️⚙️⚙️⚙️⚙️⚙️⚙️️️️⚙️️️️
+fn add_in_list(vxmls: List(VXML), inner: InnerParam) -> List(VXML) {
   case vxmls {
-    [V(_, tag, _, _) as first, ..rest] if tag == inner.0 ->
-      [inner.1, first, ..add_in_list(rest, inner)]
+    [V(_, tag, _, _) as first, ..rest] if tag == inner.target_tag -> [
+      inner.inserted_vxml,
+      first,
+      ..add_in_list(rest, inner)
+    ]
 
-    [first, ..rest] ->
-      [first, ..add_in_list(rest, inner)]
+    [first, ..rest] -> [first, ..add_in_list(rest, inner)]
 
     _ -> vxmls
   }
 }
 
-fn nodemap(
-  node: VXML,
-  inner: InnerParam,
-) -> VXML {
-  case node {
-    V(_, _, _, children) ->
-      V(..node, children: add_in_list(children, inner))
-    _ -> node
+fn nodemap(vxml: VXML, inner: InnerParam) -> VXML {
+  case vxml {
+    V(_, _, _, children) -> V(..vxml, children: add_in_list(children, inner))
+    _ -> vxml
   }
 }
 
-fn nodemap_factory(inner: InnerParam) -> n2t.OneToOneNoErrorNodemap {
-  nodemap(_, inner)
-}
-
-fn transform_factory(inner: InnerParam) -> DesugarerTransform {
-  nodemap_factory(inner)
+fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
+  let nodemap: n2t.OneToOneNoErrorNodemap = nodemap(_, inner)
+  nodemap
   |> n2t.one_to_one_no_error_nodemap_2_desugarer_transform()
 }
 
-fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
-  #(
-    param.0,
-    V(desugarer_blame(46), param.1, [], []),
-  )
-  |> Ok
-}
-
-type Param = #(String,        String)
-//             ↖              ↖
-//             insert divs    tag name
-//             before tags    of new element
-//             of this name
-type InnerParam = #(String, VXML)
-
-pub const name = "add_before"
-fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
-
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-// 🏖️🏖️ Desugarer 🏖️🏖️
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-//------------------------------------------------53
-/// adds a new element before each occurrence of a
-/// specified tag
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
+// 🏖️🏖️ constructor 🏖️🏖️
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️️️️️🏖️
 pub fn constructor(param: Param) -> Desugarer {
-  Desugarer(
+  authoring.desugarer(
     name: name,
-    stringified_param: option.Some(ins(param)),
-    stringified_outside: option.None,
-    transform: case param_to_inner_param(param) {
-      Error(error) -> fn(_) { Error(error) }
-      Ok(inner) -> transform_factory(inner)
-    },
+    param: param,
+    prepare: param_to_inner_param,
+    transform: inner_param_to_transform,
   )
 }
 
@@ -84,5 +77,9 @@ fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
 }
 
 pub fn assertive_tests() {
-  core.assertive_test_collection_from_data(name, assertive_tests_data(), constructor)
+  core.assertive_test_collection_from_data(
+    name,
+    assertive_tests_data(),
+    constructor,
+  )
 }

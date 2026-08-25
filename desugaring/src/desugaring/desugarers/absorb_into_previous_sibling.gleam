@@ -1,10 +1,28 @@
-import gleam/list
-import gleam/option
-import gleam/string.{inspect as ins}
-import desugaring/core.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as core
+import desugaring/authoring
+import desugaring/core.{
+  type Desugarer, type DesugarerTransform, type DesugaringError,
+}
 import desugaring/nodemaps_2_transform as n2t
+import gleam/list
 import vxml.{type VXML, T, V}
 
+/// moves each uninterrupted run of elements of the specified tags into the end
+/// of its preceding element when that element's tag is not specified
+pub const name = "absorb_into_previous_sibling"
+
+type Param =
+  List(String)
+
+type InnerParam =
+  Param
+
+fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
+  Ok(param)
+}
+
+// ⚙️⚙️⚙️⚙️⚙️⚙️⚙️⚙️⚙️⚙️⚙️⚙️️️️⚙️️️️⚙️️️️
+// ⚙️⚙️ implementation ⚙️⚙️
+// ⚙️⚙️⚙️⚙️⚙️⚙️⚙️⚙️⚙️⚙️⚙️⚙️⚙️️️️⚙️️️️
 fn update_children(
   already_processed: List(VXML),
   previous_sibling: VXML,
@@ -13,61 +31,71 @@ fn update_children(
 ) -> List(VXML) {
   case remaining {
     [] -> [previous_sibling, ..already_processed] |> list.reverse
-    [T(_, _) as first, ..rest] -> update_children([previous_sibling, ..already_processed], first, rest, inner)
-    [V(_, tag, _, _) as first, ..rest] -> case previous_sibling {
-      T(_, _) -> update_children([previous_sibling, ..already_processed], first, rest, inner)
-      V(_, prev_tag, _, _) -> case list.contains(inner, tag) && !{ list.contains(inner, prev_tag) } {
-        False -> update_children([previous_sibling, ..already_processed], first, rest, inner)
-        True -> update_children(
-          already_processed,
-          V(..previous_sibling, children: list.append(previous_sibling.children, [first])),
-          rest,
-          inner,
-        )
+    [T(_, _) as first, ..rest] ->
+      update_children(
+        [previous_sibling, ..already_processed],
+        first,
+        rest,
+        inner,
+      )
+    [V(_, tag, _, _) as first, ..rest] ->
+      case previous_sibling {
+        T(_, _) ->
+          update_children(
+            [previous_sibling, ..already_processed],
+            first,
+            rest,
+            inner,
+          )
+        V(_, prev_tag, _, _) ->
+          case
+            list.contains(inner, tag) && !{ list.contains(inner, prev_tag) }
+          {
+            False ->
+              update_children(
+                [previous_sibling, ..already_processed],
+                first,
+                rest,
+                inner,
+              )
+            True ->
+              update_children(
+                already_processed,
+                V(
+                  ..previous_sibling,
+                  children: list.append(previous_sibling.children, [first]),
+                ),
+                rest,
+                inner,
+              )
+          }
       }
-    }
   }
 }
 
-fn nodemap(
-  node: VXML,
-  inner: InnerParam,
-) -> VXML {
-  case node {
+fn nodemap(vxml: VXML, inner: InnerParam) -> VXML {
+  case vxml {
     V(_, _, _, [first, second, ..rest]) ->
-      V(..node, children: update_children([], first, [second, ..rest], inner))
-    _ -> node
+      V(..vxml, children: update_children([], first, [second, ..rest], inner))
+    _ -> vxml
   }
 }
 
-fn nodemap_factory(inner: InnerParam) -> n2t.OneToOneNoErrorNodemap {
-  nodemap(_, inner)
-}
-
-fn transform_factory(inner: InnerParam) -> DesugarerTransform {
-  nodemap_factory(inner)
+fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
+  let nodemap: n2t.OneToOneNoErrorNodemap = nodemap(_, inner)
+  nodemap
   |> n2t.one_to_one_no_error_nodemap_2_desugarer_transform()
 }
 
-fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
-  Ok(param)
-}
-
-type Param = List(String)
-type InnerParam = Param
-
-pub const name = "absorb_into_previous_sibling"
-
-//------------------------------------------------53
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
+// 🏖️🏖️ constructor 🏖️🏖️
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️️️️️🏖️
 pub fn constructor(param: Param) -> Desugarer {
-  Desugarer(
+  authoring.desugarer(
     name: name,
-    stringified_param: option.Some(ins(param)),
-    stringified_outside: option.None,
-    transform: case param_to_inner_param(param) {
-      Error(error) -> fn(_) { Error(error) }
-      Ok(inner) -> transform_factory(inner)
-    },
+    param: param,
+    prepare: param_to_inner_param,
+    transform: inner_param_to_transform,
   )
 }
 
@@ -78,57 +106,61 @@ fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
   [
     core.AssertiveTestData(
       param: ["A", "B"],
-      source:   "
-                  <> Root
-                    <> n1
-                      <>
-                        'text'
+      source: "
+                <> Root
+                  <> n1
+                    <>
+                      'text'
+                  <> A
+                  <> A
+                  <> B
+                  <> A
+                  <> last
+                ",
+      expected: "
+                <> Root
+                  <> n1
+                    <>
+                      'text'
                     <> A
                     <> A
                     <> B
                     <> A
-                    <> last
-                ",
-      expected: "
-                  <> Root
-                    <> n1
-                      <>
-                        'text'
-                      <> A
-                      <> A
-                      <> B
-                      <> A
-                    <> last
+                  <> last
                 ",
     ),
     core.AssertiveTestData(
       param: ["A", "B"],
-      source:   "
-                  <> Root
-                    <> n1
-                      <>
-                        'text'
-                    <> A
-                    <> B
-                    <> last
-                    <> B
-                    <> A
+      source: "
+                <> Root
+                  <> n1
+                    <>
+                      'text'
+                  <> A
+                  <> B
+                  <> last
+                  <> B
+                  <> A
                 ",
       expected: "
-                  <> Root
-                    <> n1
-                      <>
-                        'text'
-                      <> A
-                      <> B
-                    <> last
-                      <> B
-                      <> A
+                <> Root
+                  <> n1
+                    <>
+                      'text'
+                    <> A
+                    <> B
+                  <> last
+                    <> B
+                    <> A
                 ",
     ),
   ]
 }
 
 pub fn assertive_tests() {
-  core.assertive_test_collection_from_data(name, assertive_tests_data(), constructor)
+  core.assertive_test_collection_from_data(
+    name,
+    assertive_tests_data(),
+    constructor,
+  )
 }

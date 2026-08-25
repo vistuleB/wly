@@ -5,6 +5,7 @@ set -euo pipefail
 #
 # Rewrites:
 #   desugarer_blame(123)      -> desugarer_blame(current_line)
+#   authoring.blame(name, 123) -> authoring.blame(name, current_line)
 #   bl.Des([], name, 123)     -> bl.Des([], name, current_line)
 #   Des([], name, 123)        -> Des([], name, current_line)
 #
@@ -35,6 +36,7 @@ for file in "$target_dir"/*.gleam; do
       my ($line, $newline) = ($1, $2);
 
       $line =~ s/desugarer_blame\(\d+\)/"desugarer_blame($line_no)"/ge;
+      $line =~ s/authoring\.blame\(name,\s*\d+\)/"authoring.blame(name, $line_no)"/ge;
       $line =~ s/\b((?:bl\.)?Des\(\[\],\s*name,\s*)\d+(\s*\))/$1 . $line_no . $2/ge;
 
       $line_no++;

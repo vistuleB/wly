@@ -185,10 +185,39 @@ and transform construction as the former explicit `Desugarer(...)` block.
 
 Do not change the public `Param` while adopting this constructor form.
 
+## Constructor description
+
+Every public `constructor` should have an accurate documentation comment that
+describes the desugarer's observable transformation. During a rewrite:
+
+- Preserve an existing description when it still agrees with the code.
+- Bring the description up to date when the implementation and description no
+  longer agree. Treat the implementation and tests as the behavioral source of
+  truth unless there is evidence that the implementation itself is defective.
+- When the description is missing, infer one from the implementation, parameter
+  comments, tests, desugarer name, and any other existing comments. Make the best
+  supported guess rather than leaving the constructor undocumented.
+- Keep descriptions concise and behavioral. Explain what the desugarer does,
+  including conditions that materially delimit the transformation; do not
+  narrate its internal traversal machinery.
+- If the intended behavior or wording remains uncertain, still write the best
+  description supported by the code, then record the uncertainty and the
+  inferred interpretation in `DESUGARER_REWRITE_REVIEW.md` for human review.
+
 ## Desugarer section decoration
 
-The existing beach and wave section comments should remain. Remove obsolete lines
-of this form when encountered:
+The existing beach and wave section comments should remain. The beach section
+above the public constructor should be labeled `constructor`, not `Desugarer`,
+using this form:
+
+```gleam
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
+// 🏖️🏖️ constructor 🏖️🏖️
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️️️️️🏖️
+```
+
+Add this section when it is missing. Remove obsolete lines of this form when
+encountered:
 
 ```text
 //------------------------------------------------53
@@ -246,16 +275,18 @@ For each desugarer:
 
 1. Read the complete file and identify its public parameter shape and tests.
 2. Rewrite types and comments without changing `Param` semantics.
-3. Rename callbacks and `inner_param_to_transform` as appropriate.
-4. Adopt the locally typed nodemap when it improves locality.
-5. Adopt `authoring.desugarer` without changing constructor behavior.
-6. Normalize VXML fixture blocks to a minimum indentation of 16 spaces.
-7. Remove obsolete `//------------------------------------------------53` lines.
-8. Run `gleam format` on the touched file.
-9. Run `generate_desugarer_blames.sh` because formatting may shift blame lines.
-10. Run the desugarer's focused assertive tests.
-11. Run `gleam check`.
-12. Periodically run the entire desugarer, Writerly, VXML, and consumer suites.
+3. Add, verify, or correct the constructor description against the code and
+   tests; queue any remaining uncertainty for human review.
+4. Rename callbacks and `inner_param_to_transform` as appropriate.
+5. Adopt the locally typed nodemap when it improves locality.
+6. Adopt `authoring.desugarer` without changing constructor behavior.
+7. Normalize VXML fixture blocks to a minimum indentation of 16 spaces.
+8. Remove obsolete `//------------------------------------------------53` lines.
+9. Run `gleam format` on the touched file.
+10. Run `generate_desugarer_blames.sh` because formatting may shift blame lines.
+11. Run the desugarer's focused assertive tests.
+12. Run `gleam check`.
+13. Periodically run the entire desugarer, Writerly, VXML, and consumer suites.
 
 Keep behavioral changes, broad formatting passes, and style rewrites in
 separate commits whenever possible.

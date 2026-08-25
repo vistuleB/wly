@@ -1,10 +1,35 @@
-import gleam/option
-import gleam/string.{inspect as ins}
-import desugaring/core.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError } as core
+import desugaring/authoring
+import desugaring/core.{
+  type Desugarer, type DesugarerTransform, type DesugaringError,
+}
 import desugaring/nodemaps_2_transform as n2t
 import vxml.{type VXML, V}
-import vxml/blame as bl
 
+/// inserts an empty element of the specified tag immediately before every
+/// target element after the first target among the same parent's children
+pub const name = "add_before_but_not_before_first_of_kind"
+
+type Param =
+  #(
+    // Tag before whose elements insertion occurs after its first occurrence.
+    String,
+    // Tag of the inserted element.
+    String,
+  )
+
+type InnerParam {
+  InnerParam(target_tag: String, inserted_vxml: VXML)
+}
+
+fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
+  let #(target_tag, inserted_tag) = param
+  InnerParam(target_tag, V(authoring.blame(name, 26), inserted_tag, [], []))
+  |> Ok
+}
+
+// ⚙️⚙️⚙️⚙️⚙️⚙️⚙️⚙️⚙️⚙️⚙️⚙️️️️⚙️️️️⚙️️️️
+// ⚙️⚙️ implementation ⚙️⚙️
+// ⚙️⚙️⚙️⚙️⚙️⚙️⚙️⚙️⚙️⚙️⚙️⚙️⚙️️️️⚙️️️️
 fn add_in_list(
   seen_da_tag_yet: Bool,
   upcoming: List(VXML),
@@ -12,73 +37,39 @@ fn add_in_list(
 ) -> List(VXML) {
   case upcoming {
     [] -> []
-    [V(_, tag, _, _) as first, ..rest] if tag == inner.0 -> {
+    [V(_, tag, _, _) as first, ..rest] if tag == inner.target_tag -> {
       case seen_da_tag_yet {
-        True ->
-          [inner.1, first, ..add_in_list(True, rest, inner)]
-        False ->
-          [first, ..add_in_list(True, rest, inner)]
+        True -> [inner.inserted_vxml, first, ..add_in_list(True, rest, inner)]
+        False -> [first, ..add_in_list(True, rest, inner)]
       }
     }
     [first, ..rest] -> [first, ..add_in_list(seen_da_tag_yet, rest, inner)]
   }
 }
 
-fn nodemap(
-  node: VXML,
-  inner: InnerParam,
-) -> VXML {
-  case node {
+fn nodemap(vxml: VXML, inner: InnerParam) -> VXML {
+  case vxml {
     V(_, _, _, children) ->
-      V(..node, children: add_in_list(False, children, inner))
-    _ -> node
+      V(..vxml, children: add_in_list(False, children, inner))
+    _ -> vxml
   }
 }
 
-fn nodemap_factory(inner: InnerParam) -> n2t.OneToOneNoErrorNodemap {
-  nodemap(_, inner)
-}
-
-fn transform_factory(inner: InnerParam) -> DesugarerTransform {
-  nodemap_factory(inner)
+fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
+  let nodemap: n2t.OneToOneNoErrorNodemap = nodemap(_, inner)
+  nodemap
   |> n2t.one_to_one_no_error_nodemap_2_desugarer_transform()
 }
 
-fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
-  #(
-    param.0,
-    V(desugarer_blame(50), param.1, [], []),
-  )
-  |> Ok
-}
-
-type Param = #(String,         String)
-//             ↖               ↖
-//             insert          tag name
-//             before tags     of new
-//             of this name    element
-type InnerParam = #(String, VXML)
-
-pub const name = "add_before_but_not_before_first_of_kind"
-fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
-
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-// 🏖️🏖️ Desugarer 🏖️🏖️
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-//------------------------------------------------53
-/// adds a specified tag before each occurrence of
-/// some specified other tag, except when the latter
-/// tag is occurring for the first time with respect
-/// to the current group of siblings
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
+// 🏖️🏖️ constructor 🏖️🏖️
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️️️️️🏖️
 pub fn constructor(param: Param) -> Desugarer {
-  Desugarer(
+  authoring.desugarer(
     name: name,
-    stringified_param: option.Some(ins(param)),
-    stringified_outside: option.None,
-    transform: case param_to_inner_param(param) {
-      Error(error) -> fn(_) { Error(error) }
-      Ok(inner) -> transform_factory(inner)
-    },
+    param: param,
+    prepare: param_to_inner_param,
+    transform: inner_param_to_transform,
   )
 }
 
@@ -90,5 +81,9 @@ fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
 }
 
 pub fn assertive_tests() {
-  core.assertive_test_collection_from_data(name, assertive_tests_data(), constructor)
+  core.assertive_test_collection_from_data(
+    name,
+    assertive_tests_data(),
+    constructor,
+  )
 }

@@ -283,6 +283,8 @@ import desugaring/desugarers/wrap_with_custom_if_not_child_of
 
 pub const absorb_backward_one = absorb_backward_one.constructor
 pub const absorb_forward_one = absorb_forward_one.constructor
+/// moves each uninterrupted run of elements of the specified tags into the end
+/// of its preceding element when that element's tag is not specified
 pub const absorb_into_previous_sibling = absorb_into_previous_sibling.constructor
 pub const add_after_but_not_after_last_child__batch = add_after_but_not_after_last_child__batch.constructor
 pub const add_before = add_before.constructor

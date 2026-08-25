@@ -86,8 +86,8 @@ fn split_and_insert_before_unless_allowable_ending_found_ez_version(
     splits,
     fn(lines, index) {
       lines
-      |> do_if(add_splitter_back_in, index > 0)
-      |> do_if(add_prescribed_to_end_if_missing, index < num_splits - 1)
+      |> do_if(add_splitter_back_in, index > 0)()
+      |> do_if(add_prescribed_to_end_if_missing, index < num_splits - 1)()
     }
   )
   |> list.flatten
@@ -130,8 +130,8 @@ fn split_and_insert_after_unless_allowable_beginning_found_ez_version(
     splits,
     fn(lines, index) {
       lines
-      |> do_if(add_prescribed_to_start_if_missing, index > 0)
-      |> do_if(add_splitter_back_in, index < num_splits - 1)
+      |> do_if(add_prescribed_to_start_if_missing, index > 0)()
+      |> do_if(add_splitter_back_in, index < num_splits - 1)()
     }
   )
   |> list.flatten

@@ -1,73 +1,85 @@
-import gleam/option
-import gleam/string.{inspect as ins}
-import desugaring/core.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as core
+import desugaring/authoring
+import desugaring/core.{
+  type Desugarer, type DesugarerTransform, type DesugaringError,
+}
 import desugaring/nodemaps_2_transform as n2t
 import vxml.{type VXML, T, V}
 
-fn update_children(
-  children: List(VXML),
-  inner: InnerParam,
-) -> List(VXML) {
+/// moves each element of the absorbed tag into the start of the immediately
+/// following element of the absorber tag
+pub const name = "absorb_backward_one"
+
+type Param =
+  #(
+    // Tag whose element absorbs an adjacent sibling.
+    String,
+    // Tag absorbed from immediately before the absorbing element.
+    String,
+  )
+
+type InnerParam {
+  InnerParam(absorber_tag: String, absorbed_tag: String)
+}
+
+fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
+  let #(absorber_tag, absorbed_tag) = param
+  Ok(InnerParam(absorber_tag, absorbed_tag))
+}
+
+// ⚙️⚙️⚙️⚙️⚙️⚙️⚙️⚙️⚙️⚙️⚙️⚙️️️️⚙️️️️⚙️️️️
+// ⚙️⚙️ implementation ⚙️⚙️
+// ⚙️⚙️⚙️⚙️⚙️⚙️⚙️⚙️⚙️⚙️⚙️⚙️⚙️️️️⚙️️️️
+fn update_children(children: List(VXML), inner: InnerParam) -> List(VXML) {
   case children {
     [] -> []
     [one] -> [one]
     [T(..) as first, ..rest] -> [first, ..update_children(rest, inner)]
-    [V(..) as first, ..rest] if first.tag != inner.1 -> [first, ..update_children(rest, inner)]
-    [V(..) as first, T(..) as second, ..rest] -> [first, second, ..update_children(rest, inner)]
-    [V(..) as first, V(..) as second, ..rest] if second.tag != inner.0 -> [first, ..update_children([second, ..rest], inner)]
-    [V(..) as first, V(..) as second, ..rest]  -> {
-      assert first.tag == inner.1
-      assert second.tag == inner.0
+    [V(..) as first, ..rest] if first.tag != inner.absorbed_tag -> [
+      first,
+      ..update_children(rest, inner)
+    ]
+    [V(..) as first, T(..) as second, ..rest] -> [
+      first,
+      second,
+      ..update_children(rest, inner)
+    ]
+    [V(..) as first, V(..) as second, ..rest]
+      if second.tag != inner.absorber_tag
+    -> [first, ..update_children([second, ..rest], inner)]
+    [V(..) as first, V(..) as second, ..rest] -> {
+      assert first.tag == inner.absorbed_tag
+      assert second.tag == inner.absorber_tag
       [
-        V(
-          ..second,
-          children: [first, ..second.children],
-        ),
+        V(..second, children: [first, ..second.children]),
         ..update_children(rest, inner)
       ]
     }
   }
 }
 
-fn nodemap(
-  node: VXML,
-  inner: InnerParam,
-) -> VXML {
-  case node {
+fn nodemap(vxml: VXML, inner: InnerParam) -> VXML {
+  case vxml {
     V(_, _, _, children) ->
-      V(..node, children: update_children(children, inner))
-    _ -> node
+      V(..vxml, children: update_children(children, inner))
+    _ -> vxml
   }
 }
 
-fn nodemap_factory(inner: InnerParam) -> n2t.OneToOneNoErrorNodemap {
-  nodemap(_, inner)
-}
-
-fn transform_factory(inner: InnerParam) -> DesugarerTransform {
-  nodemap_factory(inner)
+fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
+  let nodemap: n2t.OneToOneNoErrorNodemap = nodemap(_, inner)
+  nodemap
   |> n2t.one_to_one_no_error_nodemap_2_desugarer_transform()
 }
 
-fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
-  Ok(param)
-}
-
-type Param = #(String, String) // first absorbs one instance no more of second, if adjacent siblings, by tag name
-type InnerParam = Param
-
-pub const name = "absorb_backward_one"
-
-//------------------------------------------------53
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
+// 🏖️🏖️ constructor 🏖️🏖️
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️️️️️🏖️
 pub fn constructor(param: Param) -> Desugarer {
-  Desugarer(
+  authoring.desugarer(
     name: name,
-    stringified_param: option.Some(ins(param)),
-    stringified_outside: option.None,
-    transform: case param_to_inner_param(param) {
-      Error(error) -> fn(_) { Error(error) }
-      Ok(inner) -> transform_factory(inner)
-    },
+    param: param,
+    prepare: param_to_inner_param,
+    transform: inner_param_to_transform,
   )
 }
 
@@ -78,92 +90,96 @@ fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
   [
     core.AssertiveTestData(
       param: #("B", "A"),
-      source:   "
-                  <> Root
-                    <> n1
-                      <>
-                        'text'
-                    <> A
-                    <> A
-                    <> B
-                    <> A
-                    <> last
+      source: "
+                <> Root
+                  <> n1
+                    <>
+                      'text'
+                  <> A
+                  <> A
+                  <> B
+                  <> A
+                  <> last
                 ",
       expected: "
-                  <> Root
-                    <> n1
-                      <>
-                        'text'
+                <> Root
+                  <> n1
+                    <>
+                      'text'
+                  <> A
+                  <> B
                     <> A
-                    <> B
-                      <> A
-                    <> A
-                    <> last
+                  <> A
+                  <> last
                 ",
     ),
     core.AssertiveTestData(
       param: #("B", "A"),
-      source:   "
-                  <> Root
-                    <> n1
-                      <>
-                        'text'
-                    <> A
-                    <> B
-                    <> last
-                    <> B
-                    <> A
+      source: "
+                <> Root
+                  <> n1
+                    <>
+                      'text'
+                  <> A
+                  <> B
+                  <> last
+                  <> B
+                  <> A
                 ",
       expected: "
-                  <> Root
-                    <> n1
-                      <>
-                        'text'
-                    <> B
-                      <> A
-                    <> last
-                    <> B
+                <> Root
+                  <> n1
+                    <>
+                      'text'
+                  <> B
                     <> A
+                  <> last
+                  <> B
+                  <> A
                 ",
     ),
     core.AssertiveTestData(
       param: #("B", "A"),
-      source:   "
-                  <> Root
-                    <> n1
-                      <>
-                        'text'
-                    <> A
-                    <> B
-                    <> B
-                    <> A
-                    <> last
-                    <> A
-                    <> A
-                    <> A
-                    <> B
-                    <> A
+      source: "
+                <> Root
+                  <> n1
+                    <>
+                      'text'
+                  <> A
+                  <> B
+                  <> B
+                  <> A
+                  <> last
+                  <> A
+                  <> A
+                  <> A
+                  <> B
+                  <> A
                 ",
       expected: "
-                  <> Root
-                    <> n1
-                      <>
-                        'text'
-                    <> B
-                      <> A
-                    <> B
+                <> Root
+                  <> n1
+                    <>
+                      'text'
+                  <> B
                     <> A
-                    <> last
+                  <> B
+                  <> A
+                  <> last
+                  <> A
+                  <> A
+                  <> B
                     <> A
-                    <> A
-                    <> B
-                      <> A
-                    <> A
+                  <> A
                 ",
     ),
   ]
 }
 
 pub fn assertive_tests() {
-  core.assertive_test_collection_from_data(name, assertive_tests_data(), constructor)
+  core.assertive_test_collection_from_data(
+    name,
+    assertive_tests_data(),
+    constructor,
+  )
 }
