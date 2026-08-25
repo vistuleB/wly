@@ -1,16 +1,18 @@
+import desugaring/authoring
 import desugaring/core.{
-  type Desugarer, type DesugarerTransform, type DesugaringError, Desugarer,
+  type Desugarer, type DesugarerTransform, type DesugaringError,
 }
 import desugaring/nodemaps_2_transform as n2t
 import gleam/list
-import gleam/option
-import gleam/string.{inspect as ins}
 import vxml.{type VXML}
 
 fn on_enter(vxml: VXML, state: State, inner: InnerParam) -> #(VXML, State) {
-  let state = case state.0 || !list.contains(inner.0, core.v_get_tag(vxml)) {
+  let state = case
+    state.has_seen_ancestor
+    || !list.contains(inner.ancestor_tags, core.v_get_tag(vxml))
+  {
     True -> state
-    False -> #(True, inner.1.0, inner.1.1)
+    False -> State(True, inner.inside_from, inner.inside_to)
   }
   #(vxml, state)
 }
@@ -23,65 +25,69 @@ fn on_exit(
   #(vxml, original_state)
 }
 
-fn t_transform(vxml: VXML, state: State) -> #(VXML, State) {
-  #(core.t_find_replace(vxml, state.1, state.2), state)
+fn on_text(vxml: VXML, state: State) -> #(VXML, State) {
+  #(core.t_find_replace(vxml, state.from, state.to), state)
 }
 
-fn nodemap_factory(
-  inner: InnerParam,
-) -> n2t.OneToOneEnterExitStatefulNoErrorNodemap(State) {
-  n2t.OneToOneEnterExitStatefulNoErrorNodemap(
-    on_enter: fn(vxml, state) { on_enter(vxml, state, inner) },
-    on_exit: on_exit,
-    on_text: t_transform,
-  )
-}
+fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
+  let nodemap: n2t.OneToOneEnterExitStatefulNoErrorNodemap(State) =
+    n2t.OneToOneEnterExitStatefulNoErrorNodemap(
+      on_enter: fn(vxml, state) { on_enter(vxml, state, inner) },
+      on_exit: on_exit,
+      on_text: on_text,
+    )
 
-fn transform_factory(inner: InnerParam) -> DesugarerTransform {
-  let state = #(False, inner.2.0, inner.2.1)
-  nodemap_factory(inner)
+  let initial_state = State(False, inner.outside_from, inner.outside_to)
+  nodemap
   |> n2t.one_to_one_enter_exit_stateful_no_error_nodemap_2_desugarer_transform(
-    state,
+    initial_state,
   )
 }
 
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
-  Ok(param)
+  let #(ancestor_tags, inside, outside) = param
+  let #(inside_from, inside_to) = inside
+  let #(outside_from, outside_to) = outside
+  Ok(InnerParam(ancestor_tags, inside_from, inside_to, outside_from, outside_to))
 }
 
-type State =
-  #(Bool, String, String)
-
-//             ↖             ↖                  ↖
-//             have we        current 'from'    current 'to'
-//             seen ancestor
-//             yet or no
+type State {
+  State(has_seen_ancestor: Bool, from: String, to: String)
+}
 
 type Param =
-  #(List(String), #(String, String), #(String, String))
+  #(
+    // Ancestor tags.
+    List(String),
+    // Replacement used inside a matching ancestor.
+    #(String, String),
+    // Replacement used outside a matching ancestor.
+    #(String, String),
+  )
 
-//             ↖             ↖                  ↖
-//             ancestors     if version         else version
-type InnerParam =
-  Param
+type InnerParam {
+  InnerParam(
+    ancestor_tags: List(String),
+    inside_from: String,
+    inside_to: String,
+    outside_from: String,
+    outside_to: String,
+  )
+}
 
 pub const name = "find_replace_if_has_ancestor_else"
 
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 // 🏖️🏖️ Desugarer 🏖️🏖️
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-//------------------------------------------------53
 /// replaces literal occurrences of a string with another
 /// based on whether the text node has any of the specified ancestors
 pub fn constructor(param: Param) -> Desugarer {
-  Desugarer(
+  authoring.desugarer(
     name: name,
-    stringified_param: option.Some(ins(param)),
-    stringified_outside: option.None,
-    transform: case param_to_inner_param(param) {
-      Error(error) -> fn(_) { Error(error) }
-      Ok(inner) -> transform_factory(inner)
-    },
+    param: param,
+    prepare: param_to_inner_param,
+    transform: inner_param_to_transform,
   )
 }
 
