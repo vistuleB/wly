@@ -1,4 +1,8 @@
-import vxml/blame.{type Blame} as bl
+import desugaring/core.{
+  type Desugarer, type DesugarerTransform, type DesugaringError,
+  type DesugaringWarning, Desugarer, DesugaringError, DesugaringWarning,
+}
+import desugaring/nodemaps_2_transform as n2t
 import gleam/dict.{type Dict}
 import gleam/list
 import gleam/option.{type Option, None, Some}
@@ -6,13 +10,9 @@ import gleam/regexp.{type Match, type Regexp, Match}
 import gleam/result
 import gleam/set.{type Set}
 import gleam/string.{inspect as ins}
-import desugaring/core.{
-  type Desugarer, type DesugarerTransform, type DesugaringError,
-  type DesugaringWarning, Desugarer, DesugaringError, DesugaringWarning,
-} as core
-import desugaring/nodemaps_2_transform as n2t
 import on
 import vxml.{type Attr, type Line, type VXML, Attr, Line, T, V}
+import vxml/blame.{type Blame} as bl
 
 fn extract_handle_and_page_and_decoy(
   match: Match,
@@ -467,9 +467,7 @@ fn substitute_hrefs_in_a(
             "duplicate 'href' attribute",
           ))
       })
-      Ok(
-        #(attr, #(acc0, list.append(warnings, acc.1), core.pour(used, acc.2))),
-      )
+      Ok(#(attr, #(acc0, list.append(warnings, acc.1), core.pour(used, acc.2))))
     }),
   )
   let #(tag, attrs) = case acc.0 {
@@ -569,21 +567,19 @@ fn t_transform(
 
 fn nodemap_factory(
   inner: InnerParam,
-) -> n2t.OneToManyBeforeAndAfterStatefulNodemapWithWarnings(State) {
-  n2t.OneToManyBeforeAndAfterStatefulNodemapWithWarnings(
-    v_before_transforming_children: fn(vxml, state) {
-      v_before_transform(vxml, state, inner)
-    },
-    v_after_transforming_children: fn(vxml, original_state, latest_state) {
+) -> n2t.OneToManyEnterExitStatefulWithWarningsNodemap(State) {
+  n2t.OneToManyEnterExitStatefulWithWarningsNodemap(
+    on_enter: fn(vxml, state) { v_before_transform(vxml, state, inner) },
+    on_exit: fn(vxml, original_state, latest_state) {
       v_after_transform(vxml, original_state, latest_state)
     },
-    t_nodemap: fn(vxml, state) { t_transform(vxml, state, inner) },
+    on_text: fn(vxml, state) { t_transform(vxml, state, inner) },
   )
 }
 
 fn transform_factory(inner: InnerParam) -> DesugarerTransform {
   nodemap_factory(inner)
-  |> n2t.one_to_many_before_and_after_stateful_nodemap_with_warnings_2_desufarer_transform(
+  |> n2t.one_to_many_enter_exit_stateful_with_warnings_nodemap_2_desugarer_transform(
     State(dict.new(), None, False, False, set.new()),
   )
 }
@@ -598,8 +594,8 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
     param.0,
     param.1,
     param.2,
-    param.3 |> core.string_pairs_to_attrs(desugarer_blame(601)),
-    param.4 |> core.string_pairs_to_attrs(desugarer_blame(602)),
+    param.3 |> core.string_pairs_to_attrs(desugarer_blame(597)),
+    param.4 |> core.string_pairs_to_attrs(desugarer_blame(598)),
     param.5,
     param.6,
     handles_regexp,
@@ -631,13 +627,20 @@ type State {
 
 type Param =
   #(
-    String, // 'path' attribute key
-    String, // in-page-link tag name
-    String, // out-page-link tag name
-    List(#(String, String)), // in-page link attributes
-    List(#(String, String)), // out-page link attributes
-    List(String), // tags that already define you as being inside a lin
-    List(String), // tags whose contents are LaTeX (typically Math, MathBlock)
+    String,
+    // 'path' attribute key
+    String,
+    // in-page-link tag name
+    String,
+    // out-page-link tag name
+    List(#(String, String)),
+    // in-page link attributes
+    List(#(String, String)),
+    // out-page link attributes
+    List(String),
+    // tags that already define you as being inside a lin
+    List(String),
+    // tags whose contents are LaTeX (typically Math, MathBlock)
   )
 
 type InnerParam =

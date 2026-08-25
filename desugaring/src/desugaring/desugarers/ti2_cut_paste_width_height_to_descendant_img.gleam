@@ -1,74 +1,97 @@
-import gleam/list
-import gleam/option.{type Option, Some, None}
-import gleam/string
-import desugaring/core.{type Desugarer, Desugarer, type DesugaringError, DesugaringError, type DesugarerTransform} as core
-import vxml.{type VXML, type Attr, V}
+import desugaring/core.{
+  type Desugarer, type DesugarerTransform, type DesugaringError, Desugarer,
+  DesugaringError,
+}
 import desugaring/nodemaps_2_transform as n2t
-import vxml/blame.{type Blame}
+import gleam/list
+import gleam/option.{type Option, None, Some}
+import gleam/string
 import on
+import vxml.{type Attr, type VXML, V}
+import vxml/blame.{type Blame}
 
 fn extract_height_width_from_style_and_attrs(
   attrs: List(Attr),
 ) -> Result(#(String, List(vxml.Attr)), DesugaringError) {
-  use #(style_attr, attrs) <- on.ok(
-    core.attrs_extract_unique_key_or_none(attrs, "style")
-  )
+  use #(style_attr, attrs) <- on.ok(core.attrs_extract_unique_key_or_none(
+    attrs,
+    "style",
+  ))
 
-  use #(width_attr, attrs) <- on.ok(
-    core.attrs_extract_unique_key_or_none(attrs, "width")
-  )
+  use #(width_attr, attrs) <- on.ok(core.attrs_extract_unique_key_or_none(
+    attrs,
+    "width",
+  ))
 
-  use #(height_attr, attrs) <- on.ok(
-    core.attrs_extract_unique_key_or_none(attrs, "height")
-  )
+  use #(height_attr, attrs) <- on.ok(core.attrs_extract_unique_key_or_none(
+    attrs,
+    "height",
+  ))
 
   use #(width_style, style_attr) <- on.ok(
-    core.optional_style_extract_unique_key_or_none(style_attr, "width")
+    core.optional_style_extract_unique_key_or_none(style_attr, "width"),
   )
 
   use #(height_style, style_attr) <- on.ok(
-    core.optional_style_extract_unique_key_or_none(style_attr, "height")
+    core.optional_style_extract_unique_key_or_none(style_attr, "height"),
   )
 
-  use width_style <- on.ok(
-    case width_attr, width_style {
-      Some(attr), Some(_) -> Error(DesugaringError(attr.blame, "duplicate width definition via attr and style element"))
-      Some(attr), None -> Ok(Some("width:" <> attr.val))
-      None, Some(x) -> Ok(Some("width:" <> x))
-      None, None -> Ok(None)
-    }
-  )
+  use width_style <- on.ok(case width_attr, width_style {
+    Some(attr), Some(_) ->
+      Error(DesugaringError(
+        attr.blame,
+        "duplicate width definition via attr and style element",
+      ))
+    Some(attr), None -> Ok(Some("width:" <> attr.val))
+    None, Some(x) -> Ok(Some("width:" <> x))
+    None, None -> Ok(None)
+  })
 
-  use height_style <- on.ok(
-    case height_attr, height_style {
-      Some(attr), Some(_) -> Error(DesugaringError(attr.blame, "duplicate height definition via attr and style element"))
-      Some(attr), None -> Ok(Some("height:" <> attr.val))
-      None, Some(x) -> Ok(Some("height:" <> x))
-      None, None -> Ok(None)
-    }
-  )
+  use height_style <- on.ok(case height_attr, height_style {
+    Some(attr), Some(_) ->
+      Error(DesugaringError(
+        attr.blame,
+        "duplicate height definition via attr and style element",
+      ))
+    Some(attr), None -> Ok(Some("height:" <> attr.val))
+    None, Some(x) -> Ok(Some("height:" <> x))
+    None, None -> Ok(None)
+  })
 
   let new_attrs = case style_attr {
     None -> attrs
-    Some(attr) -> case string.trim(attr.val) {
-      "" -> attrs // remove empty style attribute
-      _ -> [attr, ..attrs]
-    }
+    Some(attr) ->
+      case string.trim(attr.val) {
+        "" -> attrs
+        // remove empty style attribute
+        _ -> [attr, ..attrs]
+      }
   }
 
   Ok(#(
     [width_style, height_style]
-    |> option.values
-    |> string.join(";"),
+      |> option.values
+      |> string.join(";"),
     new_attrs,
   ))
 }
 
-fn merge_new_style_into_state(state: State, blame: Blame, width_height_style: String) -> Result(State, DesugaringError) {
+fn merge_new_style_into_state(
+  state: State,
+  blame: Blame,
+  width_height_style: String,
+) -> Result(State, DesugaringError) {
   case state, width_height_style {
     _, "" -> Ok(state)
     None, _ -> Ok(Some(width_height_style))
-    Some(x), _ -> Error(DesugaringError(blame, "found overlapping img width-height instructions of ancestor/descendant " <> x <> " " <> width_height_style))
+    Some(x), _ ->
+      Error(DesugaringError(
+        blame,
+        "found overlapping img width-height instructions of ancestor/descendant "
+          <> x
+          <> " "
+          <> width_height_style,
+      ))
   }
 }
 
@@ -86,30 +109,31 @@ fn img_case(
   // 'attrs_merge_prepend_styles' that throws an error when a
   // style property is about to be overwritten
 
-  use #(width_attr, attrs) <- on.ok(
-    core.attrs_extract_unique_key_or_none(attrs, "width")
-  )
+  use #(width_attr, attrs) <- on.ok(core.attrs_extract_unique_key_or_none(
+    attrs,
+    "width",
+  ))
 
-  use #(height_attr, attrs) <- on.ok(
-    core.attrs_extract_unique_key_or_none(attrs, "height")
-  )
+  use #(height_attr, attrs) <- on.ok(core.attrs_extract_unique_key_or_none(
+    attrs,
+    "height",
+  ))
 
-  let width_style = width_attr |> option.map(fn(x) {"width:" <> x.val})
-  let height_style = height_attr |> option.map(fn(x) {"height:" <> x.val})
+  let width_style = width_attr |> option.map(fn(x) { "width:" <> x.val })
+  let height_style = height_attr |> option.map(fn(x) { "height:" <> x.val })
 
   let local_style =
     [width_style, height_style]
     |> option.values
     |> string.join(";")
 
-  use state <- on.ok(
-    merge_new_style_into_state(state, blame, local_style)
-  )
+  use state <- on.ok(merge_new_style_into_state(state, blame, local_style))
 
   case state {
     None -> Ok(#(node, state))
     Some(width_height_style) -> {
-      let attrs = core.attrs_merge_prepend_styles(attrs, blame, width_height_style)
+      let attrs =
+        core.attrs_merge_prepend_styles(attrs, blame, width_height_style)
       Ok(#(V(..node, attrs: attrs), state))
     }
   }
@@ -121,15 +145,17 @@ fn ancestor_case(
 ) -> Result(#(VXML, State), DesugaringError) {
   let assert V(blame, _, attrs, _) = node
   use #(width_height_style, attrs) <- on.ok(
-    extract_height_width_from_style_and_attrs(attrs)
+    extract_height_width_from_style_and_attrs(attrs),
   )
-  use state <- on.ok(
-    merge_new_style_into_state(state, blame, width_height_style)
-  )
+  use state <- on.ok(merge_new_style_into_state(
+    state,
+    blame,
+    width_height_style,
+  ))
   Ok(#(V(..node, attrs: attrs), state))
 }
 
-fn v_before_transforming_children(
+fn on_enter(
   node: VXML,
   state: State,
   inner: InnerParam,
@@ -137,26 +163,27 @@ fn v_before_transforming_children(
   let assert V(_, tag, _, _) = node
   case tag {
     "img" -> img_case(node, state)
-    _ -> case list.contains(inner, tag) {
-      True -> ancestor_case(node, state)
-      False -> Ok(#(node, state))
-    }
+    _ ->
+      case list.contains(inner, tag) {
+        True -> ancestor_case(node, state)
+        False -> Ok(#(node, state))
+      }
   }
 }
 
-fn nodemap_factory(inner: InnerParam) -> n2t.OneToOneBeforeAndAfterStatefulNodemap(State) {
-   n2t.OneToOneBeforeAndAfterStatefulNodemap(
-    v_before_transforming_children: fn(node, state) {
-      v_before_transforming_children(node, state, inner)
-    },
-    v_after_transforming_children:  fn(n, o, _) { Ok(#(n, o)) },
-    t_nodemap: fn(n, s) { Ok(#(n, s)) },
+fn nodemap_factory(
+  inner: InnerParam,
+) -> n2t.OneToOneEnterExitStatefulNodemap(State) {
+  n2t.OneToOneEnterExitStatefulNodemap(
+    on_enter: fn(node, state) { on_enter(node, state, inner) },
+    on_exit: fn(n, o, _) { Ok(#(n, o)) },
+    on_text: fn(n, s) { Ok(#(n, s)) },
   )
 }
 
 fn transform_factory(inner: InnerParam) -> DesugarerTransform {
   nodemap_factory(inner)
-  |> n2t.one_to_one_before_and_after_stateful_nodemap_2_desugarer_transform(None)
+  |> n2t.one_to_one_enter_exit_stateful_nodemap_2_desugarer_transform(None)
 }
 
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
@@ -165,9 +192,14 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
 
 pub const name = "ti2_cut_paste_width_height_to_descendant_img"
 
-type State = Option(String)
-type Param = List(String)
-type InnerParam = Param
+type State =
+  Option(String)
+
+type Param =
+  List(String)
+
+type InnerParam =
+  Param
 
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 // 🏖️🏖️ desugarer 🏖️🏖️
@@ -308,5 +340,9 @@ fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
 }
 
 pub fn assertive_tests() {
-  core.assertive_test_collection_from_data(name, assertive_tests_data(), constructor)
+  core.assertive_test_collection_from_data(
+    name,
+    assertive_tests_data(),
+    constructor,
+  )
 }

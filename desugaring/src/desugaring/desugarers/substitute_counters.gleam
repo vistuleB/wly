@@ -1,16 +1,19 @@
+import desugaring/core.{
+  type Desugarer, type DesugarerTransform, type DesugaringError, Desugarer,
+  DesugaringError,
+}
+import desugaring/nodemaps_2_transform as n2t
+import gleam/dict.{type Dict}
 import gleam/int
 import gleam/list
-import gleam/dict.{type Dict}
 import gleam/option.{type Option, None, Some}
 import gleam/regexp.{type Regexp}
 import gleam/result
 import gleam/string.{inspect as ins}
-import desugaring/core.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError, DesugaringError} as core
+import on
 import roman
-import desugaring/nodemaps_2_transform as n2t
 import vxml.{type Attr, type Line, type VXML, Attr, Line, T, V}
 import vxml/blame.{type Blame}
-import on
 
 type CounterType {
   Arabic
@@ -22,11 +25,7 @@ type CounterType {
 }
 
 type CounterInfo {
-  CounterInfo(
-    counter_type: CounterType,
-    value: Int,
-    step: Int,
-  )
+  CounterInfo(counter_type: CounterType, value: Int, step: Int)
 }
 
 type CounterDict =
@@ -40,9 +39,13 @@ type StringAndRegexVersion {
 }
 
 const loud = StringAndRegexVersion(string: "::", regex_string: "::")
+
 const soft = StringAndRegexVersion(string: "..", regex_string: "\\.\\.")
+
 const increment = StringAndRegexVersion(string: "++", regex_string: "\\+\\+")
+
 const decrement = StringAndRegexVersion(string: "--", regex_string: "--")
+
 const no_change = StringAndRegexVersion(string: "øø", regex_string: "øø")
 
 /// Base-26 expansion of a nonnegative integer.
@@ -60,13 +63,12 @@ fn do_base_26(n: Int, acc: List(Int)) -> List(Int) {
   }
 }
 
-fn update_info(
-  info: CounterInfo,
-  mutation: String,
-) -> CounterInfo {
+fn update_info(info: CounterInfo, mutation: String) -> CounterInfo {
   case mutation {
-    _ if mutation == increment.string -> CounterInfo(..info, value: info.value + info.step )
-    _ if mutation == decrement.string -> CounterInfo(..info, value: info.value - info.step )
+    _ if mutation == increment.string ->
+      CounterInfo(..info, value: info.value + info.step)
+    _ if mutation == decrement.string ->
+      CounterInfo(..info, value: info.value - info.step)
     _ if mutation == no_change.string -> info
     _ -> {
       echo mutation
@@ -75,13 +77,18 @@ fn update_info(
   }
 }
 
-fn render_info(
-  info: CounterInfo
-) -> String {
+fn render_info(info: CounterInfo) -> String {
   case info.counter_type {
     Arabic -> ins(info.value)
-    UppercaseRoman -> roman.int_to_roman(info.value) |> option.unwrap([]) |> roman.roman_to_string() |> string.uppercase
-    LowercaseRoman -> roman.int_to_roman(info.value) |> option.unwrap([]) |> roman.roman_to_string()
+    UppercaseRoman ->
+      roman.int_to_roman(info.value)
+      |> option.unwrap([])
+      |> roman.roman_to_string()
+      |> string.uppercase
+    LowercaseRoman ->
+      roman.int_to_roman(info.value)
+      |> option.unwrap([])
+      |> roman.roman_to_string()
     Unary(c) -> string.repeat(c, info.value)
     Uppercase -> {
       to_base_26(info.value - 1)
@@ -109,10 +116,9 @@ fn process_regexp_groups(
   change: String,
   counter_name: String,
 ) -> Result(#(String, CounterDict), DesugaringError) {
-  use info <- on.error_ok(
-    dict.get(counters, counter_name),
-    fn(_) { Error(DesugaringError(blame, "undefined counter: " <> counter_name)) },
-  )
+  use info <- on.error_ok(dict.get(counters, counter_name), fn(_) {
+    Error(DesugaringError(blame, "undefined counter: " <> counter_name))
+  })
   let info = update_info(info, change)
   let render = case loudness {
     _ if loudness == loud.string -> render_info(info)
@@ -130,14 +136,15 @@ fn process_splits(
 ) -> Result(#(List(String), CounterDict), DesugaringError) {
   let assert [first, ..splits] = splits
   case splits {
-    [] -> Ok(#(
-      [first, ..already_processed],
-      counters,
-    ))
+    [] -> Ok(#([first, ..already_processed], counters))
     [loudness, change, counter_name, ..splits] -> {
-      use #(render, counters) <- on.ok(
-        process_regexp_groups(blame, counters, loudness, change, counter_name)
-      )
+      use #(render, counters) <- on.ok(process_regexp_groups(
+        blame,
+        counters,
+        loudness,
+        change,
+        counter_name,
+      ))
       process_splits(
         blame,
         [render, first, ..already_processed],
@@ -155,41 +162,30 @@ fn process_string(
   counters: CounterDict,
   inner: InnerParam,
 ) -> Result(#(String, CounterDict), DesugaringError) {
-  use <- on.true_false(
-    content == "",
-    fn() { Ok(#("", counters)) },
-  )
+  use <- on.true_false(content == "", fn() { Ok(#("", counters)) })
   let splits = regexp.split(inner, content)
-  use #(strings, counters) <- on.ok(
-    process_splits(blame, [], counters, splits)
-  )
-  Ok(#(
-    strings |> list.reverse |> string.join(""),
-    counters,
-  ))
+  use #(strings, counters) <- on.ok(process_splits(blame, [], counters, splits))
+  Ok(#(strings |> list.reverse |> string.join(""), counters))
 }
 
 fn update_lines(
   lines: List(Line),
   counters: CounterDict,
   inner: InnerParam,
-) -> Result(
-  #(List(Line), CounterDict),
-  DesugaringError,
-) {
+) -> Result(#(List(Line), CounterDict), DesugaringError) {
   // nb: tried doing an early-return test here on
   // 'lines' to improve speed, didn't help much
   lines
-  |> list.try_fold(
-    #([], counters),
-    fn(acc, line) {
-      let #(lines, counters) = acc
-      use #(content, counters) <- on.ok(
-        process_string(line.blame, line.content, counters, inner)
-      )
-      Ok(#([Line(..line, content: content), ..lines], counters))
-    }
-  )
+  |> list.try_fold(#([], counters), fn(acc, line) {
+    let #(lines, counters) = acc
+    use #(content, counters) <- on.ok(process_string(
+      line.blame,
+      line.content,
+      counters,
+      inner,
+    ))
+    Ok(#([Line(..line, content: content), ..lines], counters))
+  })
   |> result.map(fn(acc) { #(acc.0 |> list.reverse, acc.1) })
 }
 
@@ -210,48 +206,46 @@ fn parse_counter_definition_attr_value(
     string.split(value, " ")
     |> list.filter(fn(s) { s != "" })
 
-  use counter_name, rest <- on.empty_nonempty(
-    splits,
-    fn() { Error(DesugaringError(blame, "counter must have a name")) },
-  )
+  use counter_name, rest <- on.empty_nonempty(splits, fn() {
+    Error(DesugaringError(blame, "counter must have a name"))
+  })
 
   use #(counter_type, rest) <- on.ok(case counter_type {
-    Unary(_) -> case rest {
-      [first, ..rest] -> Ok(#(Unary(first), rest))
-      [] -> Error(DesugaringError(blame, "unary counter missing 1-value"))
-    }
+    Unary(_) ->
+      case rest {
+        [first, ..rest] -> Ok(#(Unary(first), rest))
+        [] -> Error(DesugaringError(blame, "unary counter missing 1-value"))
+      }
     _ -> Ok(#(counter_type, rest))
   })
 
-  use starting_value, rest <- on.empty_nonempty(
-    rest,
-    fn() { Ok(#(counter_name, CounterInfo(counter_type, 0, 1))) },
-  )
+  use starting_value, rest <- on.empty_nonempty(rest, fn() {
+    Ok(#(counter_name, CounterInfo(counter_type, 0, 1)))
+  })
 
-  use starting_value <- on.error_ok(
-    int.parse(starting_value),
-    fn(_) { Error(DesugaringError(blame, "counter starting value must be a number")) },
-  )
+  use starting_value <- on.error_ok(int.parse(starting_value), fn(_) {
+    Error(DesugaringError(blame, "counter starting value must be a number"))
+  })
 
-  use step, rest <- on.empty_nonempty(
-    rest,
-    fn() { Ok(#(counter_name, CounterInfo(counter_type, starting_value, 1))) },
-  )
+  use step, rest <- on.empty_nonempty(rest, fn() {
+    Ok(#(counter_name, CounterInfo(counter_type, starting_value, 1)))
+  })
 
-  use step <- on.error_ok(
-    int.parse(step),
-    fn(_) { Error(DesugaringError(blame, "counter step size must be a number")) },
-  )
+  use step <- on.error_ok(int.parse(step), fn(_) {
+    Error(DesugaringError(blame, "counter step size must be a number"))
+  })
 
   case list.is_empty(rest) {
     True -> Ok(#(counter_name, CounterInfo(counter_type, starting_value, step)))
-    False -> Error(DesugaringError(blame, "extra arguments found after <counter_name> <starting_value> <step_value>"))
+    False ->
+      Error(DesugaringError(
+        blame,
+        "extra arguments found after <counter_name> <starting_value> <step_value>",
+      ))
   }
 }
 
-fn attr_key_is_counter(
-  key: String
-) -> Result(Option(_), CounterType) {
+fn attr_key_is_counter(key: String) -> Result(Option(_), CounterType) {
   case key {
     "counter" -> Error(Arabic)
     "counter-lowercase" -> Error(Lowercase)
@@ -266,12 +260,10 @@ fn attr_key_is_counter(
 fn read_counter_definition(
   attr: Attr,
 ) -> Result(Option(#(String, CounterInfo)), DesugaringError) {
-  use counter_type <- on.error(
-    attr_key_is_counter(attr.key),
-  )
+  use counter_type <- on.error(attr_key_is_counter(attr.key))
 
   use #(counter_name, counter_info) <- on.ok(
-    parse_counter_definition_attr_value(attr.blame, counter_type, attr.val)
+    parse_counter_definition_attr_value(attr.blame, counter_type, attr.val),
   )
 
   Ok(Some(#(counter_name, counter_info)))
@@ -281,44 +273,30 @@ fn fancy_one_attr_processor(
   attr: Attr,
   counters: CounterDict,
   inner: InnerParam,
-) -> Result(
-  #(Attr, CounterDict),
-  DesugaringError,
-) {
+) -> Result(#(Attr, CounterDict), DesugaringError) {
   let Attr(blame, original_key, val) = attr
 
-  use #(key, counters) <- on.ok(
-    process_string(
-      blame,
-      original_key,
-      counters,
-      inner,
-    ),
-  )
+  use #(key, counters) <- on.ok(process_string(
+    blame,
+    original_key,
+    counters,
+    inner,
+  ))
 
   let assert True = key == string.trim(key)
 
-  use <- on.true_false(
-    key == "",
-    fn() { Error(DesugaringError(
+  use <- on.true_false(key == "", fn() {
+    Error(DesugaringError(
       blame,
-      "empty key after processing counters; original key: '" <> original_key <> "'",
-    )) },
-  )
+      "empty key after processing counters; original key: '"
+        <> original_key
+        <> "'",
+    ))
+  })
 
-  use #(val, counters) <- on.ok(
-    process_string(
-      blame,
-      val,
-      counters,
-      inner,
-    ),
-  )
+  use #(val, counters) <- on.ok(process_string(blame, val, counters, inner))
 
-  Ok(#(
-    Attr(blame, key, val),
-    counters,
-  ))
+  Ok(#(Attr(blame, key, val), counters))
 }
 
 fn fancy_attr_processor(
@@ -327,14 +305,11 @@ fn fancy_attr_processor(
   counters: CounterDict,
   inner: InnerParam,
 ) -> Result(#(List(Attr), CounterDict), DesugaringError) {
-  use next, rest <- on.empty_nonempty(
-    yet_to_be_processed,
-    fn() { Ok(#(already_processed |> list.reverse, counters)) },
-  )
+  use next, rest <- on.empty_nonempty(yet_to_be_processed, fn() {
+    Ok(#(already_processed |> list.reverse, counters))
+  })
 
-  use #(next, counters) <- on.ok(
-    fancy_one_attr_processor(next, counters, inner)
-  )
+  use #(next, counters) <- on.ok(fancy_one_attr_processor(next, counters, inner))
 
   use new_counter <- on.ok(read_counter_definition(next))
   let counters = case new_counter {
@@ -344,15 +319,10 @@ fn fancy_attr_processor(
 
   let already_processed = [next, ..already_processed]
 
-  fancy_attr_processor(
-    already_processed,
-    rest,
-    counters,
-    inner,
-  )
+  fancy_attr_processor(already_processed, rest, counters, inner)
 }
 
-fn v_before_transforming_children(
+fn on_enter(
   vxml: VXML,
   state: State,
   inner: InnerParam,
@@ -370,21 +340,19 @@ fn v_before_transforming_children(
   Ok(#(V(b, t, attrs, c), counters))
 }
 
-fn t_nodemap(
+fn on_text(
   vxml: VXML,
   state: State,
   inner: InnerParam,
 ) -> Result(#(VXML, State), DesugaringError) {
   let assert T(blame, lines) = vxml
   let counters = state
-  use #(lines, updated_counters) <- on.ok(
-    update_lines(lines, counters, inner),
-  )
+  use #(lines, updated_counters) <- on.ok(update_lines(lines, counters, inner))
   #(T(blame, lines), updated_counters)
   |> Ok
 }
 
-fn v_after_transforming_children(
+fn on_exit(
   vxml: VXML,
   state_before: State,
   state_after: State,
@@ -397,33 +365,37 @@ fn v_after_transforming_children(
 }
 
 fn counter_regex() -> Regexp {
-  let assert Ok(re) = {
-    "("
-    <> loud.regex_string
-    <> "|"
-    <> soft.regex_string
-    <> ")("
-    <> increment.regex_string
-    <> "|"
-    <> decrement.regex_string
-    <> "|"
-    <> no_change.regex_string
-    <> ")(\\w+)"
-  } |> regexp.from_string
+  let assert Ok(re) =
+    {
+      "("
+      <> loud.regex_string
+      <> "|"
+      <> soft.regex_string
+      <> ")("
+      <> increment.regex_string
+      <> "|"
+      <> decrement.regex_string
+      <> "|"
+      <> no_change.regex_string
+      <> ")(\\w+)"
+    }
+    |> regexp.from_string
 
   re
 }
 
-fn nodemap_factory(inner: InnerParam) -> n2t.OneToOneBeforeAndAfterStatefulNodemap(State) {
-  n2t.OneToOneBeforeAndAfterStatefulNodemap(
-    v_before_transforming_children: fn(vxml, state) { v_before_transforming_children(vxml, state, inner) },
-    v_after_transforming_children: v_after_transforming_children,
-    t_nodemap: fn(vxml, state) { t_nodemap(vxml, state, inner) },
+fn nodemap_factory(
+  inner: InnerParam,
+) -> n2t.OneToOneEnterExitStatefulNodemap(State) {
+  n2t.OneToOneEnterExitStatefulNodemap(
+    on_enter: fn(vxml, state) { on_enter(vxml, state, inner) },
+    on_exit: on_exit,
+    on_text: fn(vxml, state) { on_text(vxml, state, inner) },
   )
 }
 
 fn transform_factory(inner: InnerParam) -> core.DesugarerTransform {
-  n2t.one_to_one_before_and_after_stateful_nodemap_2_desugarer_transform(
+  n2t.one_to_one_enter_exit_stateful_nodemap_2_desugarer_transform(
     nodemap_factory(inner),
     dict.from_list([]),
   )
@@ -433,10 +405,14 @@ fn param_to_inner_param(_: Param) -> Result(InnerParam, DesugaringError) {
   Ok(counter_regex())
 }
 
-type Param = Nil
-type InnerParam = Regexp
+type Param =
+  Nil
+
+type InnerParam =
+  Regexp
 
 pub const name = "substitute_counters"
+
 // fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
 
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
@@ -498,7 +474,7 @@ pub fn constructor() -> Desugarer {
 fn assertive_tests_data() -> List(core.AssertiveTestDataNoParam) {
   [
     core.AssertiveTestDataNoParam(
-      source:   "
+      source: "
                 <> root
                   counter=QCounter -3
                   <>
@@ -512,7 +488,7 @@ fn assertive_tests_data() -> List(core.AssertiveTestDataNoParam) {
                 ",
     ),
     core.AssertiveTestDataNoParam(
-      source:   "
+      source: "
                 <> root
                   counter=QCounter -3
                   <>
@@ -530,7 +506,7 @@ fn assertive_tests_data() -> List(core.AssertiveTestDataNoParam) {
                 ",
     ),
     core.AssertiveTestDataNoParam(
-      source:   "
+      source: "
                 <> root
                   counter=QCounter -3
                   <>
@@ -548,7 +524,7 @@ fn assertive_tests_data() -> List(core.AssertiveTestDataNoParam) {
                 ",
     ),
     core.AssertiveTestDataNoParam(
-      source:   "
+      source: "
                 <> root
                   counter=my_counter 5 2
                   <>
@@ -566,7 +542,7 @@ fn assertive_tests_data() -> List(core.AssertiveTestDataNoParam) {
                 ",
     ),
     core.AssertiveTestDataNoParam(
-      source:   "
+      source: "
                 <> root
                   counter=TestCounter -1
                   <>
@@ -582,7 +558,7 @@ fn assertive_tests_data() -> List(core.AssertiveTestDataNoParam) {
                 ",
     ),
     core.AssertiveTestDataNoParam(
-      source:   "
+      source: "
                 <> root
                   counter-uppercase=ChapCtr
                   <>
@@ -600,7 +576,7 @@ fn assertive_tests_data() -> List(core.AssertiveTestDataNoParam) {
                 ",
     ),
     core.AssertiveTestDataNoParam(
-      source:   "
+      source: "
                 <> root
                   counter-lowercase=SecCtr
                   <>
@@ -618,7 +594,7 @@ fn assertive_tests_data() -> List(core.AssertiveTestDataNoParam) {
                 ",
     ),
     core.AssertiveTestDataNoParam(
-      source:   "
+      source: "
                 <> root
                   counter-roman-uppercase=RomCtr
                   <>
@@ -638,7 +614,7 @@ fn assertive_tests_data() -> List(core.AssertiveTestDataNoParam) {
                 ",
     ),
     core.AssertiveTestDataNoParam(
-      source:   "
+      source: "
                 <> root
                   counter-roman-lowercase=RomCtr
                   <>
@@ -658,7 +634,7 @@ fn assertive_tests_data() -> List(core.AssertiveTestDataNoParam) {
                 ",
     ),
     core.AssertiveTestDataNoParam(
-      source:   "
+      source: "
                 <> root
                   counter-unary=StarCtr *
                   <>
@@ -676,7 +652,7 @@ fn assertive_tests_data() -> List(core.AssertiveTestDataNoParam) {
                 ",
     ),
     core.AssertiveTestDataNoParam(
-      source:   "
+      source: "
                 <> root
                   counter-uppercase=AppCtr
                   <>
@@ -738,7 +714,7 @@ fn assertive_tests_data() -> List(core.AssertiveTestDataNoParam) {
                 ",
     ),
     core.AssertiveTestDataNoParam(
-      source:   "
+      source: "
                 <> root
                   counter=QCounter  -3
                   <>
@@ -752,7 +728,7 @@ fn assertive_tests_data() -> List(core.AssertiveTestDataNoParam) {
                 ",
     ),
     core.AssertiveTestDataNoParam(
-      source:   "
+      source: "
                 <> root
                   counter-unary=StarCtr  *
                   <>
@@ -769,5 +745,9 @@ fn assertive_tests_data() -> List(core.AssertiveTestDataNoParam) {
 }
 
 pub fn assertive_tests() {
-  core.assertive_test_collection_from_data_no_param(name, assertive_tests_data(), constructor)
+  core.assertive_test_collection_from_data_no_param(
+    name,
+    assertive_tests_data(),
+    constructor,
+  )
 }

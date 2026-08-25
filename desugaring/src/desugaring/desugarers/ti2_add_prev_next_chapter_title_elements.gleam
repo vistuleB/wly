@@ -1,29 +1,21 @@
-import gleam/list
-import gleam/string.{inspect as ins}
-import gleam/option.{type Option, None, Some}
 import desugaring/core.{
-  type Desugarer,
-  type DesugaringError,
-  type TrafficLight,
-  Desugarer,
-  Continue,
+  type Desugarer, type DesugaringError, type TrafficLight, Continue, Desugarer,
   GoBack,
-} as core
-import vxml.{
-  type VXML,
-  type Attr,
-  Attr,
-  V,
 }
 import desugaring/nodemaps_2_transform as n2t
-import vxml/blame as bl
+import gleam/list
+import gleam/option.{type Option, None, Some}
+import gleam/string.{inspect as ins}
 import on
+import vxml.{type Attr, type VXML, Attr, V}
+import vxml/blame as bl
 
 // ************************************************************
 // common types
 // ************************************************************
 
-type Title = List(VXML)
+type Title =
+  List(VXML)
 
 type Page {
   Chapter(title: Title, number_chiron: String, ch_no: Int)
@@ -35,11 +27,7 @@ type Page {
 // ************************************************************
 
 type PageGatheringState {
-  PageGatheringState(
-    pages: List(Page),
-    ch_no: Int,
-    sub_no: Int,
-  )
+  PageGatheringState(pages: List(Page), ch_no: Int, sub_no: Int)
 }
 
 fn gather_title_and_chiron(
@@ -54,7 +42,11 @@ fn gather_title_and_chiron(
     [V(_, "p", _, title)] -> title
     _ -> title
   }
-  use chiron <- on.ok(core.attrs_val_of_unique_key(attrs, "number-chiron", blame))
+  use chiron <- on.ok(core.attrs_val_of_unique_key(
+    attrs,
+    "number-chiron",
+    blame,
+  ))
   Ok(#(title, chiron))
 }
 
@@ -83,12 +75,17 @@ fn page_information_collector(
   state: PageGatheringState,
 ) -> Result(#(PageGatheringState, TrafficLight), DesugaringError) {
   case vxml {
-    V(_, "Document", _, _) ->
-      Ok(#(state, Continue))
+    V(_, "Document", _, _) -> Ok(#(state, Continue))
 
     V(_, "Chapter", _, _) -> {
-      use #(title, chiron) <- on.ok(gather_title_and_chiron(vxml, "ChapterTitle"))
-      Ok(#(state |> add_chapter_to_page_gathering_state(title, chiron), Continue))
+      use #(title, chiron) <- on.ok(gather_title_and_chiron(
+        vxml,
+        "ChapterTitle",
+      ))
+      Ok(#(
+        state |> add_chapter_to_page_gathering_state(title, chiron),
+        Continue,
+      ))
     }
 
     V(_, "Sub", _, _) -> {
@@ -101,13 +98,11 @@ fn page_information_collector(
 }
 
 fn gather_pages(root: VXML) -> Result(List(Page), DesugaringError) {
-  use PageGatheringState(pages, _, _) <- on.ok(
-    n2t.early_return_identity_stateful_walk(
-      root,
-      PageGatheringState([], 0, 0),
-      page_information_collector,
-    )
-  )
+  use PageGatheringState(pages, _, _) <- on.ok(n2t.early_return_stateful_visit(
+    root,
+    PageGatheringState([], 0, 0),
+    page_information_collector,
+  ))
 
   pages |> list.reverse |> Ok
 }
@@ -117,51 +112,46 @@ fn gather_pages(root: VXML) -> Result(List(Page), DesugaringError) {
 // write the appropriate title elements to each page
 // ************************************************************
 
-type PageDepositorState = #(List(Page), List(Page))
+type PageDepositorState =
+  #(List(Page), List(Page))
 
-fn attrs_4_page(
-  page: Page
-) -> List(Attr) {
+fn attrs_4_page(page: Page) -> List(Attr) {
   case page {
     Chapter(_, number_chiron, ch_no) -> [
-      Attr(desugarer_blame(127), "ch_no", ins(ch_no)),
-      Attr(desugarer_blame(128), "number-chiron", number_chiron),
+      Attr(desugarer_blame(121), "ch_no", ins(ch_no)),
+      Attr(desugarer_blame(122), "number-chiron", number_chiron),
     ]
     Sub(_, number_chiron, ch_no, sub_no) -> [
-      Attr(desugarer_blame(131), "ch_no", ins(ch_no)),
-      Attr(desugarer_blame(132), "sub_no", ins(sub_no)),
-      Attr(desugarer_blame(133), "number-chiron", number_chiron),
+      Attr(desugarer_blame(125), "ch_no", ins(ch_no)),
+      Attr(desugarer_blame(126), "sub_no", ins(sub_no)),
+      Attr(desugarer_blame(127), "number-chiron", number_chiron),
     ]
   }
 }
 
-fn deposit_next(
-  vxml: VXML,
-  next: Option(Page),
-) -> VXML {
+fn deposit_next(vxml: VXML, next: Option(Page)) -> VXML {
   let assert V(_, _, _, children) = vxml
   use next <- on.eager_none_some(next, vxml)
-  let title = V(
-    desugarer_blame(145),
-    "NextChapterOrSubTitle",
-    attrs_4_page(next),
-    next.title,
-  )
+  let title =
+    V(
+      desugarer_blame(137),
+      "NextChapterOrSubTitle",
+      attrs_4_page(next),
+      next.title,
+    )
   V(..vxml, children: [title, ..children])
 }
 
-fn deposit_prev(
-  vxml: VXML,
-  prev: Option(Page),
-) -> VXML {
+fn deposit_prev(vxml: VXML, prev: Option(Page)) -> VXML {
   let assert V(_, _, _, children) = vxml
   use prev <- on.eager_none_some(prev, vxml)
-  let title = V(
-    desugarer_blame(160),
-    "PrevChapterOrSubTitle",
-    attrs_4_page(prev),
-    prev.title,
-  )
+  let title =
+    V(
+      desugarer_blame(150),
+      "PrevChapterOrSubTitle",
+      attrs_4_page(prev),
+      prev.title,
+    )
   V(..vxml, children: [title, ..children])
 }
 
@@ -175,7 +165,7 @@ fn prev_this_next_rest(
     _ -> None
   }
   let assert [this, ..upcoming] = upcoming
-  let _  = case expecting {
+  let _ = case expecting {
     Chapter(..) -> {
       let assert Chapter(_, _, _) = this
       Nil
@@ -206,13 +196,15 @@ fn page_depositor_v_before(
     }
     V(_, "Chapter", _, _) -> {
       let #(previous, upcoming) = state
-      let #(prev, this, next, upcoming) = prev_this_next_rest(previous, upcoming, Chapter([], "", 0))
+      let #(prev, this, next, upcoming) =
+        prev_this_next_rest(previous, upcoming, Chapter([], "", 0))
       let vxml = vxml |> deposit_prev(prev) |> deposit_next(next)
       Ok(#(vxml, #([this, ..previous], upcoming), Continue))
     }
     V(_, "Sub", _, _) -> {
       let #(previous, upcoming) = state
-      let #(prev, this, next, upcoming) = prev_this_next_rest(previous, upcoming, Sub([], "", 0, 0))
+      let #(prev, this, next, upcoming) =
+        prev_this_next_rest(previous, upcoming, Sub([], "", 0, 0))
       let vxml = vxml |> deposit_prev(prev) |> deposit_next(next)
       Ok(#(vxml, #([this, ..previous], upcoming), GoBack))
     }
@@ -220,11 +212,13 @@ fn page_depositor_v_before(
   }
 }
 
-fn page_depositor_nodemap() -> n2t.EarlyReturnOneToOneBeforeAndAfterStatefulNodemap(PageDepositorState) {
-  n2t.EarlyReturnOneToOneBeforeAndAfterStatefulNodemap(
-    v_before_transforming_children: page_depositor_v_before,
-    v_after_transforming_children: n2t.before_and_after_keep_latest_state,
-    t_nodemap: n2t.before_and_after_identity,
+fn page_depositor_nodemap() -> n2t.EarlyReturnOneToOneEnterExitStatefulNodemap(
+  PageDepositorState,
+) {
+  n2t.EarlyReturnOneToOneEnterExitStatefulNodemap(
+    on_enter: page_depositor_v_before,
+    on_exit: n2t.enter_exit_keep_latest_state,
+    on_text: n2t.enter_exit_identity,
   )
 }
 
@@ -236,7 +230,7 @@ fn at_root(root: VXML) -> Result(VXML, DesugaringError) {
   use pages <- on.ok(gather_pages(root))
 
   let assert Ok(#(root, #(_, []))) =
-    n2t.early_return_one_to_one_before_and_after_stateful_nodemap_walk(
+    n2t.early_return_one_to_one_enter_exit_stateful_nodemap_walk(
       #([], pages),
       root,
       page_depositor_nodemap(),
@@ -254,11 +248,17 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
   Ok(param)
 }
 
-type Param = Nil
-type InnerParam = Nil
+type Param =
+  Nil
+
+type InnerParam =
+  Nil
 
 pub const name = "ti2_add_prev_next_chapter_title_elements"
-fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
+
+fn desugarer_blame(line_no: Int) {
+  bl.Des([], name, line_no)
+}
 
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 // 🏖️🏖️ Desugarer 🏖️🏖️
@@ -287,7 +287,7 @@ pub fn constructor() -> Desugarer {
 fn assertive_tests_data() -> List(core.AssertiveTestDataNoParam) {
   [
     core.AssertiveTestDataNoParam(
-      source:   "
+      source: "
                 <> Document
                   <> Index
                   <> Chapter
@@ -475,11 +475,15 @@ fn assertive_tests_data() -> List(core.AssertiveTestDataNoParam) {
                       number-chiron=3.
                       <>
                         'And'
-                "
-    )
+                ",
+    ),
   ]
 }
 
 pub fn assertive_tests() {
-  core.assertive_test_collection_from_data_no_param(name, assertive_tests_data(), constructor)
+  core.assertive_test_collection_from_data_no_param(
+    name,
+    assertive_tests_data(),
+    constructor,
+  )
 }

@@ -1,13 +1,16 @@
+import desugaring/core.{
+  type Desugarer, type DesugarerTransform, type DesugaringError, Desugarer,
+  DesugaringError,
+}
+import desugaring/nodemaps_2_transform as n2t
 import gleam/float
 import gleam/list
-import gleam/option.{Some, None}
+import gleam/option.{None, Some}
 import gleam/string.{inspect as ins}
-import desugaring/core.{type Desugarer, Desugarer, type DesugaringError, DesugaringError, type DesugarerTransform} as core
-import vxml.{type VXML, Attr, T, V}
-import desugaring/nodemaps_2_transform as n2t
 import on
+import vxml.{type VXML, Attr, T, V}
 
-fn v_before_transforming_children(
+fn on_enter(
   node: VXML,
   state: Float,
   inner: InnerParam,
@@ -17,13 +20,17 @@ fn v_before_transforming_children(
     False -> Ok(#(node, state))
     True -> {
       case core.v_first_attr_with_key(node, "width") {
-        None -> Error(DesugaringError(blame, tag <> " tag must have width attr"))
+        None ->
+          Error(DesugaringError(blame, tag <> " tag must have width attr"))
         Some(attr) -> {
           use #(width, _) <- on.error_ok(
             core.parse_number_and_optional_css_unit(attr.val),
             on_error: fn(_) {
-              Error(DesugaringError(attr.blame, "Could not parse digits in width attr"))
-            }
+              Error(DesugaringError(
+                attr.blame,
+                "Could not parse digits in width attr",
+              ))
+            },
           )
           Ok(#(node, float.max(state, width)))
         }
@@ -32,7 +39,7 @@ fn v_before_transforming_children(
   }
 }
 
-fn v_after_transforming_children(
+fn on_exit(
   node: VXML,
   _: Float,
   state: Float,
@@ -42,26 +49,24 @@ fn v_after_transforming_children(
     False -> Ok(#(node, state))
     True -> {
       Ok(#(
-        V(
-          ..node,
-          attrs: [
-            Attr(node.blame, "max-element-width", ins(state)),
-            ..node.attrs
-          ]
-        ),
-        0. // reset state for next article
+        V(..node, attrs: [
+          Attr(node.blame, "max-element-width", ins(state)),
+          ..node.attrs
+        ]),
+        0.0,
+        // reset state for next article
       ))
     }
   }
 }
 
-fn nodemap_factory(inner: InnerParam) -> n2t.OneToOneBeforeAndAfterStatefulNodemap(Float) {
-   n2t.OneToOneBeforeAndAfterStatefulNodemap(
-    v_before_transforming_children: fn(node, state){
-      v_before_transforming_children(node, state, inner)
-    },
-    v_after_transforming_children: v_after_transforming_children,
-    t_nodemap: fn(node, state) {
+fn nodemap_factory(
+  inner: InnerParam,
+) -> n2t.OneToOneEnterExitStatefulNodemap(Float) {
+  n2t.OneToOneEnterExitStatefulNodemap(
+    on_enter: fn(node, state) { on_enter(node, state, inner) },
+    on_exit: on_exit,
+    on_text: fn(node, state) {
       let assert T(_, _) = node
       Ok(#(node, state))
     },
@@ -70,18 +75,21 @@ fn nodemap_factory(inner: InnerParam) -> n2t.OneToOneBeforeAndAfterStatefulNodem
 
 fn transform_factory(inner: InnerParam) -> DesugarerTransform {
   nodemap_factory(inner)
-  |> n2t.one_to_one_before_and_after_stateful_nodemap_2_desugarer_transform(0.)
+  |> n2t.one_to_one_enter_exit_stateful_nodemap_2_desugarer_transform(0.0)
 }
 
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
   Ok(param)
 }
 
-type Param = List(String)
+type Param =
+  List(String)
+
 //           ↖
 //           tags to include in the
 //           max width calculation
-type InnerParam = Param
+type InnerParam =
+  Param
 
 pub const name = "compute_max_element_width"
 
@@ -110,5 +118,9 @@ fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
 }
 
 pub fn assertive_tests() {
-  core.assertive_test_collection_from_data(name, assertive_tests_data(), constructor)
+  core.assertive_test_collection_from_data(
+    name,
+    assertive_tests_data(),
+    constructor,
+  )
 }

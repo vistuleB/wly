@@ -1,12 +1,12 @@
+import desugaring/core.{
+  type Desugarer, type DesugarerTransform, type DesugaringError,
+  type DesugaringWarning, Desugarer, DesugaringError, DesugaringWarning,
+}
+import desugaring/nodemaps_2_transform as n2t
 import gleam/dict.{type Dict}
 import gleam/list
 import gleam/option.{type Option, Some}
 import gleam/string.{inspect as ins}
-import desugaring/core.{
-  type Desugarer, type DesugarerTransform, type DesugaringError,
-  type DesugaringWarning, Desugarer, DesugaringError, DesugaringWarning,
-} as core
-import desugaring/nodemaps_2_transform as n2t
 import on
 import vxml.{type Attr, type VXML, V}
 
@@ -128,18 +128,16 @@ fn v_after(
 
 fn nodemap_factory(
   inner: InnerParam,
-) -> n2t.EarlyReturnOneToOneBeforeAndAfterStatefulNodemapWithWarnings(State) {
-  n2t.EarlyReturnOneToOneBeforeAndAfterStatefulNodemapWithWarnings(
-    v_before_transforming_children: fn(vxml, state) {
-      v_before(vxml, state, inner)
-    },
-    v_after_transforming_children: v_after,
-    t_nodemap: fn(vxml, state) { Ok(#(vxml, state, [])) },
+) -> n2t.EarlyReturnOneToOneEnterExitStatefulWithWarningsNodemap(State) {
+  n2t.EarlyReturnOneToOneEnterExitStatefulWithWarningsNodemap(
+    on_enter: fn(vxml, state) { v_before(vxml, state, inner) },
+    on_exit: v_after,
+    on_text: fn(vxml, state) { Ok(#(vxml, state, [])) },
   )
 }
 
 fn transform_factory(inner: InnerParam) -> DesugarerTransform {
-  n2t.early_return_one_to_one_before_and_after_stateful_nodemap_with_warnings_2_desugarer_transform(
+  n2t.early_return_one_to_one_enter_exit_stateful_with_warnings_nodemap_2_desugarer_transform(
     nodemap_factory(inner),
     State(dict.new(), []),
   )
@@ -156,7 +154,7 @@ type State {
     // soon as the node bearing that id is reached
     remaining: Dict(String, List(String)),
     // the early-return walker drops the warnings returned by
-    // v_before_transforming_children whenever it is told to GoBack, so we
+    // on_enter whenever it is told to GoBack, so we
     // accumulate them in the state and emit them all at the root instead
     warnings: List(DesugaringWarning),
   )

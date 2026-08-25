@@ -1,13 +1,13 @@
-import vxml/blame.{type Blame}
+import desugaring/core.{
+  type Desugarer, type DesugarerTransform, type DesugaringError, Desugarer,
+}
+import desugaring/nodemaps_2_transform as n2t
 import gleam/list
 import gleam/option.{Some}
 import gleam/regexp.{type Regexp}
 import gleam/string
-import desugaring/core.{
-  type Desugarer, type DesugarerTransform, type DesugaringError, Desugarer,
-} as core
-import desugaring/nodemaps_2_transform as n2t
 import vxml.{type Attr, type Line, type VXML, Attr, Line, T, V}
+import vxml/blame.{type Blame}
 
 // Extract the value token after ##<<:
 //   - stops at the first space when not inside a bracket
@@ -103,7 +103,7 @@ fn process_line(line: Line, re: Regexp) -> #(Line, List(Attr)) {
 type State =
   List(Attr)
 
-fn t_nodemap(
+fn on_text(
   vxml: VXML,
   state: State,
   re: Regexp,
@@ -140,16 +140,16 @@ fn v_after(
 
 fn nodemap_factory(
   re: InnerParam,
-) -> n2t.OneToOneBeforeAndAfterStatefulNodemap(State) {
-  n2t.OneToOneBeforeAndAfterStatefulNodemap(
-    v_before_transforming_children: v_before,
-    v_after_transforming_children: v_after,
-    t_nodemap: fn(vxml, state) { t_nodemap(vxml, state, re) },
+) -> n2t.OneToOneEnterExitStatefulNodemap(State) {
+  n2t.OneToOneEnterExitStatefulNodemap(
+    on_enter: v_before,
+    on_exit: v_after,
+    on_text: fn(vxml, state) { on_text(vxml, state, re) },
   )
 }
 
 fn transform_factory(inner: InnerParam) -> DesugarerTransform {
-  n2t.one_to_one_before_and_after_stateful_nodemap_2_desugarer_transform(
+  n2t.one_to_one_enter_exit_stateful_nodemap_2_desugarer_transform(
     nodemap_factory(inner),
     [],
   )

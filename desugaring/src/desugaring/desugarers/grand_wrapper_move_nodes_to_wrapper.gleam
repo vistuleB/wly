@@ -1,23 +1,23 @@
-import gleam/list
-import gleam/string
-import gleam/option.{type Option, Some, None}
 import desugaring/core.{
-  type Desugarer,
-  type DesugarerTransform,
-  type DesugaringError,
-  type DesugaringWarning,
-  Desugarer,
-} as core
+  type Desugarer, type DesugarerTransform, type DesugaringError,
+  type DesugaringWarning, Desugarer,
+}
 import desugaring/nodemaps_2_transform as n2t
-import vxml.{type VXML, V, Attr}
-import vxml/blame as bl
+import gleam/list
+import gleam/option.{type Option, None, Some}
+import gleam/string
 import on
+import vxml.{type VXML, Attr, V}
+import vxml/blame as bl
 
-fn v_before_transforming_children(
+fn on_enter(
   vxml: VXML,
   state: State(a),
   inner: InnerParam(a),
-) -> Result(#(Option(VXML), State(a), List(DesugaringWarning), core.TrafficLight), DesugaringError) {
+) -> Result(
+  #(Option(VXML), State(a), List(DesugaringWarning), core.TrafficLight),
+  DesugaringError,
+) {
   let #(a, vxmls) = state
   use #(a, result, warnings, light) <- on.ok(inner.1(a, vxml))
   let #(option_vxml, vxmls) = case result {
@@ -27,7 +27,7 @@ fn v_before_transforming_children(
   Ok(#(option_vxml, #(a, vxmls), warnings, light))
 }
 
-fn v_after_transforming_children(
+fn on_exit(
   vxml: VXML,
   ancestors: List(VXML),
   original_state: State(a),
@@ -49,7 +49,8 @@ fn v_after_transforming_children(
         "GrandWrapper" -> vxml
         _ -> V(desugarer_blame(50), "GrandWrapper", [], [vxml])
       }
-      let anointed_child = V(desugarer_blame(52), inner.4, [], vxmls |> list.reverse)
+      let anointed_child =
+        V(desugarer_blame(53), inner.4, [], vxmls |> list.reverse)
       let assert V(_, _, _, children) = grand_wrapper
       Some(V(..grand_wrapper, children: [anointed_child, ..children]))
     }
@@ -72,49 +73,65 @@ fn t_transform(
   Ok(#(option_vxml, #(a, vxmls), warnings))
 }
 
-fn nodemap_factory(inner: InnerParam(a)) -> n2t.EarlyReturnFancyOneToOptionBeforeAndAfterStatefulNodemapWithWarnings(State(a)) {
-   n2t.EarlyReturnFancyOneToOptionBeforeAndAfterStatefulNodemapWithWarnings(
-    v_before_transforming_children: fn(vxml, _, _, _, _, state) {
-      v_before_transforming_children(vxml, state, inner)
+fn nodemap_factory(
+  inner: InnerParam(a),
+) -> n2t.EarlyReturnFancyOneToOptionEnterExitStatefulWithWarningsNodemap(
+  State(a),
+) {
+  n2t.EarlyReturnFancyOneToOptionEnterExitStatefulWithWarningsNodemap(
+    on_enter: fn(vxml, _, _, _, _, state) { on_enter(vxml, state, inner) },
+    on_exit: fn(vxml, ancestors, _, _, _, original_state, latest_state) {
+      on_exit(vxml, ancestors, original_state, latest_state, inner)
     },
-    v_after_transforming_children: fn(vxml, ancestors, _, _, _, original_state, latest_state) {
-      v_after_transforming_children(vxml, ancestors, original_state, latest_state, inner)
-    },
-    t_nodemap: fn(vxml, _, _, _, _, state) {
-      t_transform(vxml, state, inner)
-    },
+    on_text: fn(vxml, _, _, _, _, state) { t_transform(vxml, state, inner) },
   )
 }
 
 fn transform_factory(inner: InnerParam(a)) -> core.DesugarerTransform {
-  n2t.early_return_fancy_one_to_option_before_and_after_stateful_nodemap_with_warnings_2_desugarer_transform(
+  n2t.early_return_fancy_one_to_option_enter_exit_stateful_with_warnings_nodemap_2_desugarer_transform(
     nodemap_factory(inner),
     #(inner.0, []),
   )
 }
 
-fn param_to_inner_param(param: Param(a)) -> Result(InnerParam(a), DesugaringError) {
+fn param_to_inner_param(
+  param: Param(a),
+) -> Result(InnerParam(a), DesugaringError) {
   Ok(param)
 }
 
-type State(a) = #(a, List(VXML))
+type State(a) =
+  #(a, List(VXML))
 
-type Param(a) = #(
+type Param(
   a,
   // v_before -- returning Some(x) as second argument indicates desire to cut this node into the clipboard (second coordinate of State)
-  fn(a, VXML) -> Result(#(a, Result(VXML, VXML), List(DesugaringWarning), core.TrafficLight), DesugaringError),
   // v_after
-  fn(a, a, VXML) -> Result(#(a, Result(VXML, VXML), List(DesugaringWarning)), DesugaringError),
   // t
-  fn(a, VXML) -> Result(#(a, Result(VXML, VXML), List(DesugaringWarning)), DesugaringError),
   // name of GrandWrapper child that will carry the nodes
-  String,
-)
+) =
+  #(
+    a,
+    fn(a, VXML) ->
+      Result(
+        #(a, Result(VXML, VXML), List(DesugaringWarning), core.TrafficLight),
+        DesugaringError,
+      ),
+    fn(a, a, VXML) ->
+      Result(#(a, Result(VXML, VXML), List(DesugaringWarning)), DesugaringError),
+    fn(a, VXML) ->
+      Result(#(a, Result(VXML, VXML), List(DesugaringWarning)), DesugaringError),
+    String,
+  )
 
-type InnerParam(a) = Param(a)
+type InnerParam(a) =
+  Param(a)
 
 pub const name = "grand_wrapper_move_nodes_to_wrapper"
-fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
+
+fn desugarer_blame(line_no: Int) {
+  bl.Des([], name, line_no)
+}
 
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 // 🏖️🏖️ Desugarer 🏖️🏖️
@@ -147,8 +164,16 @@ fn harvest_doomed_handles_from_grand_wrapper(vxml: VXML) -> List(String) {
   })
 }
 
-fn v_before_1(doomed_handles: List(String), vxml: VXML) -> Result(
-  #(List(String), Result(VXML, VXML), List(DesugaringWarning), core.TrafficLight),
+fn v_before_1(
+  doomed_handles: List(String),
+  vxml: VXML,
+) -> Result(
+  #(
+    List(String),
+    Result(VXML, VXML),
+    List(DesugaringWarning),
+    core.TrafficLight,
+  ),
   DesugaringError,
 ) {
   let assert V(_, tag, attrs, _) = vxml
@@ -156,28 +181,44 @@ fn v_before_1(doomed_handles: List(String), vxml: VXML) -> Result(
     "GrandWrapper" -> harvest_doomed_handles_from_grand_wrapper(vxml)
     _ -> doomed_handles
   }
-  use #(attr, attrs) <- on.ok(core.attrs_extract_unique_key_or_none(attrs, "handle"))
-  use attr <- on.none_some(
-    attr,
-    fn() { Ok(#(doomed_handles, Ok(vxml), [], core.Continue)) },
-  )
+  use #(attr, attrs) <- on.ok(core.attrs_extract_unique_key_or_none(
+    attrs,
+    "handle",
+  ))
+  use attr <- on.none_some(attr, fn() {
+    Ok(#(doomed_handles, Ok(vxml), [], core.Continue))
+  })
   let handle_name = string.trim(attr.val)
-  use <- on.false_true(
-    list.contains(doomed_handles, handle_name),
-    fn() {
-      Ok(#(doomed_handles, Ok(vxml), [], core.Continue))
-    },
-  )
+  use <- on.false_true(list.contains(doomed_handles, handle_name), fn() {
+    Ok(#(doomed_handles, Ok(vxml), [], core.Continue))
+  })
   // normalize the cut node, putting the (normalized) handle first:
-  let vxml = V(..vxml, attrs: [Attr(desugarer_blame(172), attr.key, handle_name), ..attrs])
+  let vxml =
+    V(..vxml, attrs: [
+      Attr(desugarer_blame(198), attr.key, handle_name),
+      ..attrs
+    ])
   Ok(#(doomed_handles, Error(vxml), [], core.GoBack))
 }
 
-fn v_after_1(_: List(String), doomed_handles: List(String), vxml: VXML) -> Result(#(List(String), Result(VXML, VXML), List(DesugaringWarning)), DesugaringError) {
+fn v_after_1(
+  _: List(String),
+  doomed_handles: List(String),
+  vxml: VXML,
+) -> Result(
+  #(List(String), Result(VXML, VXML), List(DesugaringWarning)),
+  DesugaringError,
+) {
   Ok(#(doomed_handles, Ok(vxml), []))
 }
 
-fn t_1(doomed_handles: List(String), vxml: VXML) -> Result(#(List(String), Result(VXML, VXML), List(DesugaringWarning)), DesugaringError) {
+fn t_1(
+  doomed_handles: List(String),
+  vxml: VXML,
+) -> Result(
+  #(List(String), Result(VXML, VXML), List(DesugaringWarning)),
+  DesugaringError,
+) {
   Ok(#(doomed_handles, Ok(vxml), []))
 }
 
@@ -210,13 +251,7 @@ fn assertive_tests_data() -> List(core.AssertiveTestData(Param(List(String)))) {
     //   ",
     // ),
     core.AssertiveTestData(
-      param: #(
-        [],
-        v_before_1,
-        v_after_1,
-        t_1,
-        "NodesBeingMoved",
-      ),
+      param: #([], v_before_1, v_after_1, t_1, "NodesBeingMoved"),
       source: "
         <> GrandWrapper
           source=>>koolio
@@ -249,5 +284,9 @@ fn assertive_tests_data() -> List(core.AssertiveTestData(Param(List(String)))) {
 }
 
 pub fn assertive_tests() {
-  core.assertive_test_collection_from_data(name, assertive_tests_data(), constructor)
+  core.assertive_test_collection_from_data(
+    name,
+    assertive_tests_data(),
+    constructor,
+  )
 }

@@ -1,9 +1,11 @@
-import gleam/option
-import gleam/list
-import gleam/string.{inspect as ins}
-import desugaring/core.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as core
+import desugaring/core.{
+  type Desugarer, type DesugarerTransform, type DesugaringError, Desugarer,
+}
 import desugaring/nodemaps_2_transform as n2t
-import vxml.{ type VXML, V, type Attr, Attr}
+import gleam/list
+import gleam/option
+import gleam/string.{inspect as ins}
+import vxml.{type Attr, type VXML, Attr, V}
 
 fn map_attr(attr: Attr, state: State, inner: InnerParam) -> Attr {
   case attr.key {
@@ -41,17 +43,21 @@ fn v_before_nodemap(
   }
 }
 
-fn nodemap_factory(inner: InnerParam) -> n2t.OneToOneNoErrorBeforeAndAfterStatefulNodemap(State){
-  n2t.OneToOneNoErrorBeforeAndAfterStatefulNodemap(
-      v_before_transforming_children: fn (vxml, state) { v_before_nodemap(vxml, state, inner) },
-      v_after_transforming_children: fn(vxml, original_state, _latest_state) { #(vxml, original_state) },
-      t_nodemap: fn(vxml, state) { #(vxml, state) }
-    )
+fn nodemap_factory(
+  inner: InnerParam,
+) -> n2t.OneToOneEnterExitStatefulNoErrorNodemap(State) {
+  n2t.OneToOneEnterExitStatefulNoErrorNodemap(
+    on_enter: fn(vxml, state) { v_before_nodemap(vxml, state, inner) },
+    on_exit: fn(vxml, original_state, _latest_state) { #(vxml, original_state) },
+    on_text: fn(vxml, state) { #(vxml, state) },
+  )
 }
 
 fn transform_factory(inner: InnerParam) -> DesugarerTransform {
   nodemap_factory(inner)
-  |> n2t.one_to_one_no_error_before_and_after_stateful_nodemap_2_desugarer_transform(False)
+  |> n2t.one_to_one_enter_exit_stateful_no_error_nodemap_2_desugarer_transform(
+    False,
+  )
 }
 
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
@@ -59,13 +65,19 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
   |> Ok
 }
 
-type AncestorHasBeenSeen = Bool
-type State = AncestorHasBeenSeen
+type AncestorHasBeenSeen =
+  Bool
 
-type Param = #(String,    String,    String,      String)
+type State =
+  AncestorHasBeenSeen
+
+type Param =
+  #(String, String, String, String)
+
 //                ↖       ↖          ↖            ↖
 //                tag     ancestor   if_version   else_version
-type InnerParam = Param
+type InnerParam =
+  Param
 
 pub const name = "set_handle_value_if_has_ancestor_else"
 
@@ -96,5 +108,9 @@ fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
 }
 
 pub fn assertive_tests() {
-  core.assertive_test_collection_from_data(name, assertive_tests_data(), constructor)
+  core.assertive_test_collection_from_data(
+    name,
+    assertive_tests_data(),
+    constructor,
+  )
 }

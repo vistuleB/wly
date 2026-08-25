@@ -1,16 +1,19 @@
+import desugaring/core.{
+  type Desugarer, type DesugarerTransform, type DesugaringError, Desugarer,
+  DesugaringError,
+}
+import desugaring/nodemaps_2_transform as n2t
+import gleam/dict.{type Dict}
 import gleam/int
 import gleam/list
-import gleam/dict.{type Dict}
 import gleam/option.{type Option, None, Some}
 import gleam/regexp.{type Regexp}
 import gleam/result
 import gleam/string.{inspect as ins}
-import desugaring/core.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError, DesugaringError} as core
+import on
 import roman
-import desugaring/nodemaps_2_transform as n2t
 import vxml.{type Attr, type Line, type VXML, Attr, Line, T, V}
 import vxml/blame.{type Blame} as bl
-import on
 
 type CounterType {
   Arabic
@@ -19,14 +22,11 @@ type CounterType {
 }
 
 type CounterInfo {
-  CounterInfo(
-    counter_type: CounterType,
-    value: Int,
-    step: Int,
-  )
+  CounterInfo(counter_type: CounterType, value: Int, step: Int)
 }
 
-type CounterDict = Dict(String, CounterInfo)
+type CounterDict =
+  Dict(String, CounterInfo)
 
 type HandleAssignment =
   #(String, String)
@@ -36,9 +36,13 @@ type StringAndRegexVersion {
 }
 
 const loud = StringAndRegexVersion(string: "::", regex_string: "::")
+
 const soft = StringAndRegexVersion(string: "..", regex_string: "\\.\\.")
+
 const increment = StringAndRegexVersion(string: "++", regex_string: "\\+\\+")
+
 const decrement = StringAndRegexVersion(string: "--", regex_string: "--")
+
 const no_change = StringAndRegexVersion(string: "øø", regex_string: "øø")
 
 type CounterBundle {
@@ -51,34 +55,32 @@ type CounterBundle {
 }
 
 type TwoValues {
-  TwoValues(
-    handle_value: String,
-    echoed_value: String,
-  )
+  TwoValues(handle_value: String, echoed_value: String)
 }
 
 const empty_values = TwoValues("", "")
 
-type LeftMostSplitChar = String
+type LeftMostSplitChar =
+  String
 
-fn update_info(
-  info: CounterInfo,
-  mutation: String,
-) -> CounterInfo {
+fn update_info(info: CounterInfo, mutation: String) -> CounterInfo {
   case mutation {
-    _ if mutation == increment.string -> CounterInfo(..info, value: info.value + info.step )
-    _ if mutation == decrement.string -> CounterInfo(..info, value: info.value - info.step )
+    _ if mutation == increment.string ->
+      CounterInfo(..info, value: info.value + info.step)
+    _ if mutation == decrement.string ->
+      CounterInfo(..info, value: info.value - info.step)
     _ if mutation == no_change.string -> info
     _ -> panic as "bad mutation"
   }
 }
 
-fn render_counter(
-  info: CounterInfo
-) -> String {
+fn render_counter(info: CounterInfo) -> String {
   case info.counter_type {
     Arabic -> ins(info.value)
-    Roman -> roman.int_to_roman(info.value) |> option.unwrap([]) |> roman.roman_to_string()
+    Roman ->
+      roman.int_to_roman(info.value)
+      |> option.unwrap([])
+      |> roman.roman_to_string()
     Unary(c) -> string.repeat(c, info.value)
   }
 }
@@ -94,8 +96,10 @@ fn counter_bundles_from_counter_splits(
     [] -> []
     [""] -> []
     splits -> {
-      let assert [split_char, insert_or_not, mutation, counter_name, ..rest] = splits
-      let bundle = CounterBundle(split_char, insert_or_not, mutation, counter_name)
+      let assert [split_char, insert_or_not, mutation, counter_name, ..rest] =
+        splits
+      let bundle =
+        CounterBundle(split_char, insert_or_not, mutation, counter_name)
       [bundle, ..counter_bundles_from_counter_splits(rest)]
     }
   }
@@ -116,30 +120,38 @@ fn serialize_counter_bundles(
   bundles: List(CounterBundle),
   counters: CounterDict,
 ) -> Result(#(LeftMostSplitChar, TwoValues, CounterDict), DesugaringError) {
-  use first, rest <- on.empty_nonempty(
-    bundles,
-    fn() { Ok(#("", empty_values, counters)) },
-  )
-  let CounterBundle(our_split_char, insert_or_not, mutation, counter_name) = first
-  use info <- on.error_ok(
-    dict.get(counters, counter_name),
-    fn(_) { Error(DesugaringError(blame, "counter " <> counter_name <> " is not defined" ))}
-  )
+  use first, rest <- on.empty_nonempty(bundles, fn() {
+    Ok(#("", empty_values, counters))
+  })
+  let CounterBundle(our_split_char, insert_or_not, mutation, counter_name) =
+    first
+  use info <- on.error_ok(dict.get(counters, counter_name), fn(_) {
+    Error(DesugaringError(
+      blame,
+      "counter " <> counter_name <> " is not defined",
+    ))
+  })
   let info = info |> update_info(mutation)
   let counters = counters |> dict.insert(counter_name, info)
   use #(rest_split_char, rest_two_values, counters) <- on.ok(
-    serialize_counter_bundles(blame, rest, counters)
+    serialize_counter_bundles(blame, rest, counters),
   )
   let counter_string = render_counter(info)
   let #(bequeathed_split_char, echoed_prefix) = case insert_or_not {
-    _ if insert_or_not == loud.string -> #(our_split_char, counter_string <> rest_split_char)
+    _ if insert_or_not == loud.string -> #(
+      our_split_char,
+      counter_string <> rest_split_char,
+    )
     _ if insert_or_not == soft.string -> #(rest_split_char, "")
     _ -> panic
   }
-  let two_values = TwoValues(
-    handle_value: our_split_char <> counter_string <> rest_two_values.handle_value,
-    echoed_value: echoed_prefix <> rest_two_values.echoed_value,
-  )
+  let two_values =
+    TwoValues(
+      handle_value: our_split_char
+        <> counter_string
+        <> rest_two_values.handle_value,
+      echoed_value: echoed_prefix <> rest_two_values.echoed_value,
+    )
   Ok(#(bequeathed_split_char, two_values, counters))
 }
 
@@ -150,22 +162,20 @@ fn handle_matches(
   counters: CounterDict,
   regexes: #(Regexp, Regexp),
 ) -> Result(#(String, CounterDict, List(HandleAssignment)), DesugaringError) {
-  use first, rest <- on.empty_nonempty(
-    matches,
-    fn() {
-      let assert[split] = splits
-      Ok(#(split, counters, []))
-    }
-  )
+  use first, rest <- on.empty_nonempty(matches, fn() {
+    let assert [split] = splits
+    Ok(#(split, counters, []))
+  })
 
   let regexp.Match(content, sub_matches) = first
   let assert [_, handle_name, ..] = sub_matches
-  let counter_bundles =
-    get_all_counters_from_match_content(content, regexes)
+  let counter_bundles = get_all_counters_from_match_content(content, regexes)
 
-  use #(_, two_values, updated_counters) <- on.ok(
-    serialize_counter_bundles(blame, counter_bundles, counters),
-  )
+  use #(_, two_values, updated_counters) <- on.ok(serialize_counter_bundles(
+    blame,
+    counter_bundles,
+    counters,
+  ))
 
   let handle_names = case handle_name {
     None -> []
@@ -260,17 +270,14 @@ fn update_line(
   line: Line,
   counters: CounterDict,
   regexes: #(Regexp, Regexp),
-) -> Result(
-  #(Line, CounterDict, List(HandleAssignment)),
-  DesugaringError,
-) {
+) -> Result(#(Line, CounterDict, List(HandleAssignment)), DesugaringError) {
   use #(content, counters, handles) <- on.ok(
     substitute_counters_and_generate_handle_assignments(
       line.blame,
       line.content,
       counters,
       regexes,
-    )
+    ),
   )
   Ok(#(Line(..line, content: content), counters, handles))
 }
@@ -279,27 +286,23 @@ fn update_lines(
   lines: List(Line),
   counters: CounterDict,
   regexes: #(Regexp, Regexp),
-) -> Result(
-  #(List(Line), CounterDict, List(HandleAssignment)),
-  DesugaringError,
-) {
+) -> Result(#(List(Line), CounterDict, List(HandleAssignment)), DesugaringError) {
   // nb: tried doing an early-return test here on
   // 'lines' to improve speed, didn't help much
   lines
-  |> list.try_fold(
-    #([], counters, []),
-    fn(acc, content) {
-      let #(lines, counters, handles) = acc
-      use #(updated_line, updated_counters, new_handles) <- on.ok(
-        update_line(content, counters, regexes)
-      )
-      Ok(#(
-        [updated_line, ..lines],
-        updated_counters,
-        list.flatten([handles, new_handles]),
-      ))
-    }
-  )
+  |> list.try_fold(#([], counters, []), fn(acc, content) {
+    let #(lines, counters, handles) = acc
+    use #(updated_line, updated_counters, new_handles) <- on.ok(update_line(
+      content,
+      counters,
+      regexes,
+    ))
+    Ok(#(
+      [updated_line, ..lines],
+      updated_counters,
+      list.flatten([handles, new_handles]),
+    ))
+  })
   |> result.map(fn(acc) { #(acc.0 |> list.reverse, acc.1, acc.2) })
 }
 
@@ -309,7 +312,7 @@ fn handle_assignment_attrs_from_handle_assignments(
   handles
   |> list.map(fn(handle) {
     let #(name, value) = handle
-    Attr(desugarer_blame(312), "handle", name <> " " <> value)
+    Attr(desugarer_blame(315), "handle", name <> " " <> value)
   })
 }
 
@@ -328,39 +331,38 @@ fn handle_non_unary_att_value(
     string.split(attr.val, " ")
     |> list.filter(fn(s) { s != "" })
 
-  use counter_name, rest <- on.empty_nonempty(
-    splits,
-    fn() { Error(DesugaringError(attr.blame, "counter must have a name")) },
-  )
+  use counter_name, rest <- on.empty_nonempty(splits, fn() {
+    Error(DesugaringError(attr.blame, "counter must have a name"))
+  })
 
-  use starting_value, rest <- on.empty_nonempty(
-    rest,
-    fn() { Ok(#(counter_name, 0, 1)) },
-  )
+  use starting_value, rest <- on.empty_nonempty(rest, fn() {
+    Ok(#(counter_name, 0, 1))
+  })
 
-  use starting_value <- on.error_ok(
-    int.parse(starting_value),
-    fn(_) { Error(DesugaringError(attr.blame, "counter starting value must be a number")) },
-  )
+  use starting_value <- on.error_ok(int.parse(starting_value), fn(_) {
+    Error(DesugaringError(attr.blame, "counter starting value must be a number"))
+  })
 
-  use step, rest <- on.empty_nonempty(
-    rest,
-    fn() { Ok(#(counter_name, starting_value, 1)) },
-  )
+  use step, rest <- on.empty_nonempty(rest, fn() {
+    Ok(#(counter_name, starting_value, 1))
+  })
 
-  use step <- on.error_ok(
-    int.parse(step),
-    fn(_) { Error(DesugaringError(attr.blame, "counter step size must be a number")) },
-  )
+  use step <- on.error_ok(int.parse(step), fn(_) {
+    Error(DesugaringError(attr.blame, "counter step size must be a number"))
+  })
 
   case list.is_empty(rest) {
     True -> Ok(#(counter_name, starting_value, step))
-    False -> Error(DesugaringError(attr.blame, "extra arguments found after <counter_name> <starting_value> <step_value>"))
+    False ->
+      Error(DesugaringError(
+        attr.blame,
+        "extra arguments found after <counter_name> <starting_value> <step_value>",
+      ))
   }
 }
 
 fn handle_unary_att_value(
- attr: Attr,
+  attr: Attr,
 ) -> Result(#(String, String), DesugaringError) {
   let splits =
     string.split(attr.val, " ")
@@ -369,13 +371,12 @@ fn handle_unary_att_value(
     [counter_name, unary_char] -> Ok(#(counter_name, unary_char))
     [counter_name] -> Ok(#(counter_name, "1"))
     [] -> Error(DesugaringError(attr.blame, "counter attr without name"))
-    _ -> Error(DesugaringError(attr.blame, "too many arguments for counter-unary"))
+    _ ->
+      Error(DesugaringError(attr.blame, "too many arguments for counter-unary"))
   }
 }
 
-fn attr_key_is_counter(
-  key: String
-) -> Result(CounterType, Nil) {
+fn attr_key_is_counter(key: String) -> Result(CounterType, Nil) {
   case key {
     "counter" -> Ok(Arabic)
     "counter-roman-uppercase" -> Ok(Roman)
@@ -387,10 +388,9 @@ fn attr_key_is_counter(
 fn read_counter_definition(
   attr: Attr,
 ) -> Result(Option(#(String, CounterInfo)), DesugaringError) {
-  use counter_type <- on.error_ok(
-    attr_key_is_counter(attr.key),
-    fn(_) { Ok(None) },
-  )
+  use counter_type <- on.error_ok(attr_key_is_counter(attr.key), fn(_) {
+    Ok(None)
+  })
 
   case counter_type {
     Unary(_) -> {
@@ -398,7 +398,9 @@ fn read_counter_definition(
       Ok(Some(#(counter_name, CounterInfo(Unary(unary_char), 0, 1))))
     }
     _ -> {
-      use #(counter_name, initial_value, step) <- on.ok(handle_non_unary_att_value(attr))
+      use #(counter_name, initial_value, step) <- on.ok(
+        handle_non_unary_att_value(attr),
+      )
       Ok(Some(#(counter_name, CounterInfo(counter_type, initial_value, step))))
     }
   }
@@ -408,10 +410,7 @@ fn fancy_one_attr_processor(
   attr: Attr,
   counters: CounterDict,
   regexes: #(Regexp, Regexp),
-) -> Result(
-  #(Attr, CounterDict, List(HandleAssignment)),
-  DesugaringError,
-) {
+) -> Result(#(Attr, CounterDict, List(HandleAssignment)), DesugaringError) {
   let Attr(blame, original_key, val) = attr
 
   use #(key, counters, assignments1) <- on.ok(
@@ -425,13 +424,14 @@ fn fancy_one_attr_processor(
 
   let assert True = key == string.trim(key)
 
-  use <- on.true_false(
-    key == "",
-    fn() { Error(DesugaringError(
+  use <- on.true_false(key == "", fn() {
+    Error(DesugaringError(
       blame,
-      "empty key after processing counters; original key: '" <> original_key <> "'",
-    )) },
-  )
+      "empty key after processing counters; original key: '"
+        <> original_key
+        <> "'",
+    ))
+  })
 
   use #(val, counters, assignments2) <- on.ok(
     substitute_counters_and_generate_handle_assignments(
@@ -458,9 +458,11 @@ fn fancy_attr_processor(
   case yet_to_be_processed {
     [] -> Ok(#(already_processed |> list.reverse, counters))
     [next, ..rest] -> {
-      use #(next, counters, assignments) <- on.ok(
-        fancy_one_attr_processor(next, counters, regexes),
-      )
+      use #(next, counters, assignments) <- on.ok(fancy_one_attr_processor(
+        next,
+        counters,
+        regexes,
+      ))
 
       let assignment_attrs =
         list.map(assignments, fn(handle_assignment) {
@@ -481,19 +483,15 @@ fn fancy_attr_processor(
           already_processed,
         ])
 
-      fancy_attr_processor(
-        already_processed,
-        rest,
-        counters,
-        regexes,
-      )
+      fancy_attr_processor(already_processed, rest, counters, regexes)
     }
   }
 }
 
-type State = #(CounterDict, List(HandleAssignment))
+type State =
+  #(CounterDict, List(HandleAssignment))
 
-fn v_before_transforming_children(
+fn on_enter(
   vxml: VXML,
   state: State,
   regexes: #(Regexp, Regexp),
@@ -511,7 +509,7 @@ fn v_before_transforming_children(
   Ok(#(V(b, t, attrs, c), #(counters, handles)))
 }
 
-fn t_nodemap(
+fn on_text(
   vxml: VXML,
   state: State,
   regexes: #(Regexp, Regexp),
@@ -519,9 +517,11 @@ fn t_nodemap(
   let assert T(blame, contents) = vxml
   let #(counters, old_handles) = state
 
-  use #(contents, updated_counters, new_handles) <- on.ok(
-    update_lines(contents, counters, regexes),
-  )
+  use #(contents, updated_counters, new_handles) <- on.ok(update_lines(
+    contents,
+    counters,
+    regexes,
+  ))
 
   use <- on.some_none(
     core.get_contained(new_handles, old_handles),
@@ -533,18 +533,13 @@ fn t_nodemap(
     },
   )
 
-  Ok(
-    #(
-      T(blame, contents),
-      #(
-        updated_counters,
-        list.flatten([old_handles, new_handles]),
-      )
-    ),
-  )
+  Ok(#(
+    T(blame, contents),
+    #(updated_counters, list.flatten([old_handles, new_handles])),
+  ))
 }
 
-fn v_after_transforming_children(
+fn on_exit(
   vxml: VXML,
   state_before: State,
   state_after: State,
@@ -559,9 +554,7 @@ fn v_after_transforming_children(
   let attrs =
     list.append(
       attrs,
-      handle_assignment_attrs_from_handle_assignments(
-        handles_from_our_children,
-      ),
+      handle_assignment_attrs_from_handle_assignments(handles_from_our_children),
     )
 
   let counters = take_existing_counters(counters_before, counters_after)
@@ -600,17 +593,19 @@ fn our_two_regexes() -> #(Regexp, Regexp) {
   #(small, big)
 }
 
-fn nodemap_factory(_: InnerParam) -> n2t.OneToOneBeforeAndAfterStatefulNodemap(State) {
+fn nodemap_factory(
+  _: InnerParam,
+) -> n2t.OneToOneEnterExitStatefulNodemap(State) {
   let regexes = our_two_regexes()
-  n2t.OneToOneBeforeAndAfterStatefulNodemap(
-    v_before_transforming_children: fn(vxml, state) { v_before_transforming_children(vxml, state, regexes) },
-    v_after_transforming_children: v_after_transforming_children,
-    t_nodemap: fn(vxml, state) { t_nodemap(vxml, state, regexes) },
+  n2t.OneToOneEnterExitStatefulNodemap(
+    on_enter: fn(vxml, state) { on_enter(vxml, state, regexes) },
+    on_exit: on_exit,
+    on_text: fn(vxml, state) { on_text(vxml, state, regexes) },
   )
 }
 
 fn transform_factory(inner: InnerParam) -> core.DesugarerTransform {
-  n2t.one_to_one_before_and_after_stateful_nodemap_2_desugarer_transform(
+  n2t.one_to_one_enter_exit_stateful_nodemap_2_desugarer_transform(
     nodemap_factory(inner),
     #(dict.from_list([]), []),
   )
@@ -620,11 +615,17 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
   Ok(param)
 }
 
-type Param = Nil
-type InnerParam = Nil
+type Param =
+  Nil
+
+type InnerParam =
+  Nil
 
 pub const name = "counters_substitute_and_assign_handles"
-fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
+
+fn desugarer_blame(line_no: Int) {
+  bl.Des([], name, line_no)
+}
 
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 // 🏖️🏖️ Desugarer 🏖️🏖️
@@ -690,7 +691,7 @@ pub fn constructor() -> Desugarer {
 fn assertive_tests_data() -> List(core.AssertiveTestDataNoParam) {
   [
     core.AssertiveTestDataNoParam(
-      source:   "
+      source: "
                 <> root
                   counter=QCounter -3
                   <>
@@ -704,7 +705,7 @@ fn assertive_tests_data() -> List(core.AssertiveTestDataNoParam) {
                 ",
     ),
     core.AssertiveTestDataNoParam(
-      source:   "
+      source: "
                 <> root
                   counter=QCounter -3
                   <>
@@ -724,7 +725,7 @@ fn assertive_tests_data() -> List(core.AssertiveTestDataNoParam) {
                 ",
     ),
     core.AssertiveTestDataNoParam(
-      source:   "
+      source: "
                 <> root
                   counter=QCounter -3
                   <>
@@ -749,7 +750,7 @@ fn assertive_tests_data() -> List(core.AssertiveTestDataNoParam) {
                 ",
     ),
     core.AssertiveTestDataNoParam(
-      source:   "
+      source: "
                 <> root
                   counter=my_counter 5
                   <>
@@ -770,7 +771,7 @@ fn assertive_tests_data() -> List(core.AssertiveTestDataNoParam) {
                 ",
     ),
     core.AssertiveTestDataNoParam(
-      source:   "
+      source: "
                 <> root
                   counter=TestCounter 1
                   <>
@@ -791,5 +792,9 @@ fn assertive_tests_data() -> List(core.AssertiveTestDataNoParam) {
 }
 
 pub fn assertive_tests() {
-  core.assertive_test_collection_from_data_no_param(name, assertive_tests_data(), constructor)
+  core.assertive_test_collection_from_data_no_param(
+    name,
+    assertive_tests_data(),
+    constructor,
+  )
 }

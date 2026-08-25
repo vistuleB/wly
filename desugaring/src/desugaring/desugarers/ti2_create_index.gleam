@@ -1,24 +1,14 @@
+import desugaring/core.{
+  type Desugarer, type DesugaringError, type TrafficLight, Continue, Desugarer,
+  GoBack,
+}
+import desugaring/nodemaps_2_transform as n2t
 import gleam/list
 import gleam/option.{type Option}
 import gleam/string.{inspect as ins}
-import desugaring/core.{
-  type Desugarer,
-  type DesugaringError,
-  type TrafficLight,
-  Desugarer,
-  Continue,
-  GoBack,
-} as core
-import vxml.{
-  type VXML,
-  Attr,
-  Line,
-  V,
-  T,
-}
-import desugaring/nodemaps_2_transform as n2t
-import vxml/blame.{type Blame} as bl
 import on
+import vxml.{type VXML, Attr, Line, T, V}
+import vxml/blame.{type Blame} as bl
 
 // 🌸🌸🌸🌸🌸🌸🌸
 // 🌸 header 🌸
@@ -26,14 +16,17 @@ import on
 
 fn get(root: VXML, key: String) -> Option(#(Blame, String)) {
   core.v_first_attr_with_key(root, key)
-  |> option.map(fn(attr) { #(attr.blame |> bl.advance(string.length(key) + 1), attr.val) })
+  |> option.map(fn(attr) {
+    #(attr.blame |> bl.advance(string.length(key) + 1), attr.val)
+  })
 }
 
 fn header(root: VXML) -> VXML {
-  let b = desugarer_blame(33)
+  let b = desugarer_blame(25)
   let title = get(root, "title") |> option.unwrap(#(b, "no title"))
   let program = get(root, "program") |> option.unwrap(#(b, "no program"))
-  let institution = get(root, "institution") |> option.unwrap(#(b, "no institution"))
+  let institution =
+    get(root, "institution") |> option.unwrap(#(b, "no institution"))
   let lecturer = get(root, "lecturer") |> option.unwrap(#(b, "no lecturer"))
   V(
     b,
@@ -61,10 +54,13 @@ fn header(root: VXML) -> VXML {
         [
           T(b, [Line(program.0, program.1)]),
           V(b, "br", [], []),
-          T(b, [Line(lecturer.0, lecturer.1 <> ","), Line(institution.0, institution.1)]),
+          T(b, [
+            Line(lecturer.0, lecturer.1 <> ","),
+            Line(institution.0, institution.1),
+          ]),
         ],
       ),
-    ]
+    ],
   )
 }
 
@@ -76,16 +72,11 @@ type Title =
   List(VXML)
 
 type SubInfo {
-  SubInfo(
-    title: Title,
-  )
+  SubInfo(title: Title)
 }
 
 type ChapterInfo {
-  ChapterInfo(
-    title: Title,
-    subs: List(SubInfo)
-  )
+  ChapterInfo(title: Title, subs: List(SubInfo))
 }
 
 type ChapterOrSub {
@@ -133,8 +124,7 @@ fn chapter_info_information_collector(
   state: List(ChapterInfo),
 ) -> Result(#(List(ChapterInfo), TrafficLight), DesugaringError) {
   case vxml {
-    V(_, "Document", _, _) ->
-      Ok(#(state, Continue))
+    V(_, "Document", _, _) -> Ok(#(state, Continue))
 
     V(_, "Chapter", _, _) -> {
       use title <- on.ok(gather_title(vxml, Chapter))
@@ -150,12 +140,10 @@ fn chapter_info_information_collector(
   }
 }
 
-fn gather_chapter_infos(root: VXML) -> Result(List(ChapterInfo), DesugaringError) {
-  n2t.early_return_identity_stateful_walk(
-    root,
-    [],
-    chapter_info_information_collector,
-  )
+fn gather_chapter_infos(
+  root: VXML,
+) -> Result(List(ChapterInfo), DesugaringError) {
+  n2t.early_return_stateful_visit(root, [], chapter_info_information_collector)
 }
 
 // 🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸
@@ -167,30 +155,22 @@ fn href(chapter_no: Int, sub_no: Int) -> String {
 }
 
 fn sub_item(ch_no: Int, sub_no: Int, sub: SubInfo) -> VXML {
-  let b = desugarer_blame(170)
+  let b = desugarer_blame(158)
   let SubInfo(title) = sub
-  V(
-    b,
-    "li",
-    [],
-    [
-      V(
-        b,
-        "a",
-        [
-          Attr(b, "href", href(ch_no, sub_no)),
-        ],
-        title,
-      )
-    ],
-  )
+  V(b, "li", [], [
+    V(
+      b,
+      "a",
+      [
+        Attr(b, "href", href(ch_no, sub_no)),
+      ],
+      title,
+    ),
+  ])
 }
 
-fn chapter_item(
-  ch_no: Int,
-  chapter: ChapterInfo,
-) -> VXML {
-  let b = desugarer_blame(193)
+fn chapter_item(ch_no: Int, chapter: ChapterInfo) -> VXML {
+  let b = desugarer_blame(173)
   let ChapterInfo(title, subs) = chapter
   let subchapters_ol = case subs {
     [] -> []
@@ -199,40 +179,37 @@ fn chapter_item(
         b,
         "ol",
         [],
-        list.index_map(subs |> list.reverse, fn (sub, i) { sub_item(ch_no, i + 1, sub) }),
+        list.index_map(subs |> list.reverse, fn(sub, i) {
+          sub_item(ch_no, i + 1, sub)
+        }),
       ),
     ]
   }
 
-  let link = V(
-    b,
-    "a",
-    [
-      Attr(b, "href", href(ch_no, 0)),
-    ],
-    title,
-  )
+  let link =
+    V(
+      b,
+      "a",
+      [
+        Attr(b, "href", href(ch_no, 0)),
+      ],
+      title,
+    )
 
-  V(
-    b,
-    "li",
-    [],
-    [
-      link,
-      ..subchapters_ol,
-    ],
-  )
+  V(b, "li", [], [link, ..subchapters_ol])
 }
 
 fn chapter_ol(chapters: List(ChapterInfo)) -> VXML {
-  let b = desugarer_blame(228)
+  let b = desugarer_blame(203)
   V(
     b,
     "ol",
     [
       Attr(b, "class", "index__toc"),
     ],
-    list.index_map(chapters |> list.reverse, fn(ch, i) { chapter_item(i + 1, ch) }),
+    list.index_map(chapters |> list.reverse, fn(ch, i) {
+      chapter_item(i + 1, ch)
+    }),
   )
 }
 
@@ -243,17 +220,19 @@ fn chapter_ol(chapters: List(ChapterInfo)) -> VXML {
 fn index(root: VXML) -> Result(VXML, DesugaringError) {
   use chapter_infos <- on.ok(gather_chapter_infos(root))
 
-  Ok(V(
-    desugarer_blame(247),
-    "Index",
-    [
-      Attr(desugarer_blame(250), "path", "./index.html"),
-    ],
-    [
-      header(root),
-      chapter_ol(chapter_infos),
-    ],
-  ))
+  Ok(
+    V(
+      desugarer_blame(225),
+      "Index",
+      [
+        Attr(desugarer_blame(228), "path", "./index.html"),
+      ],
+      [
+        header(root),
+        chapter_ol(chapter_infos),
+      ],
+    ),
+  )
 }
 
 fn at_root(root: VXML) -> Result(VXML, DesugaringError) {
@@ -271,11 +250,17 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
   Ok(param)
 }
 
-type Param = Nil
-type InnerParam = Nil
+type Param =
+  Nil
+
+type InnerParam =
+  Nil
 
 pub const name = "ti2_create_index"
-fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
+
+fn desugarer_blame(line_no: Int) {
+  bl.Des([], name, line_no)
+}
 
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 // 🏖️🏖️ Desugarer 🏖️🏖️
@@ -302,5 +287,9 @@ fn assertive_tests_data() -> List(core.AssertiveTestDataNoParam) {
 }
 
 pub fn assertive_tests() {
-  core.assertive_test_collection_from_data_no_param(name, assertive_tests_data(), constructor)
+  core.assertive_test_collection_from_data_no_param(
+    name,
+    assertive_tests_data(),
+    constructor,
+  )
 }

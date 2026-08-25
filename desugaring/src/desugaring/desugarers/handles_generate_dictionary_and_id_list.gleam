@@ -1,42 +1,41 @@
+import desugaring/core.{
+  type Desugarer, type DesugarerTransform, type DesugaringError, Desugarer,
+  DesugaringError,
+}
+import desugaring/nodemaps_2_transform as n2t
 import gleam/dict.{type Dict}
 import gleam/list
-import gleam/option.{type Option, Some, None}
+import gleam/option.{type Option, None, Some}
 import gleam/string
-import desugaring/core.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError, DesugaringError} as core
-import desugaring/nodemaps_2_transform as n2t
+import on
+import splitter as sp
 import vxml.{type Attr, type VXML, Attr, V}
 import vxml/blame.{type Blame} as bl
-import splitter as sp
-import on
 
-fn grand_wrapper_attrs(
-  state: State,
-) -> List(Attr) {
+fn grand_wrapper_attrs(state: State) -> List(Attr) {
   [
     state.handles
-    |> dict.map_values(
-      fn (key, value) {
+      |> dict.map_values(fn(key, value) {
         let #(page, value, id, path, _) = value
         let page = case page {
           True -> "#page"
           False -> ""
         }
-        Attr(desugarer_blame(24), "handle", key <> "|" <> page <> "|" <> value <> "|" <> id <> "|" <> path)
-      }
-    )
-    |> dict.values,
+        Attr(
+          desugarer_blame(25),
+          "handle",
+          key <> "|" <> page <> "|" <> value <> "|" <> id <> "|" <> path,
+        )
+      })
+      |> dict.values,
     state.ids
-    |> list.map(
-      fn(x) {
-        Attr(desugarer_blame(31), "id", x.0 <> " " <> x.1)
-      }
-    )
+      |> list.map(fn(x) { Attr(desugarer_blame(32), "id", x.0 <> " " <> x.1) }),
   ]
   |> list.flatten
 }
 
 fn try_read_handle(
-  attr: Attr
+  attr: Attr,
 ) -> Result(#(String, Bool, String, String), DesugaringError) {
   assert attr.key == "handle"
   case string.split(attr.val, "|") {
@@ -46,7 +45,13 @@ fn try_read_handle(
         True -> Ok(#(name |> string.drop_end(5), True, value, id))
       }
     }
-    _ -> Error(DesugaringError(attr.blame, "handle attr not in form <name>|<value>|<id>; found: “" <> attr.val <> "”"))
+    _ ->
+      Error(DesugaringError(
+        attr.blame,
+        "handle attr not in form <name>|<value>|<id>; found: “"
+          <> attr.val
+          <> "”",
+      ))
   }
 }
 
@@ -61,9 +66,15 @@ fn try_insert_handle(
 ) -> Result(HandlesDict, DesugaringError) {
   case dict.get(handles, name) {
     Ok(entry) ->
-      Error(DesugaringError(blame, "redefinition of '" <> name <> "' (previously defined at " <> bl.blame_digest(entry.4) <> ")"))
-    Error(_) ->
-      Ok(dict.insert(handles, name, #(page, value, id, path, blame)))
+      Error(DesugaringError(
+        blame,
+        "redefinition of '"
+          <> name
+          <> "' (previously defined at "
+          <> bl.blame_digest(entry.4)
+          <> ")",
+      ))
+    Error(_) -> Ok(dict.insert(handles, name, #(page, value, id, path, blame)))
   }
 }
 
@@ -76,24 +87,27 @@ fn try_insert_id(
 
   let id = attr.val
 
-  use <- on.true_false(
-    id == "",
-    fn() { Error(DesugaringError(attr.blame, "empty string id")) }
-  )
+  use <- on.true_false(id == "", fn() {
+    Error(DesugaringError(attr.blame, "empty string id"))
+  })
 
-  use <- on.true_false(
-    string.contains(id, " "),
-    fn() { Error(DesugaringError(attr.blame, "id attr contains space: '" <> id <> "'")) }
-  )
+  use <- on.true_false(string.contains(id, " "), fn() {
+    Error(DesugaringError(attr.blame, "id attr contains space: '" <> id <> "'"))
+  })
 
   case list.find(ids, fn(x) { x.0 == id && x.1 == path }) {
     Ok(x) ->
       Error(DesugaringError(
         attr.blame,
-        "redefinition id '" <> id <> "' on page '" <> path <> "' (previously defined at " <> bl.blame_digest(x.2) <> ")"
+        "redefinition id '"
+          <> id
+          <> "' on page '"
+          <> path
+          <> "' (previously defined at "
+          <> bl.blame_digest(x.2)
+          <> ")",
       ))
     Error(_) -> {
-
       Ok([#(id, path, attr.blame), ..ids])
     }
   }
@@ -106,15 +120,22 @@ fn attrs_fold(
   ids: Ids,
   path: String,
 ) -> Result(#(HandlesDict, Ids, List(Attr)), DesugaringError) {
-  use first, rest <- on.empty_nonempty(
-    remaining,
-    fn() { Ok(#(handles, ids, not_handles_acc |> list.reverse)) },
-  )
+  use first, rest <- on.empty_nonempty(remaining, fn() {
+    Ok(#(handles, ids, not_handles_acc |> list.reverse))
+  })
 
   case first.key {
     "handle" -> {
       use #(name, page, value, id) <- on.ok(try_read_handle(first))
-      use handles <- on.ok(try_insert_handle(handles, name, page, value, id, path, first.blame))
+      use handles <- on.ok(try_insert_handle(
+        handles,
+        name,
+        page,
+        value,
+        id,
+        path,
+        first.blame,
+      ))
       attrs_fold(not_handles_acc, rest, handles, ids, path)
     }
 
@@ -128,30 +149,29 @@ fn attrs_fold(
 }
 
 fn check_no_handles_no_ids(
-  attrs: List(Attr)
+  attrs: List(Attr),
 ) -> Result(List(Nil), DesugaringError) {
-  list.try_map(
-    attrs,
-    fn(attr) {
-      case attr.key {
-        "handle" -> {
-          let #(name, _, _) = sp.split(sp.new(["|"]), attr.val)
-          Error(DesugaringError(attr.blame, "no page path at handle '" <> name <> "'"))
-        }
-        "id" -> {
-          Error(DesugaringError(attr.blame, "no page path at id '" <> attr.val <> "'"))
-        }
-        _ -> Ok(Nil)
+  list.try_map(attrs, fn(attr) {
+    case attr.key {
+      "handle" -> {
+        let #(name, _, _) = sp.split(sp.new(["|"]), attr.val)
+        Error(DesugaringError(
+          attr.blame,
+          "no page path at handle '" <> name <> "'",
+        ))
       }
+      "id" -> {
+        Error(DesugaringError(
+          attr.blame,
+          "no page path at id '" <> attr.val <> "'",
+        ))
+      }
+      _ -> Ok(Nil)
     }
-  )
+  })
 }
 
-fn update_path(
-  state: State,
-  node: VXML,
-  inner: InnerParam,
-) -> State {
+fn update_path(state: State, node: VXML, inner: InnerParam) -> State {
   let assert V(_, _, _, _) = node
   case core.v_first_attr_with_key(node, inner) {
     Some(Attr(_, _, value)) -> State(..state, path: Some(value))
@@ -166,7 +186,7 @@ fn t_transform(
   Ok(#(vxml, state))
 }
 
-fn v_before_transforming_children(
+fn on_enter(
   vxml: VXML,
   state: State,
   inner: InnerParam,
@@ -179,13 +199,19 @@ fn v_before_transforming_children(
       Ok(#(vxml, state))
     }
     Some(path) -> {
-      use #(handles, ids, attrs) <- on.ok(attrs_fold([], attrs, state.handles, state.ids, path))
+      use #(handles, ids, attrs) <- on.ok(attrs_fold(
+        [],
+        attrs,
+        state.handles,
+        state.ids,
+        path,
+      ))
       Ok(#(V(..vxml, attrs: attrs), State(..state, handles: handles, ids: ids)))
     }
   }
 }
 
-fn v_after_transforming_children(
+fn on_exit(
   vxml: VXML,
   ancestors: List(VXML),
   original_state: State,
@@ -194,34 +220,30 @@ fn v_after_transforming_children(
   let state = State(..state, path: original_state.path)
   case ancestors {
     [] -> {
-      let grand_wrapper = V(
-        desugarer_blame(198),
-        "GrandWrapper",
-        grand_wrapper_attrs(state),
-        [vxml],
-      )
+      let grand_wrapper =
+        V(desugarer_blame(224), "GrandWrapper", grand_wrapper_attrs(state), [
+          vxml,
+        ])
       Ok(#(grand_wrapper, state))
     }
     _ -> Ok(#(vxml, state))
   }
 }
 
-fn nodemap_factory(inner: InnerParam) -> n2t.FancyOneToOneBeforeAndAfterStatefulNodemap(State) {
-   n2t.FancyOneToOneBeforeAndAfterStatefulNodemap(
-    v_before_transforming_children: fn(vxml, _, _, _, _, state) {
-      v_before_transforming_children(vxml, state, inner)
+fn nodemap_factory(
+  inner: InnerParam,
+) -> n2t.FancyOneToOneEnterExitStatefulNodemap(State) {
+  n2t.FancyOneToOneEnterExitStatefulNodemap(
+    on_enter: fn(vxml, _, _, _, _, state) { on_enter(vxml, state, inner) },
+    on_exit: fn(vxml, ancestors, _, _, _, original_state, latest_state) {
+      on_exit(vxml, ancestors, original_state, latest_state)
     },
-    v_after_transforming_children: fn(vxml, ancestors, _, _, _, original_state, latest_state) {
-      v_after_transforming_children(vxml, ancestors, original_state, latest_state)
-    },
-    t_nodemap: fn(vxml, _, _, _, _, state) {
-      t_transform(vxml, state)
-    },
+    on_text: fn(vxml, _, _, _, _, state) { t_transform(vxml, state) },
   )
 }
 
 fn transform_factory(inner: InnerParam) -> core.DesugarerTransform {
-  n2t.fancy_one_to_one_before_and_after_stateful_nodemap_2_desugarer_transform(
+  n2t.fancy_one_to_one_enter_exit_stateful_nodemap_2_desugarer_transform(
     nodemap_factory(inner),
     State(dict.new(), None, []),
   )
@@ -231,31 +253,37 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
   Ok(param)
 }
 
-type HandlesDict = Dict(String, #(Bool,         String,       String,     String,      Blame))
+type HandlesDict =
+  Dict(String, #(Bool, String, String, String, Blame))
+
 //                      ↖         ↖             ↖             ↖           ↖
 //                      handle    '#page' link  string value  handle id   page path
 //                      name      by default    of handle     on page     for handle
 
-type Ids = List(#(String, String,     Blame))
+type Ids =
+  List(#(String, String, Blame))
+
 //                ↖       ↖
 //                id      page path
 
 type State {
-  State(
-    handles: HandlesDict,
-    path: Option(String),
-    ids: Ids,
-  )
+  State(handles: HandlesDict, path: Option(String), ids: Ids)
 }
 
-type Param = String
+type Param =
+  String
+
 //           ↖
 //           key of attr
 //           holding the local path (could be 'path' or 'page', etc)
-type InnerParam = Param
+type InnerParam =
+  Param
 
 pub const name = "handles_generate_dictionary_and_id_list"
-fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
+
+fn desugarer_blame(line_no: Int) {
+  bl.Des([], name, line_no)
+}
 
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 // 🏖️🏖️ Desugarer 🏖️🏖️
@@ -327,7 +355,7 @@ fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
   [
     core.AssertiveTestData(
       param: "local_path",
-      source:   "
+      source: "
                 <> root
                   <> ChapterChapter
                     local_path=./ch1.html
@@ -349,11 +377,11 @@ fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
                       <> Math
                         <>
                           '$x^2 + b^2$'
-                "
+                ",
     ),
     core.AssertiveTestData(
       param: "local_path",
-      source:   "
+      source: "
                 <> root
                   <> ChapterChapter
                     local_path=./ch2.html
@@ -375,11 +403,15 @@ fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
                       <> Math
                         <>
                           '$y^2$'
-                "
+                ",
     ),
   ]
 }
 
 pub fn assertive_tests() {
-  core.assertive_test_collection_from_data(name, assertive_tests_data(), constructor)
+  core.assertive_test_collection_from_data(
+    name,
+    assertive_tests_data(),
+    constructor,
+  )
 }

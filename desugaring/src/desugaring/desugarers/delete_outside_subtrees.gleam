@@ -1,9 +1,11 @@
+import desugaring/core.{
+  type Desugarer, type DesugarerTransform, type DesugaringError, Desugarer,
+}
+import desugaring/nodemaps_2_transform as n2t
 import gleam/function
 import gleam/list
+import gleam/option.{type Option, None, Some}
 import gleam/string.{inspect as ins}
-import gleam/option.{type Option, Some, None}
-import desugaring/core.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as core
-import desugaring/nodemaps_2_transform as n2t
 import vxml.{type VXML}
 
 fn v_before(
@@ -42,8 +44,12 @@ fn t_transform(
   }
 }
 
-fn nodemap_factory(inner: InnerParam) -> n2t.EarlyReturnOneToOptionNoErrorBeforeAndAfterV2StatefulNodemap(State) {
-  n2t.EarlyReturnOneToOptionNoErrorBeforeAndAfterV2StatefulNodemap(
+fn nodemap_factory(
+  inner: InnerParam,
+) -> n2t.EarlyReturnOneToOptionEnterExitStatefulWithChildStatesNoErrorNodemap(
+  State,
+) {
+  n2t.EarlyReturnOneToOptionEnterExitStatefulWithChildStatesNoErrorNodemap(
     fn(v, s) { v_before(v, s, inner) },
     v_after,
     fn(v, s) { t_transform(v, s, inner) },
@@ -52,22 +58,28 @@ fn nodemap_factory(inner: InnerParam) -> n2t.EarlyReturnOneToOptionNoErrorBefore
 
 fn transform_factory(inner: InnerParam) -> DesugarerTransform {
   nodemap_factory(inner)
-  |> n2t.early_return_one_to_option_no_error_before_and_after_v2_stateful_nodemap_2_desugarer_transform(False)
+  |> n2t.early_return_one_to_option_enter_exit_stateful_with_child_states_no_error_nodemap_2_desugarer_transform(
+    False,
+  )
 }
 
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
   Ok(param)
 }
 
-type State = Bool
+type State =
+  Bool
 
-type Param = fn(VXML) -> Bool
+type Param =
+  fn(VXML) -> Bool
+
 //           ↖
 //           a node is saved
 //           iff it or one of its
 //           ancestors fulfills
 //           this condition
-type InnerParam = Param
+type InnerParam =
+  Param
 
 pub const name = "delete_outside_subtrees"
 
@@ -85,7 +97,7 @@ pub fn constructor(param: Param) -> Desugarer {
     transform: case param_to_inner_param(param) {
       Ok(inner) -> transform_factory(inner)
       Error(error) -> fn(_) { Error(error) }
-    }
+    },
   )
 }
 
@@ -96,7 +108,7 @@ fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
   [
     core.AssertiveTestData(
       param: core.is_v_and_tag_equals(_, "keep_this"),
-      source:   "
+      source: "
                 <> R
                   <>
                     'hello world'
@@ -116,5 +128,9 @@ fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
 }
 
 pub fn assertive_tests() {
-  core.assertive_test_collection_from_data(name, assertive_tests_data(), constructor)
+  core.assertive_test_collection_from_data(
+    name,
+    assertive_tests_data(),
+    constructor,
+  )
 }

@@ -1,22 +1,16 @@
+import desugaring/core.{
+  type Desugarer, type DesugarerTransform, type DesugaringError,
+  type TrafficLight, Continue, Desugarer, DesugaringError, GoBack,
+}
+import desugaring/nodemaps_2_transform as n2t
 import gleam/int
 import gleam/list
 import gleam/option
 import gleam/string.{inspect as ins}
-import desugaring/core.{
-  type Desugarer,
-  type DesugarerTransform,
-  type DesugaringError,
-  type TrafficLight,
-  Continue,
-  Desugarer,
-  DesugaringError,
-  GoBack,
-} as core
-import desugaring/nodemaps_2_transform as n2t
-import vxml/blame as bl
 import on
 import simplifile
 import vxml.{type VXML, V}
+import vxml/blame as bl
 
 // 🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸
 // 🌸 chapter map collection 🌸
@@ -89,18 +83,17 @@ fn build_course_js(chapter_values: List(Int)) -> String {
 // 🌸 transform 🌸
 // 🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸
 
-fn at_root(
-  root: VXML,
-  inner: InnerParam,
-) -> Result(Nil, DesugaringError) {
-  use chapter_values_reversed <- on.ok(
-    n2t.early_return_identity_stateful_walk(root, [], chapter_collector),
-  )
+fn at_root(root: VXML, inner: InnerParam) -> Result(Nil, DesugaringError) {
+  use chapter_values_reversed <- on.ok(n2t.early_return_stateful_visit(
+    root,
+    [],
+    chapter_collector,
+  ))
   let content = build_course_js(list.reverse(chapter_values_reversed))
   let path = inner <> "/course.js"
   use error <- on.error(simplifile.write(path, content))
   Error(DesugaringError(
-    desugarer_blame(103),
+    desugarer_blame(96),
     "failed to write course.js to '"
       <> path
       <> "': "
@@ -117,11 +110,17 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
   Ok(param |> core.drop_suffix("/") <> "/public")
 }
 
-type Param = String
-type InnerParam = String
+type Param =
+  String
+
+type InnerParam =
+  String
 
 pub const name = "dr_generate_js_course"
-fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
+
+fn desugarer_blame(line_no: Int) {
+  bl.Des([], name, line_no)
+}
 
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 // 🏖️🏖️ Desugarer 🏖️🏖️
@@ -154,5 +153,9 @@ fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
 }
 
 pub fn assertive_tests() {
-  core.assertive_test_collection_from_data(name, assertive_tests_data(), constructor)
+  core.assertive_test_collection_from_data(
+    name,
+    assertive_tests_data(),
+    constructor,
+  )
 }

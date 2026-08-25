@@ -1,20 +1,16 @@
+import desugaring/core.{
+  type Desugarer, type DesugaringError, type TrafficLight, Continue, Desugarer,
+  GoBack,
+}
+import desugaring/nodemaps_2_transform as n2t
 import gleam/dict.{type Dict}
 import gleam/int
 import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/result
-import desugaring/core.{
-  type Desugarer,
-  type DesugaringError,
-  type TrafficLight,
-  Desugarer,
-  Continue,
-  GoBack,
-} as core
-import vxml.{type VXML, Attr, V}
-import desugaring/nodemaps_2_transform as n2t
-import vxml/blame as bl
 import on
+import vxml.{type VXML, Attr, V}
+import vxml/blame as bl
 
 // ---- Page address types ----
 
@@ -28,8 +24,7 @@ type PageAddr {
 
 fn page_href(addr: PageAddr) -> String {
   case addr {
-    ChapterAddr(ch) ->
-      "./" <> int.to_string(ch) <> "-0.html"
+    ChapterAddr(ch) -> "./" <> int.to_string(ch) <> "-0.html"
     SectionAddr(ch, sec) ->
       "./" <> int.to_string(ch) <> "-" <> int.to_string(sec) <> ".html"
     SubSectionAddr(ch, sec, sub) ->
@@ -61,12 +56,7 @@ fn chapter_has_content(vxml: VXML) -> Bool {
 // ---- Pass 1: Gather pages in order ----
 
 type GatherState {
-  GatherState(
-    pages: List(PageAddr),
-    ch_no: Int,
-    sec_no: Int,
-    sub_no: Int,
-  )
+  GatherState(pages: List(PageAddr), ch_no: Int, sec_no: Int, sub_no: Int)
 }
 
 fn gather_nodemap(
@@ -88,12 +78,10 @@ fn gather_nodemap(
       let new_sec = state.sec_no + 1
       let addr = SectionAddr(state.ch_no, new_sec)
       Ok(#(
-        GatherState(
-          ..state,
-          sec_no: new_sec,
-          sub_no: 0,
-          pages: [addr, ..state.pages],
-        ),
+        GatherState(..state, sec_no: new_sec, sub_no: 0, pages: [
+          addr,
+          ..state.pages
+        ]),
         Continue,
       ))
     }
@@ -106,10 +94,7 @@ fn gather_nodemap(
       ))
     }
     V(_, "Exercises", _, _) -> {
-      Ok(#(
-        GatherState(..state, pages: [ExercisesAddr, ..state.pages]),
-        GoBack,
-      ))
+      Ok(#(GatherState(..state, pages: [ExercisesAddr, ..state.pages]), GoBack))
     }
     V(_, "Bibliography", _, _) -> {
       Ok(#(
@@ -122,13 +107,11 @@ fn gather_nodemap(
 }
 
 fn gather_pages(root: VXML) -> Result(List(PageAddr), DesugaringError) {
-  use final_state <- on.ok(
-    n2t.early_return_identity_stateful_walk(
-      root,
-      GatherState(pages: [], ch_no: 0, sec_no: 0, sub_no: 0),
-      gather_nodemap,
-    ),
-  )
+  use final_state <- on.ok(n2t.early_return_stateful_visit(
+    root,
+    GatherState(pages: [], ch_no: 0, sec_no: 0, sub_no: 0),
+    gather_nodemap,
+  ))
   Ok(list.reverse(final_state.pages))
 }
 
@@ -166,7 +149,7 @@ fn build_nav_dict(
 // ---- Navigation node construction ----
 
 fn anchor(id: String, href: String) -> VXML {
-  let b = desugarer_blame(161)
+  let b = desugarer_blame(152)
   V(b, "a", [Attr(b, "id", id), Attr(b, "href", href)], [])
 }
 
@@ -174,7 +157,7 @@ fn make_navigation(
   prev_href: Option(String),
   next_href: Option(String),
 ) -> VXML {
-  let b = desugarer_blame(169)
+  let b = desugarer_blame(160)
   let links =
     [
       prev_href |> option.map(fn(h) { anchor("prev-page", h) }),
@@ -250,13 +233,13 @@ fn at_root(root: VXML) -> Result(VXML, DesugaringError) {
   use pages <- on.ok(gather_pages(root))
   let nav_dict = build_nav_dict(pages)
   let nm =
-    n2t.OneToOneNoErrorBeforeAndAfterStatefulNodemap(
-      v_before_transforming_children: fn(v, s) { v_before(nav_dict, v, s) },
-      v_after_transforming_children: fn(v, _, latest) { #(v, latest) },
-      t_nodemap: fn(v, s) { #(v, s) },
+    n2t.OneToOneEnterExitStatefulNoErrorNodemap(
+      on_enter: fn(v, s) { v_before(nav_dict, v, s) },
+      on_exit: fn(v, _, latest) { #(v, latest) },
+      on_text: fn(v, s) { #(v, s) },
     )
   let transform =
-    n2t.one_to_one_no_error_before_and_after_stateful_nodemap_2_desugarer_transform(
+    n2t.one_to_one_enter_exit_stateful_no_error_nodemap_2_desugarer_transform(
       nm,
       #(0, 0, 0),
     )
@@ -273,8 +256,11 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
   Ok(param)
 }
 
-type Param = Nil
-type InnerParam = Nil
+type Param =
+  Nil
+
+type InnerParam =
+  Nil
 
 pub const name = "dr_create_menu"
 

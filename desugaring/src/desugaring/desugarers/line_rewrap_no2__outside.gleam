@@ -1,13 +1,16 @@
-import gleam/list
+import desugaring/core.{
+  type Desugarer, type DesugarerTransform, type DesugaringError, Desugarer,
+}
+import desugaring/nodemaps_2_transform as n2t
 import gleam/int
+import gleam/list
 import gleam/option
 import gleam/string.{inspect as ins}
-import desugaring/core.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as core
-import desugaring/nodemaps_2_transform as n2t
-import vxml.{ type VXML, T, V, Line }
-import vxml/blame.{ Des }
+import vxml.{type VXML, Line, T, V}
+import vxml/blame.{Des}
 
-const const_blame = Des([], name, 10)
+const const_blame = Des([], name, 12)
+
 const one_empty_line = T(const_blame, [Line(const_blame, "")])
 
 fn line_wrap_in_list(
@@ -25,11 +28,8 @@ fn line_wrap_in_list(
         True -> 0
         False -> deficit
       }
-      let #(lines, new_indent) = core.line_wrap_rearrangement(
-        lines,
-        deficit,
-        line_length,
-      )
+      let #(lines, new_indent) =
+        core.line_wrap_rearrangement(lines, deficit, line_length)
       line_wrap_in_list(
         [T(blame, lines), ..already_wrapped],
         new_indent,
@@ -53,7 +53,7 @@ fn line_wrap_in_list(
           // up the last_to_first concatenation coming from the
           // V-node):
           core.total_chars(first),
-          [first, one_empty_line, ..already_wrapped]
+          [first, one_empty_line, ..already_wrapped],
         )
         False -> #(deficit, [first, ..already_wrapped])
       }
@@ -69,11 +69,7 @@ fn line_wrap_in_list(
   }
 }
 
-fn v_before(
-  vxml: VXML,
-  state: State,
-  inner: InnerParam,
-) -> #(VXML, State) {
+fn v_before(vxml: VXML, state: State, inner: InnerParam) -> #(VXML, State) {
   let assert V(_, tag, _, _) = vxml
   case list.contains(inner.0, tag) {
     True -> #(vxml, 0)
@@ -88,48 +84,55 @@ fn v_after(
   inner: InnerParam,
 ) -> #(VXML, State) {
   let assert V(_, _, _, children) = vxml
-  let children = line_wrap_in_list(
-    [],
-    0,
-    False,
-    children,
-    int.max(inner.1 - state - 1, inner.2),
-    inner.4,
-  )
+  let children =
+    line_wrap_in_list(
+      [],
+      0,
+      False,
+      children,
+      int.max(inner.1 - state - 1, inner.2),
+      inner.4,
+    )
   #(V(..vxml, children: children), original_state)
 }
 
 fn nodemap_factory(
-  inner: InnerParam
-) -> n2t.OneToOneNoErrorBeforeAndAfterStatefulNodemap(State) {
-  n2t.OneToOneNoErrorBeforeAndAfterStatefulNodemap(
-    v_before_transforming_children: fn(v: VXML, s: State) {
-      v_before(v, s, inner)
-    },
-    v_after_transforming_children: fn(v: VXML, o: State, s: State) {
-      v_after(v, o, s, inner)
-    },
-    t_nodemap: fn(v, state){#(v, state)},
+  inner: InnerParam,
+) -> n2t.OneToOneEnterExitStatefulNoErrorNodemap(State) {
+  n2t.OneToOneEnterExitStatefulNoErrorNodemap(
+    on_enter: fn(v: VXML, s: State) { v_before(v, s, inner) },
+    on_exit: fn(v: VXML, o: State, s: State) { v_after(v, o, s, inner) },
+    on_text: fn(v, state) { #(v, state) },
   )
 }
 
-fn transform_factory(inner: InnerParam, outside: List(String)) -> DesugarerTransform {
+fn transform_factory(
+  inner: InnerParam,
+  outside: List(String),
+) -> DesugarerTransform {
   nodemap_factory(inner)
-  |> n2t.one_to_one_no_error_before_and_after_stateful_nodemap_2_desugarer_transform_with_forbidden(0, outside)
+  |> n2t.one_to_one_enter_exit_stateful_no_error_nodemap_2_desugarer_transform_with_forbidden(
+    0,
+    outside,
+  )
 }
 
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
   Ok(param)
 }
 
-type State = Int
+type State =
+  Int
 
-type Param = #(List(String),   Int,       Int,       Int,                       fn(VXML) -> Bool)
+type Param =
+  #(List(String), Int, Int, Int, fn(VXML) -> Bool)
+
 //             ↖               ↖          ↖          ↖                          ↖
 //             tags that       max line   min line   amt to reduce              condition that tells whether
 //             cause reset     length     length     max line length            a node will be folded into text
 //             of indent to 0                        at each level of nesting   in future (of pipeline) (and therefore to leave room for contents on that line)
-type InnerParam = Param
+type InnerParam =
+  Param
 
 pub const name = "line_rewrap_no2__outside"
 
@@ -163,5 +166,9 @@ fn assertive_tests_data() -> List(core.AssertiveTestDataWithOutside(Param)) {
 }
 
 pub fn assertive_tests() {
-  core.assertive_test_collection_from_data_with_outside(name, assertive_tests_data(), constructor)
+  core.assertive_test_collection_from_data_with_outside(
+    name,
+    assertive_tests_data(),
+    constructor,
+  )
 }

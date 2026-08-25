@@ -1,16 +1,16 @@
-import vxml/blame.{type Blame} as bl
+import desugaring/core.{
+  type Desugarer, type DesugarerTransform, type DesugaringError, Desugarer,
+  DesugaringError,
+}
+import desugaring/nodemaps_2_transform as n2t
 import gleam/dict.{type Dict}
 import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/string
-import desugaring/core.{
-  type Desugarer, type DesugarerTransform, type DesugaringError, Desugarer,
-  DesugaringError,
-} as core
-import desugaring/nodemaps_2_transform as n2t
 import on
 import splitter as sp
 import vxml.{type Attr, type VXML, Attr, V}
+import vxml/blame.{type Blame} as bl
 
 fn grand_wrapper_attrs(state: State) -> List(Attr) {
   state.handles
@@ -132,7 +132,7 @@ fn t_transform(
   Ok(#(vxml, state))
 }
 
-fn v_before_transforming_children(
+fn on_enter(
   vxml: VXML,
   state: State,
   inner: InnerParam,
@@ -151,7 +151,7 @@ fn v_before_transforming_children(
   }
 }
 
-fn v_after_transforming_children(
+fn on_exit(
   vxml: VXML,
   ancestors: List(VXML),
   original_state: State,
@@ -172,33 +172,18 @@ fn v_after_transforming_children(
 
 fn nodemap_factory(
   inner: InnerParam,
-) -> n2t.FancyOneToOneBeforeAndAfterStatefulNodemap(State) {
-  n2t.FancyOneToOneBeforeAndAfterStatefulNodemap(
-    v_before_transforming_children: fn(vxml, _, _, _, _, state) {
-      v_before_transforming_children(vxml, state, inner)
+) -> n2t.FancyOneToOneEnterExitStatefulNodemap(State) {
+  n2t.FancyOneToOneEnterExitStatefulNodemap(
+    on_enter: fn(vxml, _, _, _, _, state) { on_enter(vxml, state, inner) },
+    on_exit: fn(vxml, ancestors, _, _, _, original_state, latest_state) {
+      on_exit(vxml, ancestors, original_state, latest_state)
     },
-    v_after_transforming_children: fn(
-      vxml,
-      ancestors,
-      _,
-      _,
-      _,
-      original_state,
-      latest_state,
-    ) {
-      v_after_transforming_children(
-        vxml,
-        ancestors,
-        original_state,
-        latest_state,
-      )
-    },
-    t_nodemap: fn(vxml, _, _, _, _, state) { t_transform(vxml, state) },
+    on_text: fn(vxml, _, _, _, _, state) { t_transform(vxml, state) },
   )
 }
 
 fn transform_factory(inner: InnerParam) -> DesugarerTransform {
-  n2t.fancy_one_to_one_before_and_after_stateful_nodemap_2_desugarer_transform(
+  n2t.fancy_one_to_one_enter_exit_stateful_nodemap_2_desugarer_transform(
     nodemap_factory(inner),
     State(dict.new(), None),
   )

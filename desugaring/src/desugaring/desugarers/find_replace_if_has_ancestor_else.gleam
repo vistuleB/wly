@@ -1,11 +1,13 @@
+import desugaring/core.{
+  type Desugarer, type DesugarerTransform, type DesugaringError, Desugarer,
+}
+import desugaring/nodemaps_2_transform as n2t
 import gleam/list
 import gleam/option
 import gleam/string.{inspect as ins}
-import desugaring/core.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as core
-import desugaring/nodemaps_2_transform as n2t
 import vxml.{type VXML}
 
-fn v_before_transforming_children(vxml: VXML, state: State, inner: InnerParam) -> #(VXML, State) {
+fn on_enter(vxml: VXML, state: State, inner: InnerParam) -> #(VXML, State) {
   let state = case state.0 || !list.contains(inner.0, core.v_get_tag(vxml)) {
     True -> state
     False -> #(True, inner.1.0, inner.1.1)
@@ -13,7 +15,11 @@ fn v_before_transforming_children(vxml: VXML, state: State, inner: InnerParam) -
   #(vxml, state)
 }
 
-fn v_after_transforming_children(vxml: VXML, original_state: State, _latest_state: State) -> #(VXML, State) {
+fn on_exit(
+  vxml: VXML,
+  original_state: State,
+  _latest_state: State,
+) -> #(VXML, State) {
   #(vxml, original_state)
 }
 
@@ -21,34 +27,43 @@ fn t_transform(vxml: VXML, state: State) -> #(VXML, State) {
   #(core.t_find_replace(vxml, state.1, state.2), state)
 }
 
-fn nodemap_factory(inner: InnerParam) -> n2t.OneToOneNoErrorBeforeAndAfterStatefulNodemap(State) {
-  n2t.OneToOneNoErrorBeforeAndAfterStatefulNodemap(
-    v_before_transforming_children: fn(vxml, state) { v_before_transforming_children(vxml, state, inner) },
-    v_after_transforming_children: v_after_transforming_children,
-    t_nodemap: t_transform,
+fn nodemap_factory(
+  inner: InnerParam,
+) -> n2t.OneToOneEnterExitStatefulNoErrorNodemap(State) {
+  n2t.OneToOneEnterExitStatefulNoErrorNodemap(
+    on_enter: fn(vxml, state) { on_enter(vxml, state, inner) },
+    on_exit: on_exit,
+    on_text: t_transform,
   )
 }
 
 fn transform_factory(inner: InnerParam) -> DesugarerTransform {
   let state = #(False, inner.2.0, inner.2.1)
   nodemap_factory(inner)
-  |> n2t.one_to_one_no_error_before_and_after_stateful_nodemap_2_desugarer_transform(state)
+  |> n2t.one_to_one_enter_exit_stateful_no_error_nodemap_2_desugarer_transform(
+    state,
+  )
 }
 
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
   Ok(param)
 }
 
-type State = #(Bool,         String,            String)
+type State =
+  #(Bool, String, String)
+
 //             ↖             ↖                  ↖
 //             have we        current 'from'    current 'to'
 //             seen ancestor
 //             yet or no
 
-type Param = #(List(String), #(String, String), #(String, String))
+type Param =
+  #(List(String), #(String, String), #(String, String))
+
 //             ↖             ↖                  ↖
 //             ancestors     if version         else version
-type InnerParam = Param
+type InnerParam =
+  Param
 
 pub const name = "find_replace_if_has_ancestor_else"
 
@@ -102,5 +117,9 @@ fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
 }
 
 pub fn assertive_tests() {
-  core.assertive_test_collection_from_data(name, assertive_tests_data(), constructor)
+  core.assertive_test_collection_from_data(
+    name,
+    assertive_tests_data(),
+    constructor,
+  )
 }

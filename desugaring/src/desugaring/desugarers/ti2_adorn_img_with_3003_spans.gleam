@@ -1,32 +1,29 @@
-import gleam/result
-import on
-import gleam/list
-import gleam/option.{type Option, Some, None}
-import gleam/string.{inspect as ins}
 import desugaring/core.{
-  type Desugarer,
-  type DesugarerTransform,
-  type DesugaringError,
+  type Desugarer, type DesugarerTransform, type DesugaringError, Desugarer,
   DesugaringError,
-  Desugarer,
-} as core
-import desugaring/nodemaps_2_transform as n2t
-import vxml.{
-  type VXML,
-  Attr,
-  Line,
-  T,
-  V,
 }
-import vxml/blame.{type Blame} as bl
+import desugaring/nodemaps_2_transform as n2t
 import filepath
+import gleam/list
+import gleam/option.{type Option, None, Some}
+import gleam/result
+import gleam/string.{inspect as ins}
+import on
+import vxml.{type VXML, Attr, Line, T, V}
+import vxml/blame.{type Blame} as bl
 
 const tooltip_classname = "t-3003 t-3003-i"
+
 const tags = ["img", "figure", "Carousel"]
+
 const original_key = "original"
-const b = bl.Des([], name, 27)
+
+const b = bl.Des([], name, 21)
+
 const outer_span_attrs = [Attr(b, "class", tooltip_classname)]
+
 const inner_span_attrs = [Attr(b, "class", "t-3003-i-url")]
+
 const br = V(b, "br", [], [])
 
 fn compose_and_simplify_path(
@@ -36,7 +33,10 @@ fn compose_and_simplify_path(
 ) -> Result(String, DesugaringError) {
   filepath.expand(inner <> path)
   |> result.map_error(fn(_) {
-    DesugaringError(blame, "path '" <> path <> "' points outside of root directory (?)")
+    DesugaringError(
+      blame,
+      "path '" <> path <> "' points outside of root directory (?)",
+    )
   })
 }
 
@@ -44,12 +44,9 @@ fn v_before(
   vxml: VXML,
   state: State,
   inner: InnerParam,
-) ->  Result(#(VXML, State), DesugaringError) {
+) -> Result(#(VXML, State), DesugaringError) {
   let assert V(blame, tag, _, _) = vxml
-  use <- on.false_true(
-    list.contains(tags, tag),
-    fn() { Ok(#(vxml, state)) },
-  )
+  use <- on.false_true(list.contains(tags, tag), fn() { Ok(#(vxml, state)) })
   case core.v_first_attr_with_key(vxml, original_key), state {
     None, _ -> Ok(#(vxml, state))
     Some(attr), None -> {
@@ -59,14 +56,16 @@ fn v_before(
     Some(_), Some(_) -> {
       Error(DesugaringError(
         blame,
-        "descendant attempting to overwrite ancestor '" <> original_key <> "' attribute",
+        "descendant attempting to overwrite ancestor '"
+          <> original_key
+          <> "' attribute",
       ))
     }
   }
 }
 
 fn inner_span(path: String) -> VXML {
-  V(b, "span", inner_span_attrs, [ T(b, [Line(b, path)]) ])
+  V(b, "span", inner_span_attrs, [T(b, [Line(b, path)])])
 }
 
 fn v_after(
@@ -76,16 +75,11 @@ fn v_after(
   latest_state: State,
 ) -> Result(#(List(VXML), State), DesugaringError) {
   let assert V(_, tag, attrs, _) = vxml
-  use <- on.false_true(
-    tag == "img",
-    fn() { Ok(#([vxml], original_state)) },
-  )
+  use <- on.false_true(tag == "img", fn() { Ok(#([vxml], original_state)) })
   let assert Some(attr) = core.attrs_first_with_key(attrs, "src")
   use src <- on.ok(compose_and_simplify_path(attr.blame, attr.val, inner))
   let children = case latest_state {
-    None -> [
-      inner_span(src)
-    ]
+    None -> [inner_span(src)]
     Some(original_src) -> [
       inner_span(original_src),
       br,
@@ -96,28 +90,37 @@ fn v_after(
   Ok(#([vxml, outer_span], original_state))
 }
 
-fn nodemap_factory(inner: InnerParam) -> n2t.OneToManyBeforeAndAfterStatefulNodemap(State) {
-  n2t.OneToManyBeforeAndAfterStatefulNodemap(
-    v_before_transforming_children: fn(vxml, state) { v_before(vxml, state, inner) },
-    v_after_transforming_children: fn(vxml, original_state, latest_state) { v_after(vxml, inner, original_state, latest_state) },
-    t_nodemap: fn(vxml, _) { Ok(#([vxml], None)) }
+fn nodemap_factory(
+  inner: InnerParam,
+) -> n2t.OneToManyEnterExitStatefulNodemap(State) {
+  n2t.OneToManyEnterExitStatefulNodemap(
+    on_enter: fn(vxml, state) { v_before(vxml, state, inner) },
+    on_exit: fn(vxml, original_state, latest_state) {
+      v_after(vxml, inner, original_state, latest_state)
+    },
+    on_text: fn(vxml, _) { Ok(#([vxml], None)) },
   )
 }
 
 fn transform_factory(inner: InnerParam) -> DesugarerTransform {
   nodemap_factory(inner)
-  |> n2t.one_to_many_before_and_after_stateful_nodemap_2_desugarer_transform(None)
+  |> n2t.one_to_many_enter_exit_stateful_nodemap_2_desugarer_transform(None)
 }
 
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
   Ok(param)
 }
 
-type State = Option(String)
-type Param = String
+type State =
+  Option(String)
+
+type Param =
+  String
+
 //           ↖
 //           path from exec dir to public
-type InnerParam = Param
+type InnerParam =
+  Param
 
 pub const name = "ti2_adorn_img_with_3003_spans"
 
@@ -145,7 +148,7 @@ fn assertive_tests_data() -> List(core.AssertiveTestDataWithOutside(Param)) {
     core.AssertiveTestDataWithOutside(
       param: "./public/",
       outside: [],
-      source:   "
+      source: "
                           <> root
                             <> img
                               src=img/hello.svg
@@ -160,12 +163,12 @@ fn assertive_tests_data() -> List(core.AssertiveTestDataWithOutside(Param)) {
                                 class=t-3003-i-url
                                 <>
                                   'public/img/hello.svg'
-                "
+                ",
     ),
     core.AssertiveTestDataWithOutside(
       param: "./assets/",
       outside: [],
-      source:   "
+      source: "
                           <> root
                             <> img
                               src=img/compressed.jpg
@@ -187,12 +190,12 @@ fn assertive_tests_data() -> List(core.AssertiveTestDataWithOutside(Param)) {
                                 class=t-3003-i-url
                                 <>
                                   'assets/img/compressed.jpg'
-                "
+                ",
     ),
     core.AssertiveTestDataWithOutside(
       param: "/media/",
       outside: [],
-      source:   "
+      source: "
                           <> root
                             <> figure
                               original=photos/fullsize.png
@@ -216,12 +219,12 @@ fn assertive_tests_data() -> List(core.AssertiveTestDataWithOutside(Param)) {
                                   class=t-3003-i-url
                                   <>
                                     '/media/photos/thumb.png'
-                "
+                ",
     ),
     core.AssertiveTestDataWithOutside(
       param: "./static/",
       outside: [],
-      source:   "
+      source: "
                           <> root
                             <> Carousel
                               original=carousel/slide-hq.webp
@@ -245,12 +248,12 @@ fn assertive_tests_data() -> List(core.AssertiveTestDataWithOutside(Param)) {
                                   class=t-3003-i-url
                                   <>
                                     'static/carousel/slide.webp'
-                "
+                ",
     ),
     core.AssertiveTestDataWithOutside(
       param: "./public/",
       outside: [],
-      source:   "
+      source: "
                           <> root
                             <> img
                               src=img/logo.svg
@@ -301,12 +304,12 @@ fn assertive_tests_data() -> List(core.AssertiveTestDataWithOutside(Param)) {
                                   class=t-3003-i-url
                                   <>
                                     'public/img/photo.png'
-                "
+                ",
     ),
     core.AssertiveTestDataWithOutside(
       param: "./public/",
       outside: [],
-      source:   "
+      source: "
                           <> root
                             <> figure
                               original=diagrams/chart-hires.svg
@@ -349,11 +352,15 @@ fn assertive_tests_data() -> List(core.AssertiveTestDataWithOutside(Param)) {
                                   class=t-3003-i-url
                                   <>
                                     'public/gallery/slide-thumb.jpg'
-                "
+                ",
     ),
   ]
 }
 
 pub fn assertive_tests() {
-  core.assertive_test_collection_from_data_with_outside(name, assertive_tests_data(), constructor)
+  core.assertive_test_collection_from_data_with_outside(
+    name,
+    assertive_tests_data(),
+    constructor,
+  )
 }
