@@ -1,4 +1,4 @@
-import either_or.{type EitherOr, Either, Or} as eo
+import either_or as eo
 import gleam/dict.{type Dict}
 import gleam/float
 import gleam/int
@@ -944,156 +944,99 @@ pub fn lines_total_chars(lines: List(Line)) -> Int {
 // line wrapping
 // ************************************************************
 
-pub fn line_wrap_before_rearrangement_internal(
-  is_very_first_token: Bool,
-  _next_token_marks_beginning_of_line: Bool,
-  current_blame: Blame,
-  already_bundled: List(Line),
-  tokens_4_current_line: List(String),
-  wrap_before: Int,
-  chars_left: Int,
-  remaining_tokens: List(EitherOr(String, Blame)),
-) -> #(List(Line), Int) {
-  let bundle_current = fn() {
-    Line(
-      current_blame,
-      tokens_4_current_line |> list.reverse |> string.join(" "),
+type RewrapToken {
+  RewrapToken(content: String, blame: Blame)
+}
+
+type RewrapState {
+  RewrapState(
+    wrapped_lines_rev: List(Line),
+    current_tokens_rev: List(String),
+    current_line_blame: Blame,
+    current_content_width: Int,
+    occupied_width_before_text: Int,
+    max_line_width: Int,
+  )
+}
+
+fn line_to_rewrap_tokens(line: Line) -> List(RewrapToken) {
+  line.content
+  |> string.split(" ")
+  |> list.map_fold(line.blame, fn(token_blame, content) {
+    #(
+      bl.advance(token_blame, string.length(content) + 1),
+      RewrapToken(content, token_blame),
     )
-  }
+  })
+  |> pair.second
+}
+
+fn current_line(state: RewrapState) -> Line {
+  Line(
+    state.current_line_blame,
+    state.current_tokens_rev |> list.reverse |> string.join(" "),
+  )
+}
+
+fn add_token_to_current_line(
+  state: RewrapState,
+  token: RewrapToken,
+  separator_width: Int,
+) -> RewrapState {
+  RewrapState(
+    ..state,
+    current_tokens_rev: [token.content, ..state.current_tokens_rev],
+    current_content_width: state.current_content_width
+      + separator_width
+      + string.length(token.content),
+  )
+}
+
+fn start_new_line(state: RewrapState, token: RewrapToken) -> RewrapState {
+  RewrapState(
+    wrapped_lines_rev: [current_line(state), ..state.wrapped_lines_rev],
+    current_tokens_rev: [token.content],
+    current_line_blame: token.blame,
+    current_content_width: string.length(token.content),
+    occupied_width_before_text: 0,
+    max_line_width: state.max_line_width,
+  )
+}
+
+fn rewrap_tokens(
+  remaining_tokens: List(RewrapToken),
+  state: RewrapState,
+) -> RewrapState {
   case remaining_tokens {
-    [] -> {
-      let last = bundle_current()
-      #(
-        [last, ..already_bundled] |> list.reverse,
-        last.content |> string.length,
-      )
-    }
-    [Or(current_blame), ..rest] ->
-      line_wrap_before_rearrangement_internal(
-        False,
-        True,
-        current_blame,
-        already_bundled,
-        tokens_4_current_line,
-        wrap_before,
-        chars_left,
-        rest,
-      )
-    [Either(next_token), ..rest] -> {
-      let length = string.length(next_token)
-      let new_chars_left = chars_left - length - 1
-      let current_blame = bl.advance(current_blame, length + 1)
-      case
-        {
-          // we don't move to next line if:
-          new_chars_left >= 0
-          // - we have space on this line
-          || chars_left == wrap_before
-          // - moving to next line wouldn't give us anymore space than we already have
-          || next_token == ""
-          // - we represent adding a space at the end of the line
-          || is_very_first_token
-          // - we are the first token of the paragraph, because we don't want to introduce accidental whitespace between us and the previous content
-        }
-      {
+    [] -> state
+    [token, ..rest] -> {
+      let current_line_is_empty = list.is_empty(state.current_tokens_rev)
+      let separator_width = case current_line_is_empty {
+        True -> 0
+        False -> 1
+      }
+      let width_with_token =
+        state.occupied_width_before_text
+        + state.current_content_width
+        + separator_width
+        + string.length(token.content)
+
+      case current_line_is_empty || width_with_token <= state.max_line_width {
         True ->
-          line_wrap_before_rearrangement_internal(
-            False,
-            False,
-            current_blame,
-            already_bundled,
-            [next_token, ..tokens_4_current_line],
-            wrap_before,
-            new_chars_left,
+          rewrap_tokens(
             rest,
+            add_token_to_current_line(state, token, separator_width),
           )
-        False ->
-          line_wrap_before_rearrangement_internal(
-            False,
-            False,
-            current_blame,
-            [bundle_current(), ..already_bundled],
-            [next_token],
-            wrap_before,
-            wrap_before - length,
-            rest,
-          )
+        False -> rewrap_tokens(rest, start_new_line(state, token))
       }
     }
   }
 }
 
-pub fn line_wrap_beyond_rearrangement_internal(
-  is_very_first_token: Bool,
-  _next_token_marks_beginning_of_line: Bool,
-  current_blame: Blame,
-  already_bundled: List(Line),
-  tokens_4_current_line: List(String),
-  wrap_beyond: Int,
-  chars_left: Int,
-  remaining_tokens: List(EitherOr(String, Blame)),
-) -> #(List(Line), Int) {
-  let bundle_current = fn() {
-    Line(
-      current_blame,
-      tokens_4_current_line |> list.reverse |> string.join(" "),
-    )
-  }
-  case remaining_tokens {
-    [] -> {
-      let last = bundle_current()
-      #(
-        [last, ..already_bundled] |> list.reverse,
-        last.content |> string.length,
-      )
-    }
-    [Or(current_blame), ..rest] ->
-      line_wrap_beyond_rearrangement_internal(
-        False,
-        True,
-        current_blame,
-        already_bundled,
-        tokens_4_current_line,
-        wrap_beyond,
-        chars_left,
-        rest,
-      )
-    [Either(next_token), ..rest] -> {
-      let length = string.length(next_token)
-      let new_chars_left = chars_left - length - 1
-      let current_blame = bl.advance(current_blame, length + 1)
-      case next_token == "" || chars_left > 0 || is_very_first_token {
-        True ->
-          line_wrap_beyond_rearrangement_internal(
-            False,
-            False,
-            current_blame,
-            already_bundled,
-            [next_token, ..tokens_4_current_line],
-            wrap_beyond,
-            new_chars_left,
-            rest,
-          )
-        False ->
-          line_wrap_beyond_rearrangement_internal(
-            False,
-            False,
-            current_blame,
-            [bundle_current(), ..already_bundled],
-            [next_token],
-            wrap_beyond,
-            wrap_beyond - length,
-            rest,
-          )
-      }
-    }
-  }
-}
-
-pub fn line_wrap_rearrangement(
+pub fn rewrap_lines(
   lines: List(Line),
-  starting_offset: Int,
-  wrap_before: Int,
+  occupied_width_before_text: Int,
+  max_line_width: Int,
 ) -> #(List(Line), Int) {
   // 🚨
   // right now there is no option to protect empty first line
@@ -1101,29 +1044,28 @@ pub fn line_wrap_rearrangement(
   // trailing spaces instead on the next & previous lines respectively;
   // we apparently don't need this protection functionality, so far
   // 🚨
-  let tokens =
-    lines
-    |> list.map(fn(line) {
-      string.split(line.content, " ")
-      |> list.map(Either)
-      |> list.prepend(Or(line.blame))
-    })
-    |> list.flatten
-  let assert [Or(first_blame), ..tokens] = tokens
-  let #(lines, last_line_length) =
-    line_wrap_before_rearrangement_internal(
-      True,
-      True,
-      first_blame,
-      [],
-      [],
-      wrap_before,
-      wrap_before - starting_offset,
-      tokens,
-    )
-  case list.length(lines) > 1 {
-    True -> #(lines, last_line_length)
-    False -> #(lines, last_line_length + starting_offset)
+  let tokens = lines |> list.flat_map(line_to_rewrap_tokens)
+  case tokens {
+    [] -> #([], occupied_width_before_text)
+    [first, ..rest] -> {
+      let initial_state =
+        RewrapState(
+          wrapped_lines_rev: [],
+          current_tokens_rev: [first.content],
+          current_line_blame: first.blame,
+          current_content_width: string.length(first.content),
+          occupied_width_before_text: occupied_width_before_text,
+          max_line_width: max_line_width,
+        )
+      let final_state = rewrap_tokens(rest, initial_state)
+      let wrapped_lines =
+        [current_line(final_state), ..final_state.wrapped_lines_rev]
+        |> list.reverse
+      let final_width =
+        final_state.occupied_width_before_text
+        + final_state.current_content_width
+      #(wrapped_lines, final_width)
+    }
   }
 }
 

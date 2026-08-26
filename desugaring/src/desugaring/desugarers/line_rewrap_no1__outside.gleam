@@ -72,8 +72,7 @@ fn line_wrap_in_list(
         True -> 0
         False -> deficit
       }
-      let #(lines, new_indent) =
-        core.line_wrap_rearrangement(lines, deficit, inner.0)
+      let #(lines, new_indent) = core.rewrap_lines(lines, deficit, inner.0)
       line_wrap_in_list(
         [T(blame, lines), ..already_wrapped],
         new_indent,
