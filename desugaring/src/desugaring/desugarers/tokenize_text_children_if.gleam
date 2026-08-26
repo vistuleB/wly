@@ -1,18 +1,41 @@
-import gleam/list
-import gleam/option
-import gleam/string.{inspect as ins}
-import desugaring/core.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as core
+import desugaring/authoring
+import desugaring/core.{
+  type Desugarer, type DesugarerTransform, type DesugaringError,
+}
 import desugaring/nodemaps_2_transform as n2t
+import gleam/list
+import gleam/string
 import splitter.{type Splitter}
-import vxml.{type VXML, Attr, V, T}
+import vxml.{type VXML, Attr, T, V}
 import vxml/blame.{type Blame} as bl
+
+pub const name = "tokenize_text_children_if"
+
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
+// 🏖️🏖️ Desugarer 🏖️🏖️
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️️️️️🏖️
+
+/// Tokenizes text children of elements that satisfy the
+/// configured condition.
+pub fn constructor(param: Param) -> Desugarer {
+  authoring.desugarer(
+    name: name,
+    param: param,
+    prepare: param_to_inner_param,
+    transform: inner_param_to_transform,
+  )
+}
+
+fn desugarer_blame(line_no: Int) {
+  authoring.blame(name, line_no)
+}
 
 fn start_node(blame: Blame) {
   V(blame, "__StartTokenizedT", [], [])
 }
 
 fn word_node(blame: Blame, word: String) {
-  V(blame, "__OneWord", [Attr(desugarer_blame(15), "val", word)], [])
+  V(blame, "__OneWord", [Attr(desugarer_blame(38), "val", word)], [])
 }
 
 fn space_node(blame: Blame) {
@@ -61,10 +84,7 @@ fn tokenize_string_acc(
     #("", non_space_punctuation, after) ->
       tokenize_string_acc(
         opening_punctuation_splitter,
-        [
-          word_node(current_blame, non_space_punctuation),
-          ..past_tokens
-        ],
+        [word_node(current_blame, non_space_punctuation), ..past_tokens],
         bl.advance(current_blame, 1),
         after,
       )
@@ -82,11 +102,19 @@ fn tokenize_string_acc(
   }
 }
 
-fn tokenize_t(opening_punctuation_splitter: Splitter, vxml: VXML) -> List(VXML) {
+fn tokenize_t(
+  opening_punctuation_splitter: Splitter,
+  vxml: VXML,
+) -> List(VXML) {
   let assert T(blame, lines) = vxml
   lines
   |> list.index_map(fn(line, i) {
-    tokenize_string_acc(opening_punctuation_splitter, [], line.blame, line.content)
+    tokenize_string_acc(
+      opening_punctuation_splitter,
+      [],
+      line.blame,
+      line.content,
+    )
     |> list.prepend(case i == 0 {
       True -> start_node(line.blame)
       False -> newline_node(line.blame)
@@ -96,26 +124,29 @@ fn tokenize_t(opening_punctuation_splitter: Splitter, vxml: VXML) -> List(VXML) 
   |> list.append([end_node(blame)])
 }
 
-fn tokenize_if_t(opening_punctuation_splitter: Splitter, vxml: VXML) -> List(VXML) {
+fn tokenize_if_t(
+  opening_punctuation_splitter: Splitter,
+  vxml: VXML,
+) -> List(VXML) {
   case vxml {
     T(_, _) -> tokenize_t(opening_punctuation_splitter, vxml)
     _ -> [vxml]
   }
 }
 
-fn nodemap(
-  vxml: VXML,
-  inner: InnerParam,
-) -> VXML {
+fn nodemap(vxml: VXML, inner: InnerParam) -> VXML {
   case vxml {
     T(_, _) -> vxml
-    V(_, _, _, children) -> case inner.0(vxml) {
-      False -> vxml
-      True -> {
-        let children = list.map(children, fn(vxml) { tokenize_if_t(inner.1, vxml)} ) |> list.flatten
-        V(..vxml, children: children)
+    V(_, _, _, children) ->
+      case inner.0(vxml) {
+        False -> vxml
+        True -> {
+          let children =
+            list.map(children, fn(vxml) { tokenize_if_t(inner.1, vxml) })
+            |> list.flatten
+          V(..vxml, children: children)
+        }
       }
-    }
   }
 }
 
@@ -123,38 +154,22 @@ fn nodemap_factory(inner: InnerParam) -> n2t.OneToOneNoErrorNodemap {
   nodemap(_, inner)
 }
 
-fn transform_factory(inner: InnerParam) -> DesugarerTransform {
+fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
   nodemap_factory(inner)
   |> n2t.one_to_one_no_error_nodemap_2_desugarer_transform()
 }
 
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
-  let opening_punctuation_splitter: Splitter = splitter.new([" ", "(", "[", "—"])
+  let opening_punctuation_splitter: Splitter =
+    splitter.new([" ", "(", "[", "—"])
   Ok(#(param, opening_punctuation_splitter))
 }
 
-type Param = fn(VXML) -> Bool
-type InnerParam = #(Param, Splitter)
+type Param =
+  fn(VXML) -> Bool
 
-pub const name = "tokenize_text_children_if"
-fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
-
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-// 🏖️🏖️ Desugarer 🏖️🏖️
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-//------------------------------------------------53
-///
-pub fn constructor(param: Param) -> Desugarer {
-  Desugarer(
-    name: name,
-    stringified_param: option.Some(ins(param)),
-    stringified_outside: option.None,
-    transform: case param_to_inner_param(param) {
-      Error(error) -> fn(_) { Error(error) }
-      Ok(inner) -> transform_factory(inner)
-    },
-  )
-}
+type InnerParam =
+  #(Param, Splitter)
 
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
 // 🌊🌊🌊 tests 🌊🌊🌊🌊🌊
@@ -257,10 +272,14 @@ fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
                 <> __OneNewLine
                 <> __EndTokenizedT
       ",
-    )
+    ),
   ]
 }
 
 pub fn assertive_tests() {
-  core.assertive_test_collection_from_data(name, assertive_tests_data(), constructor)
+  core.assertive_test_collection_from_data(
+    name,
+    assertive_tests_data(),
+    constructor,
+  )
 }

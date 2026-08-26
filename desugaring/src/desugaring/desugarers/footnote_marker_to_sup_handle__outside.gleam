@@ -1,13 +1,13 @@
-import vxml/blame.{type Blame} as bl
+import desugaring/core.{
+  type Desugarer, type DesugarerTransform, type DesugaringError,
+}
+import desugaring/nodemaps_2_transform as n2t
 import gleam/list
 import gleam/option.{None, Some}
 import gleam/regexp.{type Regexp}
-import gleam/string.{inspect as ins}
-import desugaring/core.{
-  type Desugarer, type DesugarerTransform, type DesugaringError, Desugarer,
-} as core
-import desugaring/nodemaps_2_transform as n2t
+import gleam/string
 import vxml.{type Line, type VXML, Attr, Line, T, V}
+import vxml/blame.{type Blame} as bl
 
 const originator_suffix = "-originator"
 
@@ -17,6 +17,8 @@ fn split_content(blame: Blame, content: String, re: Regexp) -> List(VXML) {
     _ -> split_nonempty_content(blame, content, re)
   }
 }
+
+import desugaring/authoring
 
 fn split_nonempty_content(
   blame: Blame,
@@ -103,13 +105,15 @@ fn nodemap(vxml: VXML, inner: InnerParam) -> List(VXML) {
   }
 }
 
-fn nodemap_factory(inner: InnerParam) -> n2t.OneToManyNoErrorNodemap {
-  nodemap(_, inner)
-}
-
-fn transform_factory(inner: InnerParam, outside: List(String)) -> DesugarerTransform {
-  nodemap_factory(inner)
-  |> n2t.one_to_many_no_error_nodemap_2_desugarer_transform_with_forbidden(outside)
+fn inner_param_to_transform(
+  inner: InnerParam,
+  outside: List(String),
+) -> DesugarerTransform {
+  let nodemap: n2t.OneToManyNoErrorNodemap = nodemap(_, inner)
+  nodemap
+  |> n2t.one_to_many_no_error_nodemap_2_desugarer_transform_with_forbidden(
+    outside,
+  )
 }
 
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
@@ -122,25 +126,21 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
   Ok(#(re, param))
 }
 
-type Param = String
-//           ↖
-//           bare counter name, e.g.
-//           "FootnoteCounter" (NOT an
-//           increment expression — this
-//           desugarer only ever *reads*
-//           the counter with ::øø, since
-//           incrementing happens at the
-//           `Footnote` node itself via
-//           `prepend_counter_incrementing_attribute`)
+// Bare counter name, such as "FootnoteCounter". This is not an
+// increment expression: this desugarer only reads the counter
+// with `::øø`; `prepend_counter_incrementing_attribute`
+// increments it at the `Footnote` node.
+type Param =
+  String
 
-type InnerParam = #(Regexp, String)
+type InnerParam =
+  #(Regexp, String)
 
-pub const name = "footnote_marker_to_sup_handle"
+pub const name = "footnote_marker_to_sup_handle__outside"
 
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 // 🏖️🏖️ Desugarer 🏖️🏖️
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-//------------------------------------------------53
 /// Two independent, local rewrites in one pass:
 ///
 /// 1. T-node text `(*>>handle_name)` becomes
@@ -193,19 +193,17 @@ pub const name = "footnote_marker_to_sup_handle"
 /// keeps the T-node rewrite (1) out of subtrees rooted
 /// at tags given by its second argument
 pub fn constructor(param: Param, outside: List(String)) -> Desugarer {
-  Desugarer(
+  authoring.desugarer_with_outside(
     name: name,
-    stringified_param: option.Some(ins(param)),
-    stringified_outside: option.Some(ins(outside)),
-    transform: case param_to_inner_param(param) {
-      Error(error) -> fn(_) { Error(error) }
-      Ok(inner) -> transform_factory(inner, outside)
-    },
+    param: param,
+    outside: outside,
+    prepare: param_to_inner_param,
+    transform: inner_param_to_transform,
   )
 }
 
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
-// 🌊🌊🌊 tests 🌊🌊🌊🌊🌊
+// 🌊🌊🌊 tests 🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
 fn assertive_tests_data() -> List(core.AssertiveTestDataWithOutside(Param)) {
   [

@@ -1,36 +1,53 @@
-import gleam/option
-import desugaring/core.{type Desugarer, Desugarer} as core
+import desugaring/authoring
+import desugaring/core.{
+  type Desugarer, type DesugarerTransform, type DesugaringError,
+}
 import desugaring/nodemaps_2_transform as n2t
 
-type Param = String
 pub const name = "table_section_header"
 
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 // 🏖️🏖️ Desugarer 🏖️🏖️
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-//------------------------------------------------53
-/// idempotent desugarer that leaves the VXML
-/// unchanged and that never generates an error;
-/// the string param is displayed as a section
-/// header row in the --table and --times output
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️️️️️🏖️
+
+/// Adds a named section header to pipeline table and timing
+/// output without changing the VXML.
 pub fn constructor(param: Param) -> Desugarer {
-  Desugarer(
+  authoring.desugarer_with_stringified_param(
     name: name,
-    stringified_param: option.Some(param),
-    stringified_outside: option.None,
-    transform: n2t.identity_transform,
+    param: param,
+    stringified_param: param,
+    prepare: param_to_inner_param,
+    transform: inner_param_to_transform,
   )
 }
 
+type Param =
+  String
+
+type InnerParam =
+  Param
+
+fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
+  Ok(param)
+}
+
+fn inner_param_to_transform(_: InnerParam) -> DesugarerTransform {
+  n2t.identity_transform
+}
 
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
-// 🌊🌊🌊 tests 🌊🌊🌊🌊🌊
+// 🌊🌊🌊 tests 🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
+
 fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
-  [
-  ]
+  []
 }
 
 pub fn assertive_tests() {
-  core.assertive_test_collection_from_data(name, assertive_tests_data(), constructor)
+  core.assertive_test_collection_from_data(
+    name,
+    assertive_tests_data(),
+    constructor,
+  )
 }

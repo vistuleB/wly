@@ -1,15 +1,62 @@
-import gleam/list
-import gleam/option
-import gleam/string
-import desugaring/core.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as core
+import desugaring/authoring
+import desugaring/core.{
+  type Desugarer, type DesugarerTransform, type DesugaringError,
+}
 import desugaring/nodemaps_2_transform as n2t
-import vxml.{ type VXML, Line, T, V }
+import gleam/list
+import gleam/string
+import vxml.{type VXML, Line, T, V}
 
-fn nodemap(
-  vxml: VXML,
-  ancestors: List(VXML),
-  inner: InnerParam,
-) -> VXML {
+pub const name = "prepend_text_node_if_has_ancestor_else__batch"
+
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
+// 🏖️🏖️ Desugarer 🏖️🏖️
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️️️️️🏖️
+
+/// Prepends one of two texts according to whether each
+/// target has the configured ancestor.
+pub fn constructor(param: Param) -> Desugarer {
+  authoring.desugarer(
+    name: name,
+    param: param,
+    prepare: param_to_inner_param,
+    transform: inner_param_to_transform,
+  )
+}
+
+type Param =
+  List(
+    #(
+      // Target tag.
+      String,
+      // Ancestor tag.
+      String,
+      // Text used inside the ancestor.
+      String,
+      // Text used outside the ancestor.
+      String,
+    ),
+  )
+
+type InnerParam =
+  List(#(String, #(String, String, String)))
+
+fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
+  param
+  |> core.quads_to_pairs
+  |> Ok
+}
+
+fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
+  nodemap_factory(inner)
+  |> n2t.fancy_one_to_one_no_error_nodemap_2_desugarer_transform()
+}
+
+fn nodemap_factory(inner: InnerParam) -> n2t.FancyOneToOneNoErrorNodemap {
+  fn(vxml, ancestors, _, _, _) { nodemap(vxml, ancestors, inner) }
+}
+
+fn nodemap(vxml: VXML, ancestors: List(VXML), inner: InnerParam) -> VXML {
   case vxml {
     T(_, _) -> vxml
     V(blame, tag, attrs, children) -> {
@@ -22,15 +69,7 @@ fn nodemap(
           }
           let contents = string.split(text, "\n")
           let new_text_node =
-            T(
-              blame,
-              list.map(
-                contents,
-                fn (content) {
-                  Line(blame, content)
-                }
-              )
-            )
+            T(blame, list.map(contents, fn(content) { Line(blame, content) }))
           V(blame, tag, attrs, [new_text_node, ..children])
         }
         Error(Nil) -> vxml
@@ -39,60 +78,15 @@ fn nodemap(
   }
 }
 
-fn nodemap_factory(inner: InnerParam) -> n2t.FancyOneToOneNoErrorNodemap {
-  fn(vxml, ancestors, _, _, _) {
-    nodemap(vxml, ancestors, inner)
-  }
-}
-
-fn transform_factory(inner: InnerParam) -> DesugarerTransform {
-  nodemap_factory(inner)
-  |> n2t.fancy_one_to_one_no_error_nodemap_2_desugarer_transform()
-}
-
-fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
-  param
-  |> core.quads_to_pairs
-  |> Ok
-}
-
-type Param =
-  List(#(String, String,    String,      String))
-//       ↖       ↖          ↖            ↖
-//       tag     ancestor   if_version   else_version
-
-type InnerParam =
-  List(#(String, #(String, String, String)))
-
-pub const name = "prepend_text_node_if_has_ancestor_else__batch"
-
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-// 🏖️🏖️ Desugarer 🏖️🏖️
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-//------------------------------------------------53
-/// prepend one of two specified text fragments to
-/// nodes of a certain tag depending on wether the
-/// node has an ancestor of specified type or not
-pub fn constructor(param: Param) -> Desugarer {
-  Desugarer(
-    name: name,
-    stringified_param: option.Some(param |> core.list_param_stringifier),
-    stringified_outside: option.None,
-    transform: case param_to_inner_param(param) {
-      Error(error) -> fn(_) { Error(error) }
-      Ok(inner) -> transform_factory(inner)
-    },
-  )
-}
-
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
-// 🌊🌊🌊 tests 🌊🌊🌊🌊🌊
+// 🌊🌊🌊 tests 🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
+
 fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
   [
     core.AssertiveTestData(
       param: [#("ze_tag", "ze_ancestor", "_if_text_", "_else_text_")],
-      source:   "
+      source: "
                 <> root
                   <> ze_tag
                     <>
@@ -131,5 +125,9 @@ fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
 }
 
 pub fn assertive_tests() {
-  core.assertive_test_collection_from_data(name, assertive_tests_data(), constructor)
+  core.assertive_test_collection_from_data(
+    name,
+    assertive_tests_data(),
+    constructor,
+  )
 }

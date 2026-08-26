@@ -1,16 +1,42 @@
+import desugaring/authoring
 import desugaring/core.{
   type Desugarer, type DesugarerTransform, type DesugaringError,
-  type TrafficLight, Continue, Desugarer, DesugaringError, GoBack,
+  type TrafficLight, Continue, DesugaringError, GoBack,
 }
 import desugaring/nodemaps_2_transform as n2t
 import gleam/int
 import gleam/list
-import gleam/option
-import gleam/string.{inspect as ins}
+import gleam/string
 import on
 import simplifile
 import vxml.{type VXML, V}
-import vxml/blame as bl
+
+pub const name = "dr_generate_js_course"
+
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
+// 🏖️🏖️ Desugarer 🏖️🏖️
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️️️️️🏖️
+
+/// Writes `public/course.js` with a map describing whether
+/// each chapter has direct content or begins with a section.
+pub fn constructor(param: Param) -> Desugarer {
+  authoring.desugarer(
+    name: name,
+    param: param,
+    prepare: param_to_inner_param,
+    transform: inner_param_to_transform,
+  )
+}
+
+type Param =
+  String
+
+type InnerParam =
+  String
+
+fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
+  Ok(param |> core.drop_suffix("/") <> "/public")
+}
 
 // 🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸
 // 🌸 chapter map collection 🌸
@@ -93,7 +119,7 @@ fn at_root(root: VXML, inner: InnerParam) -> Result(Nil, DesugaringError) {
   let path = inner <> "/course.js"
   use error <- on.error(simplifile.write(path, content))
   Error(DesugaringError(
-    desugarer_blame(96),
+    authoring.blame(name, 122),
     "failed to write course.js to '"
       <> path
       <> "': "
@@ -101,53 +127,15 @@ fn at_root(root: VXML, inner: InnerParam) -> Result(Nil, DesugaringError) {
   ))
 }
 
-fn transform_factory(inner: InnerParam) -> DesugarerTransform {
+fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
   at_root(_, inner)
-  |> n2t.at_root_identity_2_desugarer_transform()
-}
-
-fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
-  Ok(param |> core.drop_suffix("/") <> "/public")
-}
-
-type Param =
-  String
-
-type InnerParam =
-  String
-
-pub const name = "dr_generate_js_course"
-
-fn desugarer_blame(line_no: Int) {
-  bl.Des([], name, line_no)
-}
-
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-// 🏖️🏖️ Desugarer 🏖️🏖️
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-//------------------------------------------------53
-/// takes a course name (e.g. "235A") and writes course.js to
-/// <course_name>/public/course.js containing a chapterMap where
-/// each key is a chapter number (1-based) and the value is:
-///   0  – the chapter has content (url points to the chapter itself)
-///   1  – the chapter has no content but has a Section child
-///         (url points to the first section)
-/// throws DesugaringError if a chapter has neither content nor a Section.
-pub fn constructor(param: Param) -> Desugarer {
-  Desugarer(
-    name: name,
-    stringified_param: option.Some(ins(param)),
-    stringified_outside: option.None,
-    transform: case param_to_inner_param(param) {
-      Error(error) -> fn(_) { Error(error) }
-      Ok(inner) -> transform_factory(inner)
-    },
-  )
+  |> n2t.node_to_nil_2_desugarer_transform_without_walking()
 }
 
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
-// 🌊🌊🌊 tests 🌊🌊🌊🌊🌊
+// 🌊🌊🌊 tests 🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
+
 fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
   []
 }

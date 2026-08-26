@@ -1,18 +1,31 @@
-import vxml/blame.{type Blame} as bl
-import gleam/list
-import gleam/option
-import gleam/string
+import desugaring/authoring
 import desugaring/core.{
-  type Desugarer,
-  type DesugaringError,
-  type DesugarerTransform,
-  Desugarer,
-} as core
+  type Desugarer, type DesugarerTransform, type DesugaringError,
+}
 import desugaring/nodemaps_2_transform as n2t
+import gleam/list
+import gleam/string
 import splitter.{type Splitter}
 import vxml.{type VXML, Attr, T, V}
+import vxml/blame.{type Blame} as bl
 
-const had_href_child = Attr(bl.Des([], name, 15), "had_href_child", "true")
+pub const name = "tokenize_href_surroundings"
+
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
+// 🏖️🏖️ Desugarer 🏖️🏖️
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️️️️️🏖️
+
+/// Tokenizes text surrounding href targets so later link
+/// rewrites can operate safely.
+pub fn constructor() -> Desugarer {
+  let assert Ok(inner) = param_to_inner_param(Nil)
+  authoring.no_param_desugarer(
+    name: name,
+    transform: inner_param_to_transform(inner),
+  )
+}
+
+const had_href_child = Attr(bl.Des([], name, 28), "had_href_child", "true")
 
 fn start_node(blame: Blame) {
   V(blame, "__StartTokenizedT", [], [])
@@ -57,7 +70,8 @@ fn tokenize_string_acc(
     #(before, " ", after) ->
       tokenize_string_acc(
         opening_parenthesis_splitter,
-        [ space_node(current_blame),
+        [
+          space_node(current_blame),
           word_node(current_blame, before),
           ..past_tokens
         ],
@@ -67,10 +81,7 @@ fn tokenize_string_acc(
     #("", non_space_puncutation, after) -> {
       tokenize_string_acc(
         opening_parenthesis_splitter,
-        [
-          word_node(current_blame, non_space_puncutation),
-          ..past_tokens
-        ],
+        [word_node(current_blame, non_space_puncutation), ..past_tokens],
         bl.advance(current_blame, 1),
         after,
       )
@@ -89,11 +100,19 @@ fn tokenize_string_acc(
   }
 }
 
-fn tokenize_t(opening_parenthesis_splitter: Splitter, vxml: VXML) -> List(VXML) {
+fn tokenize_t(
+  opening_parenthesis_splitter: Splitter,
+  vxml: VXML,
+) -> List(VXML) {
   let assert T(blame, lines) = vxml
   lines
   |> list.index_map(fn(line, i) {
-    tokenize_string_acc(opening_parenthesis_splitter, [], line.blame, line.content)
+    tokenize_string_acc(
+      opening_parenthesis_splitter,
+      [],
+      line.blame,
+      line.content,
+    )
     |> list.prepend(case i == 0 {
       True -> start_node(line.blame)
       False -> newline_node(line.blame)
@@ -103,7 +122,10 @@ fn tokenize_t(opening_parenthesis_splitter: Splitter, vxml: VXML) -> List(VXML) 
   |> list.append([end_node(blame)])
 }
 
-fn tokenize_if_t_or_has_href_attr_and_recurse(opening_parenthesis_splitter: Splitter, vxml: VXML) -> List(VXML) {
+fn tokenize_if_t_or_has_href_attr_and_recurse(
+  opening_parenthesis_splitter: Splitter,
+  vxml: VXML,
+) -> List(VXML) {
   case vxml {
     T(_, _) -> tokenize_t(opening_parenthesis_splitter, vxml)
     V(_, _, attrs, children) ->
@@ -111,10 +133,12 @@ fn tokenize_if_t_or_has_href_attr_and_recurse(opening_parenthesis_splitter: Spli
         True -> [
           V(
             ..vxml,
-            children: list.flat_map(
-              children,
-              fn(vxml) { tokenize_if_t_or_has_href_attr_and_recurse(opening_parenthesis_splitter, vxml) },
-            ),
+            children: list.flat_map(children, fn(vxml) {
+              tokenize_if_t_or_has_href_attr_and_recurse(
+                opening_parenthesis_splitter,
+                vxml,
+              )
+            }),
           ),
         ]
         False -> [vxml]
@@ -131,7 +155,12 @@ fn nodemap(opening_parenthesis_splitter: Splitter, vxml: VXML) -> VXML {
         True -> {
           let attrs = [had_href_child, ..attrs]
           let children =
-            list.flat_map(children, fn(vxml) { tokenize_if_t_or_has_href_attr_and_recurse(opening_parenthesis_splitter, vxml) })
+            list.flat_map(children, fn(vxml) {
+              tokenize_if_t_or_has_href_attr_and_recurse(
+                opening_parenthesis_splitter,
+                vxml,
+              )
+            })
           V(..vxml, attrs: attrs, children: children)
         }
       }
@@ -143,13 +172,14 @@ fn nodemap_factory(inner: InnerParam) -> n2t.OneToOneNoErrorNodemap {
   fn(vxml) { nodemap(inner, vxml) }
 }
 
-fn transform_factory(inner: InnerParam) -> DesugarerTransform {
+fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
   nodemap_factory(inner)
   |> n2t.one_to_one_no_error_nodemap_2_desugarer_transform()
 }
 
 fn param_to_inner_param(_param: Param) -> Result(InnerParam, DesugaringError) {
-  let opening_parenthesis_splitter: Splitter = splitter.new([" ", "(", "[", "—"])
+  let opening_parenthesis_splitter: Splitter =
+    splitter.new([" ", "(", "[", "—"])
   Ok(opening_parenthesis_splitter)
 }
 
@@ -158,25 +188,6 @@ type Param =
 
 type InnerParam =
   Splitter
-
-pub const name = "tokenize_href_surroundings"
-
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-// 🏖️🏖️ Desugarer 🏖️🏖️
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-//------------------------------------------------53
-///
-pub fn constructor() -> Desugarer {
-  Desugarer(
-    name: name,
-    stringified_param: option.None,
-    stringified_outside: option.None,
-    transform: case param_to_inner_param(Nil) {
-      Error(error) -> fn(_) { Error(error) }
-      Ok(inner) -> transform_factory(inner)
-    },
-  )
-}
 
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
 // 🌊🌊🌊 tests 🌊🌊🌊🌊🌊

@@ -1,14 +1,30 @@
+import desugaring/authoring
+import desugaring/core.{
+  type Desugarer, type DesugarerTransform, type DesugaringError, DesugaringError,
+}
+import desugaring/nodemaps_2_transform as n2t
 import gleam/list
 import gleam/option.{None, Some}
-import desugaring/core.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError, DesugaringError} as core
-import desugaring/nodemaps_2_transform as n2t
-import vxml.{type VXML, V, Attr}
-import vxml/blame as bl
 import on
+import vxml.{type VXML, Attr, V}
+import vxml/blame as bl
 
-fn nodemap(
-  vxml: VXML,
-) -> Result(VXML, DesugaringError) {
+pub const name = "ti2_expand_carousels"
+
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
+// 🏖️🏖️ Desugarer 🏖️🏖️
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️️️️️🏖️
+
+/// Expands compact Carousel attributes into CarouselItem
+/// elements containing images.
+pub fn constructor() -> Desugarer {
+  authoring.no_param_desugarer(
+    name: name,
+    transform: inner_param_to_transform(),
+  )
+}
+
+fn nodemap(vxml: VXML) -> Result(VXML, DesugaringError) {
   case vxml {
     V(blame, tag, attrs, children) if tag == "Carousel" -> {
       case children {
@@ -17,66 +33,72 @@ fn nodemap(
             core.attrs_extract_key_occurrences(attrs, "src")
 
           use #(width_attr, attrs) <- on.ok(
-            core.attrs_extract_unique_key_or_none(attrs, "width")
+            core.attrs_extract_unique_key_or_none(attrs, "width"),
           )
 
           use #(height_attr, attrs) <- on.ok(
-            core.attrs_extract_unique_key_or_none(attrs, "height")
+            core.attrs_extract_unique_key_or_none(attrs, "height"),
           )
 
           use #(style_attr, attrs) <- on.ok(
-            core.attrs_extract_unique_key_or_none(attrs, "style")
+            core.attrs_extract_unique_key_or_none(attrs, "style"),
           )
 
           use #(width_style, style_attr) <- on.ok(
-            core.optional_style_extract_unique_key_or_none(style_attr, "width")
+            core.optional_style_extract_unique_key_or_none(style_attr, "width"),
           )
 
           use #(height_style, style_attr) <- on.ok(
-            core.optional_style_extract_unique_key_or_none(style_attr, "height")
+            core.optional_style_extract_unique_key_or_none(style_attr, "height"),
           )
 
-          use width_style <- on.ok(
-            case width_attr, width_style {
-              Some(attr), Some(_) -> Error(DesugaringError(attr.blame, "duplicate width definition via attr and style element"))
-              Some(attr), None -> Ok("width:" <> attr.val)
-              None, Some(x) -> Ok("width:" <> x)
-              None, None -> Ok("")
-            }
-          )
+          use width_style <- on.ok(case width_attr, width_style {
+            Some(attr), Some(_) ->
+              Error(DesugaringError(
+                attr.blame,
+                "duplicate width definition via attr and style element",
+              ))
+            Some(attr), None -> Ok("width:" <> attr.val)
+            None, Some(x) -> Ok("width:" <> x)
+            None, None -> Ok("")
+          })
 
-          use height_style <- on.ok(
-            case height_attr, height_style {
-              Some(attr), Some(_) -> Error(DesugaringError(attr.blame, "duplicate height definition via attr and style element"))
-              Some(attr), None -> Ok("height:" <> attr.val)
-              None, Some(x) -> Ok("height:" <> x)
-              None, None -> Ok("")
-            }
-          )
+          use height_style <- on.ok(case height_attr, height_style {
+            Some(attr), Some(_) ->
+              Error(DesugaringError(
+                attr.blame,
+                "duplicate height definition via attr and style element",
+              ))
+            Some(attr), None -> Ok("height:" <> attr.val)
+            None, Some(x) -> Ok("height:" <> x)
+            None, None -> Ok("")
+          })
 
           let item_style_attr = case width_style, height_style {
             "", "" -> None
-            _, "" -> Some(Attr(desugarer_blame(59), "style", width_style))
-            "", _ -> Some(Attr(desugarer_blame(60), "style", height_style))
-            _, _ -> Some(Attr(desugarer_blame(61), "style", width_style <> ";" <> height_style))
+            _, "" -> Some(Attr(desugarer_blame(79), "style", width_style))
+            "", _ -> Some(Attr(desugarer_blame(80), "style", height_style))
+            _, _ ->
+              Some(Attr(
+                desugarer_blame(83),
+                "style",
+                width_style <> ";" <> height_style,
+              ))
           }
 
           let items = case item_style_attr {
-            None -> list.map(
-              src_attrs,
-              fn(src_attr) {
+            None ->
+              list.map(src_attrs, fn(src_attr) {
                 let img = V(src_attr.blame, "img", [src_attr], [])
                 V(src_attr.blame, "CarouselItem", [], [img])
-              }
-            )
+              })
 
-            Some(item_style_attr) -> list.map(
-              src_attrs,
-              fn(src_attr) {
-                let img = V(src_attr.blame, "img", [item_style_attr, src_attr], [])
+            Some(item_style_attr) ->
+              list.map(src_attrs, fn(src_attr) {
+                let img =
+                  V(src_attr.blame, "img", [item_style_attr, src_attr], [])
                 V(src_attr.blame, "CarouselItem", [], [img])
-              }
-            )
+              })
           }
 
           V(
@@ -94,7 +116,7 @@ fn nodemap(
             True ->
               Error(DesugaringError(
                 blame,
-                "Carousel cannot have src attr and children at the same time"
+                "Carousel cannot have src attr and children at the same time",
               ))
             False -> Ok(vxml)
           }
@@ -110,74 +132,22 @@ fn nodemap_factory() -> n2t.OneToOneNodemap {
   nodemap
 }
 
-fn transform_factory() -> DesugarerTransform {
+fn inner_param_to_transform() -> DesugarerTransform {
   nodemap_factory()
   |> n2t.one_to_one_nodemap_2_desugarer_transform()
 }
 
-fn param_to_inner_param(_param: Param) -> Result(InnerParam, DesugaringError) {
-  Ok(Nil)
-}
-
-pub const name = "ti2_expand_carousels"
-fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
-
-type Param = Nil
-type InnerParam = Nil
-
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-// 🏖️🏖️ Desugarer 🏖️🏖️
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-//------------------------------------------------53
-/// Expands compressed Carousel syntax to full form.
-///
-/// Transforms:
-/// ```
-/// |> Carousel
-///     src=blabla
-///     src=bloblo
-///     width=200px
-///     height=150px
-/// ```
-///
-/// To:
-/// ```
-/// |> Carousel
-///     |> CarouselItem
-///         |> img
-///             src=blabla
-///             width=200px
-///             height=150px
-///     |> CarouselItem
-///         |> img
-///             src=bloblo
-///             width=200px
-///             height=150px
-/// ```
-///
-/// Validates that compressed Carousel has:
-/// - No children
-/// - Only src, width, and height attrs
-/// - At least one src attr
-pub fn constructor() -> Desugarer {
-  Desugarer(
-    name: name,
-    stringified_param: None,
-    stringified_outside: None,
-    transform: case param_to_inner_param(Nil) {
-      Error(e) -> fn(_) { Error(e) }
-      Ok(_) -> transform_factory()
-    }
-  )
+fn desugarer_blame(line_no: Int) {
+  bl.Des([], name, line_no)
 }
 
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
-// 🌊🌊🌊 tests 🌊🌊🌊🌊🌊
+// 🌊🌊🌊 tests 🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
 fn assertive_tests_data() -> List(core.AssertiveTestDataNoParam) {
   [
     core.AssertiveTestDataNoParam(
-      source:   "
+      source: "
                           <> Carousel
                             src=image1.jpg
                             src=image2.jpg
@@ -197,7 +167,7 @@ fn assertive_tests_data() -> List(core.AssertiveTestDataNoParam) {
                 ",
     ),
     core.AssertiveTestDataNoParam(
-      source:   "
+      source: "
                           <> Carousel
                             src=image1.jpg
                             src=image2.jpg
@@ -217,7 +187,7 @@ fn assertive_tests_data() -> List(core.AssertiveTestDataNoParam) {
                 ",
     ),
     core.AssertiveTestDataNoParam(
-      source:   "
+      source: "
                           <> Carousel
                             src=only.jpg
                             width=100px
@@ -231,7 +201,7 @@ fn assertive_tests_data() -> List(core.AssertiveTestDataNoParam) {
                 ",
     ),
     core.AssertiveTestDataNoParam(
-      source:   "
+      source: "
                           <> root
                             <> Carousel
                               src=single.jpg
@@ -251,7 +221,7 @@ fn assertive_tests_data() -> List(core.AssertiveTestDataNoParam) {
                 ",
     ),
     core.AssertiveTestDataNoParam(
-      source:   "
+      source: "
                           <> root
                             <> div
                               <>
@@ -267,7 +237,6 @@ fn assertive_tests_data() -> List(core.AssertiveTestDataNoParam) {
   ]
 }
 
-
 // Note: Error testing support is not available,
 // so we only include assertive tests for valid cases.
 // Invalid cases that would result in DesugaringError at runtime:
@@ -276,5 +245,9 @@ fn assertive_tests_data() -> List(core.AssertiveTestDataNoParam) {
 // - src attrs with children: "Carousel cannot have src attr and children at the same time."
 
 pub fn assertive_tests() {
-  core.assertive_test_collection_from_data_no_param(name, assertive_tests_data(), constructor)
+  core.assertive_test_collection_from_data_no_param(
+    name,
+    assertive_tests_data(),
+    constructor,
+  )
 }

@@ -1,24 +1,36 @@
-import gleam/list
-import gleam/option.{None}
-import gleam/string
-import desugaring/core.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as core
+import desugaring/authoring
+import desugaring/core.{type Desugarer, type DesugarerTransform}
 import desugaring/nodemaps_2_transform as n2t
+import gleam/list
+import gleam/string
+import on
 import vxml.{type Line, type VXML, Attr, Line, T, V}
 import vxml/blame as bl
-import on
 
-const t_1_empty_line = T(
-  bl.Des([], name, 11),
-  [Line(bl.Des([], name, 12), "")]
-)
+pub const name = "ti2_parse_orange_comments_pre"
 
-const orange =
-  V(
-    bl.Des([], name, 17), // "functions can only be called within other functions..."
-    "span",
-    [Attr(bl.Des([], name, 19), "class", "actual-orange-comment")],
-    [],
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
+// 🏖️🏖️ Desugarer 🏖️🏖️
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️️️️️🏖️
+
+/// Highlights comment text following `//` in code blocks
+/// configured with the `orange-comment` language.
+pub fn constructor() -> Desugarer {
+  authoring.no_param_desugarer(
+    name: name,
+    transform: inner_param_to_transform(),
   )
+}
+
+const t_1_empty_line = T(bl.Des([], name, 25), [Line(bl.Des([], name, 25), "")])
+
+const orange = V(
+  bl.Des([], name, 28),
+  // "functions can only be called within other functions..."
+  "span",
+  [Attr(bl.Des([], name, 31), "class", "actual-orange-comment")],
+  [],
+)
 
 fn line_2_t(line: Line) -> VXML {
   T(line.blame, [line])
@@ -30,24 +42,21 @@ fn elements_for_line(line: Line) -> List(VXML) {
     Ok(#(before, after)) -> {
       let after_blame = bl.advance(line.blame, string.length(before) + 2)
       let before = line_2_t(Line(line.blame, before))
-      let orange = orange |> core.v_prepend_child(line_2_t(Line(after_blame, after)))
+      let orange =
+        orange |> core.v_prepend_child(line_2_t(Line(after_blame, after)))
       [before, orange, t_1_empty_line]
     }
   }
 }
 
-fn process_orange_comment_lines(
-  lines: List(Line),
-) -> List(VXML) {
+fn process_orange_comment_lines(lines: List(Line)) -> List(VXML) {
   lines
-  |> list.fold([], fn(acc, line) { core.pour(elements_for_line(line), acc)})
+  |> list.fold([], fn(acc, line) { core.pour(elements_for_line(line), acc) })
   |> list.reverse
   |> core.plain_concatenation_in_list
 }
 
-fn nodemap(
-  vxml: VXML,
-) -> VXML {
+fn nodemap(vxml: VXML) -> VXML {
   case vxml {
     V(blame, "pre", attrs, [T(_, lines)]) -> {
       use language <- on.eager_none_some(
@@ -63,8 +72,11 @@ fn nodemap(
             blame,
             "pre",
             attrs
-            |> core.attrs_delete("language")
-            |> core.attrs_append_classes(desugarer_blame(67), "orange-comments"),
+              |> core.attrs_delete("language")
+              |> core.attrs_append_classes(
+                desugarer_blame(77),
+                "orange-comments",
+              ),
             children,
           )
         }
@@ -75,46 +87,21 @@ fn nodemap(
   }
 }
 
-fn nodemap_factory(_: InnerParam) -> n2t.OneToOneNoErrorNodemap {
+fn nodemap_factory() -> n2t.OneToOneNoErrorNodemap {
   nodemap
 }
 
-fn transform_factory(inner: InnerParam) -> DesugarerTransform {
-  nodemap_factory(inner)
+fn inner_param_to_transform() -> DesugarerTransform {
+  nodemap_factory()
   |> n2t.one_to_one_no_error_nodemap_2_desugarer_transform
 }
 
-fn param_to_inner_param(_param: Param) -> Result(InnerParam, DesugaringError) {
-  Ok(Nil)
-}
-
-pub const name = "ti2_parse_orange_comments_pre"
-fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
-
-type Param = Nil
-type InnerParam = Nil
-
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-// 🏖️🏖️ Desugarer 🏖️🏖️
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-//------------------------------------------------53
-/// processes CodeBlock elements with language=orange-comment
-/// and converts them to pre elements with orange
-/// comment highlighting for text after // markers
-pub fn constructor() -> Desugarer {
-  Desugarer(
-    name,
-    None,
-    None,
-    case param_to_inner_param(Nil) {
-      Error(e) -> fn(_) { Error(e) }
-      Ok(inner) -> transform_factory(inner)
-    },
-  )
+fn desugarer_blame(line_no: Int) {
+  bl.Des([], name, line_no)
 }
 
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
-// 🌊🌊🌊 tests 🌊🌊🌊🌊🌊
+// 🌊🌊🌊 tests 🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
 fn assertive_tests_data() -> List(core.AssertiveTestDataNoParam) {
   [
@@ -150,11 +137,15 @@ fn assertive_tests_data() -> List(core.AssertiveTestDataNoParam) {
                   <>
                     ''
                     '    return temp'
-                "
+                ",
     ),
   ]
 }
 
 pub fn assertive_tests() {
-  core.assertive_test_collection_from_data_no_param(name, assertive_tests_data(), constructor)
+  core.assertive_test_collection_from_data_no_param(
+    name,
+    assertive_tests_data(),
+    constructor,
+  )
 }

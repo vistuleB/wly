@@ -1,19 +1,75 @@
-import gleam/list
-import gleam/option
-import gleam/string.{inspect as ins}
+import desugaring/authoring
 import desugaring/core.{
-  type Desugarer,
-  type DesugarerTransform,
-  type DesugaringError,
-  type TrafficLight,
-  DesugaringError,
-  Desugarer,
-  Continue,
-  GoBack,
-} as core
+  type Desugarer, type DesugarerTransform, type DesugaringError,
+  type TrafficLight, Continue, DesugaringError, GoBack,
+}
 import desugaring/nodemaps_2_transform as n2t
+import gleam/list
 import vxml.{type VXML, V}
 import vxml/blame as bl
+
+pub const name = "wrap_children_avoiding"
+
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
+// 🏖️🏖️ Desugarer 🏖️🏖️
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
+/// Wraps runs of children except elements bearing the
+/// avoided or wrapper tag.
+pub fn constructor(param: Param) -> Desugarer {
+  authoring.desugarer(
+    name: name,
+    param: param,
+    prepare: param_to_inner_param,
+    transform: inner_param_to_transform,
+  )
+}
+
+type Param =
+  #(
+    // Parent tag.
+    String,
+    // Wrapper tag.
+    String,
+    // Tag whose elements split the wrapped runs.
+    String,
+    // Traversal behavior after wrapping.
+    TrafficLight,
+  )
+
+type InnerParam {
+  InnerParam(
+    parent: String,
+    wrapper: String,
+    avoiding: String,
+    traffic_light: TrafficLight,
+  )
+}
+
+fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
+  let #(parent, wrapper, avoiding, traffic_light) = param
+  case core.valid_tag(wrapper) {
+    True -> Ok(InnerParam(parent, wrapper, avoiding, traffic_light))
+    False -> Error(DesugaringError(bl.no_blame, "invalid tag for wrapper"))
+  }
+}
+
+fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
+  let nodemap: n2t.EarlyReturnOneToOneNoErrorNodemap = fn(vxml) {
+    nodemap(vxml, inner)
+  }
+  nodemap
+  |> n2t.early_return_one_to_one_no_error_nodemap_2_desugarer_transform
+}
+
+fn nodemap(vxml: VXML, inner: InnerParam) -> #(VXML, TrafficLight) {
+  case vxml {
+    V(_, tag, _, children) if tag == inner.parent -> {
+      let children = wrap_in_list([], [], children, inner)
+      #(V(..vxml, children: children), inner.traffic_light)
+    }
+    _ -> #(vxml, Continue)
+  }
+}
 
 fn wrap_in_list(
   already_wrapped: List(VXML),
@@ -22,80 +78,48 @@ fn wrap_in_list(
   inner: InnerParam,
 ) -> List(VXML) {
   case upcoming {
-    [] -> case currently_being_wrapped {
-      [] -> already_wrapped |> list.reverse
-      _ -> {
-        let wrap = V(desugarer_blame(28), inner.1, [], currently_being_wrapped |> list.reverse)
-        [wrap, ..already_wrapped] |> list.reverse
+    [] ->
+      case currently_being_wrapped {
+        [] -> list.reverse(already_wrapped)
+        _ -> {
+          let wrapper =
+            V(
+              desugarer_blame(87),
+              inner.wrapper,
+              [],
+              list.reverse(currently_being_wrapped),
+            )
+          list.reverse([wrapper, ..already_wrapped])
+        }
       }
-    }
-    [V(_, tag, _, _) as first, ..rest] if tag == inner.2 || tag == inner.1 -> case currently_being_wrapped {
-      [] -> wrap_in_list([first, ..already_wrapped], [], rest, inner)
-      _ -> {
-        let wrap = V(desugarer_blame(35), inner.1, [], currently_being_wrapped |> list.reverse)
-        wrap_in_list([first, wrap, ..already_wrapped ], [], rest, inner)
+    [V(_, tag, _, _) as first, ..rest]
+      if tag == inner.avoiding || tag == inner.wrapper
+    ->
+      case currently_being_wrapped {
+        [] -> wrap_in_list([first, ..already_wrapped], [], rest, inner)
+        _ -> {
+          let wrapper =
+            V(
+              desugarer_blame(103),
+              inner.wrapper,
+              [],
+              list.reverse(currently_being_wrapped),
+            )
+          wrap_in_list([first, wrapper, ..already_wrapped], [], rest, inner)
+        }
       }
-    }
-    [first, ..rest] -> wrap_in_list(already_wrapped, [first, ..currently_being_wrapped], rest, inner)
+    [first, ..rest] ->
+      wrap_in_list(
+        already_wrapped,
+        [first, ..currently_being_wrapped],
+        rest,
+        inner,
+      )
   }
 }
 
-fn nodemap(
-  node: VXML,
-  inner: InnerParam,
-) -> #(VXML, TrafficLight) {
-  case node {
-    V(_, tag, _, children) if tag == inner.0 -> {
-      let children = wrap_in_list([], [], children, inner)
-      #(V(..node, children: children), inner.3)
-    }
-    _ -> #(node, Continue)
-  }
-}
-
-fn nodemap_factory(inner: InnerParam) -> n2t.EarlyReturnOneToOneNoErrorNodemap {
-  nodemap(_, inner)
-}
-
-fn transform_factory(inner: InnerParam) -> DesugarerTransform {
-  nodemap_factory(inner)
-  |> n2t.early_return_one_to_one_no_error_nodemap_2_desugarer_transform()
-}
-
-fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
-  case core.valid_tag(param.1) {
-    True -> Ok(param)
-    False -> Error(DesugaringError(bl.no_blame, "invalid tag for wrapper"))
-  }
-}
-
-type Param = #(String,  String,   String,    TrafficLight)
-//             ↖        ↖         ↖
-//             parent   wrapper   avoiding
-//             tag      tag       tag
-type InnerParam = Param
-
-pub const name = "wrap_children_avoiding"
-fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
-
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-// 🏖️🏖️ Desugarer 🏖️🏖️
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-//------------------------------------------------53
-/// For a specified parent tag, wraps consecutive
-/// children that do not have the 'to avoid' tag
-/// in a given wrapper tag; automatically avoids the
-/// wrapper tag itself as well.
-pub fn constructor(param: Param) -> Desugarer {
-  Desugarer(
-    name: name,
-    stringified_param: option.Some(ins(param)),
-    stringified_outside: option.None,
-    transform: case param_to_inner_param(param) {
-      Error(error) -> fn(_) { Error(error) }
-      Ok(inner) -> transform_factory(inner)
-    },
-  )
+fn desugarer_blame(line_no: Int) {
+  bl.Des([], name, line_no)
 }
 
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
@@ -105,7 +129,7 @@ fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
   [
     core.AssertiveTestData(
       param: #("parent", "wrapper", "avoid_me", GoBack),
-      source:   "
+      source: "
                 <> root
                   <> parent
                     <> p
@@ -128,7 +152,7 @@ fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
     ),
     core.AssertiveTestData(
       param: #("parent", "wrapper", "avoid_me", GoBack),
-      source:   "
+      source: "
                 <> root
                   <> parent
                     <> wrapper
@@ -155,7 +179,7 @@ fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
     ),
     core.AssertiveTestData(
       param: #("parent", "wrapper", "avoid_me", GoBack),
-      source:   "
+      source: "
                 <> root
                   <> parent
                     <> avoid_me
@@ -179,5 +203,9 @@ fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
 }
 
 pub fn assertive_tests() {
-  core.assertive_test_collection_from_data(name, assertive_tests_data(), constructor)
+  core.assertive_test_collection_from_data(
+    name,
+    assertive_tests_data(),
+    constructor,
+  )
 }

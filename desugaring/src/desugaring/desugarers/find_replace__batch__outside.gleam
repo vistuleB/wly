@@ -1,54 +1,68 @@
-import gleam/option
-import gleam/string.{inspect as ins}
-import desugaring/core.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as core
+import desugaring/authoring
+import desugaring/core.{
+  type Desugarer, type DesugarerTransform, type DesugaringError,
+}
 import desugaring/nodemaps_2_transform as n2t
 
-fn nodemap_factory(inner: InnerParam) -> n2t.OneToOneNoErrorNodemap {
-  core.find_replace_if_t__batch(_, inner)
+pub const name = "find_replace__batch__outside"
+
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
+// 🏖️🏖️ Desugarer 🏖️🏖️
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️️️️️🏖️
+
+/// Applies each literal replacement to text nodes outside
+/// the forbidden subtrees.
+pub fn constructor(param: Param, outside: List(String)) -> Desugarer {
+  authoring.desugarer_with_outside(
+    name: name,
+    param: param,
+    outside: outside,
+    prepare: param_to_inner_param,
+    transform: inner_param_to_transform,
+  )
 }
 
-fn transform_factory(inner: InnerParam, outside: List(String)) -> DesugarerTransform {
-  nodemap_factory(inner)
-  |> n2t.one_to_one_no_error_nodemap_2_desugarer_transform_with_forbidden(outside)
-}
+type Param =
+  List(
+    #(
+      // Text to replace.
+      String,
+      // Replacement text.
+      String,
+    ),
+  )
+
+type InnerParam =
+  Param
 
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
   Ok(param)
 }
 
-type Param = List(#(String, String))
-//           ↖
-//           from/to pairs
-type InnerParam = Param
-
-pub const name = "find_replace__batch__outside"
-
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-// 🏖️🏖️ Desugarer 🏖️🏖️
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-//------------------------------------------------53
-/// find and replace strings with other strings
-pub fn constructor(param: Param, outside: List(String)) -> Desugarer {
-  Desugarer(
-    name: name,
-    stringified_param: option.Some(ins(param)),
-    stringified_outside: option.None,
-    transform: case param_to_inner_param(param) {
-      Error(error) -> fn(_) { Error(error) }
-      Ok(inner) -> transform_factory(inner, outside)
-    },
+fn inner_param_to_transform(
+  inner: InnerParam,
+  outside: List(String),
+) -> DesugarerTransform {
+  let nodemap: n2t.OneToOneNoErrorNodemap = core.find_replace_if_t__batch(
+    _,
+    inner,
+  )
+  nodemap
+  |> n2t.one_to_one_no_error_nodemap_2_desugarer_transform_with_forbidden(
+    outside,
   )
 }
 
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
-// 🌊🌊🌊 tests 🌊🌊🌊🌊🌊
+// 🌊🌊🌊 tests 🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
+
 fn assertive_tests_data() -> List(core.AssertiveTestDataWithOutside(Param)) {
   [
     core.AssertiveTestDataWithOutside(
       param: [#("from", "to")],
       outside: ["keep_out"],
-      source:   "
+      source: "
                 <> root
                   <> A
                     <> B
@@ -82,10 +96,14 @@ fn assertive_tests_data() -> List(core.AssertiveTestDataWithOutside(Param)) {
                           'from a thing'
                           'to a thing'
                 ",
-    )
+    ),
   ]
 }
 
 pub fn assertive_tests() {
-  core.assertive_test_collection_from_data_with_outside(name, assertive_tests_data(), constructor)
+  core.assertive_test_collection_from_data_with_outside(
+    name,
+    assertive_tests_data(),
+    constructor,
+  )
 }

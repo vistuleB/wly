@@ -1,73 +1,107 @@
-import gleam/list
-import gleam/option
-import gleam/string.{inspect as ins}
-import desugaring/core.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as core
+import desugaring/authoring
+import desugaring/core.{
+  type Desugarer, type DesugarerTransform, type DesugaringError,
+}
 import desugaring/nodemaps_2_transform as n2t
+import gleam/list
 import vxml.{type VXML, T, V}
-
-fn is_text(child: VXML) {
-  case child {
-    T(_, _) -> True
-    _ -> False
-  }
-}
-
-fn nodemap(
-  node: VXML,
-  inner: InnerParam,
-) -> List(VXML) {
-  case node {
-    V(_, tag, _, children) -> {
-      case list.contains(inner, tag), list.any(children, is_text) {
-        True, False -> children
-        _, _ -> [node]
-      }
-    }
-    _ -> [node]
-  }
-}
-
-fn nodemap_factory(inner: InnerParam) -> n2t.OneToManyNoErrorNodemap {
-  nodemap(_, inner)
-}
-
-fn transform_factory(inner: InnerParam) -> DesugarerTransform {
-  n2t.one_to_many_no_error_nodemap_2_desugarer_transform(nodemap_factory(inner))
-}
-
-fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
-  Ok(param)
-}
-
-type Param = List(String)
-type InnerParam = Param
 
 pub const name = "unwrap_tags_with_no_text_child"
 
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 // 🏖️🏖️ Desugarer 🏖️🏖️
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-//------------------------------------------------53
-/// unwraps tags that contain no text children
+/// Unwraps configured elements that have no direct text
+/// children.
 pub fn constructor(param: Param) -> Desugarer {
-  Desugarer(
+  authoring.desugarer(
     name: name,
-    stringified_param: option.Some(ins(param)),
-    stringified_outside: option.None,
-    transform: case param_to_inner_param(param) {
-      Error(error) -> fn(_) { Error(error) }
-      Ok(inner) -> transform_factory(inner)
-    },
+    param: param,
+    prepare: param_to_inner_param,
+    transform: inner_param_to_transform,
   )
+}
+
+type Param =
+  // Tags to unwrap.
+  List(String)
+
+type InnerParam =
+  Param
+
+fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
+  Ok(param)
+}
+
+fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
+  let nodemap: n2t.OneToManyNoErrorNodemap = fn(vxml) { nodemap(vxml, inner) }
+  n2t.one_to_many_no_error_nodemap_2_desugarer_transform(nodemap)
+}
+
+fn nodemap(vxml: VXML, inner: InnerParam) -> List(VXML) {
+  case vxml {
+    V(_, tag, _, children) -> {
+      case list.contains(inner, tag), list.any(children, is_text) {
+        True, False -> children
+        _, _ -> [vxml]
+      }
+    }
+    _ -> [vxml]
+  }
+}
+
+fn is_text(vxml: VXML) {
+  case vxml {
+    T(..) -> True
+    _ -> False
+  }
 }
 
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
 // 🌊🌊🌊 tests 🌊🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
 fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
-  []
+  [
+    core.AssertiveTestData(
+      param: ["Wrapper"],
+      source: "
+                <> root
+                  <> Wrapper
+                    <> Child
+                      <>
+                        'nested text'
+                ",
+      expected: "
+                <> root
+                  <> Child
+                    <>
+                      'nested text'
+                ",
+    ),
+    core.AssertiveTestData(
+      param: ["Wrapper"],
+      source: "
+                <> root
+                  <> Wrapper
+                    <>
+                      'direct text'
+                    <> Child
+                ",
+      expected: "
+                <> root
+                  <> Wrapper
+                    <>
+                      'direct text'
+                    <> Child
+                ",
+    ),
+  ]
 }
 
 pub fn assertive_tests() {
-  core.assertive_test_collection_from_data(name, assertive_tests_data(), constructor)
+  core.assertive_test_collection_from_data(
+    name,
+    assertive_tests_data(),
+    constructor,
+  )
 }

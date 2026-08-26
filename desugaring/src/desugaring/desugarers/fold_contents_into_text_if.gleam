@@ -1,16 +1,23 @@
+import desugaring/authoring
+import desugaring/core.{
+  type Desugarer, type DesugarerTransform, type DesugaringError, DesugaringError,
+}
+import desugaring/nodemaps_2_transform as n2t
 import gleam/list
 import gleam/option.{type Option}
 import gleam/string.{inspect as ins}
-import desugaring/core.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError, DesugaringError} as core
-import desugaring/nodemaps_2_transform as n2t
-import vxml.{type VXML, T, V}
 import on
+import vxml.{type VXML, T, V}
 
 fn get_single_t_child(node: VXML) -> Result(VXML, DesugaringError) {
   let assert V(blame, _, _, children) = node
   case children {
     [T(_, _) as child] -> Ok(child)
-    _ -> Error(DesugaringError(blame, "found '" <> node.tag <> "' with bad children: " <> ins(children)))
+    _ ->
+      Error(DesugaringError(
+        blame,
+        "found '" <> node.tag <> "' with bad children: " <> ins(children),
+      ))
   }
 }
 
@@ -82,14 +89,13 @@ fn accumulator(
               // we bundle the t & v, add to already_processed, reverse the list
               // *
               use text_node <- on.ok(get_single_t_child(last_v))
-              Ok([
-                core.t_t_last_to_first_concatenation(
-                  last_t,
-                  text_node,
-                ),
-                ..already_processed
-              ]
-              |> list.reverse)
+              Ok(
+                [
+                  core.t_t_last_to_first_concatenation(last_t, text_node),
+                  ..already_processed
+                ]
+                |> list.reverse,
+              )
             }
           }
       }
@@ -164,10 +170,7 @@ fn accumulator(
                 already_processed,
                 option.Some(core.t_t_last_to_first_concatenation(
                   last_t,
-                  core.t_t_last_to_first_concatenation(
-                    text_node,
-                    first,
-                  ),
+                  core.t_t_last_to_first_concatenation(text_node, first),
                 )),
                 option.None,
                 rest,
@@ -181,7 +184,7 @@ fn accumulator(
         option.None -> {
           case optional_last_v {
             option.None ->
-              case tag == inner.0 && inner.1(first)  {
+              case tag == inner.0 && inner.1(first) {
                 False ->
                   // *
                   // case W00: - 'first' is non-matching V-node
@@ -302,10 +305,7 @@ fn accumulator(
                     inner,
                     [
                       first,
-                      core.t_t_last_to_first_concatenation(
-                        last_t,
-                        text_node,
-                      ),
+                      core.t_t_last_to_first_concatenation(last_t, text_node),
                       ..already_processed
                     ],
                     option.None,
@@ -339,70 +339,66 @@ fn accumulator(
   }
 }
 
-fn nodemap(
-  node: VXML,
-  inner: InnerParam,
-) -> Result(VXML, DesugaringError) {
+fn nodemap(node: VXML, inner: InnerParam) -> Result(VXML, DesugaringError) {
   case node {
     V(_, _, _, children) -> {
-      use children <- on.ok(accumulator(inner, [], option.None, option.None, children))
+      use children <- on.ok(accumulator(
+        inner,
+        [],
+        option.None,
+        option.None,
+        children,
+      ))
       Ok(V(..node, children: children))
     }
     _ -> Ok(node)
   }
 }
 
-fn nodemap_factory(inner: InnerParam) -> n2t.OneToOneNodemap {
-  nodemap(_, inner)
-}
-
-fn transform_factory(inner: InnerParam) -> DesugarerTransform {
-  n2t.one_to_one_nodemap_2_desugarer_transform(nodemap_factory(inner))
+fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
+  let nodemap: n2t.OneToOneNodemap = nodemap(_, inner)
+  n2t.one_to_one_nodemap_2_desugarer_transform(nodemap)
 }
 
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
   Ok(param)
 }
 
-type Param = #(String, fn(VXML) -> Bool)
-type InnerParam = Param
+type Param =
+  #(String, fn(VXML) -> Bool)
+
+type InnerParam =
+  Param
 
 pub const name = "fold_contents_into_text_if"
 
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 // 🏖️🏖️ Desugarer 🏖️🏖️
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-//------------------------------------------------53
-/// Replaces a specified tag (except if it occurs
-/// at the root) by its contents assuming that the
-/// tag contains exactly one child consisting of
-/// text.
-///
-/// The text content gets folded into surrounding text
-/// nodes (in end-of-last-line to beginning-of-first-line
-/// fashion).
-///
-/// Throws an error if any instance of the tag fails
-/// to have exactly one text child.
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️️️️️🏖️
+
+/// Replaces matching elements satisfying the predicate with
+/// their sole text child, joining adjacent text nodes.
 pub fn constructor(param: Param) -> Desugarer {
-  Desugarer(
+  authoring.desugarer(
     name: name,
-    stringified_param: option.Some(ins(param)),
-    stringified_outside: option.None,
-    transform: case param_to_inner_param(param) {
-      Error(error) -> fn(_) { Error(error) }
-      Ok(inner) -> transform_factory(inner)
-    },
+    param: param,
+    prepare: param_to_inner_param,
+    transform: inner_param_to_transform,
   )
 }
 
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
-// 🌊🌊🌊 tests 🌊🌊🌊🌊🌊
+// 🌊🌊🌊 tests 🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
+
 fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
   []
 }
 
 pub fn assertive_tests() {
-  core.assertive_test_collection_from_data(name, assertive_tests_data(), constructor)
+  core.assertive_test_collection_from_data(
+    name,
+    assertive_tests_data(),
+    constructor,
+  )
 }

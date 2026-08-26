@@ -1,116 +1,110 @@
-import gleam/option
-import gleam/string.{inspect as ins}
-import desugaring/core.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError, type TrafficLight, Continue, GoBack} as core
+import desugaring/authoring
+import desugaring/core.{
+  type Desugarer, type DesugarerTransform, type DesugaringError,
+  type TrafficLight, Continue, GoBack,
+}
 import desugaring/nodemaps_2_transform as n2t
-import vxml.{type VXML, V, T, Line}
-import vxml/blame as bl
+import gleam/string
 import on
-
-fn nodemap(
-  node: VXML,
-  inner: InnerParam,
-) -> #(VXML, TrafficLight) {
-  case node {
-    V(_, tag, _, _) if tag == inner.0 -> {
-      // return early if we have a child of tag child_tag == inner.1:
-      use <- on.nonempty_empty(
-        core.v_children_with_tag(node, inner.1),
-        fn(_, _) { #(node, GoBack) },
-      )
-
-      // return early if we don't have a attr_key == inner.2:
-      use attr, _ <- on.empty_nonempty(
-        core.v_attrs_with_key(node, inner.2),
-        fn() { #(node, GoBack) },
-      )
-
-      let b = bl.advance(attr.blame, inner.3)
-
-      #(
-        V(
-          ..node,
-          children: [
-            V(
-              desugarer_blame(34),
-              inner.1,
-              [],
-              [T(b, [Line(b, attr.val)])],
-            ),
-            ..node.children,
-          ]
-        ),
-        GoBack,
-      )
-    }
-    _ -> #(node, Continue)
-  }
-}
-
-fn nodemap_factory(inner: InnerParam) -> n2t.EarlyReturnOneToOneNoErrorNodemap {
-  nodemap(_, inner)
-}
-
-fn transform_factory(inner: InnerParam, outside: List(String)) -> DesugarerTransform {
-  nodemap_factory(inner)
-  |> n2t.early_return_one_to_one_no_error_nodemap_2_desugarer_transform_with_forbidden(outside)
-}
-
-fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
-  Ok(#(
-    param.0,
-    param.1,
-    param.2,
-    string.length(param.2) + 1,
-  ))
-}
-
-type Param = #(String, String, String)
-//             ↖       ↖       ↖
-//             parent  child   attr
-//             tag     tag
-type InnerParam = #(String, String, String, Int)
+import vxml.{type VXML, Line, T, V}
+import vxml/blame as bl
 
 pub const name = "auto_generate_child_if_missing_from_attribute__outside"
-fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
 
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 // 🏖️🏖️ Desugarer 🏖️🏖️
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-//------------------------------------------------53
-/// Given first 3 arguments
-/// ```
-/// parent_tag, child_tag, attr_key
-/// ```
-/// will, for each node of tag `parent_tag`,
-/// generate, if the node has no existing children
-/// tag `child_tag`, by using the value of
-/// attr_key as the contents of the child of
-/// tag child_tag. If no such attr exists, does
-/// nothing to the node of tag parent_tag.
-///
-/// Early-returns from subtree rooted at parent_tag.
-///
-/// Stays outside of trees rooted at tags in last
-/// argument given to function.
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️️️️️🏖️
+
+/// Prepends a child populated from an attribute outside
+/// forbidden subtrees when a matching parent has the
+/// attribute but no child of the requested tag.
 pub fn constructor(param: Param, outside: List(String)) -> Desugarer {
-  Desugarer(
+  authoring.desugarer_with_outside(
     name: name,
-    stringified_param: option.Some(ins(param)),
-    stringified_outside: option.Some(ins(outside)),
-    transform: case param_to_inner_param(param) {
-      Error(error) -> fn(_) { Error(error) }
-      Ok(inner) -> transform_factory(inner, outside)
-    },
+    param: param,
+    outside: outside,
+    prepare: param_to_inner_param,
+    transform: inner_param_to_transform,
   )
 }
 
+type Param =
+  #(
+    // Parent tag.
+    String,
+    // Generated child tag.
+    String,
+    // Source attribute key.
+    String,
+  )
+
+type InnerParam {
+  InnerParam(
+    parent_tag: String,
+    child_tag: String,
+    attr_key: String,
+    content_offset: Int,
+  )
+}
+
+fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
+  Ok(InnerParam(param.0, param.1, param.2, string.length(param.2) + 1))
+}
+
+fn inner_param_to_transform(
+  inner: InnerParam,
+  outside: List(String),
+) -> DesugarerTransform {
+  let nodemap: n2t.EarlyReturnOneToOneNoErrorNodemap = nodemap(_, inner)
+  nodemap
+  |> n2t.early_return_one_to_one_no_error_nodemap_2_desugarer_transform_with_forbidden(
+    outside,
+  )
+}
+
+fn nodemap(vxml: VXML, inner: InnerParam) -> #(VXML, TrafficLight) {
+  case vxml {
+    V(_, tag, _, _) if tag == inner.parent_tag -> {
+      // return early if we have a child of tag child_tag == inner.child_tag:
+      use <- on.nonempty_empty(
+        core.v_children_with_tag(vxml, inner.child_tag),
+        fn(_, _) { #(vxml, GoBack) },
+      )
+
+      // return early if we don't have a attr_key == inner.attr_key:
+      use attr, _ <- on.empty_nonempty(
+        core.v_attrs_with_key(vxml, inner.attr_key),
+        fn() { #(vxml, GoBack) },
+      )
+
+      let b = bl.advance(attr.blame, inner.content_offset)
+
+      #(
+        V(..vxml, children: [
+          V(authoring.blame(name, 84), inner.child_tag, [], [
+            T(b, [Line(b, attr.val)]),
+          ]),
+          ..vxml.children
+        ]),
+        GoBack,
+      )
+    }
+    _ -> #(vxml, Continue)
+  }
+}
+
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
-// 🌊🌊🌊 tests 🌊🌊🌊🌊🌊
+// 🌊🌊🌊 tests 🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
+
 fn assertive_tests_data() -> List(core.AssertiveTestDataWithOutside(Param)) {
   []
 }
 
 pub fn assertive_tests() {
-  core.assertive_test_collection_from_data_with_outside(name, assertive_tests_data(), constructor)
+  core.assertive_test_collection_from_data_with_outside(
+    name,
+    assertive_tests_data(),
+    constructor,
+  )
 }

@@ -1,38 +1,58 @@
-import gleam/list
-import gleam/option
-import gleam/string.{inspect as ins}
-import desugaring/core.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as core
+import desugaring/authoring
+import desugaring/core.{
+  type Desugarer, type DesugarerTransform, type DesugaringError,
+}
 import desugaring/nodemaps_2_transform as n2t
+import gleam/list
 import vxml.{type VXML, Attr, V}
-import vxml/blame as bl
 
-fn child_mapper(
-  vxml: VXML,
-  inner: InnerParam
-) -> VXML {
-  case vxml {
-    V(_, child_tag, attrs, _) if child_tag == inner.0 -> {
-      let old_keys = core.keys(attrs)
-      let attrs =
-        case list.contains(old_keys, inner.2) {
-          True -> attrs
-          False -> list.append(
-            attrs,
-            [Attr(desugarer_blame(21), inner.2, inner.3)],
-          )
-        }
-      V(..vxml, attrs: attrs)
-    }
-    _ -> vxml
-  }
+pub const name = "append_attribute_if_child_of"
+
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
+// 🏖️🏖️ Desugarer 🏖️🏖️
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️️️️️🏖️
+
+/// Appends an attribute to matching children of a specified
+/// parent without replacing an existing attribute of the
+/// same key.
+pub fn constructor(param: Param) -> Desugarer {
+  authoring.desugarer(
+    name: name,
+    param: param,
+    prepare: param_to_inner_param,
+    transform: inner_param_to_transform,
+  )
 }
 
-fn nodemap(
-  vxml: VXML,
-  inner: InnerParam,
-) -> VXML {
+type Param =
+  #(
+    // Child tag.
+    String,
+    // Parent tag.
+    String,
+    // Attribute key.
+    String,
+    // Attribute value.
+    String,
+  )
+
+type InnerParam {
+  InnerParam(child_tag: String, parent_tag: String, key: String, value: String)
+}
+
+fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
+  Ok(InnerParam(param.0, param.1, param.2, param.3))
+}
+
+fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
+  let nodemap: n2t.OneToOneNoErrorNodemap = nodemap(_, inner)
+  nodemap
+  |> n2t.one_to_one_no_error_nodemap_2_desugarer_transform()
+}
+
+fn nodemap(vxml: VXML, inner: InnerParam) -> VXML {
   case vxml {
-    V(_, parent_tag, _, children) if parent_tag == inner.1 -> {
+    V(_, parent_tag, _, children) if parent_tag == inner.parent_tag -> {
       let children = list.map(children, child_mapper(_, inner))
       V(..vxml, children: children)
     }
@@ -40,55 +60,32 @@ fn nodemap(
   }
 }
 
-fn nodemap_factory(inner: InnerParam) -> n2t.OneToOneNoErrorNodemap {
-  nodemap(_, inner)
-}
-
-fn transform_factory(inner: InnerParam) -> DesugarerTransform {
-  nodemap_factory(inner)
-  |> n2t.one_to_one_no_error_nodemap_2_desugarer_transform()
-}
-
-fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
-  Ok(param)
-}
-
-type Param = #(String, String, String, String)
-//             ↖       ↖       ↖       ↖
-//             tag     parent  key     value
-type InnerParam = Param
-
-pub const name = "append_attribute_if_child_of"
-fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
-
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-// 🏖️🏖️ Desugarer 🏖️🏖️
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-//------------------------------------------------53
-/// adds an attr-pair to a tag when it is the
-/// child of another specified tag; will not
-/// overwrite if attr with that key already
-/// exists
-pub fn constructor(param: Param) -> Desugarer {
-  Desugarer(
-    name: name,
-    stringified_param: option.Some(ins(param)),
-    stringified_outside: option.None,
-    transform: case param_to_inner_param(param) {
-      Error(error) -> fn(_) { Error(error) }
-      Ok(inner) -> transform_factory(inner)
-    },
-  )
+fn child_mapper(vxml: VXML, inner: InnerParam) -> VXML {
+  case vxml {
+    V(_, child_tag, attrs, _) if child_tag == inner.child_tag -> {
+      let old_keys = core.keys(attrs)
+      let attrs = case list.contains(old_keys, inner.key) {
+        True -> attrs
+        False ->
+          list.append(attrs, [
+            Attr(authoring.blame(name, 71), inner.key, inner.value),
+          ])
+      }
+      V(..vxml, attrs: attrs)
+    }
+    _ -> vxml
+  }
 }
 
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
-// 🌊🌊🌊 tests 🌊🌊🌊🌊🌊
+// 🌊🌊🌊 tests 🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
+
 fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
   [
     core.AssertiveTestData(
       param: #("B", "parent", "key1", "val1"),
-      source:   "
+      source: "
                 <> root
                   <> B
                     <> parent
@@ -108,11 +105,15 @@ fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
                   <> parent
                     <> B
                       key1=val2
-                "
-    )
+                ",
+    ),
   ]
 }
 
 pub fn assertive_tests() {
-  core.assertive_test_collection_from_data(name, assertive_tests_data(), constructor)
+  core.assertive_test_collection_from_data(
+    name,
+    assertive_tests_data(),
+    constructor,
+  )
 }

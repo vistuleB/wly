@@ -1,22 +1,60 @@
-import gleam/list
-import gleam/io
-import gleam/option
-import gleam/string.{inspect as ins}
-import desugaring/core.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as core
+import desugaring/authoring
+import desugaring/core.{
+  type Desugarer, type DesugarerTransform, type DesugaringError,
+}
 import desugaring/nodemaps_2_transform as n2t
+import gleam/io
+import gleam/list
+import gleam/string.{inspect as ins}
 import vxml.{type VXML, V}
 
-fn nodemap(
-  vxml: VXML,
-  inner: InnerParam,
-) -> VXML {
+pub const name = "echo_v_if_see_text"
+
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
+// 🏖️🏖️ Desugarer 🏖️🏖️
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️️️️️🏖️
+
+/// Prints matching elements whose direct text children
+/// contain the configured string, without changing them.
+pub fn constructor(param: Param) -> Desugarer {
+  authoring.desugarer(
+    name: name,
+    param: param,
+    prepare: param_to_inner_param,
+    transform: inner_param_to_transform,
+  )
+}
+
+type Param =
+  #(
+    // Parent tag.
+    String,
+    // Text to search for.
+    String,
+  )
+
+type InnerParam {
+  InnerParam(parent: String, text: String)
+}
+
+fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
+  Ok(InnerParam(param.0, param.1))
+}
+
+fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
+  let nodemap: n2t.OneToOneNoErrorNodemap = nodemap(_, inner)
+  n2t.one_to_one_no_error_nodemap_2_desugarer_transform(nodemap)
+}
+
+fn nodemap(vxml: VXML, inner: InnerParam) -> VXML {
   case vxml {
-    V(_, tag, _, children) if tag == inner.0 -> {
-      case list.any(children, core.is_t_and_text_contains(_, inner.1)) {
-        True -> case vxml.vxml_table(vxml, name, 2) {
-          Ok(table) -> io.println(table)
-          Error(error) -> io.println(ins(error))
-        }
+    V(_, tag, _, children) if tag == inner.parent -> {
+      case list.any(children, core.is_t_and_text_contains(_, inner.text)) {
+        True ->
+          case vxml.vxml_table(vxml, name, 2) {
+            Ok(table) -> io.println(table)
+            Error(error) -> io.println(ins(error))
+          }
         False -> Nil
       }
       vxml
@@ -25,51 +63,18 @@ fn nodemap(
   }
 }
 
-fn nodemap_factory(inner: InnerParam) -> n2t.OneToOneNoErrorNodemap {
-  nodemap(_, inner)
-}
-
-fn transform_factory(inner: InnerParam) -> DesugarerTransform {
-  n2t.one_to_one_no_error_nodemap_2_desugarer_transform(nodemap_factory(inner))
-}
-
-fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
-  Ok(param)
-}
-
-type Param = #(String,   String)
-//             ↖         ↖
-//             parent    text to search for
-type InnerParam = Param
-
-pub const name = "echo_v_if_see_text"
-
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-// 🏖️🏖️ Desugarer 🏖️🏖️
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-//------------------------------------------------53
-/// find and replace strings in text nodes that are
-/// descendants of specified ancestor tags
-pub fn constructor(param: Param) -> Desugarer {
-  Desugarer(
-    name: name,
-    stringified_param: option.Some(ins(param)),
-    stringified_outside: option.None,
-    transform: case param_to_inner_param(param) {
-      Error(error) -> fn(_) { Error(error) }
-      Ok(inner) -> transform_factory(inner)
-    },
-  )
-}
-
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
-// 🌊🌊🌊 tests 🌊🌊🌊🌊🌊
+// 🌊🌊🌊 tests 🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
+
 fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
-  [
-  ]
+  []
 }
 
 pub fn assertive_tests() {
-  core.assertive_test_collection_from_data(name, assertive_tests_data(), constructor)
+  core.assertive_test_collection_from_data(
+    name,
+    assertive_tests_data(),
+    constructor,
+  )
 }

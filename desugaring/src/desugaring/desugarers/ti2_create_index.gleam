@@ -1,6 +1,6 @@
+import desugaring/authoring
 import desugaring/core.{
-  type Desugarer, type DesugaringError, type TrafficLight, Continue, Desugarer,
-  GoBack,
+  type Desugarer, type DesugaringError, type TrafficLight, Continue, GoBack,
 }
 import desugaring/nodemaps_2_transform as n2t
 import gleam/list
@@ -9,6 +9,21 @@ import gleam/string.{inspect as ins}
 import on
 import vxml.{type VXML, Attr, Line, T, V}
 import vxml/blame.{type Blame} as bl
+
+pub const name = "ti2_create_index"
+
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
+// 🏖️🏖️ Desugarer 🏖️🏖️
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️️️️️🏖️
+
+/// Generates the ti2 Index element from the document's
+/// chapter and subchapter structure.
+pub fn constructor() -> Desugarer {
+  authoring.no_param_desugarer(
+    name: name,
+    transform: inner_param_to_transform(),
+  )
+}
 
 // 🌸🌸🌸🌸🌸🌸🌸
 // 🌸 header 🌸
@@ -22,7 +37,7 @@ fn get(root: VXML, key: String) -> Option(#(Blame, String)) {
 }
 
 fn header(root: VXML) -> VXML {
-  let b = desugarer_blame(25)
+  let b = desugarer_blame(40)
   let title = get(root, "title") |> option.unwrap(#(b, "no title"))
   let program = get(root, "program") |> option.unwrap(#(b, "no program"))
   let institution =
@@ -155,7 +170,7 @@ fn href(chapter_no: Int, sub_no: Int) -> String {
 }
 
 fn sub_item(ch_no: Int, sub_no: Int, sub: SubInfo) -> VXML {
-  let b = desugarer_blame(158)
+  let b = desugarer_blame(173)
   let SubInfo(title) = sub
   V(b, "li", [], [
     V(
@@ -170,7 +185,7 @@ fn sub_item(ch_no: Int, sub_no: Int, sub: SubInfo) -> VXML {
 }
 
 fn chapter_item(ch_no: Int, chapter: ChapterInfo) -> VXML {
-  let b = desugarer_blame(173)
+  let b = desugarer_blame(188)
   let ChapterInfo(title, subs) = chapter
   let subchapters_ol = case subs {
     [] -> []
@@ -200,7 +215,7 @@ fn chapter_item(ch_no: Int, chapter: ChapterInfo) -> VXML {
 }
 
 fn chapter_ol(chapters: List(ChapterInfo)) -> VXML {
-  let b = desugarer_blame(203)
+  let b = desugarer_blame(218)
   V(
     b,
     "ol",
@@ -222,10 +237,10 @@ fn index(root: VXML) -> Result(VXML, DesugaringError) {
 
   Ok(
     V(
-      desugarer_blame(225),
+      desugarer_blame(240),
       "Index",
       [
-        Attr(desugarer_blame(228), "path", "./index.html"),
+        Attr(desugarer_blame(243), "path", "./index.html"),
       ],
       [
         header(root),
@@ -241,46 +256,17 @@ fn at_root(root: VXML) -> Result(VXML, DesugaringError) {
   Ok(V(..root, children: [index, ..children]))
 }
 
-fn transform_factory(_: InnerParam) -> core.DesugarerTransform {
+fn inner_param_to_transform() -> core.DesugarerTransform {
   at_root
-  |> n2t.at_root_2_desugarer_transform
+  |> n2t.node_to_node_2_desugarer_transform_without_walking
 }
-
-fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
-  Ok(param)
-}
-
-type Param =
-  Nil
-
-type InnerParam =
-  Nil
-
-pub const name = "ti2_create_index"
 
 fn desugarer_blame(line_no: Int) {
   bl.Des([], name, line_no)
 }
 
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-// 🏖️🏖️ Desugarer 🏖️🏖️
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-//------------------------------------------------53
-/// generate ti2 Index element
-pub fn constructor() -> Desugarer {
-  Desugarer(
-    name: name,
-    stringified_param: option.None,
-    stringified_outside: option.None,
-    transform: case param_to_inner_param(Nil) {
-      Error(error) -> fn(_) { Error(error) }
-      Ok(inner) -> transform_factory(inner)
-    },
-  )
-}
-
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
-// 🌊🌊🌊 tests 🌊🌊🌊🌊🌊
+// 🌊🌊🌊 tests 🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
 fn assertive_tests_data() -> List(core.AssertiveTestDataNoParam) {
   []

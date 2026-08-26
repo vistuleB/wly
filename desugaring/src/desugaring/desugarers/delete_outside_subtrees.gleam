@@ -1,14 +1,60 @@
+import desugaring/authoring
 import desugaring/core.{
-  type Desugarer, type DesugarerTransform, type DesugaringError, Desugarer,
+  type Desugarer, type DesugarerTransform, type DesugaringError,
 }
 import desugaring/nodemaps_2_transform as n2t
 import gleam/function
 import gleam/list
 import gleam/option.{type Option, None, Some}
-import gleam/string.{inspect as ins}
 import vxml.{type VXML}
 
-fn v_before(
+pub const name = "delete_outside_subtrees"
+
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
+// 🏖️🏖️ Desugarer 🏖️🏖️
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️️️️️🏖️
+
+/// Retains matching subtrees and the ancestor paths leading
+/// to them.
+pub fn constructor(param: Param) -> Desugarer {
+  authoring.desugarer(
+    name: name,
+    param: param,
+    prepare: param_to_inner_param,
+    transform: inner_param_to_transform,
+  )
+}
+
+type Param =
+  // A node is retained if it or a descendant satisfies this.
+  fn(VXML) -> Bool
+
+type InnerParam =
+  Param
+
+type State =
+  Bool
+
+fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
+  Ok(param)
+}
+
+fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
+  let nodemap: n2t.EarlyReturnOneToOptionEnterExitStatefulWithChildStatesNoErrorNodemap(
+    State,
+  ) =
+    n2t.EarlyReturnOneToOptionEnterExitStatefulWithChildStatesNoErrorNodemap(
+      on_enter: fn(vxml, state) { on_enter(vxml, state, inner) },
+      on_exit: on_exit,
+      on_text: fn(vxml, state) { on_text(vxml, state, inner) },
+    )
+  nodemap
+  |> n2t.early_return_one_to_option_enter_exit_stateful_with_child_states_no_error_nodemap_2_desugarer_transform(
+    False,
+  )
+}
+
+fn on_enter(
   vxml: VXML,
   state: State,
   inner: InnerParam,
@@ -20,7 +66,7 @@ fn v_before(
   }
 }
 
-fn v_after(
+fn on_exit(
   vxml: VXML,
   original_state: State,
   children_states: List(State),
@@ -32,7 +78,7 @@ fn v_after(
   }
 }
 
-fn t_transform(
+fn on_text(
   vxml: VXML,
   state: State,
   inner: InnerParam,
@@ -44,66 +90,10 @@ fn t_transform(
   }
 }
 
-fn nodemap_factory(
-  inner: InnerParam,
-) -> n2t.EarlyReturnOneToOptionEnterExitStatefulWithChildStatesNoErrorNodemap(
-  State,
-) {
-  n2t.EarlyReturnOneToOptionEnterExitStatefulWithChildStatesNoErrorNodemap(
-    fn(v, s) { v_before(v, s, inner) },
-    v_after,
-    fn(v, s) { t_transform(v, s, inner) },
-  )
-}
-
-fn transform_factory(inner: InnerParam) -> DesugarerTransform {
-  nodemap_factory(inner)
-  |> n2t.early_return_one_to_option_enter_exit_stateful_with_child_states_no_error_nodemap_2_desugarer_transform(
-    False,
-  )
-}
-
-fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
-  Ok(param)
-}
-
-type State =
-  Bool
-
-type Param =
-  fn(VXML) -> Bool
-
-//           ↖
-//           a node is saved
-//           iff it or one of its
-//           ancestors fulfills
-//           this condition
-type InnerParam =
-  Param
-
-pub const name = "delete_outside_subtrees"
-
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-// 🏖️🏖️ Desugarer 🏖️🏖️
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-//------------------------------------------------53
-/// removes nodes that are outside subtrees matching
-/// the predicate function
-pub fn constructor(param: Param) -> Desugarer {
-  Desugarer(
-    name: name,
-    stringified_param: option.Some(ins(param)),
-    stringified_outside: option.None,
-    transform: case param_to_inner_param(param) {
-      Ok(inner) -> transform_factory(inner)
-      Error(error) -> fn(_) { Error(error) }
-    },
-  )
-}
-
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
-// 🌊🌊🌊 tests 🌊🌊🌊🌊🌊
+// 🌊🌊🌊 tests 🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
+
 fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
   [
     core.AssertiveTestData(

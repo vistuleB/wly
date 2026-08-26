@@ -1,8 +1,53 @@
-import gleam/list
-import gleam/option
-import desugaring/core.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as core
+import desugaring/authoring
+import desugaring/core.{
+  type Desugarer, type DesugarerTransform, type DesugaringError,
+}
 import desugaring/nodemaps_2_transform as n2t
-import vxml.{ type VXML, V, T, type Line, Line }
+import gleam/list
+import vxml.{type Line, type VXML, Line, T, V}
+
+pub const name = "concatenate_consecutive_lines_if"
+
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
+// 🏖️🏖️ Desugarer 🏖️🏖️
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️️️️️🏖️
+
+/// Concatenates consecutive lines when the supplied
+/// condition accepts their contents.
+pub fn constructor(param: Param) -> Desugarer {
+  authoring.desugarer(
+    name: name,
+    param: param,
+    prepare: param_to_inner_param,
+    transform: inner_param_to_transform,
+  )
+}
+
+type Param =
+  fn(String, String) -> Bool
+
+type InnerParam =
+  Param
+
+fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
+  Ok(param)
+}
+
+fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
+  let nodemap: n2t.OneToOneNoErrorNodemap = nodemap(_, inner)
+  nodemap
+  |> n2t.one_to_one_no_error_nodemap_2_desugarer_transform()
+}
+
+fn nodemap(vxml: VXML, inner: InnerParam) -> VXML {
+  case vxml {
+    T(blame, lines) -> {
+      let assert [first, ..rest] = lines
+      T(blame, lines_folder(inner, [], first, rest))
+    }
+    V(..) -> vxml
+  }
+}
 
 fn lines_folder(
   condition: fn(String, String) -> Bool,
@@ -12,74 +57,49 @@ fn lines_folder(
 ) -> List(Line) {
   case remaining {
     [] -> [current, ..bundled] |> list.reverse
-    [first, ..rest] -> case condition(current.content, first.content) {
-      False -> lines_folder(condition, [current, ..bundled], first, rest)
-      True -> lines_folder(
-        condition,
-        bundled,
-        Line(current.blame, current.content <> first.content),
-        rest,
-      )
-    }
+    [first, ..rest] ->
+      case condition(current.content, first.content) {
+        False -> lines_folder(condition, [current, ..bundled], first, rest)
+        True ->
+          lines_folder(
+            condition,
+            bundled,
+            Line(current.blame, current.content <> first.content),
+            rest,
+          )
+      }
   }
 }
 
-fn nodemap(
-  node: VXML,
-  inner: InnerParam,
-) -> VXML {
-  case node {
-    T(blame, lines) -> {
-      let assert [first, ..rest] = lines
-      T(blame, lines_folder(inner, [], first, rest))
-    }
-    V(..) -> node
-  }
-}
-
-fn nodemap_factory(inner: InnerParam) -> n2t.OneToOneNoErrorNodemap {
-  nodemap(_, inner)
-}
-
-fn transform_factory(inner: InnerParam) -> DesugarerTransform {
-  nodemap_factory(inner)
-  |> n2t.one_to_one_no_error_nodemap_2_desugarer_transform()
-}
-
-fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
-  Ok(param)
-}
-
-type Param = fn(String, String) -> Bool
-type InnerParam = Param
-
-pub const name = "concatenate_consecutive_lines_if"
-
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-// 🏖️🏖️ Desugarer 🏖️🏖️
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-//------------------------------------------------53
-/// concatenates adjacent text nodes into single
-/// text nodes
-pub fn constructor(param: Param) -> Desugarer {
-  Desugarer(
-    name: name,
-    stringified_param: option.None,
-    stringified_outside: option.None,
-    transform: case param_to_inner_param(param) {
-      Error(error) -> fn(_) { Error(error) }
-      Ok(inner) -> transform_factory(inner)
-    },
-  )
-}
-
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
-// 🌊🌊🌊 tests 🌊🌊🌊🌊🌊
+// 🌊🌊🌊 tests 🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
+
 fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
-  []
+  [
+    core.AssertiveTestData(
+      param: fn(first, second) { first == "hello " && second == "world" },
+      source: "
+                <> root
+                  <>
+                    'hello '
+                    'world'
+                    'again'
+      ",
+      expected: "
+                <> root
+                  <>
+                    'hello world'
+                    'again'
+      ",
+    ),
+  ]
 }
 
 pub fn assertive_tests() {
-  core.assertive_test_collection_from_data(name, assertive_tests_data(), constructor)
+  core.assertive_test_collection_from_data(
+    name,
+    assertive_tests_data(),
+    constructor,
+  )
 }

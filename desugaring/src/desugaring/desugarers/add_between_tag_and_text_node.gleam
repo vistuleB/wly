@@ -1,91 +1,81 @@
-import gleam/option
-import gleam/string.{inspect as ins}
-import desugaring/core.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as core
+import desugaring/authoring
+import desugaring/core.{
+  type Desugarer, type DesugarerTransform, type DesugaringError,
+}
 import desugaring/nodemaps_2_transform as n2t
 import vxml.{type VXML, T, V}
-import vxml/blame as bl
+
+pub const name = "add_between_tag_and_text_node"
+
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
+// 🏖️🏖️ Desugarer 🏖️🏖️
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️️️️️🏖️
+
+/// Inserts an empty element of the specified tag between
+/// each target element and an immediately following text
+/// node.
+pub fn constructor(param: Param) -> Desugarer {
+  authoring.desugarer(
+    name: name,
+    param: param,
+    prepare: param_to_inner_param,
+    transform: inner_param_to_transform,
+  )
+}
+
+type Param =
+  #(
+    // Tag of the element immediately before the text node.
+    String,
+    // Tag of the element inserted between them.
+    String,
+  )
+
+type InnerParam {
+  InnerParam(target_tag: String, inserted_vxml: VXML)
+}
+
+fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
+  let #(target_tag, inserted_tag) = param
+  InnerParam(target_tag, V(authoring.blame(name, 40), inserted_tag, [], []))
+  |> Ok
+}
+
+fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
+  let nodemap: n2t.OneToOneNoErrorNodemap = nodemap(_, inner)
+  nodemap
+  |> n2t.one_to_one_no_error_nodemap_2_desugarer_transform()
+}
+
+fn nodemap(vxml: VXML, inner: InnerParam) -> VXML {
+  case vxml {
+    V(_, _, _, children) -> V(..vxml, children: add_in_list(children, inner))
+    _ -> vxml
+  }
+}
 
 fn add_in_list(children: List(VXML), inner: InnerParam) -> List(VXML) {
   case children {
-    [
-      V(_, first_tag, _, _) as first,
-      T(_, _) as second,
-      ..rest
-    ] if first_tag == inner.0 -> {
-      [
-        first,
-        inner.1,
-        second,
-        ..add_in_list(rest, inner)
-      ]
-    }
+    [V(_, tag, _, _) as first, T(..) as second, ..rest]
+      if tag == inner.target_tag
+    -> [first, inner.inserted_vxml, second, ..add_in_list(rest, inner)]
     [first, ..rest] -> [first, ..add_in_list(rest, inner)]
     [] -> []
   }
 }
 
-fn nodemap(
-  node: VXML,
-  inner: InnerParam,
-) -> VXML {
-  case node {
-    V(_, _, _, children) -> V(..node, children: add_in_list(children, inner))
-    _ -> node
-  }
-}
-
-fn nodemap_factory(inner: InnerParam) -> n2t.OneToOneNoErrorNodemap {
-  nodemap(_, inner)
-}
-
-fn transform_factory(inner: InnerParam) -> DesugarerTransform {
-  nodemap_factory(inner)
-  |> n2t.one_to_one_no_error_nodemap_2_desugarer_transform()
-}
-
-fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
-  #(
-    param.0,
-    V(desugarer_blame(49), param.1, [], []),
-  )
-  |> Ok
-}
-
-type Param = #(String,                   String)
-//             ↖                         ↖
-//             insert new element        tag name
-//             between this tag          for new element
-//             and following text node
-type InnerParam = #(String, VXML)
-
-pub const name = "add_between_tag_and_text_node"
-fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
-
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-// 🏖️🏖️ Desugarer 🏖️🏖️
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-//------------------------------------------------53
-/// adds new elements between specified tags and
-/// following text nodes
-pub fn constructor(param: Param) -> Desugarer {
-  Desugarer(
-    name: name,
-    stringified_param: option.Some(ins(param)),
-    stringified_outside: option.None,
-    transform: case param_to_inner_param(param) {
-      Error(error) -> fn(_) { Error(error) }
-      Ok(inner) -> transform_factory(inner)
-    },
-  )
-}
-
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
-// 🌊🌊🌊 tests 🌊🌊🌊🌊🌊
+// 🌊🌊🌊 tests 🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
+
 fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
   []
 }
 
 pub fn assertive_tests() {
-  core.assertive_test_collection_from_data(name, assertive_tests_data(), constructor)
+  core.assertive_test_collection_from_data(
+    name,
+    assertive_tests_data(),
+    constructor,
+  )
 }

@@ -1,47 +1,65 @@
-import desugaring/desugarers/append_class_to_child_if.{constructor as append_class_to_child_if}
-import gleam/option
-import gleam/string.{inspect as ins}
-import desugaring/core.{type DesugaringError, type Desugarer, Desugarer} as core
-
-fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
-  Ok(param)
+import desugaring/authoring
+import desugaring/core.{
+  type Desugarer, type DesugarerTransform, type DesugaringError,
 }
-
-type Param = #(String,  String,   List(String))
-//             ↖        ↖         ↖
-//             parent   class to  if is not one
-//                      append    of these tags
-type InnerParam = Param
+import desugaring/desugarers/append_class_to_child_if
 
 pub const name = "append_class_to_child_if_is_not_one_of"
 
-//------------------------------------------------53
-/// filters by identifying nodes whose
-/// blame.filename contain the extra.path as a
-/// substring and whose attrs match at least
-/// one of the given #(key, value) pairs, with a
-/// match counting as true if key == ""; keeps only
-/// nodes that are descendants of such nodes, or
-/// ancestors of such nodes
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
+// 🏖️🏖️ Desugarer 🏖️🏖️
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️️️️️🏖️
+
+/// Appends a class to children of a specified parent when
+/// their tag is not among the specified tags.
 pub fn constructor(param: Param) -> Desugarer {
-  Desugarer(
+  authoring.desugarer(
     name: name,
-    stringified_param: option.Some(ins(param)),
-    stringified_outside: option.None,
-    transform: case param_to_inner_param(param) {
-      Error(error) -> fn(_) { Error(error) }
-      Ok(inner) -> append_class_to_child_if(#(inner.0, inner.1, core.is_v_and_tag_is_not_one_of(_, inner.2))).transform
-    }
+    param: param,
+    prepare: param_to_inner_param,
+    transform: inner_param_to_transform,
   )
 }
 
+type Param =
+  #(
+    // Parent tag.
+    String,
+    // Class to append.
+    String,
+    // Child-selection value.
+    List(String),
+  )
+
+type InnerParam {
+  InnerParam(parent_tag: String, class_name: String, selector: List(String))
+}
+
+fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
+  Ok(InnerParam(param.0, param.1, param.2))
+}
+
+fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
+  append_class_to_child_if.constructor(
+    #(inner.parent_tag, inner.class_name, core.is_v_and_tag_is_not_one_of(
+      _,
+      inner.selector,
+    )),
+  ).transform
+}
+
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
-// 🌊🌊🌊 tests 🌊🌊🌊🌊🌊
+// 🌊🌊🌊 tests 🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
+
 fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
   []
 }
 
 pub fn assertive_tests() {
-  core.assertive_test_collection_from_data(name, assertive_tests_data(), constructor)
+  core.assertive_test_collection_from_data(
+    name,
+    assertive_tests_data(),
+    constructor,
+  )
 }

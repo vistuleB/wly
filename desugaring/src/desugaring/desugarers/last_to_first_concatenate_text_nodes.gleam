@@ -1,62 +1,49 @@
-import gleam/option
-import desugaring/core.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as core
+import desugaring/authoring
+import desugaring/core.{type Desugarer, type DesugarerTransform}
 import desugaring/nodemaps_2_transform as n2t
 import vxml.{type VXML, V}
 
-fn nodemap(
-  node: VXML,
-) -> VXML {
-  case node {
+fn nodemap(vxml: VXML) -> VXML {
+  case vxml {
     V(_, _, _, children) ->
-      V(..node, children: core.last_to_first_concatenation(children))
-    _ ->
-      node
+      V(..vxml, children: core.last_to_first_concatenation(children))
+    _ -> vxml
   }
 }
 
-fn nodemap_factory(_: InnerParam) -> n2t.OneToOneNoErrorNodemap {
+fn inner_param_to_transform(_: InnerParam) -> DesugarerTransform {
+  let nodemap: n2t.OneToOneNoErrorNodemap = nodemap
   nodemap
-}
-
-fn transform_factory(inner: InnerParam) -> DesugarerTransform {
-  nodemap_factory(inner)
   |> n2t.one_to_one_no_error_nodemap_2_desugarer_transform()
 }
 
-fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
-  Ok(param)
-}
-
-type Param = Nil
-type InnerParam = Nil
+type InnerParam =
+  Nil
 
 pub const name = "last_to_first_concatenate_text_nodes"
 
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 // 🏖️🏖️ Desugarer 🏖️🏖️
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-//------------------------------------------------53
-/// concatenates adjacent text nodes into single
-/// text nodes
+/// Concatenates adjacent text nodes from last to first.
 pub fn constructor() -> Desugarer {
-  Desugarer(
+  authoring.no_param_desugarer(
     name: name,
-    stringified_param: option.None,
-    stringified_outside: option.None,
-    transform: case param_to_inner_param(Nil) {
-      Error(error) -> fn(_) { Error(error) }
-      Ok(inner) -> transform_factory(inner)
-    },
+    transform: inner_param_to_transform(Nil),
   )
 }
 
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
-// 🌊🌊🌊 tests 🌊🌊🌊🌊🌊
+// 🌊🌊🌊 tests 🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
 fn assertive_tests_data() -> List(core.AssertiveTestDataNoParam) {
   []
 }
 
 pub fn assertive_tests() {
-  core.assertive_test_collection_from_data_no_param(name, assertive_tests_data(), constructor)
+  core.assertive_test_collection_from_data_no_param(
+    name,
+    assertive_tests_data(),
+    constructor,
+  )
 }

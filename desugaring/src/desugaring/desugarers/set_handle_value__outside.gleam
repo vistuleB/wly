@@ -1,105 +1,117 @@
-import gleam/option
-import gleam/list
-import gleam/string.{inspect as ins}
+import desugaring/authoring
 import desugaring/core.{
-  type Desugarer,
-  type DesugarerTransform,
-  type DesugaringError,
-  type TrafficLight,
-  Desugarer,
-  Continue,
-} as core
+  type Desugarer, type DesugarerTransform, type DesugaringError,
+  type TrafficLight, Continue, DesugaringError, GoBack,
+}
 import desugaring/nodemaps_2_transform as n2t
-import vxml.{
-  type Attr,
-  type VXML,
-  Attr,
-  V,
+import gleam/list
+import gleam/result
+import gleam/string
+import vxml.{type Attr, type VXML, Attr, V}
+
+pub const name = "set_handle_value__outside"
+
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
+// 🏖️🏖️ Desugarer 🏖️🏖️
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️️️️️🏖️
+
+/// Appends handle values outside configured subtrees,
+/// with configurable traversal.
+pub fn constructor(param: Param, outside: List(String)) -> Desugarer {
+  authoring.desugarer_with_outside(
+    name: name,
+    param: param,
+    outside: outside,
+    prepare: param_to_inner_param,
+    transform: inner_param_to_transform,
+  )
 }
 
-fn map_attr(
-  attr: Attr,
-  inner: InnerParam,
-) -> Attr {
-  case attr.key {
-    "handle" -> {
-      case attr.val |> string.split_once(" ") {
-        Ok(#(_, handle_value)) -> {
-          assert string.trim(handle_value) != ""
-          attr
-        }
-        _ ->
-          Attr(..attr, val: attr.val <> " " <> inner.1)
-      }
-    }
-    _ -> attr
-  }
-}
+type Param =
+  #(
+    // Target tag.
+    String,
+    // Handle value to append.
+    String,
+    // Whether to traverse matching descendants.
+    TrafficLight,
+  )
 
-fn nodemap(
-  vxml: VXML,
-  inner: InnerParam,
-) -> #(VXML, TrafficLight) {
-  case vxml {
-    V(_, tag, attrs, _) if tag == inner.0 ->
-      #(
-        V(..vxml, attrs: list.map(attrs, map_attr(_, inner))),
-        inner.2,
-      )
-    _ -> #(vxml, Continue)
-  }
-}
-
-fn nodemap_factory(inner: InnerParam) -> n2t.EarlyReturnOneToOneNoErrorNodemap {
-  nodemap(_, inner)
-}
-
-fn transform_factory(
-  inner: InnerParam,
-  outside: List(String),
-) -> DesugarerTransform {
-  nodemap_factory(inner)
-  |> n2t.early_return_one_to_one_no_error_nodemap_2_desugarer_transform_with_forbidden(outside)
-}
+type InnerParam =
+  Param
 
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
   Ok(param)
 }
 
-type Param = #(String, String, TrafficLight)
-//             ↖       ↖       ↖
-//             tag     value   return-early-or-not
-type InnerParam = Param
+fn inner_param_to_transform(
+  inner: InnerParam,
+  outside: List(String),
+) -> DesugarerTransform {
+  nodemap_factory(inner, outside)
+  |> n2t.early_return_one_to_one_nodemap_2_desugarer_transform
+}
 
-pub const name = "set_hand_value__outside"
+fn nodemap_factory(
+  inner: InnerParam,
+  outside: List(String),
+) -> n2t.EarlyReturnOneToOneNodemap {
+  nodemap(_, inner, outside)
+}
 
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-// 🏖️🏖️ Desugarer 🏖️🏖️
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-//------------------------------------------------53
-/// add a specific key-value pair to all tags of a
-/// given name and possibl early-return after
-/// attr is added, depending on TrafficLight
-/// instructions
-pub fn constructor(param: Param, outside: List(String)) -> Desugarer {
-  Desugarer(
-    name: name,
-    stringified_param: option.Some(ins(param)),
-    stringified_outside: option.Some(ins(outside)),
-    transform: case param_to_inner_param(param) {
-      Error(error) -> fn(_) { Error(error) }
-      Ok(inner) -> transform_factory(inner, outside)
-    },
-  )
+fn nodemap(
+  vxml: VXML,
+  inner: InnerParam,
+  outside: List(String),
+) -> Result(#(VXML, TrafficLight), DesugaringError) {
+  case vxml {
+    V(_, tag, attrs, _) ->
+      case list.contains(outside, tag) {
+        True -> Ok(#(vxml, GoBack))
+        False ->
+          case tag == inner.0 {
+            True -> {
+              use attrs <- result.try(list.try_map(attrs, map_attr(_, inner)))
+              Ok(#(V(..vxml, attrs: attrs), inner.2))
+            }
+            False -> Ok(#(vxml, Continue))
+          }
+      }
+    _ -> Ok(#(vxml, Continue))
+  }
+}
+
+fn map_attr(attr: Attr, inner: InnerParam) -> Result(Attr, DesugaringError) {
+  case attr.key {
+    "handle" ->
+      case attr.val |> string.split_once(" ") {
+        Ok(#(_, handle_value)) ->
+          case string.trim(handle_value) == "" {
+            True -> Error(malformed_handle_error(attr))
+            False -> Ok(attr)
+          }
+        Error(_) -> Ok(Attr(..attr, val: attr.val <> " " <> inner.1))
+      }
+    _ -> Ok(attr)
+  }
+}
+
+fn malformed_handle_error(attr: Attr) -> DesugaringError {
+  DesugaringError(attr.blame, "handle contains a space but no value follows it")
 }
 
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
-// 🌊🌊🌊 tests 🌊🌊🌊🌊🌊
+// 🌊🌊🌊 tests 🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
+
 fn assertive_tests_data() -> List(core.AssertiveTestDataWithOutside(Param)) {
   []
 }
 
 pub fn assertive_tests() {
-  core.assertive_test_collection_from_data_with_outside(name, assertive_tests_data(), constructor)
+  core.assertive_test_collection_from_data_with_outside(
+    name,
+    assertive_tests_data(),
+    constructor,
+  )
 }

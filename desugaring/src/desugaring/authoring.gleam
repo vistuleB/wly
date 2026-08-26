@@ -38,6 +38,24 @@ pub fn desugarer_with_stringified_param(
   )
 }
 
+pub fn desugarer_with_outside(
+  name name: String,
+  param param: a,
+  outside outside: b,
+  prepare prepare: fn(a) -> Result(c, DesugaringError),
+  transform transform: fn(c, b) -> DesugarerTransform,
+) -> Desugarer {
+  Desugarer(
+    name: name,
+    stringified_param: option.Some(string.inspect(param)),
+    stringified_outside: option.Some(string.inspect(outside)),
+    transform: case prepare(param) {
+      Ok(prepared) -> transform(prepared, outside)
+      Error(error) -> fn(_) { Error(error) }
+    },
+  )
+}
+
 pub fn infallible_desugarer(
   name name: String,
   param param: a,
@@ -60,6 +78,19 @@ pub fn no_param_desugarer(
     stringified_param: option.None,
     stringified_outside: option.None,
     transform: transform,
+  )
+}
+
+pub fn no_param_desugarer_with_outside(
+  name name: String,
+  outside outside: a,
+  transform transform: fn(a) -> DesugarerTransform,
+) -> Desugarer {
+  Desugarer(
+    name: name,
+    stringified_param: option.None,
+    stringified_outside: option.Some(string.inspect(outside)),
+    transform: transform(outside),
   )
 }
 

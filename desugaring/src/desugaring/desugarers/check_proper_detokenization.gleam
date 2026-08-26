@@ -1,63 +1,58 @@
-import gleam/string
-import gleam/option
-import desugaring/core.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as core
+import desugaring/authoring
+import desugaring/core.{
+  type Desugarer, type DesugarerTransform, type DesugaringError,
+}
 import desugaring/nodemaps_2_transform as n2t
-import vxml.{type VXML, V, T}
-
-fn nodemap(
-  vxml: VXML,
-) -> Result(VXML, DesugaringError) {
-  case vxml {
-    T(_, _) -> Ok(vxml)
-    V(_, tag, _, _) -> case string.starts_with(tag, "__") {
-      True -> Error(core.DesugaringError(vxml.blame, "check_proper_detokenization found tag: " <> tag))
-      False -> Ok(vxml)
-    }
-  }
-}
-
-fn nodemap_factory(_: InnerParam) -> n2t.OneToOneNodemap {
-  nodemap
-}
-
-fn transform_factory(inner: InnerParam) -> DesugarerTransform {
-  nodemap_factory(inner)
-  |> n2t.one_to_one_nodemap_2_desugarer_transform()
-}
-
-fn param_to_inner_param() -> Result(InnerParam, DesugaringError) {
-  Ok(Nil)
-}
-
-type Param = Nil
-type InnerParam = Param
+import gleam/string
+import vxml.{type VXML, T, V}
 
 pub const name = "check_proper_detokenization"
 
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 // 🏖️🏖️ Desugarer 🏖️🏖️
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-//------------------------------------------------53
-///
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️️️️️🏖️
+
+/// Rejects documents that still contain tags beginning with
+/// the internal token prefix.
 pub fn constructor() -> Desugarer {
-  Desugarer(
+  authoring.no_param_desugarer(
     name: name,
-    stringified_param: option.None,
-    stringified_outside: option.None,
-    transform: case param_to_inner_param() {
-      Error(error) -> fn(_) { Error(error) }
-      Ok(inner) -> transform_factory(inner)
-    },
+    transform: inner_param_to_transform(),
   )
 }
 
+fn inner_param_to_transform() -> DesugarerTransform {
+  let nodemap: n2t.OneToOneNodemap = nodemap
+  n2t.one_to_one_nodemap_2_desugarer_transform(nodemap)
+}
+
+fn nodemap(vxml: VXML) -> Result(VXML, DesugaringError) {
+  case vxml {
+    T(_, _) -> Ok(vxml)
+    V(_, tag, _, _) ->
+      case string.starts_with(tag, "__") {
+        True ->
+          Error(core.DesugaringError(
+            vxml.blame,
+            "check_proper_detokenization found tag: " <> tag,
+          ))
+        False -> Ok(vxml)
+      }
+  }
+}
+
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
-// 🌊🌊🌊 tests 🌊🌊🌊🌊🌊
+// 🌊🌊🌊 tests 🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
+
 fn assertive_tests_data() -> List(core.AssertiveTestDataNoParam) {
   []
 }
 
 pub fn assertive_tests() {
-  core.assertive_test_collection_from_data_no_param(name, assertive_tests_data(), constructor)
+  core.assertive_test_collection_from_data_no_param(
+    name,
+    assertive_tests_data(),
+    constructor,
+  )
 }

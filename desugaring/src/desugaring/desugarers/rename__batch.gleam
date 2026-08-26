@@ -1,84 +1,103 @@
-import gleam/option
+import desugaring/authoring
+import desugaring/core.{
+  type Desugarer, type DesugarerTransform, type DesugaringError, DesugaringError,
+}
+import desugaring/nodemaps_2_transform as n2t
 import gleam/dict.{type Dict}
 import gleam/list
-import desugaring/core.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError, DesugaringError} as core
-import desugaring/nodemaps_2_transform as n2t
-import vxml.{type VXML, V}
-import vxml/blame as bl
 import on
-
-fn nodemap(
-  vxml: VXML,
-  inner: InnerParam,
-) -> VXML {
-  case vxml {
-    V(_, tag, _, _) -> {
-      case dict.get(inner, tag) {
-        Error(_) -> vxml
-        Ok(new) -> V(..vxml, tag: new)
-      }
-    }
-    _ -> vxml
-  }
-}
-
-fn nodemap_factory(inner: InnerParam) -> n2t.OneToOneNoErrorNodemap {
-  nodemap(_, inner)
-}
-
-fn transform_factory(inner: InnerParam) -> DesugarerTransform {
-  nodemap_factory(inner)
-  |> n2t.one_to_one_no_error_nodemap_2_desugarer_transform
-}
-
-fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
-  use _ <- on.ok(
-    list.try_map(
-      param,
-      fn(p) {
-        case core.valid_tag(p.1) {
-          True -> Ok(Nil)
-          False -> Error(DesugaringError(bl.no_blame, "invalid target tag name '" <> p.1 <> "'"))
-        }
-      }
-    )
-  )
-  param |> core.dict_from_list
-}
-
-type Param = List(#(String,    String))
-//                   ↖         ↖
-//                   old tag   new tag
-//                   name      name
-type InnerParam = Dict(String, String)
+import vxml.{V}
+import vxml/blame as bl
 
 pub const name = "rename__batch"
 
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 // 🏖️🏖️ Desugarer 🏖️🏖️
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-//------------------------------------------------53
-/// renames tags in a batch; will check against
-/// duplicate source tags
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️️️️️🏖️
+
+/// Renames multiple element tags and rejects duplicate
+/// source tags or invalid target tags.
 pub fn constructor(param: Param) -> Desugarer {
-  Desugarer(
+  authoring.desugarer_with_stringified_param(
     name: name,
-    stringified_param: option.Some(param |> core.list_param_stringifier),
-    stringified_outside: option.None,
-    transform: case param_to_inner_param(param) {
-      Error(error) -> fn(_) { Error(error) }
-      Ok(inner) -> transform_factory(inner)
-    },
+    param: param,
+    stringified_param: core.list_param_stringifier(param),
+    prepare: param_to_inner_param,
+    transform: inner_param_to_transform,
   )
 }
 
+type Param =
+  List(
+    #(
+      // Existing tag.
+      String,
+      // New tag.
+      String,
+    ),
+  )
+
+type InnerParam =
+  Dict(String, String)
+
+fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
+  use _ <- on.ok(
+    list.try_map(param, fn(pair) {
+      case core.valid_tag(pair.1) {
+        True -> Ok(Nil)
+        False ->
+          Error(DesugaringError(
+            bl.no_blame,
+            "invalid target tag name '" <> pair.1 <> "'",
+          ))
+      }
+    }),
+  )
+  core.dict_from_list(param)
+}
+
+fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
+  let nodemap: n2t.OneToOneNoErrorNodemap = fn(vxml) {
+    case vxml {
+      V(_, tag, _, _) ->
+        case dict.get(inner, tag) {
+          Error(_) -> vxml
+          Ok(new_tag) -> V(..vxml, tag: new_tag)
+        }
+      _ -> vxml
+    }
+  }
+  n2t.one_to_one_no_error_nodemap_2_desugarer_transform(nodemap)
+}
+
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
-// 🌊🌊🌊 tests 🌊🌊🌊🌊🌊
+// 🌊🌊🌊 tests 🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
+
 fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
-  []
+  [
+    core.AssertiveTestData(
+      param: [#("OldA", "NewA"), #("OldB", "NewB")],
+      source: "
+                <> root
+                  <> OldA
+                    <> OldB
+                  <> Unchanged
+                ",
+      expected: "
+                <> root
+                  <> NewA
+                    <> NewB
+                  <> Unchanged
+                ",
+    ),
+  ]
 }
 
 pub fn assertive_tests() {
-  core.assertive_test_collection_from_data(name, assertive_tests_data(), constructor)
+  core.assertive_test_collection_from_data(
+    name,
+    assertive_tests_data(),
+    constructor,
+  )
 }

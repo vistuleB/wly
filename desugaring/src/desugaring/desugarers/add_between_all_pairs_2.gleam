@@ -1,130 +1,130 @@
-import gleam/option
-import gleam/list
-import gleam/string.{inspect as ins}
-import desugaring/core.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as core
+import desugaring/authoring
+import desugaring/core.{
+  type Desugarer, type DesugarerTransform, type DesugaringError,
+}
 import desugaring/nodemaps_2_transform as n2t
+import gleam/list
 import vxml.{type VXML, V}
-import vxml/blame as bl
 
-fn add_in_list(
-  children: List(VXML),
-  inner: InnerParam,
-) -> List(VXML) {
+pub const name = "add_between_all_pairs_2"
+
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
+// 🏖️🏖️ Desugarer 🏖️🏖️
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️️️️️🏖️
+
+/// Inserts an empty element between adjacent element
+/// siblings when the left tag is in the first list and the
+/// right tag is in the second; for efficiency, use the
+/// smaller tag list as the second list.
+pub fn constructor(param: Param) -> Desugarer {
+  authoring.desugarer(
+    name: name,
+    param: param,
+    prepare: param_to_inner_param,
+    transform: inner_param_to_transform,
+  )
+}
+
+type Param =
+  #(
+    // Tags eligible for the left sibling.
+    List(String),
+    // Tags eligible for the right sibling.
+    List(String),
+    // Tag of the element inserted between them.
+    String,
+  )
+
+type InnerParam {
+  InnerParam(
+    left_tags: List(String),
+    right_tags: List(String),
+    inserted_vxml: VXML,
+  )
+}
+
+fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
+  let #(left_tags, right_tags, inserted_tag) = param
+  InnerParam(
+    left_tags,
+    right_tags,
+    V(authoring.blame(name, 51), inserted_tag, [], []),
+  )
+  |> Ok
+}
+
+fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
+  let nodemap: n2t.OneToOneNoErrorNodemap = nodemap(_, inner)
+  nodemap
+  |> n2t.one_to_one_no_error_nodemap_2_desugarer_transform()
+}
+
+fn nodemap(vxml: VXML, inner: InnerParam) -> VXML {
+  case vxml {
+    V(_, _, _, children) -> V(..vxml, children: add_in_list(children, inner))
+    _ -> vxml
+  }
+}
+
+fn add_in_list(children: List(VXML), inner: InnerParam) -> List(VXML) {
   case children {
-    [
-      V(_, first_tag, _, _) as first,
-      V(_, second_tag, _, _) as second,
-      ..rest
-    ] -> case list.contains(inner.1, second_tag) && list.contains(inner.0, first_tag) {
-      True -> {
-        [
-          first,
-          inner.2,
-          ..add_in_list([second, ..rest], inner),
-        ]
+    [V(_, first_tag, _, _) as first, V(_, second_tag, _, _) as second, ..rest] ->
+      case
+        list.contains(inner.right_tags, second_tag)
+        && list.contains(inner.left_tags, first_tag)
+      {
+        True -> {
+          [first, inner.inserted_vxml, ..add_in_list([second, ..rest], inner)]
+        }
+        False -> [first, ..add_in_list([second, ..rest], inner)]
       }
-      False -> [first, ..add_in_list([second, ..rest], inner)]
-    }
     [first, ..rest] -> [first, ..add_in_list(rest, inner)]
     _ -> children
   }
 }
 
-fn nodemap(
-  node: VXML,
-  inner: InnerParam,
-) -> VXML {
-  case node {
-    V(_, _, _, children) ->
-      V(..node, children: add_in_list(children, inner))
-    _ -> node
-  }
-}
-
-fn nodemap_factory(inner: InnerParam) -> n2t.OneToOneNoErrorNodemap {
-  nodemap(_, inner)
-}
-
-fn transform_factory(inner: InnerParam) -> DesugarerTransform {
-  nodemap_factory(inner)
-  |> n2t.one_to_one_no_error_nodemap_2_desugarer_transform()
-}
-
-fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
-  #(param.0, param.1, V(desugarer_blame(54), param.2, [], []))
-  |> Ok
-}
-
-type Param = #(List(String),   List(String), String)
-//                  ↖              ↗         ↖
-//                  insert divs              tag name for
-//                  between adjacent         new element
-//                  siblings of these
-//                  two names
-type InnerParam = #(List(String), List(String), VXML)
-
-pub const name = "add_between_all_pairs_2"
-fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
-
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-// 🏖️🏖️ Desugarer 🏖️🏖️
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-//------------------------------------------------53
-/// adds new element between any two V-nodes where
-/// the tag of the first node comes from the first
-/// list and the tag of the second node comes from
-/// the second list; the '_2' means that, for
-/// efficiency purposes, this desugarer should be
-/// used when the 2nd list is the smaller one
-pub fn constructor(param: Param) -> Desugarer {
-  Desugarer(
-    name: name,
-    stringified_param: option.Some(ins(param)),
-    stringified_outside: option.None,
-    transform: case param_to_inner_param(param) {
-      Error(error) -> fn(_) { Error(error) }
-      Ok(inner) -> transform_factory(inner)
-    },
-  )
-}
-
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
-// 🌊🌊🌊 tests 🌊🌊🌊🌊🌊
+// 🌊🌊🌊 tests 🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
+
 fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
   [
     core.AssertiveTestData(
       param: #(["a", "b", "c"], ["D", "E"], "NEWGUY"),
       source: "
-        <> root
-          <> D
-          <> a
-          <> b
-          <> D
-          <> E
-          <> a
-          <> c
-          <> c
-          <> D
+                <> root
+                  <> D
+                  <> a
+                  <> b
+                  <> D
+                  <> E
+                  <> a
+                  <> c
+                  <> c
+                  <> D
       ",
       expected: "
-        <> root
-          <> D
-          <> a
-          <> b
-          <> NEWGUY
-          <> D
-          <> E
-          <> a
-          <> c
-          <> c
-          <> NEWGUY
-          <> D
-      "
-    )
+                <> root
+                  <> D
+                  <> a
+                  <> b
+                  <> NEWGUY
+                  <> D
+                  <> E
+                  <> a
+                  <> c
+                  <> c
+                  <> NEWGUY
+                  <> D
+      ",
+    ),
   ]
 }
 
 pub fn assertive_tests() {
-  core.assertive_test_collection_from_data(name, assertive_tests_data(), constructor)
+  core.assertive_test_collection_from_data(
+    name,
+    assertive_tests_data(),
+    constructor,
+  )
 }

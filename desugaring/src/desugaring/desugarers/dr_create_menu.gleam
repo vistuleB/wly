@@ -1,6 +1,6 @@
+import desugaring/authoring
 import desugaring/core.{
-  type Desugarer, type DesugaringError, type TrafficLight, Continue, Desugarer,
-  GoBack,
+  type Desugarer, type DesugaringError, type TrafficLight, Continue, GoBack,
 }
 import desugaring/nodemaps_2_transform as n2t
 import gleam/dict.{type Dict}
@@ -10,7 +10,21 @@ import gleam/option.{type Option, None, Some}
 import gleam/result
 import on
 import vxml.{type VXML, Attr, V}
-import vxml/blame as bl
+
+pub const name = "dr_create_menu"
+
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
+// 🏖️🏖️ Desugarer 🏖️🏖️
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️️️️️🏖️
+
+/// Prepends previous, index, and next navigation links to
+/// each generated course page.
+pub fn constructor() -> Desugarer {
+  authoring.no_param_desugarer(
+    name: name,
+    transform: inner_param_to_transform(),
+  )
+}
 
 // ---- Page address types ----
 
@@ -149,7 +163,7 @@ fn build_nav_dict(
 // ---- Navigation node construction ----
 
 fn anchor(id: String, href: String) -> VXML {
-  let b = desugarer_blame(152)
+  let b = authoring.blame(name, 166)
   V(b, "a", [Attr(b, "id", id), Attr(b, "href", href)], [])
 }
 
@@ -157,7 +171,7 @@ fn make_navigation(
   prev_href: Option(String),
   next_href: Option(String),
 ) -> VXML {
-  let b = desugarer_blame(160)
+  let b = authoring.blame(name, 174)
   let links =
     [
       prev_href |> option.map(fn(h) { anchor("prev-page", h) }),
@@ -247,52 +261,15 @@ fn at_root(root: VXML) -> Result(VXML, DesugaringError) {
   Ok(vxml)
 }
 
-fn transform_factory(_: InnerParam) -> core.DesugarerTransform {
+fn inner_param_to_transform() -> core.DesugarerTransform {
   at_root
-  |> n2t.at_root_2_desugarer_transform
-}
-
-fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
-  Ok(param)
-}
-
-type Param =
-  Nil
-
-type InnerParam =
-  Nil
-
-pub const name = "dr_create_menu"
-
-fn desugarer_blame(line_no: Int) {
-  bl.Des([], name, line_no)
-}
-
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-// 🏖️🏖️ Desugarer 🏖️🏖️
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-//------------------------------------------------53
-/// generate Navigation nodes with prev-page and next-page
-/// anchor links for Section and SubSection pages.
-/// Chapter pages do not get Navigation nodes.
-/// Pages are ordered linearly: sections within chapters,
-/// subsections within sections, across chapters in document
-/// order.
-pub fn constructor() -> Desugarer {
-  Desugarer(
-    name: name,
-    stringified_param: option.None,
-    stringified_outside: option.None,
-    transform: case param_to_inner_param(Nil) {
-      Error(error) -> fn(_) { Error(error) }
-      Ok(inner) -> transform_factory(inner)
-    },
-  )
+  |> n2t.node_to_node_2_desugarer_transform_without_walking
 }
 
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
-// 🌊🌊🌊 tests 🌊🌊🌊🌊🌊
+// 🌊🌊🌊 tests 🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
+
 fn assertive_tests_data() -> List(core.AssertiveTestDataNoParam) {
   [
     core.AssertiveTestDataNoParam(

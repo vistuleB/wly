@@ -1,68 +1,65 @@
-import gleam/list
-import gleam/option
-import gleam/string
-import desugaring/core.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as core
+import desugaring/authoring
+import desugaring/core.{
+  type Desugarer, type DesugarerTransform, type DesugaringError,
+}
 import desugaring/nodemaps_2_transform as n2t
-import vxml.{type VXML, T}
+import gleam/list
+import gleam/string
 import on
+import vxml.{type VXML, T}
 
-fn nodemap(
-  vxml: VXML,
-) -> Result(VXML, DesugaringError) {
-  case vxml {
-    T(_, lines) -> {
-      use first_non_empty <- on.error_ok(
-        list.find(lines, fn(line) {!{ string.is_empty(line.content) }}),
-        on_error: fn(_){ Ok(vxml) }
-      )
-      Ok(T(first_non_empty.blame, lines))
-    }
-    _ -> Ok(vxml)
-  }
+pub const name = "reassign_text_node_blame_to_blame_of_first_nonempty_line_in_text_node"
+
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
+// 🏖️🏖️ Desugarer 🏖️🏖️
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️️️️️🏖️
+
+/// Reassigns each text node's blame to that of its first
+/// nonempty line.
+pub fn constructor() -> Desugarer {
+  authoring.no_param_desugarer(
+    name: name,
+    transform: inner_param_to_transform(Nil),
+  )
+}
+
+type InnerParam =
+  Nil
+
+fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
+  nodemap_factory(inner)
+  |> n2t.one_to_one_nodemap_2_desugarer_transform
 }
 
 fn nodemap_factory(_: InnerParam) -> n2t.OneToOneNodemap {
   nodemap
 }
 
-fn transform_factory(inner: InnerParam) -> DesugarerTransform {
-  n2t.one_to_one_nodemap_2_desugarer_transform(nodemap_factory(inner))
-}
-
-fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
-  Ok(param)
-}
-
-type Param = Nil
-type InnerParam = Nil
-
-pub const name = "reassign_text_node_blame_to_blame_of_first_nonempty_line_in_text_node"
-
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-// 🏖️🏖️ Desugarer 🏖️🏖️
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-//------------------------------------------------53
-/// reassigns text node blame to the blame of the
-/// first nonempty line in the text node
-pub fn constructor(param: Param) -> Desugarer {
-  Desugarer(
-    name: name,
-    stringified_param: option.None,
-    stringified_outside: option.None,
-    transform: case param_to_inner_param(param) {
-      Error(error) -> fn(_) { Error(error) }
-      Ok(inner) -> transform_factory(inner)
-    },
-  )
+fn nodemap(vxml: VXML) -> Result(VXML, DesugaringError) {
+  case vxml {
+    T(_, lines) -> {
+      use first_nonempty <- on.error_ok(
+        list.find(lines, fn(line) { !string.is_empty(line.content) }),
+        on_error: fn(_) { Ok(vxml) },
+      )
+      Ok(T(first_nonempty.blame, lines))
+    }
+    _ -> Ok(vxml)
+  }
 }
 
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
-// 🌊🌊🌊 tests 🌊🌊🌊🌊🌊
+// 🌊🌊🌊 tests 🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
-fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
+
+fn assertive_tests_data() -> List(core.AssertiveTestDataNoParam) {
   []
 }
 
 pub fn assertive_tests() {
-  core.assertive_test_collection_from_data(name, assertive_tests_data(), constructor)
+  core.assertive_test_collection_from_data_no_param(
+    name,
+    assertive_tests_data(),
+    constructor,
+  )
 }

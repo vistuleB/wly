@@ -1,26 +1,68 @@
+import desugaring/authoring
+import desugaring/core.{
+  type Desugarer, type DesugarerTransform, type DesugaringError,
+}
+import desugaring/nodemaps_2_transform as n2t
 import gleam/list
 import gleam/option.{Some}
-import gleam/string.{inspect as ins}
-import desugaring/core.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as core
-import desugaring/nodemaps_2_transform as n2t
-import vxml.{ type VXML, Line, T, V, Attr}
-import vxml/blame as bl
+import vxml.{type VXML, Attr, Line, T, V}
 
-fn nodemap(
-  vxml: VXML,
-  inner: InnerParam,
-) -> VXML {
+pub const name = "prepend_attribute_as_first_line"
+
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
+// 🏖️🏖️ Desugarer 🏖️🏖️
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️️️️️🏖️
+
+/// Prepends an attribute value as the first line of the
+/// first text child.
+pub fn constructor(param: Param) -> Desugarer {
+  authoring.desugarer(
+    name: name,
+    param: param,
+    prepare: param_to_inner_param,
+    transform: inner_param_to_transform,
+  )
+}
+
+type Param =
+  #(
+    // Target tag.
+    String,
+    // Attribute key.
+    String,
+  )
+
+type InnerParam =
+  Param
+
+fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
+  Ok(param)
+}
+
+fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
+  nodemap_factory(inner)
+  |> n2t.one_to_one_no_error_nodemap_2_desugarer_transform()
+}
+
+fn nodemap_factory(inner: InnerParam) -> n2t.OneToOneNoErrorNodemap {
+  nodemap(_, inner)
+}
+
+fn nodemap(vxml: VXML, inner: InnerParam) -> VXML {
   case vxml {
     V(blame, tag, _, children) if tag == inner.0 -> {
       case core.v_first_attr_with_key(vxml, inner.1) {
         Some(Attr(_, _, value)) if value != "" -> {
-          let line = Line(desugarer_blame(17), value)
+          let line = Line(desugarer_blame(56), value)
           let children = case list.any(children, core.is_t) {
             True -> {
               let #(before, after) =
                 list.split_while(children, fn(c) { !core.is_t(c) })
               let assert [first_t, ..rest] = after
-              list.append(before, [core.t_start_insert_line(first_t, line), ..rest])
+              list.append(before, [
+                core.t_start_insert_line(first_t, line),
+                ..rest
+              ])
             }
             False -> [T(blame, [line]), ..children]
           }
@@ -33,58 +75,14 @@ fn nodemap(
   }
 }
 
-fn nodemap_factory(inner: InnerParam) -> n2t.OneToOneNoErrorNodemap {
-  nodemap(_, inner)
-}
-
-fn transform_factory(inner: InnerParam) -> DesugarerTransform {
-  nodemap_factory(inner)
-  |> n2t.one_to_one_no_error_nodemap_2_desugarer_transform()
-}
-
-fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
-  Ok(param)
-}
-
-type Param = #(String, String)
-//             ↖       ↖
-//             tag     attr_key
-type InnerParam = Param
-
-pub const name = "prepend_attribute_as_first_line"
-fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
-
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-// 🏖️🏖️ Desugarer 🏖️🏖️
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-//------------------------------------------------53
-/// Given arguments
-/// ```
-/// tag, attr_key
-/// ```
-/// finds nodes of tag 'tag', and prepends
-/// the value of the attr with key 'attr_key'
-/// as the first line of the first text node child.
-/// If no text node exists, one is created as the
-/// first child.If the attr doesn't exist, the node
-/// is left unchanged. Empty attr values are
-/// ignored. Processes all matching nodes
-/// depth-first.
-pub fn constructor(param: Param) -> Desugarer {
-  Desugarer(
-    name: name,
-    stringified_param: option.Some(ins(param)),
-    stringified_outside: option.None,
-    transform: case param_to_inner_param(param) {
-      Error(error) -> fn(_) { Error(error) }
-      Ok(inner) -> transform_factory(inner)
-    },
-  )
+fn desugarer_blame(line_no: Int) {
+  authoring.blame(name, line_no)
 }
 
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
-// 🌊🌊🌊 tests 🌊🌊🌊🌊🌊
+// 🌊🌊🌊 tests 🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
+
 fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
   [
     core.AssertiveTestData(
@@ -225,5 +223,9 @@ fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
 }
 
 pub fn assertive_tests() {
-  core.assertive_test_collection_from_data(name, assertive_tests_data(), constructor)
+  core.assertive_test_collection_from_data(
+    name,
+    assertive_tests_data(),
+    constructor,
+  )
 }

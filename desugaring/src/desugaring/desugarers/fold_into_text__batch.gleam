@@ -1,9 +1,11 @@
+import desugaring/authoring
+import desugaring/core.{
+  type Desugarer, type DesugarerTransform, type DesugaringError,
+}
+import desugaring/nodemaps_2_transform as n2t
 import gleam/dict.{type Dict}
 import gleam/list
 import gleam/option.{type Option}
-import gleam/string.{inspect as ins}
-import desugaring/core.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as core
-import desugaring/nodemaps_2_transform as n2t
 import vxml.{type VXML, Line, T, V}
 
 fn turn_into_text_node(node: VXML, text: String) -> VXML {
@@ -320,74 +322,66 @@ fn accumulator(
   }
 }
 
-fn nodemap(
-  node: VXML,
-  inner: InnerParam,
-) -> Result(VXML, DesugaringError) {
+fn nodemap(node: VXML, inner: InnerParam) -> Result(VXML, DesugaringError) {
   case node {
     T(_, _) -> Ok(node)
     V(blame, tag, attrs, children) -> {
       let new_children =
-        accumulator(
-          inner,
-          [],
-          option.None,
-          option.None,
-          children,
-        )
+        accumulator(inner, [], option.None, option.None, children)
       Ok(V(blame, tag, attrs, new_children))
     }
   }
 }
 
-fn nodemap_factory(inner: InnerParam) -> n2t.OneToOneNodemap {
-  nodemap(_, inner)
-}
-
-fn transform_factory(inner: InnerParam) -> DesugarerTransform {
-  n2t.one_to_one_nodemap_2_desugarer_transform(nodemap_factory(inner))
+fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
+  let nodemap: n2t.OneToOneNodemap = nodemap(_, inner)
+  n2t.one_to_one_nodemap_2_desugarer_transform(nodemap)
 }
 
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
   core.dict_from_list(param)
 }
 
-type Param = List(#(String,      String))
-//                  ↖            ↖
-//                  tag name     replacement
-//                               tag to use
-type InnerParam = Dict(String, String)
+type Param =
+  List(
+    #(
+      // Tag name to replace.
+      String,
+      // Replacement text to use.
+      String,
+    ),
+  )
+
+type InnerParam =
+  Dict(String, String)
 
 pub const name = "fold_into_text__batch"
 
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 // 🏖️🏖️ Desugarer 🏖️🏖️
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-//------------------------------------------------53
-/// seemingly replaces specified tags by specified
-/// strings that are glued to surrounding text nodes
-/// (in end-of-last-line glued to beginning-of-first-line
-/// fashion), without regards for the tag's contents
-/// or attrs, that are destroyed in the process
+/// Replaces configured elements with text glued to the
+/// surrounding text nodes, discarding their contents and attrs.
 pub fn constructor(param: Param) -> Desugarer {
-  Desugarer(
+  authoring.desugarer(
     name: name,
-    stringified_param: option.Some(ins(param)),
-    stringified_outside: option.None,
-    transform: case param_to_inner_param(param) {
-      Error(error) -> fn(_) { Error(error) }
-      Ok(inner) -> transform_factory(inner)
-    },
+    param: param,
+    prepare: param_to_inner_param,
+    transform: inner_param_to_transform,
   )
 }
 
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
-// 🌊🌊🌊 tests 🌊🌊🌊🌊🌊
+// 🌊🌊🌊 tests 🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
 fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
   []
 }
 
 pub fn assertive_tests() {
-  core.assertive_test_collection_from_data(name, assertive_tests_data(), constructor)
+  core.assertive_test_collection_from_data(
+    name,
+    assertive_tests_data(),
+    constructor,
+  )
 }

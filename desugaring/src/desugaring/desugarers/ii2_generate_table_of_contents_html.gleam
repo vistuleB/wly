@@ -1,20 +1,15 @@
-import vxml/blame as bl
+import desugaring/authoring
+import desugaring/core.{
+  type Desugarer, type DesugarerTransform, type DesugaringError, DesugaringError,
+}
+import desugaring/nodemaps_2_transform as n2t
 import gleam/int
 import gleam/list
-import gleam/option
 import gleam/pair
 import gleam/result
 import gleam/string.{inspect as ins}
-import desugaring/core.{
-  type Desugarer,
-  type DesugarerTransform,
-  type DesugaringError,
-  Desugarer,
-  DesugaringError,
-} as core
-import desugaring/nodemaps_2_transform as n2t
-import vxml.{type VXML, Attr, Line, T, V}
 import on
+import vxml.{type VXML, Attr, Line, T, V}
 
 fn prepend_0(number: String) {
   case string.length(number) {
@@ -34,26 +29,23 @@ fn chapter_link(
 
   use label_attr <- on.none_some(
     core.v_first_attr_with_key(item, "title_gr"),
-    on_none: fn() { Error(DesugaringError(
-      item_blame,
-      tp <> " missing title_gr attr",
-    )) },
+    on_none: fn() {
+      Error(DesugaringError(item_blame, tp <> " missing title_gr attr"))
+    },
   )
 
   use href_attr <- on.none_some(
     core.v_first_attr_with_key(item, "title_en"),
-    on_none: fn() { Error(DesugaringError(
-      item_blame,
-      tp <> " missing title_en attr",
-    )) },
+    on_none: fn() {
+      Error(DesugaringError(item_blame, tp <> " missing title_en attr"))
+    },
   )
 
   use number_attr <- on.none_some(
     core.v_first_attr_with_key(item, "number"),
-    on_none: fn() { Error(DesugaringError(
-      item_blame,
-      tp <> " missing number attr",
-    )) },
+    on_none: fn() {
+      Error(DesugaringError(item_blame, tp <> " missing number attr"))
+    },
   )
 
   let link =
@@ -71,28 +63,18 @@ fn chapter_link(
 
   let number_span =
     V(item_blame, "span", [], [
-      T(
-        desugarer_blame(75),
-        [
-          Line(
-            desugarer_blame(78),
-            chapter_number <> "." <> ins(section_index) <> " - ",
-          ),
-        ]
-      ),
+      T(desugarer_blame(66), [
+        Line(
+          desugarer_blame(68),
+          chapter_number <> "." <> ins(section_index) <> " - ",
+        ),
+      ]),
     ])
 
   let a =
-    V(
-      item_blame,
-      "a",
-      [
-        Attr(desugarer_blame(90), "href", link)
-      ],
-      [
-        T(item_blame, [Line(item_blame, label_attr.val)]),
-      ]
-    )
+    V(item_blame, "a", [Attr(desugarer_blame(75), "href", link)], [
+      T(item_blame, [Line(item_blame, label_attr.val)]),
+    ])
 
   let sub_chapter_number = ins(section_index)
   let margin_left = case sub_chapter_number {
@@ -101,7 +83,7 @@ fn chapter_link(
   }
 
   let style_attr =
-    Attr(desugarer_blame(104), "style", "margin-left: " <> margin_left)
+    Attr(desugarer_blame(86), "style", "margin-left: " <> margin_left)
 
   Ok(V(item_blame, chapter_link_component_name, [style_attr], [number_span, a]))
 }
@@ -111,10 +93,9 @@ fn get_section_index(item: VXML, count: Int) -> Result(Int, DesugaringError) {
 
   use number_attr <- on.none_some(
     core.v_first_attr_with_key(item, "number"),
-    on_none: fn() { Error(DesugaringError(
-      item.blame,
-      tp <> " missing number attr (b)",
-    )) },
+    on_none: fn() {
+      Error(DesugaringError(item.blame, tp <> " missing number attr (b)"))
+    },
   )
 
   let assert [section_number, ..] =
@@ -127,95 +108,99 @@ fn get_section_index(item: VXML, count: Int) -> Result(Int, DesugaringError) {
   }
 }
 
-fn div_with_id_title_and_menu_items(id: String, menu_items: List(VXML)) -> VXML {
-  V(desugarer_blame(131), "div", [Attr(desugarer_blame(131), "id", id)], [
+fn div_with_id_title_and_menu_items(
+  id: String,
+  menu_items: List(VXML),
+) -> VXML {
+  V(desugarer_blame(115), "div", [Attr(desugarer_blame(115), "id", id)], [
     V(
-      desugarer_blame(133),
+      desugarer_blame(117),
       "ul",
-      [Attr(desugarer_blame(135), "style", "list-style: none")],
+      [Attr(desugarer_blame(119), "style", "list-style: none")],
       menu_items,
     ),
   ])
 }
 
-fn at_root(
-  root: VXML,
-  inner: InnerParam,
-) -> Result(VXML, DesugaringError) {
+fn at_root(root: VXML, inner: InnerParam) -> Result(VXML, DesugaringError) {
   let assert V(_, _, _, _) = root
   let #(toc_tag, chapter_link_component_name) = inner
   let sections = core.descendants_with_tag(root, "section")
   use chapter_menu_items <- on.ok(
     sections
-    |> list.map_fold(
-      0,
-      fn(acc, chapter: VXML) {
-        case get_section_index(chapter, acc) {
-          Ok(section_index) -> #(
-            section_index,
-            chapter_link(chapter_link_component_name, chapter, section_index),
-          )
-          Error(error) -> #(acc, Error(error))
-        }
+    |> list.map_fold(0, fn(acc, chapter: VXML) {
+      case get_section_index(chapter, acc) {
+        Ok(section_index) -> #(
+          section_index,
+          chapter_link(chapter_link_component_name, chapter, section_index),
+        )
+        Error(error) -> #(acc, Error(error))
       }
-    )
+    })
     |> pair.second
-    |> result.all
+    |> result.all,
   )
 
   let chapters_div =
     div_with_id_title_and_menu_items("Chapters", chapter_menu_items)
 
-  let toc =
-    V(desugarer_blame(170), toc_tag, [], [chapters_div])
+  let toc = V(desugarer_blame(147), toc_tag, [], [chapters_div])
 
   core.v_prepend_child(root, toc)
   |> Ok
 }
 
-fn transform_factory(inner: InnerParam) -> core.DesugarerTransform {
+fn inner_param_to_transform(inner: InnerParam) -> core.DesugarerTransform {
   at_root(_, inner)
-  |> n2t.at_root_2_desugarer_transform
+  |> n2t.node_to_node_2_desugarer_transform_without_walking
 }
 
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
   Ok(param)
 }
 
-type Param = #(String,              String)
-//             ↖                    ↖
-//             tag name for         tag name for
-//             table of contents    individual chapter links
-type InnerParam = Param
+type Param =
+  #(
+    // Element name for the table of contents.
+    String,
+    // Element name for individual chapter links.
+    String,
+  )
+
+type InnerParam =
+  Param
 
 pub const name = "ii2_generate_table_of_contents_html"
-fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
+
+fn desugarer_blame(line_no: Int) {
+  authoring.blame(name, line_no)
+}
 
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 // 🏖️🏖️ Desugarer 🏖️🏖️
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-//------------------------------------------------53
-/// generates HTML table of contents for TI2 content
-/// with sections
+/// Generates an HTML table of contents for II2 chapters
+/// using the configured container and link element names.
 pub fn constructor(param: Param) -> Desugarer {
-  Desugarer(
+  authoring.desugarer(
     name: name,
-    stringified_param: option.Some(ins(param)),
-    stringified_outside: option.None,
-    transform: case param_to_inner_param(param) {
-      Error(error) -> fn(_) { Error(error) }
-      Ok(inner) -> transform_factory(inner)
-    },
+    param: param,
+    prepare: param_to_inner_param,
+    transform: inner_param_to_transform,
   )
 }
 
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
-// 🌊🌊🌊 tests 🌊🌊🌊🌊🌊
+// 🌊🌊🌊 tests 🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
 fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
   []
 }
 
 pub fn assertive_tests() {
-  core.assertive_test_collection_from_data(name, assertive_tests_data(), constructor)
+  core.assertive_test_collection_from_data(
+    name,
+    assertive_tests_data(),
+    constructor,
+  )
 }

@@ -1,14 +1,28 @@
-import gleam/list
-import gleam/option
-import gleam/string.{inspect as ins}
-import desugaring/core.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as core
+import desugaring/authoring
+import desugaring/core.{
+  type Desugarer, type DesugarerTransform, type DesugaringError,
+}
 import desugaring/nodemaps_2_transform as n2t
+import gleam/list
 import vxml.{type VXML, V}
 
-fn nodemap(
-  node: VXML,
-  inner: InnerParam,
-) -> List(VXML) {
+pub const name = "unwrap__batch"
+
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
+// 🏖️🏖️ Desugarer 🏖️🏖️
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️️️️️🏖️
+
+/// Replaces elements whose tags are configured by their children.
+pub fn constructor(param: Param) -> Desugarer {
+  authoring.desugarer(
+    name: name,
+    param: param,
+    prepare: param_to_inner_param,
+    transform: inner_param_to_transform,
+  )
+}
+
+fn nodemap(node: VXML, inner: InnerParam) -> List(VXML) {
   case node {
     V(_, tag, _, children) ->
       case list.contains(inner, tag) {
@@ -23,7 +37,7 @@ fn nodemap_factory(inner: InnerParam) -> n2t.OneToManyNoErrorNodemap {
   nodemap(_, inner)
 }
 
-fn transform_factory(inner: InnerParam) -> DesugarerTransform {
+fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
   nodemap_factory(inner)
   |> n2t.one_to_many_no_error_nodemap_2_desugarer_transform()
 }
@@ -32,31 +46,11 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
   Ok(param)
 }
 
-type Param = List(String)
-type InnerParam = Param
+type Param =
+  List(String)
 
-pub const name = "unwrap__batch"
-
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-// 🏖️🏖️ Desugarer 🏖️🏖️
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-//------------------------------------------------53
-/// to 'unwrap' a tag means to replace the
-/// tag by its children (replace a V- VXML node by
-/// its children in the tree); this function unwraps
-/// tags based solely on their name, as given by a
-/// list of names of tags to unwrap
-pub fn constructor(param: Param) -> Desugarer {
-  Desugarer(
-    name: name,
-    stringified_param: option.Some(ins(param)),
-    stringified_outside: option.None,
-    transform: case param_to_inner_param(param) {
-      Error(error) -> fn(_) { Error(error) }
-      Ok(inner) -> transform_factory(inner)
-    },
-  )
-}
+type InnerParam =
+  Param
 
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
 // 🌊🌊🌊 tests 🌊🌊🌊🌊🌊
@@ -66,5 +60,9 @@ fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
 }
 
 pub fn assertive_tests() {
-  core.assertive_test_collection_from_data(name, assertive_tests_data(), constructor)
+  core.assertive_test_collection_from_data(
+    name,
+    assertive_tests_data(),
+    constructor,
+  )
 }

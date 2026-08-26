@@ -1,33 +1,36 @@
-import vxml/blame as bl
+import desugaring/authoring
+import desugaring/core.{
+  type Desugarer, type DesugarerTransform, type DesugaringError, DesugaringError,
+}
+import desugaring/nodemaps_2_transform as n2t
 import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/result
 import gleam/string.{inspect as ins}
-import desugaring/core.{
-  type Desugarer,
-  type DesugarerTransform,
-  type DesugaringError,
-  DesugaringError,
-  Desugarer,
-} as core
-import desugaring/nodemaps_2_transform as n2t
 import on
-import vxml.{type VXML, type Line, Attr, Line, T, V}
+import vxml.{type Line, type VXML, Attr, Line, T, V}
 
-fn reversed_lines_super_trim_end_and_remove_ending_period(lines: List(Line)) -> List(Line) {
+fn reversed_lines_super_trim_end_and_remove_ending_period(
+  lines: List(Line),
+) -> List(Line) {
   case lines {
     [] -> []
     [last, ..rest] -> {
       let content = string.trim_end(last.content)
       case content {
         "" -> reversed_lines_super_trim_end_and_remove_ending_period(rest)
-        _ -> case string.ends_with(content, ".") && !string.ends_with(content, "..") {
-          True -> {
-            let last = Line(..last, content: {content |> string.drop_end(1)})
-            [last, ..rest] |> reversed_lines_super_trim_end_and_remove_ending_period
+        _ ->
+          case
+            string.ends_with(content, ".") && !string.ends_with(content, "..")
+          {
+            True -> {
+              let last =
+                Line(..last, content: { content |> string.drop_end(1) })
+              [last, ..rest]
+              |> reversed_lines_super_trim_end_and_remove_ending_period
+            }
+            False -> lines
           }
-          False -> lines
-        }
       }
     }
   }
@@ -35,7 +38,10 @@ fn reversed_lines_super_trim_end_and_remove_ending_period(lines: List(Line)) -> 
 
 fn t_super_trim_end_and_remove_ending_period(node: VXML) -> Option(VXML) {
   let assert T(blame, lines) = node
-  let lines = reversed_lines_super_trim_end_and_remove_ending_period(lines |> list.reverse)
+  let lines =
+    reversed_lines_super_trim_end_and_remove_ending_period(
+      lines |> list.reverse,
+    )
   case lines {
     [] -> None
     _ -> Some(T(blame, lines |> list.reverse))
@@ -46,10 +52,11 @@ fn remove_period(nodes: List(VXML)) -> List(VXML) {
   use last, head <- on.eager_empty_nonempty(nodes |> list.reverse, [])
 
   case last {
-    T(..) -> case t_super_trim_end_and_remove_ending_period(last) {
-      None -> head |> list.reverse
-      Some(last) -> [last, ..head] |> list.reverse
-    }
+    T(..) ->
+      case t_super_trim_end_and_remove_ending_period(last) {
+        None -> head |> list.reverse
+        Some(last) -> [last, ..head] |> list.reverse
+      }
     V(_, _, _, children) -> {
       let last = V(..last, children: remove_period(children))
       [last, ..head] |> list.reverse
@@ -84,14 +91,14 @@ fn construct_breadcrumb(
   index: Int,
 ) -> VXML {
   V(
-    desugarer_blame(87),
+    desugarer_blame(94),
     "BreadcrumbItem",
-    [Attr(desugarer_blame(89), "id", "breadcrumb-" <> ins(index))],
+    [Attr(desugarer_blame(96), "id", "breadcrumb-" <> ins(index))],
     [
       V(
-        desugarer_blame(92),
+        desugarer_blame(99),
         "InChapterLink",
-        [Attr(desugarer_blame(94), "href", "?id=" <> target_id)],
+        [Attr(desugarer_blame(101), "href", "?id=" <> target_id)],
         children |> cleanup_children,
       ),
     ],
@@ -137,7 +144,7 @@ fn generate_sections_list(
   }
 
   Ok(V(
-    desugarer_blame(140),
+    desugarer_blame(147),
     "SectionsBreadcrumbs",
     [],
     list.flatten([sections_nodes, exercises_node]),
@@ -180,17 +187,10 @@ fn at_root(root: VXML) -> Result(VXML, DesugaringError) {
   Ok(V(..root, children: children))
 }
 
-fn transform_factory(_: InnerParam) -> core.DesugarerTransform {
+fn inner_param_to_transform(_: InnerParam) -> core.DesugarerTransform {
   at_root
-  |> n2t.at_root_2_desugarer_transform
+  |> n2t.node_to_node_2_desugarer_transform_without_walking
 }
-
-fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
-  Ok(param)
-}
-
-type Param =
-  Nil
 
 type InnerParam =
   Nil
@@ -198,27 +198,23 @@ type InnerParam =
 pub const name = "lbp_generate_breadcrumbs"
 
 fn desugarer_blame(line_no: Int) {
-  bl.Des([], name, line_no)
+  authoring.blame(name, line_no)
 }
 
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 // 🏖️🏖️ Desugarer 🏖️🏖️
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-//------------------------------------------------53
+/// Generates LBP breadcrumb elements from the document's
+/// chapter, bootcamp, appendix, and table-of-contents layout.
 pub fn constructor() -> Desugarer {
-  Desugarer(
+  authoring.no_param_desugarer(
     name: name,
-    stringified_param: option.None,
-    stringified_outside: option.None,
-    transform: case param_to_inner_param(Nil) {
-      Error(error) -> fn(_) { Error(error) }
-      Ok(inner) -> transform_factory(inner)
-    },
+    transform: inner_param_to_transform(Nil),
   )
 }
 
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
-// 🌊🌊🌊 tests 🌊🌊🌊🌊🌊
+// 🌊🌊🌊 tests 🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
 fn assertive_tests_data() -> List(core.AssertiveTestDataNoParam) {
   []

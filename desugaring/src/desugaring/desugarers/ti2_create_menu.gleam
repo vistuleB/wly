@@ -1,34 +1,42 @@
+import desugaring/authoring
+import desugaring/core.{
+  type Desugarer, type DesugaringError, type TrafficLight, Continue,
+  DesugaringError, GoBack,
+}
+import desugaring/nodemaps_2_transform as n2t
 import gleam/int
 import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/string.{inspect as ins}
-import desugaring/core.{
-  type Desugarer,
-  type DesugaringError,
-  type TrafficLight,
-  DesugaringError,
-  Desugarer,
-  GoBack,
-  Continue,
-} as core
-import vxml.{
-  type VXML,
-  type Attr,
-  Attr,
-  Line,
-  V,
-  T,
-}
-import desugaring/nodemaps_2_transform as n2t
-import vxml/blame as bl
 import on
+import vxml.{type Attr, type VXML, Attr, Line, T, V}
+import vxml/blame as bl
 
-const prev_page_id_attr = Attr(bl.Des([], name, 26), "id", "prev-page")
-const next_page_id_attr = Attr(bl.Des([], name, 27), "id", "next-page")
-const hr_id_attr = Attr(bl.Des([], name, 28), "id", "bottom-menu-hr")
-const hr = V(bl.Des([], name, 29), "hr", [hr_id_attr], [])
+pub const name = "ti2_create_menu"
 
-type Title = List(VXML)
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
+// 🏖️🏖️ Desugarer 🏖️🏖️
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️️️️️🏖️
+
+/// Generates ti2 navigation menus from previously created
+/// index and neighboring-page title elements.
+pub fn constructor() -> Desugarer {
+  authoring.no_param_desugarer(
+    name: name,
+    transform: inner_param_to_transform(),
+  )
+}
+
+const prev_page_id_attr = Attr(bl.Des([], name, 30), "id", "prev-page")
+
+const next_page_id_attr = Attr(bl.Des([], name, 32), "id", "next-page")
+
+const hr_id_attr = Attr(bl.Des([], name, 34), "id", "bottom-menu-hr")
+
+const hr = V(bl.Des([], name, 36), "hr", [hr_id_attr], [])
+
+type Title =
+  List(VXML)
 
 type Page {
   Chapter(title: Title, number_chiron: String, ch_no: Int)
@@ -64,11 +72,11 @@ type Menu {
 }
 
 fn an_attr(key: String, val: String) -> Attr {
-  Attr(desugarer_blame(67), key, val)
+  Attr(desugarer_blame(75), key, val)
 }
 
 fn string_2_text_node(content: String) -> VXML {
-  T(desugarer_blame(71), [Line(desugarer_blame(71), content)])
+  T(desugarer_blame(79), [Line(desugarer_blame(79), content)])
 }
 
 fn into_list(a: a) -> List(a) {
@@ -80,7 +88,7 @@ fn homepage_link(at_root_data: ConstructedAtRootData) -> Option(VXML) {
     "" -> None
     url ->
       Some(V(
-        desugarer_blame(83),
+        desugarer_blame(91),
         "a",
         an_attr("href", url) |> into_list,
         string_2_text_node(at_root_data.homepage_word) |> into_list,
@@ -89,20 +97,15 @@ fn homepage_link(at_root_data: ConstructedAtRootData) -> Option(VXML) {
 }
 
 fn index_link(toc_word: String) -> VXML {
-  V(
-    desugarer_blame(93),
-    "a",
-    an_attr("href", "./index.html") |> into_list,
-    [
-      V(
-        desugarer_blame(98),
-        "span",
-        an_attr("class", "inhalts_arrows") |> into_list,
-        "<< " |> string_2_text_node |> into_list,
-      ),
-      toc_word |> string_2_text_node,
-    ],
-  )
+  V(desugarer_blame(100), "a", an_attr("href", "./index.html") |> into_list, [
+    V(
+      desugarer_blame(102),
+      "span",
+      an_attr("class", "inhalts_arrows") |> into_list,
+      "<< " |> string_2_text_node |> into_list,
+    ),
+    toc_word |> string_2_text_node,
+  ])
 }
 
 fn page_href(page: Page) -> String {
@@ -113,11 +116,7 @@ fn page_href(page: Page) -> String {
   }
 }
 
-fn tooltip(
-  page: Page,
-  relation: Relation,
-  which: Menu,
-) -> VXML {
+fn tooltip(page: Page, relation: Relation, which: Menu) -> VXML {
   let p1 = case which {
     Top -> "top-"
     Bottom -> "bottom-"
@@ -129,7 +128,7 @@ fn tooltip(
   }
 
   V(
-    desugarer_blame(132),
+    desugarer_blame(131),
     "span",
     [
       an_attr("style", "visibility:hidden"),
@@ -168,15 +167,10 @@ fn page_link(
       <> next_suffix
   }
 
-  V(
-    desugarer_blame(172),
-    "a",
-    [href_attr],
-    [
-      content |> string_2_text_node,
-      tooltip(page, relation, which),
-    ],
-  )
+  V(desugarer_blame(170), "a", [href_attr], [
+    content |> string_2_text_node,
+    tooltip(page, relation, which),
+  ])
 }
 
 fn row1_row2_links_2_menu(
@@ -189,7 +183,7 @@ fn row1_row2_links_2_menu(
     Bottom -> #("BottomMenu", "bottom-")
   }
   let dummy =
-    V(desugarer_blame(192), "a", [an_attr("class", "menu-row-placeholder")], [])
+    V(desugarer_blame(186), "a", [an_attr("class", "menu-row-placeholder")], [])
   let row_constructor = fn(row: #(Option(VXML), Option(VXML))) {
     let #(left, right) = row
     let right = case right {
@@ -201,27 +195,26 @@ fn row1_row2_links_2_menu(
       _, _ -> {
         let left = option.unwrap(left, dummy)
         let right = option.unwrap(right, dummy)
-        Some(V(
-          desugarer_blame(205),
-          "MenuRow",
-          an_attr("class", "menu-row") |> into_list,
-          [left, right],
-        ))
+        Some(
+          V(
+            desugarer_blame(200),
+            "MenuRow",
+            an_attr("class", "menu-row") |> into_list,
+            [left, right],
+          ),
+        )
       }
     }
   }
   V(
-    desugarer_blame(214),
+    desugarer_blame(210),
     tag,
     an_attr("id", p1 <> "menu") |> into_list,
     [row1, row2] |> list.map(row_constructor) |> option.values,
   )
 }
 
-fn data_2_menu_row_version(
-  data: LinkData,
-  which: Menu,
-) -> VXML {
+fn data_2_menu_row_version(data: LinkData, which: Menu) -> VXML {
   let chapter_word = data.at_root_data.chapter_word
   let toc_word = data.at_root_data.toc_word
   let homepage = homepage_link(data.at_root_data)
@@ -242,12 +235,7 @@ fn data_2_menu_row_version(
             which,
           )
 
-        Bottom ->
-          row1_row2_links_2_menu(
-            #(None, None),
-            #(None, None),
-            which,
-          )
+        Bottom -> row1_row2_links_2_menu(#(None, None), #(None, None), which)
       }
 
     // a chapter or subchapter
@@ -301,7 +289,11 @@ fn page_from_title(
     Ok(None),
   )
   let assert V(blame, _, attrs, title) = title
-  use chiron <- on.ok(core.attrs_val_of_unique_key(attrs, "number-chiron", blame))
+  use chiron <- on.ok(core.attrs_val_of_unique_key(
+    attrs,
+    "number-chiron",
+    blame,
+  ))
   use ch_no <- on.ok(core.attrs_val_of_unique_key(attrs, "ch_no", blame))
   let assert Ok(ch_no) = int.parse(ch_no)
   let sub_no = case core.attrs_val_of_unique_key(attrs, "sub_no", blame) {
@@ -342,20 +334,11 @@ fn link_data_at_ch_or_sub(
   Ok(LinkData(at_root_data, Some("./index.html"), prev, next))
 }
 
-fn add_menu(
-  node: VXML,
-  data: LinkData,
-  which: Menu,
-) -> VXML {
+fn add_menu(node: VXML, data: LinkData, which: Menu) -> VXML {
   let menu = data_2_menu_row_version(data, which)
   case which {
     Top -> core.v_prepend_child(node, menu)
-    Bottom ->
-      core.v_pour_before_first(
-        node,
-        [menu, hr],
-        "Sub",
-      )
+    Bottom -> core.v_pour_before_first(node, [menu, hr], "Sub")
   }
 }
 
@@ -407,14 +390,16 @@ fn at_root(root: VXML) -> Result(VXML, DesugaringError) {
     core.v_val_of_first_attr_with_key(root, "homepage")
     |> option.unwrap("")
 
-  use language <- on.ok(case core.v_val_of_first_attr_with_key(root, "language") {
-    None ->
-      Error(DesugaringError(
-        bl.no_blame,
-        "ti2_create_menu: missing 'language' attribute on document root",
-      ))
-    Some(lang) -> Ok(lang)
-  })
+  use language <- on.ok(
+    case core.v_val_of_first_attr_with_key(root, "language") {
+      None ->
+        Error(DesugaringError(
+          bl.no_blame,
+          "ti2_create_menu: missing 'language' attribute on document root",
+        ))
+      Some(lang) -> Ok(lang)
+    },
+  )
 
   use at_root_data <- on.ok(case language {
     "de" ->
@@ -443,49 +428,17 @@ fn at_root(root: VXML) -> Result(VXML, DesugaringError) {
   n2t.early_return_one_to_one_nodemap_walk(root, nodemap(_, at_root_data))
 }
 
-fn transform_factory(_: InnerParam) -> core.DesugarerTransform {
+fn inner_param_to_transform() -> core.DesugarerTransform {
   at_root
-  |> n2t.at_root_2_desugarer_transform
+  |> n2t.node_to_node_2_desugarer_transform_without_walking
 }
-
-fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
-  Ok(param)
-}
-
-type Param = Nil
-type InnerParam = Nil
-
-pub const name = "ti2_create_menu"
 
 fn desugarer_blame(line_no: Int) {
   bl.Des([], name, line_no)
 }
 
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-// 🏖️🏖️ Desugarer 🏖️🏖️
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-//------------------------------------------------53
-/// generate ti2 Menu navigation with left and right
-/// menus containing previous/next chapter links,
-/// index link, and course homepage link. The menu
-/// is inserted after each Chapter and Sub element.
-/// This desugarer expects ti2_create_index and
-/// ti2_add_prev_next_chapter_title_elements to have
-/// been run beforehand
-pub fn constructor() -> Desugarer {
-  Desugarer(
-    name: name,
-    stringified_param: option.None,
-    stringified_outside: option.None,
-    transform: case param_to_inner_param(Nil) {
-      Error(error) -> fn(_) { Error(error) }
-      Ok(inner) -> transform_factory(inner)
-    },
-  )
-}
-
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
-// 🌊🌊🌊 tests 🌊🌊🌊🌊🌊
+// 🌊🌊🌊 tests 🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
 fn assertive_tests_data() -> List(core.AssertiveTestDataNoParam) {
   []

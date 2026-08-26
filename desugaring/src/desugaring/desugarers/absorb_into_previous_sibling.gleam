@@ -6,9 +6,23 @@ import desugaring/nodemaps_2_transform as n2t
 import gleam/list
 import vxml.{type VXML, T, V}
 
-/// moves each uninterrupted run of elements of the specified tags into the end
-/// of its preceding element when that element's tag is not specified
 pub const name = "absorb_into_previous_sibling"
+
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
+// 🏖️🏖️ Desugarer 🏖️🏖️
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️️️️️🏖️
+
+/// Moves each uninterrupted run of elements of the
+/// specified tags into the end of its preceding element
+/// when that element's tag is not specified.
+pub fn constructor(param: Param) -> Desugarer {
+  authoring.desugarer(
+    name: name,
+    param: param,
+    prepare: param_to_inner_param,
+    transform: inner_param_to_transform,
+  )
+}
 
 type Param =
   List(String)
@@ -20,9 +34,20 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
   Ok(param)
 }
 
-// ⚙️⚙️⚙️⚙️⚙️⚙️⚙️⚙️⚙️⚙️⚙️⚙️️️️⚙️️️️⚙️️️️
-// ⚙️⚙️ implementation ⚙️⚙️
-// ⚙️⚙️⚙️⚙️⚙️⚙️⚙️⚙️⚙️⚙️⚙️⚙️⚙️️️️⚙️️️️
+fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
+  let nodemap: n2t.OneToOneNoErrorNodemap = nodemap(_, inner)
+  nodemap
+  |> n2t.one_to_one_no_error_nodemap_2_desugarer_transform()
+}
+
+fn nodemap(vxml: VXML, inner: InnerParam) -> VXML {
+  case vxml {
+    V(_, _, _, [first, second, ..rest]) ->
+      V(..vxml, children: update_children([], first, [second, ..rest], inner))
+    _ -> vxml
+  }
+}
+
 fn update_children(
   already_processed: List(VXML),
   previous_sibling: VXML,
@@ -73,35 +98,10 @@ fn update_children(
   }
 }
 
-fn nodemap(vxml: VXML, inner: InnerParam) -> VXML {
-  case vxml {
-    V(_, _, _, [first, second, ..rest]) ->
-      V(..vxml, children: update_children([], first, [second, ..rest], inner))
-    _ -> vxml
-  }
-}
-
-fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
-  let nodemap: n2t.OneToOneNoErrorNodemap = nodemap(_, inner)
-  nodemap
-  |> n2t.one_to_one_no_error_nodemap_2_desugarer_transform()
-}
-
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-// 🏖️🏖️ constructor 🏖️🏖️
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️️️️️🏖️
-pub fn constructor(param: Param) -> Desugarer {
-  authoring.desugarer(
-    name: name,
-    param: param,
-    prepare: param_to_inner_param,
-    transform: inner_param_to_transform,
-  )
-}
-
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
-// 🌊🌊🌊 tests 🌊🌊🌊🌊🌊
+// 🌊🌊🌊 tests 🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
+
 fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
   [
     core.AssertiveTestData(

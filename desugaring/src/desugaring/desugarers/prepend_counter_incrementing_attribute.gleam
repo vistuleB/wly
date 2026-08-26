@@ -1,99 +1,82 @@
-import gleam/option
-import gleam/string.{inspect as ins}
+import desugaring/authoring
 import desugaring/core.{
-  type Desugarer,
-  type DesugarerTransform,
-  type DesugaringError,
-  type TrafficLight,
-  Desugarer,
-  Continue,
-  GoBack,
-} as core
-import desugaring/nodemaps_2_transform as n2t
-import vxml.{
-  type VXML,
-  type Attr,
-  Attr,
-  V,
+  type Desugarer, type DesugarerTransform, type DesugaringError,
+  type TrafficLight, Continue, GoBack,
 }
-import vxml/blame as bl
+import desugaring/nodemaps_2_transform as n2t
+import vxml.{type Attr, type VXML, Attr, V}
 
-fn nodemap(
-  vxml: VXML,
-  inner: InnerParam,
-) -> #(VXML, TrafficLight) {
-  case vxml {
-    V(_, tag, attrs, _) if tag == inner.0 ->
-      #(V(..vxml, attrs: [inner.1, ..attrs]), inner.2)
-    _ -> #(vxml, Continue)
-  }
+pub const name = "prepend_counter_incrementing_attribute"
+
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
+// 🏖️🏖️ Desugarer 🏖️🏖️
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️️️️️🏖️
+
+/// Prepends a counter-increment instruction attribute to
+/// matching elements.
+pub fn constructor(param: Param) -> Desugarer {
+  authoring.desugarer(
+    name: name,
+    param: param,
+    prepare: param_to_inner_param,
+    transform: inner_param_to_transform,
+  )
+}
+
+type Param =
+  #(
+    // Target tag.
+    String,
+    // Counter name.
+    String,
+    // Whether to traverse matching descendants.
+    TrafficLight,
+  )
+
+type InnerParam =
+  #(String, Attr, TrafficLight)
+
+fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
+  #(
+    param.0,
+    Attr(desugarer_blame(42), "_", param.1 <> " ::++" <> param.1),
+    param.2,
+  )
+  |> Ok
+}
+
+fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
+  nodemap_factory(inner)
+  |> n2t.early_return_one_to_one_no_error_nodemap_2_desugarer_transform
 }
 
 fn nodemap_factory(inner: InnerParam) -> n2t.EarlyReturnOneToOneNoErrorNodemap {
   nodemap(_, inner)
 }
 
-fn transform_factory(inner: InnerParam) -> DesugarerTransform {
-  nodemap_factory(inner)
-  |> n2t.early_return_one_to_one_no_error_nodemap_2_desugarer_transform
+fn nodemap(vxml: VXML, inner: InnerParam) -> #(VXML, TrafficLight) {
+  case vxml {
+    V(_, tag, attrs, _) if tag == inner.0 -> #(
+      V(..vxml, attrs: [inner.1, ..attrs]),
+      inner.2,
+    )
+    _ -> #(vxml, Continue)
+  }
 }
 
-fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
-  #(
-    param.0,
-    Attr(desugarer_blame(44), "_", param.1 <> " ::++" <> param.1),
-    param.2,
-  )
-  |> Ok
-}
-
-type Param = #(String, String,  TrafficLight)
-//             ↖       ↖        ↖
-//             tag     counter  pursue-nested-or-not
-type InnerParam = #(String, Attr, TrafficLight)
-fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
-
-pub const name = "prepend_counter_incrementing_attribute"
-
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-// 🏖️🏖️ Desugarer 🏖️🏖️
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-//------------------------------------------------53
-/// For each #(tag, counter_name, traffic_light)
-/// tuple in the parameter list, this desugarer adds
-/// an attr of the form
-/// ```
-/// _=counter_name ::++counter_name
-/// ```
-/// to each node of tag 'tag', where the key is a
-/// period '.' and the value is the string
-/// '<counter_name> ::++<counter_name>'. As counters
-/// are evaluated and substitued also inside of
-/// key-value pairs, adding this key-value pair
-/// causes the counter <counter_name> to increment at
-/// each occurrence of a node of tag 'tag'.
-pub fn constructor(
-  param: Param,
-) -> Desugarer {
-  Desugarer(
-    name: name,
-    stringified_param: option.Some(ins(param)),
-    stringified_outside: option.None,
-    transform: case param_to_inner_param(param) {
-      Error(error) -> fn(_) { Error(error) }
-      Ok(inner) -> transform_factory(inner)
-    },
-  )
+fn desugarer_blame(line_no: Int) {
+  authoring.blame(name, line_no)
 }
 
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
-// 🌊🌊🌊 tests 🌊🌊🌊🌊🌊
+// 🌊🌊🌊 tests 🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
+
 fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
   [
     core.AssertiveTestData(
       param: #("Chapter", "ChapterCounter", GoBack),
-      source:   "
+      source: "
                   <> root
                     <> Chapter
                       title=Introduction
@@ -134,7 +117,7 @@ fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
     ),
     core.AssertiveTestData(
       param: #("Sub", "SubCounter", Continue),
-      source:   "
+      source: "
                   <> root
                     <> Sub
                       title=Overview
@@ -169,7 +152,7 @@ fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
     ),
     core.AssertiveTestData(
       param: #("Exercise", "ExerciseCounter", Continue),
-      source:   "
+      source: "
                   <> root
                     <> Exercise
                       number=1
@@ -204,5 +187,9 @@ fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
 }
 
 pub fn assertive_tests() {
-  core.assertive_test_collection_from_data(name, assertive_tests_data(), constructor)
+  core.assertive_test_collection_from_data(
+    name,
+    assertive_tests_data(),
+    constructor,
+  )
 }

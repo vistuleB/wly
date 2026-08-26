@@ -1,7 +1,8 @@
 import ansel/image
+import desugaring/authoring
 import desugaring/core.{
   type Desugarer, type DesugarerTransform, type DesugaringError,
-  type DesugaringWarning, Desugarer, DesugaringError, DesugaringWarning,
+  type DesugaringWarning, DesugaringError, DesugaringWarning,
 }
 import desugaring/nodemaps_2_transform as n2t
 import desugaring/tables as pr
@@ -25,6 +26,182 @@ import shellout
 import simplifile
 import vxml.{type Attr, type VXML, Attr, V}
 import vxml/blame.{type Blame} as bl
+
+pub const name = "lbp_img_build"
+
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
+// 🏖️🏖️ Desugarer 🏖️🏖️
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️️️️️🏖️
+
+/// Builds image assets, optimizes changed SVG files, and
+/// maintains image metadata and build timestamps.
+pub fn constructor(param: Param) -> Desugarer {
+  authoring.desugarer(
+    name: name,
+    param: param,
+    prepare: param_to_inner_param,
+    transform: inner_param_to_transform,
+  )
+}
+
+type Param =
+  #(
+    // **********************************************************
+    // on the following semantics, please note:
+    //
+    //  - 'src' means the directory that author mentally
+    //    uses as the root folder for 'src' attributes
+    //  - 'src_img' is the subfolder of src
+    //    that contains images that are to be processed
+    //    by this image pipeline
+    //
+    // for example, if 'src' attributes have the form
+    //
+    //    src=imgs/ch2/something.svg
+    //
+    // and the 'imgs' directory sit inside of '../assets'
+    // relative to the executable, and where 'imgs' directory
+    // is the director that contains images that are meant to be
+    // processed by this (the standard) pipeline, then we would
+    // have
+    //
+    //    exec_2_src = "../assets/"   (callers can skip the trailing backlash, it will be added automatically the desugarer)
+    //    src_2_src_img = "imgs/"     (ditto)
+    //
+    // Also:
+    //
+    //  - 'build' is the build directory
+    //  - 'build_img' is the subdirectory of build meant
+    //    to contain the build version of images produced
+    //    by this pipeline
+    //  - image-map.json contains a dictionary whose keys
+    //    are paths relative to src_img; the 'build_version'
+    //    field of each item is a path relative to build_img
+    //    directory
+    // **********************************************************
+    String,
+    // exec_2_src
+    String,
+    // exec_2_build
+    String,
+    // src_2_src_img
+    String,
+    // build_2_build_img
+    String,
+    // location of image_map.json relative to exec
+    Bool,
+    // remove unused entries from image_map
+    Bool,
+    // remove unused files in build_img
+    Bool,
+    // 'quick mode': build with cp instead of svgo
+  )
+
+type InnerParam {
+  InnerParam(
+    exec_2_src: String,
+    exec_2_src_img: String,
+    exec_2_build: String,
+    exec_2_build_img: String,
+    src_2_src_img: String,
+    src_2_src_img_length: Int,
+    build_2_build_img: String,
+    image_map_path: String,
+    src_img_mod_times: LastModifiedTimes,
+    build_img_files: FileSet,
+    cleanup_image_map: Bool,
+    cleanup_build_img: Bool,
+    quick_mode: Bool,
+    svg_patterns: SvgPatterns,
+  )
+}
+
+fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
+  assert param.0 != ""
+  assert param.1 != ""
+  assert !string.starts_with(param.2, "/")
+  assert !string.starts_with(param.2, "./")
+  assert !string.starts_with(param.2, "../")
+  assert !string.starts_with(param.3, "/")
+  assert !string.starts_with(param.3, "./")
+  assert !string.starts_with(param.3, "../")
+
+  let exec_2_src = param.0 |> core.ensure_suffix("/")
+  let exec_2_build = param.1 |> core.ensure_suffix("/")
+  let src_2_src_img = param.2 |> ensure_suffix_if_nonempty("/")
+  let build_2_build_img = param.3 |> ensure_suffix_if_nonempty("/")
+  let exec_2_src_img = exec_2_src <> src_2_src_img
+  let exec_2_build_img = exec_2_build <> build_2_build_img
+  let src_2_src_img_length = src_2_src_img |> string.length()
+  let build_img_files = load_relative_file_set(exec_2_build_img)
+
+  use src_img_mod_times <- on.ok(load_last_modified_times(exec_2_src_img))
+
+  InnerParam(
+    exec_2_src: exec_2_src,
+    exec_2_src_img: exec_2_src_img,
+    exec_2_build: exec_2_build,
+    exec_2_build_img: exec_2_build_img,
+    src_2_src_img: src_2_src_img,
+    src_2_src_img_length: src_2_src_img_length,
+    build_2_build_img: build_2_build_img,
+    image_map_path: param.4,
+    src_img_mod_times: src_img_mod_times,
+    build_img_files: build_img_files,
+    cleanup_image_map: param.5,
+    cleanup_build_img: param.6,
+    quick_mode: param.7,
+    svg_patterns: compile_svg_patterns(),
+  )
+  |> Ok
+}
+
+const img_tags = ["img", "Image", "ImageLeft", "ImageRight", "InlineImage"]
+
+const supported_extensions = ["svg", "png", "jpg", "jpeg", "gif", "webp"]
+
+type BuildImgInfo {
+  BuildImgInfo(
+    build_version: String,
+    build_version_created_on: Int,
+    build_method: BuildMethod,
+    build_version_size: Int,
+    original_size: Int,
+    compressed_size: Int,
+    compression: String,
+    // e.g. "38.85%"
+    intrinsic_width: String,
+    intrinsic_height: String,
+    used_last_build: Bool,
+    three_chars: List(String),
+  )
+}
+
+type ImageMap =
+  Dict(String, BuildImgInfo)
+
+type LastModifiedTimes =
+  Dict(String, Int)
+
+// path -> last_modified timestamp
+type FileSet =
+  Dict(String, Nil)
+
+type State =
+  ImageMap
+
+type SvgPatterns {
+  SvgPatterns(
+    svg: regexp.Regexp,
+    width: regexp.Regexp,
+    height: regexp.Regexp,
+    viewbox: regexp.Regexp,
+  )
+}
+
+fn desugarer_blame(line_no: Int) -> bl.Blame {
+  authoring.blame(name, line_no)
+}
 
 fn build_method_to_string(build_method: BuildMethod) -> String {
   case build_method {
@@ -280,7 +457,7 @@ fn load_last_modified_time_entries(
 ) -> Result(List(#(String, Int)), DesugaringError) {
   use names <- on.error_ok(simplifile.read_directory(directory), fn(error) {
     Error(DesugaringError(
-      desugarer_blame(283),
+      desugarer_blame(460),
       simplifile.describe_error(error),
     ))
   })
@@ -288,7 +465,7 @@ fn load_last_modified_time_entries(
     let path = filepath.join(directory, name)
     use info <- on.error_ok(simplifile.file_info(path), fn(error) {
       Error(DesugaringError(
-        desugarer_blame(291),
+        desugarer_blame(468),
         simplifile.describe_error(error),
       ))
     })
@@ -426,7 +603,7 @@ fn run_shellout(
     Ok(_) -> Ok(Nil)
     Error(e) ->
       Error(DesugaringError(
-        desugarer_blame(429),
+        desugarer_blame(606),
         "failed to execute: '"
           <> cmd
           <> "' (error: "
@@ -483,7 +660,7 @@ fn build_or_miraculously_retrieve_existing_build_image(
     get_modified_date(exec_2_build_version),
     fn(err) {
       Error(DesugaringError(
-        desugarer_blame(486),
+        desugarer_blame(663),
         "could not get created date of optimized image: "
           <> exec_2_build_version
           <> ": "
@@ -494,14 +671,14 @@ fn build_or_miraculously_retrieve_existing_build_image(
 
   use original_size <- on.error_ok(get_file_size(exec_2_src_version), fn(_) {
     Error(DesugaringError(
-      desugarer_blame(497),
+      desugarer_blame(674),
       "Could not get size of original image: " <> exec_2_src_version,
     ))
   })
 
   use new_size <- on.error_ok(get_file_size(exec_2_build_version), fn(_) {
     Error(DesugaringError(
-      desugarer_blame(504),
+      desugarer_blame(681),
       "Could not get size of build image: " <> exec_2_build_version,
     ))
   })
@@ -525,7 +702,7 @@ fn build_or_miraculously_retrieve_existing_build_image(
 }
 
 fn update_src_attr(attrs: List(Attr), src: String) -> List(Attr) {
-  core.attrs_set(attrs, desugarer_blame(528), "src", src)
+  core.attrs_set(attrs, desugarer_blame(705), "src", src)
 }
 
 fn first_regexp_submatch(
@@ -643,10 +820,10 @@ fn add_intrinsic_dimensions(
     inner.svg_patterns,
   ))
   let attrs =
-    core.attrs_set(attrs, desugarer_blame(646), "intrinsicWidth", dimensions.0)
+    core.attrs_set(attrs, desugarer_blame(823), "intrinsicWidth", dimensions.0)
   Ok(core.attrs_set(
     attrs,
-    desugarer_blame(649),
+    desugarer_blame(826),
     "intrinsicHeight",
     dimensions.1,
   ))
@@ -658,12 +835,12 @@ fn add_cached_intrinsic_dimensions(
 ) -> List(Attr) {
   attrs
   |> core.attrs_set(
-    desugarer_blame(661),
+    desugarer_blame(838),
     "intrinsicWidth",
     info.intrinsic_width,
   )
   |> core.attrs_set(
-    desugarer_blame(666),
+    desugarer_blame(843),
     "intrinsicHeight",
     info.intrinsic_height,
   )
@@ -868,7 +1045,7 @@ fn remove_files_from_build_img_that_have_no_image_map_preimage(
     simplifile.get_files(inner.exec_2_build_img),
     fn(err) {
       Error(DesugaringError(
-        desugarer_blame(871),
+        desugarer_blame(1048),
         "could not read build_img files at "
           <> inner.exec_2_build_img
           <> " for cleanup: "
@@ -975,7 +1152,7 @@ fn nodemap_factory(
   )
 }
 
-fn transform_factory(inner: InnerParam) -> DesugarerTransform {
+fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
   let image_map = load_image_map(inner.image_map_path)
   nodemap_factory(inner)
   |> n2t.fancy_one_to_one_enter_exit_stateful_with_warnings_nodemap_2_desugarer_transform(
@@ -1007,188 +1184,8 @@ fn compile_svg_patterns() -> SvgPatterns {
   SvgPatterns(svg, width, height, viewbox)
 }
 
-fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
-  assert param.0 != ""
-  assert param.1 != ""
-  assert !string.starts_with(param.2, "/")
-  assert !string.starts_with(param.2, "./")
-  assert !string.starts_with(param.2, "../")
-  assert !string.starts_with(param.3, "/")
-  assert !string.starts_with(param.3, "./")
-  assert !string.starts_with(param.3, "../")
-
-  let exec_2_src = param.0 |> core.ensure_suffix("/")
-  let exec_2_build = param.1 |> core.ensure_suffix("/")
-  let src_2_src_img = param.2 |> ensure_suffix_if_nonempty("/")
-  let build_2_build_img = param.3 |> ensure_suffix_if_nonempty("/")
-  let exec_2_src_img = exec_2_src <> src_2_src_img
-  let exec_2_build_img = exec_2_build <> build_2_build_img
-  let src_2_src_img_length = src_2_src_img |> string.length()
-  let build_img_files = load_relative_file_set(exec_2_build_img)
-
-  use src_img_mod_times <- on.ok(load_last_modified_times(exec_2_src_img))
-
-  InnerParam(
-    exec_2_src: exec_2_src,
-    exec_2_src_img: exec_2_src_img,
-    exec_2_build: exec_2_build,
-    exec_2_build_img: exec_2_build_img,
-    src_2_src_img: src_2_src_img,
-    src_2_src_img_length: src_2_src_img_length,
-    build_2_build_img: build_2_build_img,
-    image_map_path: param.4,
-    src_img_mod_times: src_img_mod_times,
-    build_img_files: build_img_files,
-    cleanup_image_map: param.5,
-    cleanup_build_img: param.6,
-    quick_mode: param.7,
-    svg_patterns: compile_svg_patterns(),
-  )
-  |> Ok
-}
-
-const img_tags = ["img", "Image", "ImageLeft", "ImageRight", "InlineImage"]
-
-const supported_extensions = ["svg", "png", "jpg", "jpeg", "gif", "webp"]
-
-type BuildImgInfo {
-  BuildImgInfo(
-    build_version: String,
-    build_version_created_on: Int,
-    build_method: BuildMethod,
-    build_version_size: Int,
-    original_size: Int,
-    compressed_size: Int,
-    compression: String,
-    // e.g. "38.85%"
-    intrinsic_width: String,
-    intrinsic_height: String,
-    used_last_build: Bool,
-    three_chars: List(String),
-  )
-}
-
-type ImageMap =
-  Dict(String, BuildImgInfo)
-
-type LastModifiedTimes =
-  Dict(String, Int)
-
-// path -> last_modified timestamp
-type FileSet =
-  Dict(String, Nil)
-
-type State =
-  ImageMap
-
-type SvgPatterns {
-  SvgPatterns(
-    svg: regexp.Regexp,
-    width: regexp.Regexp,
-    height: regexp.Regexp,
-    viewbox: regexp.Regexp,
-  )
-}
-
-type Param =
-  #(
-    // **********************************************************
-    // on the following semantics, please note:
-    //
-    //  - 'src' means the directory that author mentally
-    //    uses as the root folder for 'src' attributes
-    //  - 'src_img' is the subfolder of src
-    //    that contains images that are to be processed
-    //    by this image pipeline
-    //
-    // for example, if 'src' attributes have the form
-    //
-    //    src=imgs/ch2/something.svg
-    //
-    // and the 'imgs' directory sit inside of '../assets'
-    // relative to the executable, and where 'imgs' directory
-    // is the director that contains images that are meant to be
-    // processed by this (the standard) pipeline, then we would
-    // have
-    //
-    //    exec_2_src = "../assets/"   (callers can skip the trailing backlash, it will be added automatically the desugarer)
-    //    src_2_src_img = "imgs/"     (ditto)
-    //
-    // Also:
-    //
-    //  - 'build' is the build directory
-    //  - 'build_img' is the subdirectory of build meant
-    //    to contain the build version of images produced
-    //    by this pipeline
-    //  - image-map.json contains a dictionary whose keys
-    //    are paths relative to src_img; the 'build_version'
-    //    field of each item is a path relative to build_img
-    //    directory
-    // **********************************************************
-    String,
-    // exec_2_src
-    String,
-    // exec_2_build
-    String,
-    // src_2_src_img
-    String,
-    // build_2_build_img
-    String,
-    // location of image_map.json relative to exec
-    Bool,
-    // remove unused entries from image_map
-    Bool,
-    // remove unused files in build_img
-    Bool,
-    // 'quick mode': build with cp instead of svgo
-  )
-
-type InnerParam {
-  InnerParam(
-    exec_2_src: String,
-    exec_2_src_img: String,
-    exec_2_build: String,
-    exec_2_build_img: String,
-    src_2_src_img: String,
-    src_2_src_img_length: Int,
-    build_2_build_img: String,
-    image_map_path: String,
-    src_img_mod_times: LastModifiedTimes,
-    build_img_files: FileSet,
-    cleanup_image_map: Bool,
-    cleanup_build_img: Bool,
-    quick_mode: Bool,
-    svg_patterns: SvgPatterns,
-  )
-}
-
-pub const name = "lbp_img_build"
-
-fn desugarer_blame(line_no: Int) -> bl.Blame {
-  bl.Des([], name, line_no)
-}
-
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-// 🏖️🏖️ Desugarer 🏖️🏖️
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-//------------------------------------------------53
-/// Processes images for build: optimizes SVGs with svgo,
-/// copies other images, maintains build dictionary with
-/// compression stats and timestamps
-pub fn constructor(param: Param) -> Desugarer {
-  Desugarer(
-    name: name,
-    stringified_param: option.Some(ins(param)),
-    stringified_outside: option.None,
-    transform: case param_to_inner_param(param) {
-      Error(error) -> fn(_) { Error(error) }
-      Ok(inner) -> transform_factory(inner)
-    },
-  )
-}
-
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
-// 🌊🌊🌊 tests 🌊🌊🌊🌊🌊
+// 🌊🌊🌊 tests 🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
 
 fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {

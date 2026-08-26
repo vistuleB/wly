@@ -7,9 +7,23 @@ import gleam/dict.{type Dict}
 import gleam/list
 import vxml.{type VXML, V}
 
-/// inserts the configured element with attributes after each matching element,
-/// except when the matching element is its parent's last child
 pub const name = "add_after_but_not_after_last_child__batch"
+
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
+// 🏖️🏖️ Desugarer 🏖️🏖️
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️️️️️🏖️
+
+/// Inserts the configured element with attributes after
+/// each matching element, except when the matching element
+/// is its parent's last child.
+pub fn constructor(param: Param) -> Desugarer {
+  authoring.desugarer(
+    name: name,
+    param: param,
+    prepare: param_to_inner_param,
+    transform: inner_param_to_transform,
+  )
+}
 
 type Param =
   List(
@@ -31,15 +45,25 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
   |> list.map(fn(triple) {
     #(
       triple.0,
-      core.v_attrs_constructor(authoring.blame(name, 34), triple.1, triple.2),
+      core.v_attrs_constructor(authoring.blame(name, 48), triple.1, triple.2),
     )
   })
   |> core.dict_from_list
 }
 
-// ⚙️⚙️⚙️⚙️⚙️⚙️⚙️⚙️⚙️⚙️⚙️⚙️️️️⚙️️️️⚙️️️️
-// ⚙️⚙️ implementation ⚙️⚙️
-// ⚙️⚙️⚙️⚙️⚙️⚙️⚙️⚙️⚙️⚙️⚙️⚙️⚙️️️️⚙️️️️
+fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
+  let nodemap: n2t.OneToOneNoErrorNodemap = nodemap(_, inner)
+  nodemap
+  |> n2t.one_to_one_no_error_nodemap_2_desugarer_transform()
+}
+
+fn nodemap(vxml: VXML, inner: InnerParam) -> VXML {
+  case vxml {
+    V(_, _, _, children) -> V(..vxml, children: add_in_list(children, inner))
+    _ -> vxml
+  }
+}
+
 fn add_in_list(vxmls: List(VXML), inner: InnerParam) -> List(VXML) {
   case vxmls {
     [V(_, tag, _, _) as first, second, ..rest] -> {
@@ -53,34 +77,10 @@ fn add_in_list(vxmls: List(VXML), inner: InnerParam) -> List(VXML) {
   }
 }
 
-fn nodemap(vxml: VXML, inner: InnerParam) -> VXML {
-  case vxml {
-    V(_, _, _, children) -> V(..vxml, children: add_in_list(children, inner))
-    _ -> vxml
-  }
-}
-
-fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
-  let nodemap: n2t.OneToOneNoErrorNodemap = nodemap(_, inner)
-  nodemap
-  |> n2t.one_to_one_no_error_nodemap_2_desugarer_transform()
-}
-
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-// 🏖️🏖️ constructor 🏖️🏖️
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️️️️️🏖️
-pub fn constructor(param: Param) -> Desugarer {
-  authoring.desugarer(
-    name: name,
-    param: param,
-    prepare: param_to_inner_param,
-    transform: inner_param_to_transform,
-  )
-}
-
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
-// 🌊🌊🌊 tests 🌊🌊🌊🌊🌊
+// 🌊🌊🌊 tests 🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
+
 fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
   []
 }

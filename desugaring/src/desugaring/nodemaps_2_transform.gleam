@@ -15,26 +15,35 @@ pub fn add_no_warnings(vxml: VXML) {
   #(vxml, [])
 }
 
-pub fn at_root_2_desugarer_transform(
-  at_root: fn(VXML) -> Result(VXML, DesugaringError),
+pub type NodeToNode =
+  fn(VXML) -> Result(VXML, DesugaringError)
+
+pub type NodeToNodeWithWarnings =
+  fn(VXML) -> Result(#(VXML, List(DesugaringWarning)), DesugaringError)
+
+pub type NodeToNil =
+  fn(VXML) -> Result(Nil, DesugaringError)
+
+pub fn node_to_node_2_desugarer_transform_without_walking(
+  node_to_node: NodeToNode,
 ) {
   fn(vxml) {
-    at_root(vxml)
+    node_to_node(vxml)
     |> result.map(add_no_warnings)
   }
 }
 
-pub fn at_root_with_warnings_2_desugarer_transform(
-  at_root: fn(VXML) -> Result(#(VXML, List(DesugaringWarning)), DesugaringError),
+pub fn node_to_node_with_warnings_2_desugarer_transform_without_walking(
+  node_to_node: NodeToNodeWithWarnings,
 ) {
-  at_root
+  node_to_node
 }
 
-pub fn at_root_identity_2_desugarer_transform(
-  at_root: fn(VXML) -> Result(Nil, DesugaringError),
+pub fn node_to_nil_2_desugarer_transform_without_walking(
+  node_to_nil: NodeToNil,
 ) {
   fn(vxml) {
-    use _ <- on.ok(at_root(vxml))
+    use _ <- on.ok(node_to_nil(vxml))
     Ok(#(vxml, []))
   }
 }

@@ -1,10 +1,13 @@
+import desugaring/authoring
+import desugaring/core.{
+  type Desugarer, type DesugarerTransform, type DesugaringError,
+}
+import desugaring/nodemaps_2_transform as n2t
 import gleam/list
 import gleam/option.{type Option}
-import gleam/string.{inspect as ins}
-import desugaring/core.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as core
-import desugaring/nodemaps_2_transform as n2t
-import vxml.{type Line, type VXML, Line, T, V}
+import gleam/string
 import on
+import vxml.{type Line, type VXML, Line, T, V}
 
 fn updated_node(
   vxml: VXML,
@@ -22,18 +25,20 @@ fn updated_node(
   let new_children =
     on.none_some(
       wrapper,
-      fn() { [
-        T(
-          t_blame,
-          list.flatten([
-            prefix,
-            [counter_command],
-            [rest],
-            list.drop(lines, 1),
-          ]),
-        ),
-        ..list.drop(children, 1)
-      ] },
+      fn() {
+        [
+          T(
+            t_blame,
+            list.flatten([
+              prefix,
+              [counter_command],
+              [rest],
+              list.drop(lines, 1),
+            ]),
+          ),
+          ..list.drop(children, 1)
+        ]
+      },
       fn(wrapper) {
         let wrapper_node =
           V(t_blame, wrapper, [], [T(t_blame, [counter_command])])
@@ -49,19 +54,15 @@ fn updated_node(
   V(blame, tag, attrs, new_children)
 }
 
-fn nodemap(
-  vxml: VXML,
-  inner: InnerParam,
-) -> Result(VXML, DesugaringError) {
+fn nodemap(vxml: VXML, inner: InnerParam) -> Result(VXML, DesugaringError) {
   let #(counter_command, #(key, value), prefixes, wrapper) = inner
 
   case vxml {
     T(_, _) -> Ok(vxml)
     V(_, _, _, children) -> {
-      use <- on.false_true(
-        core.v_has_key_val(vxml, key, value),
-        on_false: fn() { Ok(vxml) },
-      )
+      use <- on.false_true(core.v_has_key_val(vxml, key, value), on_false: fn() {
+        Ok(vxml)
+      })
 
       case children {
         [T(t_blame, lines), ..] -> {
@@ -92,7 +93,8 @@ fn nodemap(
             }
             Error(_), True -> {
               let blamed_cc = Line(t_blame, counter_command)
-              updated_node(vxml, option.None, #(blamed_cc, wrapper), first_line) |> Ok
+              updated_node(vxml, option.None, #(blamed_cc, wrapper), first_line)
+              |> Ok
             }
             Error(_), False -> Ok(vxml)
           }
@@ -103,34 +105,35 @@ fn nodemap(
   }
 }
 
-fn nodemap_factory(inner: InnerParam) -> n2t.OneToOneNodemap {
-  nodemap(_, inner)
-}
-
-fn transform_factory(inner: InnerParam) -> DesugarerTransform {
-  n2t.one_to_one_nodemap_2_desugarer_transform(nodemap_factory(inner))
+fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
+  let nodemap: n2t.OneToOneNodemap = nodemap(_, inner)
+  n2t.one_to_one_nodemap_2_desugarer_transform(nodemap)
 }
 
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
   Ok(param)
 }
 
-type Param = #(String,   #(String, String),  List(String),  Option(String))
-//             ↖         ↖                   ↖              ↖
-//             counter   key-value pair      list of        wrapper
-//             command   to insert           strings        tag to
-//             to        counter command     before         wrap the
-//             insert                        counter        counter
-//                                           command        command
+type Param =
+  #(
+    // Counter command to insert.
+    String,
+    // Attribute key and value selecting target elements.
+    #(String, String),
+    // Strings before which to insert the command.
+    List(String),
+    // Optional element name wrapping the command.
+    Option(String),
+  )
 
-type InnerParam = Param
+type InnerParam =
+  Param
 
 pub const name = "ii2_insert_counter_commands"
 
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 // 🏖️🏖️ Desugarer 🏖️🏖️
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-//------------------------------------------------53
 /// inserts TI2 counter commands into text nodes of
 /// specified elements
 /// # Param:
@@ -141,24 +144,25 @@ pub const name = "ii2_insert_counter_commands"
 ///  - A wrapper tag to wrap the counter command
 ///    string
 pub fn constructor(param: Param) -> Desugarer {
-  Desugarer(
+  authoring.desugarer(
     name: name,
-    stringified_param: option.Some(ins(param)),
-    stringified_outside: option.None,
-    transform: case param_to_inner_param(param) {
-      Error(error) -> fn(_) { Error(error) }
-      Ok(inner) -> transform_factory(inner)
-    },
+    param: param,
+    prepare: param_to_inner_param,
+    transform: inner_param_to_transform,
   )
 }
 
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
-// 🌊🌊🌊 tests 🌊🌊🌊🌊🌊
+// 🌊🌊🌊 tests 🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
 fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
   []
 }
 
 pub fn assertive_tests() {
-  core.assertive_test_collection_from_data(name, assertive_tests_data(), constructor)
+  core.assertive_test_collection_from_data(
+    name,
+    assertive_tests_data(),
+    constructor,
+  )
 }

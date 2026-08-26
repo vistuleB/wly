@@ -1,18 +1,46 @@
-import vxml/blame as bl
+import desugaring/authoring
+import desugaring/core.{
+  type Desugarer, type DesugarerTransform, type DesugaringError,
+  type DesugaringWarning, DesugaringError, DesugaringWarning,
+}
+import desugaring/nodemaps_2_transform as n2t
 import gleam/dict.{type Dict}
-import gleam/list
 import gleam/int
+import gleam/list
 import gleam/option.{None, Some}
 import gleam/order
 import gleam/result
 import gleam/string
-import desugaring/core.{
-  type Desugarer, type DesugarerTransform, type DesugaringError,
-  type DesugaringWarning, Desugarer, DesugaringError, DesugaringWarning,
-} as core
-import desugaring/nodemaps_2_transform as n2t
 import on
 import vxml.{type VXML, V}
+import vxml/blame as bl
+
+pub const name = "lbp_select_content"
+
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
+// 🏖️🏖️ Desugarer 🏖️🏖️
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️️️️️🏖️
+
+/// Selects and orders the LBP content requested by the
+/// document's selection metadata.
+pub fn constructor() -> Desugarer {
+  authoring.no_param_desugarer(
+    name: name,
+    transform: inner_param_to_transform(Nil),
+  )
+}
+
+type InnerParam =
+  Nil
+
+fn inner_param_to_transform(_inner: InnerParam) -> core.DesugarerTransform {
+  at_root
+  |> n2t.node_to_node_with_warnings_2_desugarer_transform_without_walking
+}
+
+fn desugarer_blame(line_no: Int) {
+  authoring.blame(name, line_no)
+}
 
 fn with_handle_value(thing: VXML) -> Result(#(String, VXML), DesugaringError) {
   let assert V(blame, _, attrs, _) = thing
@@ -37,11 +65,19 @@ fn with_chapter_value(thing: VXML) -> Result(#(String, VXML), DesugaringError) {
   }
 }
 
-fn exercise_filterer_nodemap(node: VXML, handles: List(String)) -> #(List(VXML), List(DesugaringWarning)) {
+fn exercise_filterer_nodemap(
+  node: VXML,
+  handles: List(String),
+) -> #(List(VXML), List(DesugaringWarning)) {
   case node {
     V(_, "Exercise", attrs, _) ->
       case core.attrs_first_with_key(attrs, "handle") {
-        None -> #([], [DesugaringWarning(desugarer_blame(44), "removing Exercise node w/out handle")])
+        None -> #([], [
+          DesugaringWarning(
+            desugarer_blame(77),
+            "removing Exercise node w/out handle",
+          ),
+        ])
         Some(x) ->
           case list.contains(handles, x.val) {
             True -> #([node], [])
@@ -70,16 +106,13 @@ fn rearrange_exercise_children(
 
   // extract "Exercise" children:
   let dummy = V(bl.no_blame, "DumDum", [], [])
-  let #(exercises, children) = list.map_fold(
-    children,
-    [],
-    fn(acc, child) {
+  let #(exercises, children) =
+    list.map_fold(children, [], fn(acc, child) {
       case child {
         V(_, "Exercise", _, _) -> #([child, ..acc], dummy)
         _ -> #(acc, child)
       }
-    }
-  )
+    })
 
   // return if no such children:
   use _ <- on.stay(case exercises {
@@ -91,10 +124,8 @@ fn rearrange_exercise_children(
   let exercises = list.sort(exercises, ranker)
 
   // re-insert:
-  let #(exercises, children) = list.map_fold(
-    children,
-    exercises,
-    fn(acc, child) {
+  let #(exercises, children) =
+    list.map_fold(children, exercises, fn(acc, child) {
       case child {
         V(_, "DumDum", _, _) -> {
           let assert [exercise, ..more] = acc
@@ -102,8 +133,7 @@ fn rearrange_exercise_children(
         }
         _ -> #(acc, child)
       }
-    }
-  )
+    })
   assert exercises == []
   let assert V(..) = node
   V(..node, children: children)
@@ -114,19 +144,19 @@ fn set_exercises_to(
   handles: List(String),
 ) -> Result(#(VXML, List(DesugaringWarning)), DesugaringError) {
   let nodemap = exercise_filterer_nodemap(_, handles)
-  let #(root, warnings) = n2t.one_to_many_no_error_with_warnings_nodemap_walk(chapter, nodemap)
-  use root <- on.stay(
-    case root {
-      [root] -> on.Stay(root)
-      [] -> on.Return(
+  let #(root, warnings) =
+    n2t.one_to_many_no_error_with_warnings_nodemap_walk(chapter, nodemap)
+  use root <- on.stay(case root {
+    [root] -> on.Stay(root)
+    [] ->
+      on.Return(
         Error(DesugaringError(
-          desugarer_blame(123),
+          desugarer_blame(154),
           "empty chapter after filtering exercises",
-        ))
+        )),
       )
-      _ -> panic as "nodemap walk returned list with > 1 node (???)"
-    },
-  )
+    _ -> panic as "nodemap walk returned list with > 1 node (???)"
+  })
   let exercises_dict = create_handles_rank_dict(handles)
   let exercise_comparer = fn(a: VXML, b: VXML) -> order.Order {
     let assert V(_, "Exercise", attrs_a, _) = a
@@ -178,7 +208,7 @@ fn at_root(
   use chapter_selection_node <- on.eager_error_ok(
     list.find(others, core.is_v_and_tag_equals(_, "ChapterSelection")),
     Error(DesugaringError(
-      desugarer_blame(181),
+      desugarer_blame(211),
       "'ChapterSelection' node not found",
     )),
   )
@@ -202,16 +232,24 @@ fn at_root(
       use chapter <- on.error_ok(
         dict.get(handle_2_chapter_dict, handle),
         on_error: fn(_) {
-          let warning = DesugaringWarning(desugarer_blame(205), "found no chapter with handle '" <> handle <> "'")
+          let warning =
+            DesugaringWarning(
+              desugarer_blame(237),
+              "found no chapter with handle '" <> handle <> "'",
+            )
           Ok(#(acc.0, [warning, ..acc.1]))
-        }
+        },
       )
       use in_elt <- on.error_ok(
         dict.get(handle_2_in_elts_dict, handle),
         on_error: fn(_) {
-            let warning = DesugaringWarning(desugarer_blame(212), "no '|> In' exercise list found for chapter '" <> handle <> "'")
-            Ok(#([chapter, ..acc.0], [warning, ..acc.1]))
-        }
+          let warning =
+            DesugaringWarning(
+              desugarer_blame(248),
+              "no '|> In' exercise list found for chapter '" <> handle <> "'",
+            )
+          Ok(#([chapter, ..acc.0], [warning, ..acc.1]))
+        },
       )
       let assert V(_, "In", _, in_elt_children) = in_elt
       let exercise_handles =
@@ -221,56 +259,28 @@ fn at_root(
           assert string.starts_with(line.content, ">>")
           string.drop_start(line.content, 2)
         })
-      use #(chapter, warnings) <- on.ok(set_exercises_to(chapter, exercise_handles))
+      use #(chapter, warnings) <- on.ok(set_exercises_to(
+        chapter,
+        exercise_handles,
+      ))
       #([chapter, ..acc.0], list.append(acc.1, warnings)) |> Ok
     }),
   )
 
-  use _, _ <- on.empty_nonempty(chapters, fn() { Error(DesugaringError(bl.no_blame, "no chapters found")) })
+  use _, _ <- on.empty_nonempty(chapters, fn() {
+    Error(DesugaringError(bl.no_blame, "no chapters found"))
+  })
 
-  Ok(#(V(..root, children: chapters |> list.reverse |> list.append(to_keep, _)), warnings))
-}
-
-fn desugarer_factory(_inner: InnerParam) -> core.DesugarerTransform {
-  at_root
-  |> n2t.at_root_with_warnings_2_desugarer_transform
-}
-
-fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
-  Ok(param)
-}
-
-type Param =
-  Nil
-
-type InnerParam =
-  Param
-
-pub const name = "lbp_select_content"
-
-fn desugarer_blame(line_no: Int) {
-  bl.Des([], name, line_no)
-}
-
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-// 🏖️🏖️ Desugarer 🏖️🏖️
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-//------------------------------------------------53
-pub fn constructor() -> Desugarer {
-  Desugarer(
-    name: name,
-    stringified_param: option.None,
-    stringified_outside: option.None,
-    transform: case param_to_inner_param(Nil) {
-      Error(error) -> fn(_) { Error(error) }
-      Ok(inner) -> desugarer_factory(inner)
-    },
-  )
+  Ok(#(
+    V(..root, children: chapters |> list.reverse |> list.append(to_keep, _)),
+    warnings,
+  ))
 }
 
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
-// 🌊🌊🌊 tests 🌊🌊🌊🌊🌊
+// 🌊🌊🌊 tests 🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
+
 fn assertive_tests_data() -> List(core.AssertiveTestDataNoParam) {
   []
 }

@@ -1,75 +1,66 @@
-import gleam/option
-import gleam/string.{inspect as ins}
+import desugaring/authoring
 import desugaring/core.{
-  type Desugarer,
-  type DesugarerTransform,
-  type DesugaringError,
-  type TrafficLight,
-  DesugaringError,
-  Desugarer,
-  Continue,
-  GoBack,
-} as core
+  type Desugarer, type DesugarerTransform, type DesugaringError,
+  type TrafficLight, Continue, DesugaringError, GoBack,
+}
 import desugaring/nodemaps_2_transform as n2t
 import vxml.{type VXML, V}
 import vxml/blame as bl
-
-fn nodemap(
-  node: VXML,
-  inner: InnerParam,
-) -> #(VXML, TrafficLight) {
-  case node {
-    V(blame, tag, attrs, children) if tag == inner.0 -> {
-      let wrapped_children = [V(blame, inner.1, [], children)]
-      #(V(blame, tag, attrs, wrapped_children), inner.2)
-    }
-    _ -> #(node, Continue)
-  }
-}
-
-fn nodemap_factory(inner: InnerParam) -> n2t.EarlyReturnOneToOneNoErrorNodemap {
-  nodemap(_, inner)
-}
-
-fn transform_factory(inner: InnerParam) -> DesugarerTransform {
-  nodemap_factory(inner)
-  |> n2t.early_return_one_to_one_no_error_nodemap_2_desugarer_transform()
-}
-
-fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
-  case core.valid_tag(param.1) {
-    True -> Ok(param)
-    False -> Error(DesugaringError(bl.no_blame, "invalid tag for wrapper"))
-  }
-}
-
-type Param = #(String,  String,     TrafficLight)
-//             ↖        ↖           ↖
-//             parent   wrapper     early return or not
-//             tag      tag
-type InnerParam = Param
 
 pub const name = "wrap_children"
 
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 // 🏖️🏖️ Desugarer 🏖️🏖️
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-//------------------------------------------------53
-/// For a specified parent tag, wraps all children
-/// in a given wrapper tag.
-///
-/// Will create a wrapper with all existing children
-/// nested inside it.
+/// Wraps all children of configured parent elements in
+/// one new wrapper element.
 pub fn constructor(param: Param) -> Desugarer {
-  Desugarer(
+  authoring.desugarer(
     name: name,
-    stringified_param: option.Some(ins(param)),
-    stringified_outside: option.None,
-    transform: case param_to_inner_param(param) {
-      Error(error) -> fn(_) { Error(error) }
-      Ok(inner) -> transform_factory(inner)
-    },
+    param: param,
+    prepare: param_to_inner_param,
+    transform: inner_param_to_transform,
   )
+}
+
+type Param =
+  #(
+    // Parent tag.
+    String,
+    // Wrapper tag.
+    String,
+    // Traversal behavior after wrapping.
+    TrafficLight,
+  )
+
+type InnerParam {
+  InnerParam(parent: String, wrapper: String, traffic_light: TrafficLight)
+}
+
+fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
+  let #(parent, wrapper, traffic_light) = param
+  case core.valid_tag(wrapper) {
+    True -> Ok(InnerParam(parent, wrapper, traffic_light))
+    False -> Error(DesugaringError(bl.no_blame, "invalid tag for wrapper"))
+  }
+}
+
+fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
+  let nodemap: n2t.EarlyReturnOneToOneNoErrorNodemap = fn(vxml) {
+    nodemap(vxml, inner)
+  }
+  nodemap
+  |> n2t.early_return_one_to_one_no_error_nodemap_2_desugarer_transform
+}
+
+fn nodemap(vxml: VXML, inner: InnerParam) -> #(VXML, TrafficLight) {
+  case vxml {
+    V(blame, tag, attrs, children) if tag == inner.parent -> {
+      let wrapped_children = [V(blame, inner.wrapper, [], children)]
+      #(V(blame, tag, attrs, wrapped_children), inner.traffic_light)
+    }
+    _ -> #(vxml, Continue)
+  }
 }
 
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
@@ -79,7 +70,7 @@ fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
   [
     core.AssertiveTestData(
       param: #("div", "wrapper", GoBack),
-      source:   "
+      source: "
                 <> root
                   <> div
                     <> p
@@ -105,7 +96,7 @@ fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
     ),
     core.AssertiveTestData(
       param: #("section", "content", GoBack),
-      source:   "
+      source: "
                 <> root
                   <> section
                 ",
@@ -117,7 +108,7 @@ fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
     ),
     core.AssertiveTestData(
       param: #("article", "body", GoBack),
-      source:   "
+      source: "
                 <> root
                   <> article
                     <> h1
@@ -143,5 +134,9 @@ fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
 }
 
 pub fn assertive_tests() {
-  core.assertive_test_collection_from_data(name, assertive_tests_data(), constructor)
+  core.assertive_test_collection_from_data(
+    name,
+    assertive_tests_data(),
+    constructor,
+  )
 }

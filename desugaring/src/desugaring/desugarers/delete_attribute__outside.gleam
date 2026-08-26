@@ -1,50 +1,28 @@
-import gleam/list
-import gleam/option
-import gleam/string.{inspect as ins}
+import desugaring/authoring
 import desugaring/core.{
-  type Desugarer,
-  type DesugarerTransform,
-  type DesugaringError,
-  type TrafficLight,
-  Desugarer,
-  Continue,
-} as core
+  type Desugarer, type DesugarerTransform, type DesugaringError,
+  type TrafficLight, Continue,
+}
 import desugaring/nodemaps_2_transform as n2t
+import gleam/list
 import vxml.{type VXML, T, V}
 
-fn nodemap(vxml: VXML, inner: InnerParam) -> #(VXML, TrafficLight) {
-  case vxml {
-    T(_, _) -> #(vxml, Continue)
-    V(blame, tag, attrs, children) -> {
-      #(
-        V(
-          blame,
-          tag,
-          list.filter(attrs, fn(attr) { attr.key != inner }),
-          children,
-        ),
-        Continue,
-      )
-    }
-  }
-}
+pub const name = "delete_attribute__outside"
 
-fn nodemap_factory(inner: InnerParam) -> n2t.EarlyReturnOneToOneNoErrorNodemap {
-  nodemap(_, inner)
-}
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
+// 🏖️🏖️ Desugarer 🏖️🏖️
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️️️️️🏖️
 
-fn transform_factory(
-  inner: InnerParam,
-  outside: List(String),
-) -> DesugarerTransform {
-  nodemap_factory(inner)
-  |> n2t.early_return_one_to_one_no_error_nodemap_2_desugarer_transform_with_forbidden(
-    outside,
+/// Removes attributes with the specified key outside the
+/// forbidden subtrees.
+pub fn constructor(param: Param, outside: List(String)) -> Desugarer {
+  authoring.desugarer_with_outside(
+    name: name,
+    param: param,
+    outside: outside,
+    prepare: param_to_inner_param,
+    transform: inner_param_to_transform,
   )
-}
-
-fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
-  Ok(param)
 }
 
 type Param =
@@ -53,28 +31,35 @@ type Param =
 type InnerParam =
   Param
 
-pub const name = "delete_attribute__outside"
+fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
+  Ok(param)
+}
 
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-// 🏖️🏖️ Desugarer 🏖️🏖️
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-//------------------------------------------------53
-/// removes specified attr from all elements
-pub fn constructor(param: Param, outside: List(String)) -> Desugarer {
-  Desugarer(
-    name: name,
-    stringified_param: option.Some(ins(param)),
-    stringified_outside: option.None,
-    transform: case param_to_inner_param(param) {
-      Error(error) -> fn(_) { Error(error) }
-      Ok(inner) -> transform_factory(inner, outside)
-    },
+fn inner_param_to_transform(
+  inner: InnerParam,
+  outside: List(String),
+) -> DesugarerTransform {
+  let nodemap: n2t.EarlyReturnOneToOneNoErrorNodemap = nodemap(_, inner)
+  nodemap
+  |> n2t.early_return_one_to_one_no_error_nodemap_2_desugarer_transform_with_forbidden(
+    outside,
   )
 }
 
+fn nodemap(vxml: VXML, inner: InnerParam) -> #(VXML, TrafficLight) {
+  case vxml {
+    T(_, _) -> #(vxml, Continue)
+    V(_, _, attrs, _) -> #(
+      V(..vxml, attrs: list.filter(attrs, fn(attr) { attr.key != inner })),
+      Continue,
+    )
+  }
+}
+
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
-// 🌊🌊🌊 tests 🌊🌊🌊🌊🌊
+// 🌊🌊🌊 tests 🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
+
 fn assertive_tests_data() -> List(core.AssertiveTestDataWithOutside(Param)) {
   []
 }

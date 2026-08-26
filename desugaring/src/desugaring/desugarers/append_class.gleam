@@ -1,78 +1,81 @@
-import gleam/option
-import gleam/string.{inspect as ins}
+import desugaring/authoring
 import desugaring/core.{
-  type Desugarer,
-  type DesugarerTransform,
-  type DesugaringError,
-  type TrafficLight,
-  Desugarer,
-  Continue,
-} as core
-import desugaring/nodemaps_2_transform as n2t
-import vxml.{
-  type VXML,
-  V,
+  type Desugarer, type DesugarerTransform, type DesugaringError,
+  type TrafficLight, Continue,
 }
-import vxml/blame.{type Blame} as bl
+import desugaring/nodemaps_2_transform as n2t
+import vxml.{type VXML, V}
+import vxml/blame.{type Blame}
 
-fn nodemap(
-  vxml: VXML,
-  inner: InnerParam,
-) -> #(VXML, TrafficLight) {
+pub const name = "append_class"
+
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
+// 🏖️🏖️ Desugarer 🏖️🏖️
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️️️️️🏖️
+
+/// Appends a class to matching elements, optionally
+/// returning early from each matched subtree.
+pub fn constructor(param: Param) -> Desugarer {
+  authoring.desugarer(
+    name: name,
+    param: param,
+    prepare: param_to_inner_param,
+    transform: inner_param_to_transform,
+  )
+}
+
+type Param =
+  #(
+    // Target tag.
+    String,
+    // Class to append.
+    String,
+    // Traversal behavior after appending.
+    TrafficLight,
+  )
+
+type InnerParam {
+  InnerParam(
+    target_tag: String,
+    blame: Blame,
+    class_name: String,
+    traffic_light: TrafficLight,
+  )
+}
+
+fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
+  Ok(InnerParam(param.0, authoring.blame(name, 47), param.1, param.2))
+}
+
+fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
+  let nodemap: n2t.EarlyReturnOneToOneNoErrorNodemap = nodemap(_, inner)
+  nodemap
+  |> n2t.early_return_one_to_one_no_error_nodemap_2_desugarer_transform
+}
+
+fn nodemap(vxml: VXML, inner: InnerParam) -> #(VXML, TrafficLight) {
   case vxml {
-    V(_, tag, attrs, _) if tag == inner.0 -> {
-      let attrs = core.attrs_append_classes(attrs, desugarer_blame(24), inner.2)
-      #(V(..vxml, attrs: attrs), inner.3)
+    V(_, tag, attrs, _) if tag == inner.target_tag -> {
+      let attrs =
+        core.attrs_append_classes(attrs, inner.blame, inner.class_name)
+      #(V(..vxml, attrs: attrs), inner.traffic_light)
     }
     _ -> #(vxml, Continue)
   }
 }
 
-fn nodemap_factory(inner: InnerParam) -> n2t.EarlyReturnOneToOneNoErrorNodemap {
-  nodemap(_, inner)
-}
-
-fn transform_factory(inner: InnerParam) -> DesugarerTransform {
-  nodemap_factory(inner)
-  |> n2t.early_return_one_to_one_no_error_nodemap_2_desugarer_transform
-}
-
-fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
-  Ok(#(param.0, desugarer_blame(41), param.1, param.2))
-}
-
-type Param = #(String, String, TrafficLight)
-//             ↖       ↖       ↖
-//             tag     class   return-early-or-not-after-finding-tag
-type InnerParam = #(String, Blame, String, TrafficLight)
-
-pub const name = "append_class"
-fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
-
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-// 🏖️🏖️ Desugarer 🏖️🏖️
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-//------------------------------------------------53
-/// append to list of attrs of a given tag
-pub fn constructor(param: Param) -> Desugarer {
-  Desugarer(
-    name: name,
-    stringified_param: option.Some(ins(param)),
-    stringified_outside: option.None,
-    transform: case param_to_inner_param(param) {
-      Error(error) -> fn(_) { Error(error) }
-      Ok(inner) -> transform_factory(inner)
-    },
-  )
-}
-
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
-// 🌊🌊🌊 tests 🌊🌊🌊🌊🌊
+// 🌊🌊🌊 tests 🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
+
 fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
   []
 }
 
 pub fn assertive_tests() {
-  core.assertive_test_collection_from_data(name, assertive_tests_data(), constructor)
+  core.assertive_test_collection_from_data(
+    name,
+    assertive_tests_data(),
+    constructor,
+  )
 }

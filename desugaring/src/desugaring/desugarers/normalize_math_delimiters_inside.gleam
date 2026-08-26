@@ -1,71 +1,51 @@
-import gleam/list
-import gleam/option
-import gleam/string.{inspect as ins}
-import desugaring/core.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError, DesugaringError, type LatexDelimiterPair} as core
+import desugaring/authoring
+import desugaring/core.{
+  type Desugarer, type DesugarerTransform, type DesugaringError,
+  type LatexDelimiterPair, DesugaringError,
+}
 import desugaring/nodemaps_2_transform as n2t
-import vxml.{type VXML, T, V, Line}
+import gleam/list
+import gleam/string
+import vxml.{type VXML, Line, T, V}
 
-fn remove_first_prefix_found(c: String, prefixes: List(String)) -> String {
-  case prefixes {
-    [] -> c
-    [first, ..rest] -> case string.starts_with(c, first) {
-      True -> string.drop_start(c, string.length(first))
-      False -> remove_first_prefix_found(c, rest)
-    }
-  }
+pub const name = "normalize_math_delimiters_inside"
+
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
+// 🏖️🏖️ Desugarer 🏖️🏖️
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️️️️️🏖️
+
+/// Normalizes math delimiters inside configured ancestor
+/// elements.
+pub fn constructor(param: Param) -> Desugarer {
+  authoring.desugarer(
+    name: name,
+    param: param,
+    prepare: param_to_inner_param,
+    transform: inner_param_to_transform,
+  )
 }
 
-fn remove_first_suffix_found(c: String, suffixes: List(String)) -> String {
-  case suffixes {
-    [] -> c
-    [first, ..rest] -> case string.ends_with(c, first) {
-      True -> string.drop_end(c, string.length(first))
-      False -> remove_first_suffix_found(c, rest)
-    }
-  }
-}
+type Param =
+  #(
+    // Target tag.
+    String,
+    // Delimiter pair to normalize to.
+    LatexDelimiterPair,
+  )
 
-fn normalize_t(
-  t: VXML,
-  inner: InnerParam,
-) -> VXML {
-  let assert T(blame, lines) = t
-  let lines = core.lines_trim_start(lines)
-  let assert [first, ..rest] = lines
-  let lines = [
-    Line(..first, content: inner.2 <> remove_first_prefix_found(first.content, inner.0)),
-    ..rest
-  ]
-  let lines = core.reversed_lines_trim_end(lines |> list.reverse)
-  let assert [first, ..rest] = lines
-  let lines = [
-    Line(..first, content: remove_first_suffix_found(first.content, inner.1) <> inner.3),
-    ..rest
-  ]
-  let lines = lines |> list.reverse
-  T(blame, lines)
-}
-
-fn nodemap(
-  node: VXML,
-  inner: InnerParam,
-) -> Result(VXML, DesugaringError) {
-  case node {
-    V(_, tag, _, children) if tag == inner.4 -> case children {
-      [T(_, _) as t] -> Ok(V(..node, children: [normalize_t(t, inner)]))
-      _ -> Error(DesugaringError(node.blame, "expecting unique text child in target tag"))
-    }
-    _ -> Ok(node)
-  }
-}
-
-fn nodemap_factory(inner: InnerParam) -> n2t.OneToOneNodemap {
-  nodemap(_, inner)
-}
-
-fn transform_factory(inner: InnerParam) -> DesugarerTransform {
-  n2t.one_to_one_nodemap_2_desugarer_transform(nodemap_factory(inner))
-}
+type InnerParam =
+  #(
+    // Opening delimiters to remove.
+    List(String),
+    // Closing delimiters to remove.
+    List(String),
+    // Opening delimiter to use.
+    String,
+    // Closing delimiter to use.
+    String,
+    // Target tag.
+    String,
+  )
 
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
   let #(left_target, right_target) =
@@ -74,67 +54,100 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
     core.latex_strippable_delimiter_pairs()
     |> list.map(core.opening_and_closing_string_for_pair)
     |> list.unzip
-  let left_delims = list.filter(left_delims, fn(c) {c != left_target })
-  let right_delims = list.filter(right_delims, fn(c) {c != right_target })
+  let left_delims = list.filter(left_delims, fn(c) { c != left_target })
+  let right_delims = list.filter(right_delims, fn(c) { c != right_target })
   Ok(#(
-    left_delims,    // inner.0
-    right_delims,   // inner.1
-    left_target,    // inner.2
-    right_target,   // inner.3
-    param.0,        // inner.4
+    left_delims,
+    // inner.0
+    right_delims,
+    // inner.1
+    left_target,
+    // inner.2
+    right_target,
+    // inner.3
+    param.0,
+    // inner.4
   ))
 }
 
-type Param =
-  #(String,     LatexDelimiterPair)
-//  ↖           ↖
-//  tag         normalizing delimiter
-//  to target   pair
+fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
+  n2t.one_to_one_nodemap_2_desugarer_transform(nodemap_factory(inner))
+}
 
-type InnerParam =
-  #(List(String),     List(String),      String,     String,       String)
-//  ↖                 ↖                  ↖           ↖             ↖
-//  left delimiters   right delimiters   left        right         tag
-//  to remove         to remove          delimiter   delimiter     to target
-//                                       to use      to use
+fn nodemap_factory(inner: InnerParam) -> n2t.OneToOneNodemap {
+  nodemap(_, inner)
+}
 
-pub const name = "normalize_math_delimiters_inside"
+fn nodemap(node: VXML, inner: InnerParam) -> Result(VXML, DesugaringError) {
+  case node {
+    V(_, tag, _, children) if tag == inner.4 ->
+      case children {
+        [T(_, _) as t] -> Ok(V(..node, children: [normalize_t(t, inner)]))
+        _ ->
+          Error(DesugaringError(
+            node.blame,
+            "expecting unique text child in target tag",
+          ))
+      }
+    _ -> Ok(node)
+  }
+}
 
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-// 🏖️🏖️ Desugarer 🏖️🏖️
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-//------------------------------------------------53
-/// adds flexiblilty to user's custom
-/// mathblock element
-/// ```
-/// |> Mathblock
-///     math
-/// ```
-/// should be same as
-/// ```
-/// |> Mathblock
-///     $$math$$
-/// ```
-pub fn constructor(param: Param) -> Desugarer {
-  Desugarer(
-    name: name,
-    stringified_param: option.Some(ins(param)),
-    stringified_outside: option.None,
-    transform: case param_to_inner_param(param) {
-      Error(error) -> fn(_) { Error(error) }
-      Ok(inner) -> transform_factory(inner)
-    },
-  )
+fn normalize_t(t: VXML, inner: InnerParam) -> VXML {
+  let assert T(blame, lines) = t
+  let lines = core.lines_trim_start(lines)
+  let assert [first, ..rest] = lines
+  let lines = [
+    Line(
+      ..first,
+      content: inner.2 <> remove_first_prefix_found(first.content, inner.0),
+    ),
+    ..rest
+  ]
+  let lines = core.reversed_lines_trim_end(lines |> list.reverse)
+  let assert [first, ..rest] = lines
+  let lines = [
+    Line(
+      ..first,
+      content: remove_first_suffix_found(first.content, inner.1) <> inner.3,
+    ),
+    ..rest
+  ]
+  let lines = lines |> list.reverse
+  T(blame, lines)
+}
+
+fn remove_first_prefix_found(c: String, prefixes: List(String)) -> String {
+  case prefixes {
+    [] -> c
+    [first, ..rest] ->
+      case string.starts_with(c, first) {
+        True -> string.drop_start(c, string.length(first))
+        False -> remove_first_prefix_found(c, rest)
+      }
+  }
+}
+
+fn remove_first_suffix_found(c: String, suffixes: List(String)) -> String {
+  case suffixes {
+    [] -> c
+    [first, ..rest] ->
+      case string.ends_with(c, first) {
+        True -> string.drop_end(c, string.length(first))
+        False -> remove_first_suffix_found(c, rest)
+      }
+  }
 }
 
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
-// 🌊🌊🌊 tests 🌊🌊🌊🌊🌊
+// 🌊🌊🌊 tests 🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
+
 fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
   [
     core.AssertiveTestData(
       param: #("MathBlock", core.DoubleDollar),
-      source:   "
+      source: "
                 <> MathBlock
                   <>
                     'x'
@@ -147,7 +160,7 @@ fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
     ),
     core.AssertiveTestData(
       param: #("MathBlock", core.DoubleDollar),
-      source:   "
+      source: "
                 <> MathBlock
                   <>
                     '\\[x\\]'
@@ -162,5 +175,9 @@ fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
 }
 
 pub fn assertive_tests() {
-  core.assertive_test_collection_from_data(name, assertive_tests_data(), constructor)
+  core.assertive_test_collection_from_data(
+    name,
+    assertive_tests_data(),
+    constructor,
+  )
 }

@@ -1,63 +1,64 @@
-import gleam/option
-import gleam/list
-import gleam/string.{inspect as ins}
-import desugaring/core.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as core
+import desugaring/authoring
+import desugaring/core.{
+  type Desugarer, type DesugarerTransform, type DesugaringError,
+}
 import desugaring/nodemaps_2_transform as n2t
+import gleam/list
 import vxml.{type VXML, V}
 import vxml/blame as bl
 
-fn nodemap(
-  vxml: VXML,
-  inner: InnerParam,
-) -> VXML {
-  case vxml {
-    V(_, tag, _, children) if tag == inner.0 -> {
-      case list.any(children, core.descendant_text_contains(_, inner.2)) {
-        False -> vxml
-        True -> V(desugarer_blame(17), inner.1, [], [vxml])
-      }
-    }
-    _ -> vxml
-  }
+pub const name = "wrap_if_text_contains"
+
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
+// 🏖️🏖️ Desugarer 🏖️🏖️
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
+/// Wraps configured elements when their descendant text
+/// contains the supplied substring.
+pub fn constructor(param: Param) -> Desugarer {
+  authoring.desugarer(
+    name: name,
+    param: param,
+    prepare: param_to_inner_param,
+    transform: inner_param_to_transform,
+  )
 }
 
-fn nodemap_factory(inner: InnerParam) -> n2t.OneToOneNoErrorNodemap {
-  nodemap(_, inner)
-}
+type Param =
+  #(
+    // Tag to wrap.
+    String,
+    // Wrapper tag.
+    String,
+    // Substring to find in descendant text.
+    String,
+  )
 
-fn transform_factory(inner: InnerParam) -> DesugarerTransform {
-  nodemap_factory(inner)
-  |> n2t.one_to_one_no_error_nodemap_2_desugarer_transform()
-}
+type InnerParam = Param
 
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
   Ok(param)
 }
 
-type Param = #(String,  String,     String)
-//             ↖        ↖           ↖
-//             tag to   tag to      ...if some line
-//             wrap     wrap with   of descendant text contains
-type InnerParam = Param
+fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
+  let nodemap: n2t.OneToOneNoErrorNodemap = fn(vxml) {
+    nodemap(vxml, inner)
+  }
+  nodemap |> n2t.one_to_one_no_error_nodemap_2_desugarer_transform
+}
 
-pub const name = "wrap_if_text_contains"
-fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
+fn nodemap(vxml: VXML, inner: InnerParam) -> VXML {
+  case vxml {
+    V(_, tag, _, children) if tag == inner.0 ->
+      case list.any(children, core.descendant_text_contains(_, inner.2)) {
+        False -> vxml
+        True -> V(desugarer_blame(54), inner.1, [], [vxml])
+      }
+    _ -> vxml
+  }
+}
 
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-// 🏖️🏖️ Desugarer 🏖️🏖️
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-//------------------------------------------------53
-/// wrap
-pub fn constructor(param: Param) -> Desugarer {
-  Desugarer(
-    name: name,
-    stringified_param: option.Some(ins(param)),
-    stringified_outside: option.None,
-    transform: case param_to_inner_param(param) {
-      Error(error) -> fn(_) { Error(error) }
-      Ok(inner) -> transform_factory(inner)
-    },
-  )
+fn desugarer_blame(line_no: Int) {
+  bl.Des([], name, line_no)
 }
 
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
@@ -68,5 +69,9 @@ fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
 }
 
 pub fn assertive_tests() {
-  core.assertive_test_collection_from_data(name, assertive_tests_data(), constructor)
+  core.assertive_test_collection_from_data(
+    name,
+    assertive_tests_data(),
+    constructor,
+  )
 }

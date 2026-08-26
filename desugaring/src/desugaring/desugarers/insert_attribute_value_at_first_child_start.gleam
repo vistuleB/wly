@@ -1,17 +1,11 @@
-import gleam/option
-import gleam/string.{inspect as ins}
+import desugaring/authoring
 import desugaring/core.{
-  type Desugarer,
-  type DesugarerTransform,
-  type DesugaringError,
-  type TrafficLight,
-  DesugaringError,
-  Desugarer,
-  Continue,
-} as core
+  type Desugarer, type DesugarerTransform, type DesugaringError,
+  type TrafficLight, Continue, DesugaringError,
+}
 import desugaring/nodemaps_2_transform as n2t
-import vxml.{type VXML, V, T}
 import on
+import vxml.{type VXML, T, V}
 
 fn nodemap(
   vxml: VXML,
@@ -19,22 +13,20 @@ fn nodemap(
 ) -> Result(#(VXML, TrafficLight), DesugaringError) {
   case vxml {
     V(_, tag, attrs, children) if tag == inner.0 -> {
-      use attr <- on.ok(
-        core.attrs_unique_key_or_none(attrs, inner.1)
-      )
+      use attr <- on.ok(core.attrs_unique_key_or_none(attrs, inner.1))
 
-      use attr <- on.none_some(
-        attr,
-        fn() { Ok(#(vxml, Continue)) },
-      )
+      use attr <- on.none_some(attr, fn() { Ok(#(vxml, Continue)) })
 
-      use first, rest <- on.empty_nonempty(
-        children,
-        fn() { Error(DesugaringError(vxml.blame, "first child missing")) },
-      )
+      use first, rest <- on.empty_nonempty(children, fn() {
+        Error(DesugaringError(vxml.blame, "first child missing"))
+      })
 
       case first {
-        T(..) -> Error(DesugaringError(first.blame, "first child is text node instead of V-node"))
+        T(..) ->
+          Error(DesugaringError(
+            first.blame,
+            "first child is text node instead of V-node",
+          ))
         V(..) -> {
           let first = first |> core.v_start_insert_text(attr.val <> inner.2)
           Ok(#(V(..vxml, children: [first, ..rest]), inner.3))
@@ -45,12 +37,9 @@ fn nodemap(
   }
 }
 
-fn nodemap_factory(inner: InnerParam) -> n2t.EarlyReturnOneToOneNodemap {
-  nodemap(_, inner)
-}
-
-fn transform_factory(inner: InnerParam) -> DesugarerTransform {
-  nodemap_factory(inner)
+fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
+  let nodemap: n2t.EarlyReturnOneToOneNodemap = nodemap(_, inner)
+  nodemap
   |> n2t.early_return_one_to_one_nodemap_2_desugarer_transform
 }
 
@@ -58,37 +47,48 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
   Ok(param)
 }
 
-type Param = #(String,  String,    String,     TrafficLight)
-//             ↖        ↖          ↖           ↖
-//             tag      key        connector   return early or not
-//                                 string
-type InnerParam = Param
+type Param =
+  #(
+    // Target element name.
+    String,
+    // Attribute key whose value is inserted.
+    String,
+    // Connector appended to the attribute value.
+    String,
+    // Whether traversal returns early after insertion.
+    TrafficLight,
+  )
+
+type InnerParam =
+  Param
 
 pub const name = "insert_attribute_value_at_first_child_start"
 
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 // 🏖️🏖️ Desugarer 🏖️🏖️
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-//------------------------------------------------53
-/// inserts text at the beginning and end of a
-/// specified tag
+/// Inserts an attribute value at the start of the target's
+/// first element child, followed by a connector string.
 pub fn constructor(param: Param) -> Desugarer {
-  let assert Ok(inner) = param_to_inner_param(param)
-  Desugarer(
+  authoring.desugarer(
     name: name,
-    stringified_param: option.Some(ins(inner)),
-    stringified_outside: option.None,
-    transform: transform_factory(inner),
+    param: param,
+    prepare: param_to_inner_param,
+    transform: inner_param_to_transform,
   )
 }
 
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
-// 🌊🌊🌊 tests 🌊🌊🌊🌊🌊
+// 🌊🌊🌊 tests 🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
 fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
   []
 }
 
 pub fn assertive_tests() {
-  core.assertive_test_collection_from_data(name, assertive_tests_data(), constructor)
+  core.assertive_test_collection_from_data(
+    name,
+    assertive_tests_data(),
+    constructor,
+  )
 }

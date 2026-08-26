@@ -1,10 +1,59 @@
+import desugaring/authoring
+import desugaring/core.{
+  type Desugarer, type DesugarerTransform, type DesugaringError,
+}
+import desugaring/nodemaps_2_transform as n2t
 import gleam/dict.{type Dict}
 import gleam/list
 import gleam/option
-import gleam/string.{inspect as ins}
-import desugaring/core.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as core
-import desugaring/nodemaps_2_transform as n2t
 import vxml.{type VXML, T, V}
+
+pub const name = "surround_elements_by"
+
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
+// 🏖️🏖️ Desugarer 🏖️🏖️
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️️️️️🏖️
+
+/// Places configured elements immediately before and after
+/// matching elements.
+pub fn constructor(param: Param) -> Desugarer {
+  authoring.desugarer(
+    name: name,
+    param: param,
+    prepare: param_to_inner_param,
+    transform: inner_param_to_transform,
+  )
+}
+
+type Param =
+  #(
+    // Tags to surround.
+    List(String),
+    // Tag to insert before, or an empty string.
+    String,
+    // Tag to insert after, or an empty string.
+    String,
+  )
+
+type InnerParam =
+  Dict(String, #(String, String))
+
+fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
+  let #(els, above, below) = param
+  let inner_param =
+    els
+    |> list.map(fn(el) { #(el, #(above, below)) })
+    |> dict.from_list
+  Ok(inner_param)
+}
+
+fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
+  n2t.fancy_one_to_many_nodemap_2_desugarer_transform(nodemap_factory(inner))
+}
+
+fn nodemap_factory(inner: InnerParam) -> n2t.FancyOneToManyNodemap {
+  fn(node, ancestors, _, _, _) { nodemap(node, ancestors, inner) }
+}
 
 fn nodemap(
   node: VXML,
@@ -20,15 +69,17 @@ fn nodemap(
         Ok(#(above_tag, below_tag)), _ -> {
           let some_none_above = case above_tag {
             "" -> option.None
-            _ -> option.Some(
-              V(blame: blame, tag: above_tag, attrs: [], children: []),
-            )
+            _ ->
+              option.Some(
+                V(blame: blame, tag: above_tag, attrs: [], children: []),
+              )
           }
           let some_none_below = case below_tag {
             "" -> option.None
-            _ -> option.Some(
-              V(blame: blame, tag: below_tag, attrs: [], children: []),
-            )
+            _ ->
+              option.Some(
+                V(blame: blame, tag: below_tag, attrs: [], children: []),
+              )
           }
           case some_none_above, some_none_below {
             option.None, option.None -> Ok([node])
@@ -42,64 +93,18 @@ fn nodemap(
   }
 }
 
-fn nodemap_factory(inner: InnerParam) -> n2t.FancyOneToManyNodemap {
-  fn(node, ancestors, _, _, _) {
-    nodemap(node, ancestors, inner)
-  }
-}
-
-fn transform_factory(inner: InnerParam) -> DesugarerTransform {
-  n2t.fancy_one_to_many_nodemap_2_desugarer_transform(nodemap_factory(inner))
-}
-
-fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
-  let #(els, above, below) = param
-  let inner_param = els
-    |> list.map(fn(el) { #(el, #(above, below)) })
-    |> dict.from_list
-  Ok(inner_param)
-}
-
-type Param =
-  #(List(String), String,   String)
-//  ↖             ↖         ↖
-//  list of       name of   name of
-//  tag names     tag to    tag to
-//  to surround   place     place
-//                above     below
-type InnerParam = Dict(String, #(String, String))
-
-pub const name = "surround_elements_by"
-
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-// 🏖️🏖️ Desugarer 🏖️🏖️
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-//------------------------------------------------53
-/// surrounds specified elements with above and below tags
-/// the three tuple elements:
-///    - list of tag names to surround
-///    - name of tag to place above, or "" if none
-///    - name of tag to place below, or "" if none
-pub fn constructor(param: Param) -> Desugarer {
-  Desugarer(
-    name: name,
-    stringified_param: option.Some(ins(param)),
-    stringified_outside: option.None,
-    transform: case param_to_inner_param(param) {
-      Error(error) -> fn(_) { Error(error) }
-      Ok(inner) -> transform_factory(inner)
-    },
-  )
-}
-
-
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
-// 🌊🌊🌊 tests 🌊🌊🌊🌊🌊
+// 🌊🌊🌊 tests 🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
+
 fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
   []
 }
 
 pub fn assertive_tests() {
-  core.assertive_test_collection_from_data(name, assertive_tests_data(), constructor)
+  core.assertive_test_collection_from_data(
+    name,
+    assertive_tests_data(),
+    constructor,
+  )
 }

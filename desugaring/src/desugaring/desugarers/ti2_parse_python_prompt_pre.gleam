@@ -1,22 +1,37 @@
-import gleam/list
-import gleam/option
-import gleam/string
-import desugaring/core.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as core
+import desugaring/authoring
+import desugaring/core.{type Desugarer, type DesugarerTransform}
 import desugaring/nodemaps_2_transform as n2t
+import either_or as eo
+import gleam/list
+import gleam/string
 import vxml.{type Line, type VXML, Attr, Line, T, V}
 import vxml/blame as bl
-import either_or as eo
 
-const newline_t =
-  T(
-    bl.Des([], name, 12),
-    [
-      Line(bl.Des([], name, 14), ""),
-      Line(bl.Des([], name, 15), ""),
-    ]
+pub const name = "ti2_parse_python_prompt_pre"
+
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
+// 🏖️🏖️ Desugarer 🏖️🏖️
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️️️️️🏖️
+
+/// Structures Python prompt code blocks and highlights
+/// prompts, responses, and errors.
+pub fn constructor() -> Desugarer {
+  authoring.no_param_desugarer(
+    name: name,
+    transform: inner_param_to_transform(),
   )
+}
+
+const newline_t = T(
+  bl.Des([], name, 26),
+  [
+    Line(bl.Des([], name, 28), ""),
+    Line(bl.Des([], name, 29), ""),
+  ],
+)
 
 const terminal_prompt = "user@home:~$"
+
 const terminal_prompt_length = 12
 
 type PythonPromptChunk {
@@ -26,91 +41,73 @@ type PythonPromptChunk {
   ErrorResponseLines(List(Line))
 }
 
-fn python_prompt_chunk_to_vxmls(
-  chunk: PythonPromptChunk,
-) -> List(VXML) {
+fn python_prompt_chunk_to_vxmls(chunk: PythonPromptChunk) -> List(VXML) {
   case chunk {
     TerminalPrompt(line) -> {
       let z = terminal_prompt_length
       [
         V(
-          desugarer_blame(37),
+          desugarer_blame(50),
           "span",
-          [Attr(desugarer_blame(39), "class", "terminal-prompt")],
-          [
-            T(
-              line.blame,
-              [Line(line.blame, terminal_prompt)]
-            )
-          ]
+          [Attr(desugarer_blame(52), "class", "terminal-prompt")],
+          [T(line.blame, [Line(line.blame, terminal_prompt)])],
         ),
         V(
-          desugarer_blame(48),
+          desugarer_blame(56),
           "span",
-          [Attr(desugarer_blame(50), "class", "terminal-prompt-content")],
+          [Attr(desugarer_blame(58), "class", "terminal-prompt-content")],
           [
-            T(
-              bl.advance(line.blame, z),
-              [Line(bl.advance(line.blame, z), line.content |> string.drop_start(z))]
-            )
-          ]
-        )
+            T(bl.advance(line.blame, z), [
+              Line(
+                bl.advance(line.blame, z),
+                line.content |> string.drop_start(z),
+              ),
+            ]),
+          ],
+        ),
       ]
     }
     PromptLine(line) -> {
       [
         V(
-          desugarer_blame(63),
+          desugarer_blame(73),
           "span",
-          [Attr(desugarer_blame(65), "class", "python-prompt-carets")],
-          [
-            T(
-              line.blame,
-              [Line(line.blame, ">>>")]
-            )
-          ]
+          [Attr(desugarer_blame(75), "class", "python-prompt-carets")],
+          [T(line.blame, [Line(line.blame, ">>>")])],
         ),
         V(
-          desugarer_blame(74),
+          desugarer_blame(79),
           "span",
-          [Attr(desugarer_blame(76), "class", "python-prompt-content")],
+          [Attr(desugarer_blame(81), "class", "python-prompt-content")],
           [
-            T(
-              bl.advance(line.blame, 3),
-              [Line(bl.advance(line.blame, 3), line.content |> string.drop_start(3))]
-            )
-          ]
-        )
+            T(bl.advance(line.blame, 3), [
+              Line(
+                bl.advance(line.blame, 3),
+                line.content |> string.drop_start(3),
+              ),
+            ]),
+          ],
+        ),
       ]
     }
     OkResponseLines(lines) -> {
       [
         V(
-          desugarer_blame(89),
+          desugarer_blame(96),
           "span",
-          [Attr(desugarer_blame(91), "class", "python-prompt-ok-response")],
-          [
-            T(
-              lines |> core.lines_first_blame,
-              lines
-            )
-          ]
-        )
+          [Attr(desugarer_blame(98), "class", "python-prompt-ok-response")],
+          [T(lines |> core.lines_first_blame, lines)],
+        ),
       ]
     }
     ErrorResponseLines(lines) -> {
       [
         V(
-          desugarer_blame(104),
+          desugarer_blame(106),
           "span",
-          [Attr(desugarer_blame(106), "class", "python-prompt-error-response")],
-          [
-            T(
-              lines |> core.lines_first_blame,
-              lines
-            )
-          ]
-        )
+          [Attr(desugarer_blame(108), "class", "python-prompt-error-response")],
+          [T(lines |> core.lines_first_blame, lines)],
+        ),
       ]
     }
   }
@@ -119,7 +116,8 @@ fn python_prompt_chunk_to_vxmls(
 fn process_python_prompt_lines(lines: List(Line)) -> List(PythonPromptChunk) {
   lines
   |> eo.discriminate(fn(line) {
-    string.starts_with(line.content, ">>>") || string.starts_with(line.content, terminal_prompt)
+    string.starts_with(line.content, ">>>")
+    || string.starts_with(line.content, terminal_prompt)
   })
   |> eo.group_ors
   |> list.map(fn(either_bc_or_list_bc) {
@@ -130,17 +128,16 @@ fn process_python_prompt_lines(lines: List(Line)) -> List(PythonPromptChunk) {
           False -> TerminalPrompt(line)
         }
       }
-      eo.Or(list_bc) -> case core.lines_contain(list_bc, "SyntaxError:") {
-        True -> ErrorResponseLines(list_bc)
-        False -> OkResponseLines(list_bc)
-      }
+      eo.Or(list_bc) ->
+        case core.lines_contain(list_bc, "SyntaxError:") {
+          True -> ErrorResponseLines(list_bc)
+          False -> OkResponseLines(list_bc)
+        }
     }
   })
 }
 
-fn nodemap(
-  vxml: VXML,
-) -> VXML {
+fn nodemap(vxml: VXML) -> VXML {
   case vxml {
     V(blame, "pre", attrs, [T(_, lines)]) -> {
       case core.v_has_key_val(vxml, "language", "python-prompt") {
@@ -156,8 +153,11 @@ fn nodemap(
             blame,
             "pre",
             attrs
-            |> core.attrs_delete("language")
-            |> core.attrs_append_classes(desugarer_blame(160), "python-prompt"),
+              |> core.attrs_delete("language")
+              |> core.attrs_append_classes(
+                desugarer_blame(158),
+                "python-prompt",
+              ),
             children,
           )
         }
@@ -169,47 +169,21 @@ fn nodemap(
   }
 }
 
-fn nodemap_factory(_inner: InnerParam) -> n2t.OneToOneNoErrorNodemap {
+fn nodemap_factory() -> n2t.OneToOneNoErrorNodemap {
   nodemap
 }
 
-fn transform_factory(inner: InnerParam) -> DesugarerTransform {
-  nodemap_factory(inner)
+fn inner_param_to_transform() -> DesugarerTransform {
+  nodemap_factory()
   |> n2t.one_to_one_no_error_nodemap_2_desugarer_transform
 }
 
-fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
-  Ok(param)
-}
-
-pub const name = "ti2_parse_python_prompt_pre"
-fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
-
-type Param = Nil
-type InnerParam = Param
-
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-// 🏖️🏖️ Desugarer 🏖️🏖️
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-//------------------------------------------------53
-/// processes CodeBlock elements with
-/// language=python-prompt and converts them to pre
-/// elements with proper span highlighting for
-/// prompts, responses, and errors
-pub fn constructor() -> Desugarer {
-  Desugarer(
-    name: name,
-    stringified_param: option.None,
-    stringified_outside: option.None,
-    transform: case param_to_inner_param(Nil) {
-      Error(e) -> fn(_) { Error(e) }
-      Ok(inner) -> transform_factory(inner)
-    },
-  )
+fn desugarer_blame(line_no: Int) {
+  bl.Des([], name, line_no)
 }
 
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
-// 🌊🌊🌊 tests 🌊🌊🌊🌊🌊
+// 🌊🌊🌊 tests 🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
 fn assertive_tests_data() -> List(core.AssertiveTestDataNoParam) {
   [
@@ -265,11 +239,15 @@ fn assertive_tests_data() -> List(core.AssertiveTestDataNoParam) {
                                 '    (2 * 3))'
                                 '           ^'
                                 'SyntaxError: unmatched ')''
-                "
+                ",
     ),
   ]
 }
 
 pub fn assertive_tests() {
-  core.assertive_test_collection_from_data_no_param(name, assertive_tests_data(), constructor)
+  core.assertive_test_collection_from_data_no_param(
+    name,
+    assertive_tests_data(),
+    constructor,
+  )
 }

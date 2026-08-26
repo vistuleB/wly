@@ -1,81 +1,82 @@
+import desugaring/authoring
+import desugaring/core.{
+  type Desugarer, type DesugarerTransform, type DesugaringError,
+}
+import desugaring/nodemaps_2_transform as n2t
 import gleam/dict.{type Dict}
 import gleam/list
-import gleam/option
-import gleam/string.{inspect as ins}
-import desugaring/core.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as core
-import desugaring/nodemaps_2_transform as n2t
 import vxml.{type VXML, T, V}
 
-fn nodemap(
-  vxml: VXML,
-  inner: InnerParam,
-) -> Result(VXML, DesugaringError) {
-  case vxml {
-    T(_, _) -> Ok(vxml)
-    V(blame, tag, attrs, children) -> {
-      case dict.get(inner, tag) {
-        Ok(attrs_to_remove) -> {
-          Ok(V(
-            blame,
-            tag,
-            list.filter(attrs, fn(attr) {
-              !list.contains(attrs_to_remove, attr.key)
-            }),
-            children,
-          ))
-        }
-        Error(Nil) -> Ok(vxml)
-      }
-    }
-  }
+pub const name = "delete_attribute_of__batch"
+
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
+// 🏖️🏖️ Desugarer 🏖️🏖️
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️️️️️🏖️
+
+/// Removes the configured attribute keys from elements with
+/// their corresponding tags.
+pub fn constructor(param: Param) -> Desugarer {
+  authoring.desugarer(
+    name: name,
+    param: param,
+    prepare: param_to_inner_param,
+    transform: inner_param_to_transform,
+  )
 }
 
-fn nodemap_factory(inner: InnerParam) -> n2t.OneToOneNodemap {
-  nodemap(_, inner)
-}
+type Param =
+  List(
+    #(
+      // Element tag.
+      String,
+      // Attribute key to remove.
+      String,
+    ),
+  )
 
-fn transform_factory(inner: InnerParam) -> DesugarerTransform {
-  n2t.one_to_one_nodemap_2_desugarer_transform(nodemap_factory(inner))
-}
+type InnerParam =
+  Dict(String, List(String))
 
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
   Ok(param |> core.aggregate_on_first)
 }
 
-type Param = List(#(String, String))
-//                  ↖       ↖
-//                  tag     key of attr
-//                          to remove
-type InnerParam = Dict(String, List(String))
+fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
+  let nodemap: n2t.OneToOneNodemap = nodemap(_, inner)
+  n2t.one_to_one_nodemap_2_desugarer_transform(nodemap)
+}
 
-pub const name = "delete_attribute_of__batch"
-
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-// 🏖️🏖️ Desugarer 🏖️🏖️
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-//------------------------------------------------53
-/// for all pairs #(tag_name, key_name) deletes the
-/// attr of key key_name for all tags of tag
-/// tag_name
-pub fn constructor(param: Param) -> Desugarer {
-  Desugarer(
-    name: name,
-    stringified_param: option.Some(ins(param)),
-    stringified_outside: option.None,
-    transform: case param_to_inner_param(param) {
-      Error(error) -> fn(_) { Error(error) }
-      Ok(inner) -> transform_factory(inner)
-    },
-  )
+fn nodemap(vxml: VXML, inner: InnerParam) -> Result(VXML, DesugaringError) {
+  case vxml {
+    T(_, _) -> Ok(vxml)
+    V(_, tag, attrs, _) ->
+      case dict.get(inner, tag) {
+        Error(Nil) -> Ok(vxml)
+        Ok(attrs_to_remove) ->
+          Ok(
+            V(
+              ..vxml,
+              attrs: list.filter(attrs, fn(attr) {
+                !list.contains(attrs_to_remove, attr.key)
+              }),
+            ),
+          )
+      }
+  }
 }
 
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
-// 🌊🌊🌊 tests 🌊🌊🌊🌊🌊
+// 🌊🌊🌊 tests 🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
+
 fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
   []
 }
 
 pub fn assertive_tests() {
-  core.assertive_test_collection_from_data(name, assertive_tests_data(), constructor)
+  core.assertive_test_collection_from_data(
+    name,
+    assertive_tests_data(),
+    constructor,
+  )
 }

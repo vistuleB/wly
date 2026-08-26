@@ -1,55 +1,88 @@
-import gleam/option
-import gleam/string.{inspect as ins}
+import desugaring/authoring
+import desugaring/core.{
+  type Desugarer, type DesugarerTransform, type DesugaringError,
+}
 import desugaring/group_replacement_splitting as grs
-import desugaring/core.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as core
 import desugaring/nodemaps_2_transform as n2t
 
-fn nodemap_factory(inner: InnerParam) -> n2t.OneToManyNoErrorNodemap {
-  grs.rrs_split_node(_, inner)
+pub const name = "regex_split_and_replace__outside"
+
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
+// 🏖️🏖️ Desugarer 🏖️🏖️
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️️️️️🏖️
+
+/// Applies a regular-expression splitting and replacement
+/// rule outside configured subtrees.
+pub fn constructor(param: Param, outside: List(String)) -> Desugarer {
+  authoring.desugarer_with_outside(
+    name: name,
+    param: param,
+    outside: outside,
+    prepare: param_to_inner_param,
+    transform: inner_param_to_transform,
+  )
 }
 
-fn transform_factory(inner: InnerParam, outside: List(String)) -> DesugarerTransform {
-  nodemap_factory(inner)
-  |> n2t.one_to_many_no_error_nodemap_2_desugarer_transform_with_forbidden(outside)
-}
+type Param =
+  grs.RegexpReplacementerSplitter
+
+type InnerParam =
+  Param
 
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
   Ok(param)
 }
 
-type Param = grs.RegexpReplacementerSplitter
-//           ↖
-//           semantics in name
-type InnerParam = Param
-
-pub const name = "regex_split_and_replace__outside"
-
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-// 🏖️🏖️ Desugarer 🏖️🏖️
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-//------------------------------------------------53
-/// splits text nodes by regexp with group-by-group
-/// replacement instructions; keeps out of subtrees
-/// rooted at tags given by its second argument
-pub fn constructor(param: Param, outside: List(String)) -> Desugarer {
-  Desugarer(
-    name: name,
-    stringified_param: option.Some(param |> grs.rrs_param_stringifier),
-    stringified_outside: option.Some(ins(outside)),
-    transform: case param_to_inner_param(param) {
-      Error(error) -> fn(_) { Error(error) }
-      Ok(inner) -> transform_factory(inner, outside)
-    },
+fn inner_param_to_transform(
+  inner: InnerParam,
+  outside: List(String),
+) -> DesugarerTransform {
+  nodemap_factory(inner)
+  |> n2t.one_to_many_no_error_nodemap_2_desugarer_transform_with_forbidden(
+    outside,
   )
 }
 
+fn nodemap_factory(inner: InnerParam) -> n2t.OneToManyNoErrorNodemap {
+  grs.rrs_split_node(_, inner)
+}
+
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
-// 🌊🌊🌊 tests 🌊🌊🌊🌊🌊
+// 🌊🌊🌊 tests 🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
+
 fn assertive_tests_data() -> List(core.AssertiveTestDataWithOutside(Param)) {
-  []
+  [
+    core.AssertiveTestDataWithOutside(
+      param: grs.rr_splitter("_", grs.Tag("Marker")),
+      outside: ["Protected"],
+      source: "
+                <> root
+                  <>
+                    'before_after'
+                  <> Protected
+                    <>
+                      'keep_this'
+                ",
+      expected: "
+                <> root
+                  <>
+                    'before'
+                  <> Marker
+                  <>
+                    'after'
+                  <> Protected
+                    <>
+                      'keep_this'
+                ",
+    ),
+  ]
 }
 
 pub fn assertive_tests() {
-  core.assertive_test_collection_from_data_with_outside(name, assertive_tests_data(), constructor)
+  core.assertive_test_collection_from_data_with_outside(
+    name,
+    assertive_tests_data(),
+    constructor,
+  )
 }

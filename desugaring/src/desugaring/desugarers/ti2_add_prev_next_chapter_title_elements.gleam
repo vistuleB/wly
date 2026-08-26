@@ -1,6 +1,6 @@
+import desugaring/authoring
 import desugaring/core.{
-  type Desugarer, type DesugaringError, type TrafficLight, Continue, Desugarer,
-  GoBack,
+  type Desugarer, type DesugaringError, type TrafficLight, Continue, GoBack,
 }
 import desugaring/nodemaps_2_transform as n2t
 import gleam/list
@@ -9,6 +9,21 @@ import gleam/string.{inspect as ins}
 import on
 import vxml.{type Attr, type VXML, Attr, V}
 import vxml/blame as bl
+
+pub const name = "ti2_add_prev_next_chapter_title_elements"
+
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
+// 🏖️🏖️ Desugarer 🏖️🏖️
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️️️️️🏖️
+
+/// Adds previous and next chapter or subchapter title
+/// elements to each navigable page.
+pub fn constructor() -> Desugarer {
+  authoring.no_param_desugarer(
+    name: name,
+    transform: inner_param_to_transform(),
+  )
+}
 
 // ************************************************************
 // common types
@@ -118,13 +133,13 @@ type PageDepositorState =
 fn attrs_4_page(page: Page) -> List(Attr) {
   case page {
     Chapter(_, number_chiron, ch_no) -> [
-      Attr(desugarer_blame(121), "ch_no", ins(ch_no)),
-      Attr(desugarer_blame(122), "number-chiron", number_chiron),
+      Attr(desugarer_blame(136), "ch_no", ins(ch_no)),
+      Attr(desugarer_blame(137), "number-chiron", number_chiron),
     ]
     Sub(_, number_chiron, ch_no, sub_no) -> [
-      Attr(desugarer_blame(125), "ch_no", ins(ch_no)),
-      Attr(desugarer_blame(126), "sub_no", ins(sub_no)),
-      Attr(desugarer_blame(127), "number-chiron", number_chiron),
+      Attr(desugarer_blame(140), "ch_no", ins(ch_no)),
+      Attr(desugarer_blame(141), "sub_no", ins(sub_no)),
+      Attr(desugarer_blame(142), "number-chiron", number_chiron),
     ]
   }
 }
@@ -134,7 +149,7 @@ fn deposit_next(vxml: VXML, next: Option(Page)) -> VXML {
   use next <- on.eager_none_some(next, vxml)
   let title =
     V(
-      desugarer_blame(137),
+      desugarer_blame(152),
       "NextChapterOrSubTitle",
       attrs_4_page(next),
       next.title,
@@ -147,7 +162,7 @@ fn deposit_prev(vxml: VXML, prev: Option(Page)) -> VXML {
   use prev <- on.eager_none_some(prev, vxml)
   let title =
     V(
-      desugarer_blame(150),
+      desugarer_blame(165),
       "PrevChapterOrSubTitle",
       attrs_4_page(prev),
       prev.title,
@@ -239,50 +254,17 @@ fn at_root(root: VXML) -> Result(VXML, DesugaringError) {
   Ok(root)
 }
 
-fn transform_factory(_: InnerParam) -> core.DesugarerTransform {
+fn inner_param_to_transform() -> core.DesugarerTransform {
   at_root
-  |> n2t.at_root_2_desugarer_transform
+  |> n2t.node_to_node_2_desugarer_transform_without_walking
 }
-
-fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
-  Ok(param)
-}
-
-type Param =
-  Nil
-
-type InnerParam =
-  Nil
-
-pub const name = "ti2_add_prev_next_chapter_title_elements"
 
 fn desugarer_blame(line_no: Int) {
   bl.Des([], name, line_no)
 }
 
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-// 🏖️🏖️ Desugarer 🏖️🏖️
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-//------------------------------------------------53
-/// copies the title and number-chiron attrs
-/// of the previous and next chapter/subchapter, if
-/// any, and dumps these into 'PrevChapterOrSubTitle'
-/// and 'NextChapterOrSubTitle' elements at the top
-/// each chapter,
-pub fn constructor() -> Desugarer {
-  Desugarer(
-    name: name,
-    stringified_param: option.None,
-    stringified_outside: option.None,
-    transform: case param_to_inner_param(Nil) {
-      Error(error) -> fn(_) { Error(error) }
-      Ok(inner) -> transform_factory(inner)
-    },
-  )
-}
-
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
-// 🌊🌊🌊 tests 🌊🌊🌊🌊🌊
+// 🌊🌊🌊 tests 🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
 fn assertive_tests_data() -> List(core.AssertiveTestDataNoParam) {
   [

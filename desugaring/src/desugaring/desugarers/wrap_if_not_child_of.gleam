@@ -1,22 +1,56 @@
-import gleam/option
-import gleam/list
-import gleam/string.{inspect as ins}
-import desugaring/core.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as core
+import desugaring/authoring
+import desugaring/core.{
+  type Desugarer, type DesugarerTransform, type DesugaringError,
+}
 import desugaring/nodemaps_2_transform as n2t
+import gleam/list
 import vxml.{type VXML, V}
 import vxml/blame as bl
 
-const blame = bl.Des([], name, 9)
+pub const name = "wrap_if_not_child_of"
 
-fn nodemap(
-  vxml: VXML,
-  ancestors: List(VXML),
-  inner: InnerParam,
-) -> VXML {
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
+// 🏖️🏖️ Desugarer 🏖️🏖️
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
+/// Wraps each occurrence of a target tag in a new
+/// parent tag, unless the target is a direct child
+/// of one of the specified excluded parent tags.
+pub fn constructor(param: Param) -> Desugarer {
+  authoring.desugarer(
+    name: name,
+    param: param,
+    prepare: param_to_inner_param,
+    transform: inner_param_to_transform,
+  )
+}
+
+type Param =
+  #(
+    // Tag to wrap.
+    String,
+    // Wrapper tag.
+    String,
+    // Excluded parent tags.
+    List(String),
+  )
+
+type InnerParam = Param
+
+fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
+  Ok(param)
+}
+
+fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
+  let nodemap: n2t.FancyOneToOneNoErrorNodemap =
+    fn(vxml, ancestors, _, _, _) { nodemap(vxml, ancestors, inner) }
+  nodemap |> n2t.fancy_one_to_one_no_error_nodemap_2_desugarer_transform
+}
+
+fn nodemap(vxml: VXML, ancestors: List(VXML), inner: InnerParam) -> VXML {
   case vxml {
     V(_, tag, _, _) if tag == inner.0 -> {
       let parent_excluded = case list.first(ancestors) {
-        Ok(V(_, t, _, _)) -> list.contains(inner.2, t)
+        Ok(V(_, parent, _, _)) -> list.contains(inner.2, parent)
         _ -> False
       }
       case parent_excluded {
@@ -28,47 +62,7 @@ fn nodemap(
   }
 }
 
-fn nodemap_factory(inner: InnerParam) -> n2t.FancyOneToOneNoErrorNodemap {
-  fn(node, ancestors, _, _, _) {
-    nodemap(node, ancestors, inner)
-  }
-}
-
-fn transform_factory(inner: InnerParam) -> DesugarerTransform {
-  nodemap_factory(inner)
-  |> n2t.fancy_one_to_one_no_error_nodemap_2_desugarer_transform
-}
-
-fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
-  Ok(param)
-}
-
-type Param = #(String,  String,     List(String))
-//             ↖        ↖           ↖
-//             tag to   tag to      ...if NOT child of
-//             wrap     wrap with   any of these
-type InnerParam = Param
-
-pub const name = "wrap_if_not_child_of"
-
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-// 🏖️🏖️ Desugarer 🏖️🏖️
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-//------------------------------------------------53
-/// Wraps each occurrence of a target tag in a new
-/// parent tag, unless the target is a direct child
-/// of one of the specified excluded parent tags.
-pub fn constructor(param: Param) -> Desugarer {
-  Desugarer(
-    name: name,
-    stringified_param: option.Some(ins(param)),
-    stringified_outside: option.None,
-    transform: case param_to_inner_param(param) {
-      Error(error) -> fn(_) { Error(error) }
-      Ok(inner) -> transform_factory(inner)
-    },
-  )
-}
+const blame = bl.Des([], name, 65)
 
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
 // 🌊🌊🌊 tests 🌊🌊🌊🌊🌊
@@ -77,7 +71,7 @@ fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
   [
     core.AssertiveTestData(
       param: #("p", "wrapper", ["div"]),
-      source:   "
+      source: "
                 <> root
                   <> div
                     <> p
@@ -103,7 +97,7 @@ fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
     ),
     core.AssertiveTestData(
       param: #("span", "box", ["article", "aside"]),
-      source:   "
+      source: "
                 <> root
                   <> article
                     <> span
@@ -139,5 +133,9 @@ fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
 }
 
 pub fn assertive_tests() {
-  core.assertive_test_collection_from_data(name, assertive_tests_data(), constructor)
+  core.assertive_test_collection_from_data(
+    name,
+    assertive_tests_data(),
+    constructor,
+  )
 }

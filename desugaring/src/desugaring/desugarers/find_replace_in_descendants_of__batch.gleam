@@ -1,8 +1,57 @@
-import gleam/list
-import gleam/option
-import desugaring/core.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as core
+import desugaring/authoring
+import desugaring/core.{
+  type Desugarer, type DesugarerTransform, type DesugaringError,
+}
 import desugaring/nodemaps_2_transform as n2t
+import gleam/list
 import vxml.{type VXML, T, V}
+
+pub const name = "find_replace_in_descendants_of__batch"
+
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
+// 🏖️🏖️ Desugarer 🏖️🏖️
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️️️️️🏖️
+
+/// Applies configured literal replacements within text nodes
+/// descended from their corresponding ancestor tags.
+pub fn constructor(param: Param) -> Desugarer {
+  authoring.desugarer(
+    name: name,
+    param: param,
+    prepare: param_to_inner_param,
+    transform: inner_param_to_transform,
+  )
+}
+
+type Param =
+  List(
+    #(
+      // Ancestor tag.
+      String,
+      // Literal replacement pairs.
+      List(#(String, String)),
+    ),
+  )
+
+type InnerParam =
+  Param
+
+fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
+  Ok(param)
+}
+
+fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
+  let nodemap: n2t.FancyOneToOneNoErrorNodemap = fn(
+    vxml,
+    ancestors,
+    previous,
+    next,
+    processed,
+  ) {
+    nodemap(vxml, ancestors, previous, next, processed, inner)
+  }
+  n2t.fancy_one_to_one_no_error_nodemap_2_desugarer_transform(nodemap)
+}
 
 fn nodemap(
   vxml: VXML,
@@ -26,53 +75,15 @@ fn nodemap(
   }
 }
 
-fn nodemap_factory(inner: InnerParam) -> n2t.FancyOneToOneNoErrorNodemap {
-  fn(vxml, ancestors, s1, s2, s3) {
-    nodemap(vxml, ancestors, s1, s2, s3, inner)
-  }
-}
-
-fn transform_factory(inner: InnerParam) -> DesugarerTransform {
-  n2t.fancy_one_to_one_no_error_nodemap_2_desugarer_transform(nodemap_factory(inner))
-}
-
-fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
-  Ok(param)
-}
-
-type Param = List(#(String,   List(#(String, String))))
-//                  ↖         ↖
-//                  ancestor  from/to pairs
-type InnerParam = Param
-
-pub const name = "find_replace_in_descendants_of__batch"
-
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-// 🏖️🏖️ Desugarer 🏖️🏖️
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-//------------------------------------------------53
-/// find and replace strings in text nodes that are
-/// descendants of specified ancestor tags
-pub fn constructor(param: Param) -> Desugarer {
-  Desugarer(
-    name: name,
-    stringified_param: option.Some(param |> core.list_param_stringifier),
-    stringified_outside: option.None,
-    transform: case param_to_inner_param(param) {
-      Error(error) -> fn(_) { Error(error) }
-      Ok(inner) -> transform_factory(inner)
-    },
-  )
-}
-
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
-// 🌊🌊🌊 tests 🌊🌊🌊🌊🌊
+// 🌊🌊🌊 tests 🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
+
 fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
   [
     core.AssertiveTestData(
       param: [#("ancestor", [#("_FROM_", "_TO_")])],
-      source:   "
+      source: "
                 <> root
                   <> B
                     <>
@@ -96,10 +107,14 @@ fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
                         'hello _TO_'
                         '_TO__TO_'
                 ",
-    )
+    ),
   ]
 }
 
 pub fn assertive_tests() {
-  core.assertive_test_collection_from_data(name, assertive_tests_data(), constructor)
+  core.assertive_test_collection_from_data(
+    name,
+    assertive_tests_data(),
+    constructor,
+  )
 }

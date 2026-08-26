@@ -1,6 +1,6 @@
+import desugaring/authoring
 import desugaring/core.{
-  type Desugarer, type DesugarerTransform, type DesugaringError, Desugarer,
-  DesugaringError,
+  type Desugarer, type DesugarerTransform, type DesugaringError, DesugaringError,
 }
 import desugaring/nodemaps_2_transform as n2t
 import gleam/dict.{type Dict}
@@ -242,7 +242,7 @@ fn nodemap_factory(
   )
 }
 
-fn transform_factory(inner: InnerParam) -> core.DesugarerTransform {
+fn inner_param_to_transform(inner: InnerParam) -> core.DesugarerTransform {
   n2t.fancy_one_to_one_enter_exit_stateful_nodemap_2_desugarer_transform(
     nodemap_factory(inner),
     State(dict.new(), None, []),
@@ -254,28 +254,43 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
 }
 
 type HandlesDict =
-  Dict(String, #(Bool, String, String, String, Blame))
-
-//                      ↖         ↖             ↖             ↖           ↖
-//                      handle    '#page' link  string value  handle id   page path
-//                      name      by default    of handle     on page     for handle
+  Dict(
+    String,
+    #(
+      // Whether the handle links to `#page` by default.
+      Bool,
+      // String value of the handle.
+      String,
+      // Handle id on the page.
+      String,
+      // Page path for the handle.
+      String,
+      // Blame of the handle definition.
+      Blame,
+    ),
+  )
 
 type Ids =
-  List(#(String, String, Blame))
-
-//                ↖       ↖
-//                id      page path
+  List(
+    #(
+      // Id.
+      String,
+      // Page path.
+      String,
+      // Blame of the id definition.
+      Blame,
+    ),
+  )
 
 type State {
   State(handles: HandlesDict, path: Option(String), ids: Ids)
 }
 
+// Key of the attribute holding the local path, such as `path`
+// or `page`.
 type Param =
   String
 
-//           ↖
-//           key of attr
-//           holding the local path (could be 'path' or 'page', etc)
 type InnerParam =
   Param
 
@@ -288,7 +303,6 @@ fn desugarer_blame(line_no: Int) {
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 // 🏖️🏖️ Desugarer 🏖️🏖️
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-//------------------------------------------------53
 /// Traverses the tree. Expects `handle` attrs
 /// to be in the form
 ///
@@ -337,19 +351,16 @@ fn desugarer_blame(line_no: Int) {
 /// occurs in a part of the tree where 'path' is not
 /// defined.
 pub fn constructor(param: Param) -> Desugarer {
-  Desugarer(
+  authoring.desugarer(
     name: name,
-    stringified_param: option.None,
-    stringified_outside: option.None,
-    transform: case param_to_inner_param(param) {
-      Error(error) -> fn(_) { Error(error) }
-      Ok(inner) -> transform_factory(inner)
-    },
+    param: param,
+    prepare: param_to_inner_param,
+    transform: inner_param_to_transform,
   )
 }
 
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
-// 🌊🌊🌊 tests 🌊🌊🌊🌊🌊
+// 🌊🌊🌊 tests 🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
 fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
   [

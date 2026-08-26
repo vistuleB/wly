@@ -1,24 +1,65 @@
-import gleam/option.{Some}
-import gleam/string.{inspect as ins}
-import desugaring/core.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as core
+import desugaring/authoring
+import desugaring/core.{
+  type Desugarer, type DesugarerTransform, type DesugaringError,
+}
 import desugaring/nodemaps_2_transform as n2t
-import vxml.{ type VXML, Line, T, V, Attr}
+import gleam/option.{Some}
+import vxml.{type VXML, Attr, Line, T, V}
 import vxml/blame as bl
 
-fn nodemap(
-  vxml: VXML,
-  inner: InnerParam,
-) -> VXML {
+pub const name = "prepend_attribute_as_wrapped_text_else_custom"
+
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
+// 🏖️🏖️ Desugarer 🏖️🏖️
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️️️️️🏖️
+
+/// Prepends a wrapped attribute value, or a fallback node
+/// when the value is absent.
+pub fn constructor(param: Param) -> Desugarer {
+  authoring.desugarer(
+    name: name,
+    param: param,
+    prepare: param_to_inner_param,
+    transform: inner_param_to_transform,
+  )
+}
+
+type Param =
+  #(
+    // Target tag.
+    String,
+    // Attribute key.
+    String,
+    // Wrapper node.
+    VXML,
+    // Fallback node.
+    VXML,
+  )
+
+type InnerParam =
+  Param
+
+fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
+  Ok(param)
+}
+
+fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
+  nodemap_factory(inner)
+  |> n2t.one_to_one_no_error_nodemap_2_desugarer_transform()
+}
+
+fn nodemap_factory(inner: InnerParam) -> n2t.OneToOneNoErrorNodemap {
+  nodemap(_, inner)
+}
+
+fn nodemap(vxml: VXML, inner: InnerParam) -> VXML {
   case vxml {
     V(_, tag, _, children) if tag == inner.0 -> {
       let node_to_prepend = case core.v_first_attr_with_key(vxml, inner.1) {
         Some(Attr(_, _, value)) if value != "" -> {
           let assert V(b, t, a, c) = inner.2
           V(b, t, a, [
-            T(
-              desugarer_blame(19),
-              [Line(desugarer_blame(20), value)]
-            ),
+            T(desugarer_blame(62), [Line(desugarer_blame(62), value)]),
             ..c
           ])
         }
@@ -30,61 +71,21 @@ fn nodemap(
   }
 }
 
-fn nodemap_factory(inner: InnerParam) -> n2t.OneToOneNoErrorNodemap {
-  nodemap(_, inner)
-}
-
-fn transform_factory(inner: InnerParam) -> DesugarerTransform {
-  nodemap_factory(inner)
-  |> n2t.one_to_one_no_error_nodemap_2_desugarer_transform()
-}
-
-fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
-  Ok(param)
-}
-
-type Param = #(String, String,   VXML,   VXML)
-//             ↖       ↖         ↖       ↖
-//             tag     attr_key  wrapper else_node
-type InnerParam = Param
-
-pub const name = "prepend_attribute_as_wrapped_text_else_custom"
-fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
-
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-// 🏖️🏖️ Desugarer 🏖️🏖️
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-//------------------------------------------------53
-/// Given arguments
-/// ```
-/// tag, attr_key, wrapper, else_node
-/// ```
-/// prepends a node to nodes of tag 'tag'.
-/// If the attribute 'attr_key' exists and is not empty,
-/// the 'wrapper' node is used as a wrapper for the
-/// attribute value (prepending it to its children).
-/// If the attribute doesn't exist or is empty,
-/// 'else_node' is prepended instead.
-///
-/// Processes all matching nodes depth-first.
-pub fn constructor(param: Param) -> Desugarer {
-  Desugarer(
-    name: name,
-    stringified_param: option.Some(ins(param)),
-    stringified_outside: option.None,
-    transform: case param_to_inner_param(param) {
-      Error(error) -> fn(_) { Error(error) }
-      Ok(inner) -> transform_factory(inner)
-    },
-  )
+fn desugarer_blame(line_no: Int) {
+  authoring.blame(name, line_no)
 }
 
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
-// 🌊🌊🌊 tests 🌊🌊🌊🌊🌊
+// 🌊🌊🌊 tests 🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
+
 fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
-  let wrapper = vxml.V(bl.no_blame, "span", [vxml.Attr(bl.no_blame, "class", "label")], [])
-  let else_node = vxml.V(bl.no_blame, "span", [vxml.Attr(bl.no_blame, "class", "missing")], [vxml.T(bl.no_blame, [vxml.Line(bl.no_blame, "Default")])])
+  let wrapper =
+    vxml.V(bl.no_blame, "span", [vxml.Attr(bl.no_blame, "class", "label")], [])
+  let else_node =
+    vxml.V(bl.no_blame, "span", [vxml.Attr(bl.no_blame, "class", "missing")], [
+      vxml.T(bl.no_blame, [vxml.Line(bl.no_blame, "Default")]),
+    ])
   [
     core.AssertiveTestData(
       param: #("div", "title", wrapper, else_node),
@@ -132,5 +133,9 @@ fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
 }
 
 pub fn assertive_tests() {
-  core.assertive_test_collection_from_data(name, assertive_tests_data(), constructor)
+  core.assertive_test_collection_from_data(
+    name,
+    assertive_tests_data(),
+    constructor,
+  )
 }

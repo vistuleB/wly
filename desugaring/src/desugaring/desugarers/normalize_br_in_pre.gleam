@@ -1,82 +1,68 @@
-import gleam/list
-import gleam/option.{None}
-import desugaring/core.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as core
+import desugaring/authoring
+import desugaring/core.{type Desugarer, type DesugarerTransform}
 import desugaring/nodemaps_2_transform as n2t
-import vxml.{type VXML, T, V, Line}
+import gleam/list
+import vxml.{type VXML, Line, T, V}
 import vxml/blame as bl
 
-const newline_t =
-  T(
-    bl.Des([], name, 10),
-    [
-      Line(bl.Des([], name, 12), ""),
-      Line(bl.Des([], name, 13), ""),
-    ]
-  )
+pub const name = "normalize_br_in_pre"
 
-fn nodemap(
-  vxml: VXML,
-) -> VXML {
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
+// 🏖️🏖️ Desugarer 🏖️🏖️
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️️️️️🏖️
+
+/// Replaces `br` children of `pre` elements with line
+/// breaks.
+pub fn constructor() -> Desugarer {
+  authoring.no_param_desugarer(
+    name: name,
+    transform: inner_param_to_transform(Nil),
+  )
+}
+
+type InnerParam =
+  Nil
+
+fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
+  nodemap_factory(inner)
+  |> n2t.one_to_one_no_error_nodemap_2_desugarer_transform
+}
+
+fn nodemap_factory(_: InnerParam) -> n2t.OneToOneNoErrorNodemap {
+  nodemap
+}
+
+fn nodemap(vxml: VXML) -> VXML {
   case vxml {
     V(_, "pre", _, children) -> {
-      let children = list.map(
-        children,
-        fn(c) {
+      let children =
+        list.map(children, fn(c) {
           case c {
             V(_, "br", _, _) -> {
               newline_t
             }
             _ -> c
           }
-        }
-      )
-      |> core.last_to_first_concatenation
+        })
+        |> core.last_to_first_concatenation
       V(..vxml, children: children)
     }
     _ -> vxml
   }
 }
 
-fn nodemap_factory(_: InnerParam) -> n2t.OneToOneNoErrorNodemap {
-  nodemap(_)
-}
-
-fn transform_factory(inner: InnerParam) -> DesugarerTransform {
-  nodemap_factory(inner)
-  |> n2t.one_to_one_no_error_nodemap_2_desugarer_transform
-}
-
-fn param_to_inner_param(_param: Param) -> Result(InnerParam, DesugaringError) {
-  Ok(Nil)
-}
-
-pub const name = "normalize_br_in_pre"
-
-type Param = Nil
-type InnerParam = Nil
-
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-// 🏖️🏖️ Desugarer 🏖️🏖️
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-//------------------------------------------------53
-/// Processes CodeBlock elements with language=orange-comment
-/// and converts them to pre elements with orange
-/// comment highlighting for text after // markers
-pub fn constructor() -> Desugarer {
-  Desugarer(
-    name,
-    None,
-    None,
-    case param_to_inner_param(Nil) {
-      Error(e) -> fn(_) { Error(e) }
-      Ok(inner) -> transform_factory(inner)
-    },
-  )
-}
+const newline_t = T(
+  bl.Des([], name, 55),
+  [
+    Line(bl.Des([], name, 57), ""),
+    Line(bl.Des([], name, 58), ""),
+  ],
+)
 
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
-// 🌊🌊🌊 tests 🌊🌊🌊🌊🌊
+// 🌊🌊🌊 tests 🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
+
 fn assertive_tests_data() -> List(core.AssertiveTestDataNoParam) {
   [
     core.AssertiveTestDataNoParam(
@@ -93,11 +79,15 @@ fn assertive_tests_data() -> List(core.AssertiveTestDataNoParam) {
                   <>
                     'line 1'
                     'line 2'
-                "
+                ",
     ),
   ]
 }
 
 pub fn assertive_tests() {
-  core.assertive_test_collection_from_data_no_param(name, assertive_tests_data(), constructor)
+  core.assertive_test_collection_from_data_no_param(
+    name,
+    assertive_tests_data(),
+    constructor,
+  )
 }

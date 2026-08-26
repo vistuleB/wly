@@ -1,9 +1,11 @@
-import gleam/option.{None, Some}
+import desugaring/authoring
+import desugaring/core.{
+  type Desugarer, type DesugarerTransform, type DesugaringError,
+}
+import desugaring/nodemaps_2_transform as n2t
 import gleam/list
 import gleam/string
-import desugaring/core.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as core
-import desugaring/nodemaps_2_transform as n2t
-import vxml.{type VXML, type Line, Line, T, V}
+import vxml.{type Line, type VXML, Line, T, V}
 
 // word joiner character
 const word_joiner = "&#8288;"
@@ -70,12 +72,17 @@ fn nodemap(
   }
 }
 
-fn nodemap_factory(inner: InnerParam) -> n2t.FancyOneToOneNoErrorNodemap {
-  fn(v, _, p1, _, f) { nodemap(v, p1, f, inner) }
-}
-
-fn transform_factory(inner: InnerParam) -> DesugarerTransform {
-  nodemap_factory(inner)
+fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
+  let nodemap: n2t.FancyOneToOneNoErrorNodemap = fn(
+    vxml,
+    _,
+    previous,
+    _,
+    following,
+  ) {
+    nodemap(vxml, previous, following, inner)
+  }
+  nodemap
   |> n2t.fancy_one_to_one_no_error_nodemap_2_desugarer_transform
 }
 
@@ -83,31 +90,30 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
   Ok(param)
 }
 
-pub type Param = List(String)
-type InnerParam = Param
+type Param =
+  List(String)
+
+type InnerParam =
+  Param
 
 pub const name = "insert_word_joiner_into_adjacent_text_nodes"
 
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 // 🏖️🏖️ Desugarer 🏖️🏖️
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-//------------------------------------------------53
-/// inserts word joiner character into text nodes
-/// adjacent to specified tags if there is no whitespace
+/// Inserts word-joiner characters into text adjacent to
+/// configured elements when no separating whitespace exists.
 pub fn constructor(param: Param) -> Desugarer {
-  Desugarer(
+  authoring.desugarer(
     name: name,
-    stringified_param: Some(string.inspect(param)),
-    stringified_outside: None,
-    transform: case param_to_inner_param(param) {
-      Error(error) -> fn(_) { Error(error) }
-      Ok(inner) -> transform_factory(inner)
-    },
+    param: param,
+    prepare: param_to_inner_param,
+    transform: inner_param_to_transform,
   )
 }
 
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
-// 🌊🌊🌊 tests 🌊🌊🌊🌊🌊
+// 🌊🌊🌊 tests 🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
 fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
   [
@@ -176,5 +182,9 @@ fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
 }
 
 pub fn assertive_tests() {
-  core.assertive_test_collection_from_data(name, assertive_tests_data(), constructor)
+  core.assertive_test_collection_from_data(
+    name,
+    assertive_tests_data(),
+    constructor,
+  )
 }

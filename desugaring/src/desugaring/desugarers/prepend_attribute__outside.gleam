@@ -1,87 +1,110 @@
-import gleam/option
-import gleam/string.{inspect as ins}
+import desugaring/authoring
 import desugaring/core.{
-  type Desugarer,
-  type DesugarerTransform,
-  type DesugaringError,
-  type TrafficLight,
-  Desugarer,
-  Continue,
-} as core
+  type Desugarer, type DesugarerTransform, type DesugaringError,
+  type TrafficLight, Continue,
+}
 import desugaring/nodemaps_2_transform as n2t
-import vxml.{type Attr, Attr, type VXML, V}
-import vxml/blame as bl
+import vxml.{type Attr, type VXML, Attr, V}
 
-fn nodemap(
-  vxml: VXML,
+pub const name = "prepend_attribute__outside"
+
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
+// 🏖️🏖️ Desugarer 🏖️🏖️
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️️️️️🏖️
+
+/// Prepends an attribute to matching elements outside
+/// configured subtrees.
+pub fn constructor(param: Param, outside: List(String)) -> Desugarer {
+  authoring.desugarer_with_outside(
+    name: name,
+    param: param,
+    outside: outside,
+    prepare: param_to_inner_param,
+    transform: inner_param_to_transform,
+  )
+}
+
+type Param =
+  #(
+    // Target tag.
+    String,
+    // Attribute key.
+    String,
+    // Attribute value.
+    String,
+    // Whether to return early after finding a target.
+    TrafficLight,
+  )
+
+type InnerParam =
+  #(String, Attr, TrafficLight)
+
+fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
+  #(param.0, Attr(desugarer_blame(43), param.1, param.2), param.3)
+  |> Ok
+}
+
+fn inner_param_to_transform(
   inner: InnerParam,
-) -> #(VXML, TrafficLight) {
-  case vxml {
-    V(_, tag, attrs, _) if tag == inner.0 ->
-      #(
-        V(..vxml, attrs: [inner.1, ..attrs]),
-        inner.2,
-      )
-    _ -> #(vxml, Continue)
-  }
+  outside: List(String),
+) -> DesugarerTransform {
+  nodemap_factory(inner)
+  |> n2t.early_return_one_to_one_no_error_nodemap_2_desugarer_transform_with_forbidden(
+    outside,
+  )
 }
 
 fn nodemap_factory(inner: InnerParam) -> n2t.EarlyReturnOneToOneNoErrorNodemap {
   nodemap(_, inner)
 }
 
-fn transform_factory(
-  inner: InnerParam,
-  outside: List(String),
-) -> DesugarerTransform {
-  nodemap_factory(inner)
-  |> n2t.early_return_one_to_one_no_error_nodemap_2_desugarer_transform_with_forbidden(outside)
+fn nodemap(vxml: VXML, inner: InnerParam) -> #(VXML, TrafficLight) {
+  case vxml {
+    V(_, tag, attrs, _) if tag == inner.0 -> #(
+      V(..vxml, attrs: [inner.1, ..attrs]),
+      inner.2,
+    )
+    _ -> #(vxml, Continue)
+  }
 }
 
-fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
-  #(
-    param.0,
-    Attr(desugarer_blame(44), param.1, param.2),
-    param.3,
-  )
-  |> Ok
-}
-
-type Param = #(String, String, String, TrafficLight)
-//             ↖       ↖       ↖       ↖
-//             tag     attr    value   return-early-or-not
-type InnerParam = #(String, Attr, TrafficLight)
-
-pub const name = "prepend_attribute__outside"
-fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
-
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-// 🏖️🏖️ Desugarer 🏖️🏖️
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-//------------------------------------------------53
-/// add a specific key-value pair to all tags of a
-/// given name and possibl early-return after
-/// attr is added, depending on TrafficLight
-/// instructions of last argument
-pub fn constructor(param: Param, outside: List(String)) -> Desugarer {
-  Desugarer(
-    name: name,
-    stringified_param: option.Some(ins(param)),
-    stringified_outside: option.Some(ins(outside)),
-    transform: case param_to_inner_param(param) {
-      Error(error) -> fn(_) { Error(error) }
-      Ok(inner) -> transform_factory(inner, outside)
-    },
-  )
+fn desugarer_blame(line_no: Int) {
+  authoring.blame(name, line_no)
 }
 
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
-// 🌊🌊🌊 tests 🌊🌊🌊🌊🌊
+// 🌊🌊🌊 tests 🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
+
 fn assertive_tests_data() -> List(core.AssertiveTestDataWithOutside(Param)) {
-  []
+  [
+    core.AssertiveTestDataWithOutside(
+      param: #("section", "new", "first", Continue),
+      outside: ["protected"],
+      source: "
+                <> root
+                  <> section
+                  <> protected
+                    <> section
+                  <> section
+                ",
+      expected: "
+                <> root
+                  <> section
+                    new=first
+                  <> protected
+                    <> section
+                  <> section
+                    new=first
+                ",
+    ),
+  ]
 }
 
 pub fn assertive_tests() {
-  core.assertive_test_collection_from_data_with_outside(name, assertive_tests_data(), constructor)
+  core.assertive_test_collection_from_data_with_outside(
+    name,
+    assertive_tests_data(),
+    constructor,
+  )
 }

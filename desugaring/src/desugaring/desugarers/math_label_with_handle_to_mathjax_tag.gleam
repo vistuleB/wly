@@ -1,12 +1,101 @@
+import desugaring/authoring
 import desugaring/core.{
-  type Desugarer, type DesugarerTransform, type DesugaringError, Desugarer,
+  type Desugarer, type DesugarerTransform, type DesugaringError,
 }
 import desugaring/nodemaps_2_transform as n2t
 import gleam/list
 import gleam/option
 import gleam/regexp.{type Regexp}
-import gleam/string.{inspect as ins}
+import gleam/string
 import vxml.{Line, T, V}
+
+pub const name = "math_label_with_handle_to_mathjax_tag"
+
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
+// 🏖️🏖️ Desugarer 🏖️🏖️
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️️️️️🏖️
+
+/// Replaces math labels with tag handles inside configured
+/// ancestor elements.
+pub fn constructor(param: Param) -> Desugarer {
+  authoring.desugarer(
+    name: name,
+    param: param,
+    prepare: param_to_inner_param,
+    transform: inner_param_to_transform,
+  )
+}
+
+type Param =
+  #(
+    // Ancestor tag.
+    String,
+    // Counter expression.
+    String,
+  )
+
+type InnerParam =
+  #(
+    // Ancestor tag.
+    String,
+    // Counter expression.
+    String,
+    // Compiled label-matching expression.
+    Regexp,
+  )
+
+fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
+  let #(ancestor_tag, counter_expr) = param
+  let pattern =
+    "\\\\(label|tag)\\{([a-zA-Z0-9_.:^\\-']+(?:#[a-zA-Z0-9_:\\-]+)*)##<<([^}]*)\\}|([a-zA-Z0-9_.:^\\-']+(?:#[a-zA-Z0-9_:\\-]+)*)##<<"
+  let assert Ok(re) =
+    regexp.compile(
+      pattern,
+      regexp.Options(case_insensitive: False, multi_line: False),
+    )
+  Ok(#(ancestor_tag, counter_expr, re))
+}
+
+fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
+  let #(ancestor_tag, _, _) = inner
+  n2t.one_to_one_enter_exit_stateful_no_error_nodemap_2_desugarer_transform(
+    nodemap_factory(inner),
+    ancestor_tag == "",
+  )
+}
+
+fn nodemap_factory(
+  inner: InnerParam,
+) -> n2t.OneToOneEnterExitStatefulNoErrorNodemap(State) {
+  let #(ancestor_tag, counter_expr, re) = inner
+  n2t.OneToOneEnterExitStatefulNoErrorNodemap(
+    on_enter: fn(vxml, state) {
+      let assert V(_, tag, _, _) = vxml
+      #(vxml, state || tag == ancestor_tag)
+    },
+    on_exit: fn(vxml, original_state, _latest_state) { #(vxml, original_state) },
+    on_text: fn(vxml, state) {
+      case state {
+        False -> #(vxml, state)
+        True -> {
+          let assert T(blame, lines) = vxml
+          let new_lines =
+            list.map(lines, fn(line) {
+              Line(
+                ..line,
+                content: replace_labels_in_content(
+                  line.content,
+                  re,
+                  counter_expr,
+                ),
+              )
+            })
+          #(T(blame, new_lines), state)
+        }
+      }
+    },
+  )
+}
 
 fn replace_labels_in_content(
   content: String,
@@ -60,113 +149,10 @@ fn replace_labels_in_content(
 type State =
   Bool
 
-fn nodemap_factory(
-  inner: InnerParam,
-) -> n2t.OneToOneEnterExitStatefulNoErrorNodemap(State) {
-  let #(ancestor_tag, counter_expr, re) = inner
-  n2t.OneToOneEnterExitStatefulNoErrorNodemap(
-    on_enter: fn(vxml, state) {
-      let assert V(_, tag, _, _) = vxml
-      #(vxml, state || tag == ancestor_tag)
-    },
-    on_exit: fn(vxml, original_state, _latest_state) { #(vxml, original_state) },
-    on_text: fn(vxml, state) {
-      case state {
-        False -> #(vxml, state)
-        True -> {
-          let assert T(blame, lines) = vxml
-          let new_lines =
-            list.map(lines, fn(line) {
-              Line(
-                ..line,
-                content: replace_labels_in_content(
-                  line.content,
-                  re,
-                  counter_expr,
-                ),
-              )
-            })
-          #(T(blame, new_lines), state)
-        }
-      }
-    },
-  )
-}
-
-fn transform_factory(inner: InnerParam) -> DesugarerTransform {
-  let #(ancestor_tag, _, _) = inner
-  n2t.one_to_one_enter_exit_stateful_no_error_nodemap_2_desugarer_transform(
-    nodemap_factory(inner),
-    ancestor_tag == "",
-  )
-}
-
-fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
-  let #(ancestor_tag, counter_expr) = param
-  let pattern =
-    "\\\\(label|tag)\\{([a-zA-Z0-9_.:^\\-']+(?:#[a-zA-Z0-9_:\\-]+)*)##<<([^}]*)\\}|([a-zA-Z0-9_.:^\\-']+(?:#[a-zA-Z0-9_:\\-]+)*)##<<"
-  let assert Ok(re) =
-    regexp.compile(
-      pattern,
-      regexp.Options(case_insensitive: False, multi_line: False),
-    )
-  Ok(#(ancestor_tag, counter_expr, re))
-}
-
-type Param =
-  #(String, String)
-
-//  ↖         ↖
-//  ancestor  counter
-//  tag       expression
-
-type InnerParam =
-  #(String, String, Regexp)
-
-//  ↖         ↖       ↖
-//  ancestor  counter compiled
-//  tag       expr    regex
-
-pub const name = "math_label_to_tag_handle"
-
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-// 🏖️🏖️ Desugarer 🏖️🏖️
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-//------------------------------------------------53
-/// Inside T nodes that are descendants of
-/// `ancestor_tag` (or all T nodes when
-/// `ancestor_tag` is `""`), processes occurrences
-/// of `\label{name##<<…}`, `\tag{name##<<…}`, and
-/// bare `name##<<` (without any LaTeX wrapper):
-///
-///   \label{name##<<}   → \tag{name##<<counter_expr}
-///   \tag{name##<<}     → \tag{name##<<counter_expr}
-///   \label{name##<<v}  → \tag{name##<<v}  (keep value)
-///   \tag{name##<<v}    → unchanged
-///   name##<<           → \tag{name##<<counter_expr}
-///
-/// `\label{name}` (without `##<<`) is not matched
-/// and is left untouched (treated as a vanilla
-/// MathJax label, not a document handle).
-///
-/// Must run before `substitute_counters` so that
-/// counter expressions in the generated
-/// `\tag{name##<<counter_expr}` get substituted.
-pub fn constructor(param: Param) -> Desugarer {
-  Desugarer(
-    name: name,
-    stringified_param: option.Some(ins(param)),
-    stringified_outside: option.None,
-    transform: case param_to_inner_param(param) {
-      Error(error) -> fn(_) { Error(error) }
-      Ok(inner) -> transform_factory(inner)
-    },
-  )
-}
-
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
-// 🌊🌊🌊 tests 🌊🌊🌊🌊🌊
+// 🌊🌊🌊 tests 🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
+
 fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
   [
     // Test 1: \label{name##<<} inside MathBlock → fills counter

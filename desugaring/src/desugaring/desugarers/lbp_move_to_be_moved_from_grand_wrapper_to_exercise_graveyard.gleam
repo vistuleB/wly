@@ -1,6 +1,7 @@
+import desugaring/authoring
 import desugaring/core.{
   type Desugarer, type DesugarerTransform, type DesugaringError,
-  type DesugaringWarning, Desugarer, DesugaringWarning,
+  type DesugaringWarning, DesugaringWarning,
 }
 import desugaring/nodemaps_2_transform as n2t
 import gleam/dict.{type Dict}
@@ -8,6 +9,46 @@ import gleam/list
 import gleam/option.{Some}
 import on
 import vxml.{type VXML, V}
+
+pub const name = "lbp_move_to_be_moved_from_grand_wrapper_to_exercise_graveyard"
+
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
+// 🏖️🏖️ Desugarer 🏖️🏖️
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️️️️️🏖️
+
+/// Moves collected exercise nodes from `GrandWrapper` into
+/// their corresponding exercise-graveyard containers.
+pub fn constructor() -> Desugarer {
+  authoring.no_param_desugarer(
+    name: name,
+    transform: inner_param_to_transform(Nil),
+  )
+}
+
+type InnerParam =
+  Nil
+
+fn inner_param_to_transform(inner: InnerParam) -> core.DesugarerTransform {
+  n2t.early_return_one_to_one_enter_exit_stateful_with_warnings_nodemap_2_desugarer_transform(
+    nodemap_factory(inner),
+    #(False, [] |> dict.from_list),
+  )
+}
+
+fn nodemap_factory(
+  _inner: InnerParam,
+) -> n2t.EarlyReturnOneToOneEnterExitStatefulWithWarningsNodemap(State) {
+  n2t.EarlyReturnOneToOneEnterExitStatefulWithWarningsNodemap(
+    on_enter: on_enter,
+    on_exit: on_exit,
+    on_text: t_transform,
+  )
+}
+
+type State =
+  #(Bool, Dict(String, List(VXML)))
+
+// fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
 
 fn load_cut_nodes(vxml: VXML) -> Dict(String, List(VXML)) {
   let assert V(_, "GrandWrapper", _, children) = vxml
@@ -99,58 +140,8 @@ fn t_transform(
   Ok(#(vxml, state, []))
 }
 
-fn nodemap_factory(
-  _inner: InnerParam,
-) -> n2t.EarlyReturnOneToOneEnterExitStatefulWithWarningsNodemap(State) {
-  n2t.EarlyReturnOneToOneEnterExitStatefulWithWarningsNodemap(
-    on_enter: on_enter,
-    on_exit: on_exit,
-    on_text: t_transform,
-  )
-}
-
-fn transform_factory(inner: InnerParam) -> core.DesugarerTransform {
-  n2t.early_return_one_to_one_enter_exit_stateful_with_warnings_nodemap_2_desugarer_transform(
-    nodemap_factory(inner),
-    #(False, [] |> dict.from_list),
-  )
-}
-
-fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
-  Ok(param)
-}
-
-type State =
-  #(Bool, Dict(String, List(VXML)))
-
-type Param =
-  Nil
-
-type InnerParam =
-  Param
-
-pub const name = "lbp_move_to_be_moved_from_grand_wrapper_to_exercise_graveyard"
-
-// fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
-
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-// 🏖️🏖️ Desugarer 🏖️🏖️
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-//------------------------------------------------53
-pub fn constructor() -> Desugarer {
-  Desugarer(
-    name: name,
-    stringified_param: option.None,
-    stringified_outside: option.None,
-    transform: case param_to_inner_param(Nil) {
-      Error(error) -> fn(_) { Error(error) }
-      Ok(inner) -> transform_factory(inner)
-    },
-  )
-}
-
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
-// 🌊🌊🌊 tests 🌊🌊🌊🌊🌊
+// 🌊🌊🌊 tests 🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
 
 fn assertive_tests_data() -> List(core.AssertiveTestDataNoParam) {

@@ -1,6 +1,6 @@
+import desugaring/authoring
 import desugaring/core.{
-  type Desugarer, type DesugarerTransform, type DesugaringError, Desugarer,
-  DesugaringError,
+  type Desugarer, type DesugarerTransform, type DesugaringError, DesugaringError,
 }
 import desugaring/nodemaps_2_transform as n2t
 import gleam/dict.{type Dict}
@@ -394,19 +394,12 @@ fn nodemap_factory(
   )
 }
 
-fn transform_factory(inner: InnerParam) -> core.DesugarerTransform {
+fn inner_param_to_transform(inner: InnerParam) -> core.DesugarerTransform {
   n2t.one_to_one_enter_exit_stateful_nodemap_2_desugarer_transform(
     nodemap_factory(inner),
     dict.from_list([]),
   )
 }
-
-fn param_to_inner_param(_: Param) -> Result(InnerParam, DesugaringError) {
-  Ok(counter_regex())
-}
-
-type Param =
-  Nil
 
 type InnerParam =
   Regexp
@@ -415,10 +408,10 @@ pub const name = "substitute_counters"
 
 // fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
 
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 // 🏖️🏖️ Desugarer 🏖️🏖️
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-//------------------------------------------------53
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️️️️️🏖️
+
 /// Substitutes strings of the form
 ///
 ///          (::|..)(++|--|øø)<counterName>
@@ -457,20 +450,16 @@ pub const name = "substitute_counters"
 ///
 /// has no effect on the document.
 pub fn constructor() -> Desugarer {
-  Desugarer(
+  authoring.no_param_desugarer(
     name: name,
-    stringified_param: option.None,
-    stringified_outside: option.None,
-    transform: case param_to_inner_param(Nil) {
-      Error(error) -> fn(_) { Error(error) }
-      Ok(inner) -> transform_factory(inner)
-    },
+    transform: inner_param_to_transform(counter_regex()),
   )
 }
 
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
-// 🌊🌊🌊 tests 🌊🌊🌊🌊🌊
+// 🌊🌊🌊 tests 🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
+
 fn assertive_tests_data() -> List(core.AssertiveTestDataNoParam) {
   [
     core.AssertiveTestDataNoParam(

@@ -1,20 +1,66 @@
+import desugaring/authoring
+import desugaring/core.{
+  type Desugarer, type DesugarerTransform, type DesugaringError,
+}
+import desugaring/nodemaps_2_transform as n2t
 import gleam/list
 import gleam/option.{type Option}
 import gleam/string.{inspect as ins}
-import desugaring/core.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as core
-import desugaring/nodemaps_2_transform as n2t
 import vxml.{type VXML, T, V}
 import vxml/blame.{type Blame, Src} as bl
 
-fn pairing_msg(
-  local: Blame,
-  remote: Blame,
-) -> String {
-  case local, remote {
-    Src(_, l, _, _, _), Src(_, r, _, _, _) if l == r ->
-      "paired with --:" <> ins(remote.line_no) <> ":" <> ins(remote.char_no)
-    _, _ ->
-      "p.w. " <> bl.blame_digest(remote)
+pub const name = "pair_list_list"
+
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
+// 🏖️🏖️ Desugarer 🏖️🏖️
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️️️️️🏖️
+
+/// Pairs corresponding opening and closing element types
+/// inside an enclosing element.
+pub fn constructor(param: Param) -> Desugarer {
+  authoring.desugarer(
+    name: name,
+    param: param,
+    prepare: param_to_inner_param,
+    transform: inner_param_to_transform,
+  )
+}
+
+type Param =
+  #(
+    // Opening tags.
+    List(String),
+    // Closing tags.
+    List(String),
+    // Enclosing tag.
+    String,
+  )
+
+type InnerParam =
+  Param
+
+fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
+  Ok(param)
+}
+
+fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
+  nodemap_factory(inner)
+  |> n2t.one_to_one_no_error_nodemap_2_desugarer_transform()
+}
+
+fn nodemap_factory(inner: InnerParam) -> n2t.OneToOneNoErrorNodemap {
+  nodemap(_, inner)
+}
+
+fn nodemap(node: VXML, inner: InnerParam) -> VXML {
+  let #(opening, closing, enclosing) = inner
+  case node {
+    T(_, _) -> node
+    V(blame, tag, attrs, children) -> {
+      let new_children =
+        accumulator(opening, closing, enclosing, [], option.None, [], children)
+      V(blame, tag, attrs, new_children)
+    }
   }
 }
 
@@ -164,7 +210,8 @@ fn accumulator(
                 enclosing,
                 [
                   V(
-                    dude.blame |> bl.append_comment(pairing_msg(dude.blame, first.blame)),
+                    dude.blame
+                      |> bl.append_comment(pairing_msg(dude.blame, first.blame)),
                     enclosing,
                     [],
                     after_last_opening |> list.reverse,
@@ -203,7 +250,8 @@ fn accumulator(
                 enclosing,
                 [
                   V(
-                    dude.blame |> bl.append_comment(pairing_msg(dude.blame, first.blame)),
+                    dude.blame
+                      |> bl.append_comment(pairing_msg(dude.blame, first.blame)),
                     enclosing,
                     [],
                     after_last_opening |> list.reverse,
@@ -219,78 +267,26 @@ fn accumulator(
   }
 }
 
-fn nodemap(
-  node: VXML,
-  inner: InnerParam,
-) -> VXML {
-  let #(opening, closing, enclosing) = inner
-  case node {
-    T(_, _) -> node
-    V(blame, tag, attrs, children) -> {
-      let new_children =
-        accumulator(
-          opening,
-          closing,
-          enclosing,
-          [],
-          option.None,
-          [],
-          children,
-        )
-      V(blame, tag, attrs, new_children)
-    }
+fn pairing_msg(local: Blame, remote: Blame) -> String {
+  case local, remote {
+    Src(_, l, _, _, _), Src(_, r, _, _, _) if l == r ->
+      "paired with --:" <> ins(remote.line_no) <> ":" <> ins(remote.char_no)
+    _, _ -> "p.w. " <> bl.blame_digest(remote)
   }
 }
 
-fn nodemap_factory(inner: InnerParam) -> n2t.OneToOneNoErrorNodemap {
-  nodemap(_, inner)
-}
-
-fn transform_factory(inner: InnerParam) -> DesugarerTransform {
-  nodemap_factory(inner)
-  |> n2t.one_to_one_no_error_nodemap_2_desugarer_transform()
-}
-
-fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
-  Ok(param)
-}
-
-type Param =
-  #(List(String), List(String), String)
-//  ↖             ↖             ↖
-//  opening       closing       enclosing
-//  tags          tags          tag
-
-type InnerParam = Param
-
-pub const name = "pair_list_list"
-
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-// 🏖️🏖️ Desugarer 🏖️🏖️
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-//------------------------------------------------53
-/// pairs opening and closing bookend tags by
-/// wrapping content between them in an enclosing
-/// tag
-pub fn constructor(param: Param) -> Desugarer {
-  Desugarer(
-    name: name,
-    stringified_param: option.Some(ins(param)),
-    stringified_outside: option.None,
-    transform: case param_to_inner_param(param) {
-      Error(error) -> fn(_) { Error(error) }
-      Ok(inner) -> transform_factory(inner)
-    },
-  )
-}
-
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
-// 🌊🌊🌊 tests 🌊🌊🌊🌊🌊
+// 🌊🌊🌊 tests 🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
+
 fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
   []
 }
 
 pub fn assertive_tests() {
-  core.assertive_test_collection_from_data(name, assertive_tests_data(), constructor)
+  core.assertive_test_collection_from_data(
+    name,
+    assertive_tests_data(),
+    constructor,
+  )
 }

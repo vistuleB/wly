@@ -1,79 +1,66 @@
-import gleam/option
-import gleam/string.{inspect as ins}
+import desugaring/authoring
 import desugaring/core.{
-  type Desugarer,
-  type DesugarerTransform,
-  type DesugaringError,
-  type TrafficLight,
-  DesugaringError,
-  Desugarer,
-  Continue,
-} as core
+  type Desugarer, type DesugarerTransform, type DesugaringError,
+  type TrafficLight, Continue, DesugaringError,
+}
 import desugaring/nodemaps_2_transform as n2t
-import vxml.{type VXML, V, T}
+import vxml.{type VXML, T, V}
 import vxml/blame as bl
-
-fn nodemap(
-  node: VXML,
-  inner: InnerParam,
-) -> #(VXML, TrafficLight) {
-  case node {
-    V(_, tag, _, children) if tag == inner.0 -> {
-      let q = inner.1
-      let assert V(_, _, _, _) = q
-      #(V(..node, children: [V(..q, children: children)]), inner.2)
-    }
-    _ -> #(node, Continue)
-  }
-}
-
-fn nodemap_factory(inner: InnerParam) -> n2t.EarlyReturnOneToOneNoErrorNodemap {
-  nodemap(_, inner)
-}
-
-fn transform_factory(inner: InnerParam) -> DesugarerTransform {
-  nodemap_factory(inner)
-  |> n2t.early_return_one_to_one_no_error_nodemap_2_desugarer_transform()
-}
-
-fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
-  case param.1 {
-    V(_, _, _, []) -> Ok(param)
-    V(..) -> Error(DesugaringError(bl.no_blame, "given wrapper already has children"))
-    T(..) -> Error(DesugaringError(bl.no_blame, "expecting V-node as wrapper"))
-  }
-}
-
-type Param = #(String,  VXML,     TrafficLight)
-//             ↖        ↖         ↖
-//             parent   wrapper   early-return
-//             tag                or not
-type InnerParam = Param
 
 pub const name = "wrap_children_custom"
 
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 // 🏖️🏖️ Desugarer 🏖️🏖️
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-//------------------------------------------------53
-/// For a specified parent tag, wraps all children
-/// in a given wrapper given by a vxml element.
-///
-/// Throws a DesugaringError if the wrapper is not a
-/// V-node or already has children.
-///
-/// Early-returns after wrapping the children of a
-/// node depending on the third argument.
+/// Wraps all children of configured parents in a supplied
+/// childless VXML wrapper.
 pub fn constructor(param: Param) -> Desugarer {
-  Desugarer(
+  authoring.desugarer(
     name: name,
-    stringified_param: option.Some(ins(param)),
-    stringified_outside: option.None,
-    transform: case param_to_inner_param(param) {
-      Error(error) -> fn(_) { Error(error) }
-      Ok(inner) -> transform_factory(inner)
-    },
+    param: param,
+    prepare: param_to_inner_param,
+    transform: inner_param_to_transform,
   )
+}
+
+type Param =
+  #(
+    // Parent tag.
+    String,
+    // Childless VXML wrapper.
+    VXML,
+    // Traversal behavior after wrapping.
+    TrafficLight,
+  )
+
+type InnerParam = Param
+
+fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
+  case param.1 {
+    V(_, _, _, []) -> Ok(param)
+    V(..) ->
+      Error(DesugaringError(bl.no_blame, "given wrapper already has children"))
+    T(..) -> Error(DesugaringError(bl.no_blame, "expecting V-node as wrapper"))
+  }
+}
+
+fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
+  let nodemap: n2t.EarlyReturnOneToOneNoErrorNodemap = fn(vxml) {
+    nodemap(vxml, inner)
+  }
+  nodemap
+  |> n2t.early_return_one_to_one_no_error_nodemap_2_desugarer_transform
+}
+
+fn nodemap(vxml: VXML, inner: InnerParam) -> #(VXML, TrafficLight) {
+  case vxml {
+    V(_, tag, _, children) if tag == inner.0 -> {
+      let wrapper = inner.1
+      let assert V(..) = wrapper
+      #(V(..vxml, children: [V(..wrapper, children: children)]), inner.2)
+    }
+    _ -> #(vxml, Continue)
+  }
 }
 
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
@@ -84,5 +71,9 @@ fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
 }
 
 pub fn assertive_tests() {
-  core.assertive_test_collection_from_data(name, assertive_tests_data(), constructor)
+  core.assertive_test_collection_from_data(
+    name,
+    assertive_tests_data(),
+    constructor,
+  )
 }

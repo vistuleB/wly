@@ -1,6 +1,6 @@
+import desugaring/authoring
 import desugaring/core.{
-  type Desugarer, type DesugarerTransform, type DesugaringError, Desugarer,
-  DesugaringError,
+  type Desugarer, type DesugarerTransform, type DesugaringError, DesugaringError,
 }
 import desugaring/nodemaps_2_transform as n2t
 import gleam/dict.{type Dict}
@@ -182,7 +182,7 @@ fn nodemap_factory(
   )
 }
 
-fn transform_factory(inner: InnerParam) -> DesugarerTransform {
+fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
   n2t.fancy_one_to_one_enter_exit_stateful_nodemap_2_desugarer_transform(
     nodemap_factory(inner),
     State(dict.new(), None),
@@ -194,20 +194,30 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
 }
 
 type HandlesDict =
-  Dict(String, #(Bool, String, String, String, Blame))
-
-//     handle    #page value   handle  page    blame
-//     name      link          id      path
-//               by default
+  Dict(
+    String,
+    #(
+      // Whether the handle links to `#page` by default.
+      Bool,
+      // String value of the handle.
+      String,
+      // Handle id on the page.
+      String,
+      // Page path for the handle.
+      String,
+      // Blame of the handle definition.
+      Blame,
+    ),
+  )
 
 type State {
   State(handles: HandlesDict, path: Option(String))
 }
 
+// Key of the attribute holding the local path.
 type Param =
   String
 
-// key of attr holding the local path
 type InnerParam =
   Param
 
@@ -216,6 +226,10 @@ pub const name = "handles_generate_dictionary"
 fn desugarer_blame(line_no: Int) {
   bl.Des([], name, line_no)
 }
+
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
+// 🏖️🏖️ Desugarer 🏖️🏖️
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️️️️🏖️
 
 /// Traverses the tree. Expects `handle` attrs to be in the form:
 ///
@@ -227,16 +241,17 @@ fn desugarer_blame(line_no: Int) {
 ///
 /// Leaves `id` attrs in place and does not add `id` attrs to `GrandWrapper`.
 pub fn constructor(param: Param) -> Desugarer {
-  Desugarer(
+  authoring.desugarer(
     name: name,
-    stringified_param: option.None,
-    stringified_outside: option.None,
-    transform: case param_to_inner_param(param) {
-      Error(error) -> fn(_) { Error(error) }
-      Ok(inner) -> transform_factory(inner)
-    },
+    param: param,
+    prepare: param_to_inner_param,
+    transform: inner_param_to_transform,
   )
 }
+
+// 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
+// 🌊🌊🌊 tests 🌊🌊🌊🌊
+// 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
 
 fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
   [

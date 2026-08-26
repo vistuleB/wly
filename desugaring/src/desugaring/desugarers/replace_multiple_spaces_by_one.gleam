@@ -1,13 +1,37 @@
-import gleam/list
-import gleam/option
-import gleam/string
-import desugaring/core.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as core
+import desugaring/authoring
+import desugaring/core.{type Desugarer, type DesugarerTransform}
 import desugaring/nodemaps_2_transform as n2t
-import vxml.{type VXML, T, Line}
+import gleam/list
+import gleam/string
+import vxml.{type VXML, Line, T}
 
-fn nodemap(
-  vxml: VXML,
-) -> VXML {
+pub const name = "replace_multiple_spaces_by_one"
+
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
+// 🏖️🏖️ Desugarer 🏖️🏖️
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️️️️️🏖️
+
+/// Collapses consecutive spaces in text lines to one space.
+pub fn constructor() -> Desugarer {
+  authoring.no_param_desugarer(
+    name: name,
+    transform: inner_param_to_transform(Nil),
+  )
+}
+
+type InnerParam =
+  Nil
+
+fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
+  nodemap_factory(inner)
+  |> n2t.one_to_one_no_error_nodemap_2_desugarer_transform()
+}
+
+fn nodemap_factory(_: InnerParam) -> n2t.OneToOneNoErrorNodemap {
+  nodemap
+}
+
+fn nodemap(vxml: VXML) -> VXML {
   case vxml {
     T(blame, lines) -> {
       case lines {
@@ -16,10 +40,7 @@ fn nodemap(
           case first.content |> string.starts_with(" ") {
             True -> {
               let new_line = " " <> first.content |> string.trim_start()
-              T(blame, [
-                Line(first.blame, new_line),
-                ..list.drop(lines, 1),
-              ])
+              T(blame, [Line(first.blame, new_line), ..list.drop(lines, 1)])
             }
             False -> vxml
           }
@@ -30,48 +51,18 @@ fn nodemap(
   }
 }
 
-fn nodemap_factory(_: InnerParam) -> n2t.OneToOneNoErrorNodemap {
-  nodemap
-}
-
-fn transform_factory(inner: InnerParam) -> DesugarerTransform {
-  nodemap_factory(inner)
-  |> n2t.one_to_one_no_error_nodemap_2_desugarer_transform()
-}
-
-fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
-  Ok(param)
-}
-
-type Param = Nil
-type InnerParam = Nil
-
-pub const name = "replace_multiple_spaces_by_one"
-
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-// 🏖️🏖️ Desugarer 🏖️🏖️
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-//------------------------------------------------53
-/// replaces multiple consecutive spaces with a single space
-pub fn constructor() -> Desugarer {
-  Desugarer(
-    name: name,
-    stringified_param: option.None,
-    stringified_outside: option.None,
-    transform: case param_to_inner_param(Nil) {
-      Error(error) -> fn(_) { Error(error) }
-      Ok(inner) -> transform_factory(inner)
-    },
-  )
-}
-
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
-// 🌊🌊🌊 tests 🌊🌊🌊🌊🌊
+// 🌊🌊🌊 tests 🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
+
 fn assertive_tests_data() -> List(core.AssertiveTestDataNoParam) {
   []
 }
 
 pub fn assertive_tests() {
-  core.assertive_test_collection_from_data_no_param(name, assertive_tests_data(), constructor)
+  core.assertive_test_collection_from_data_no_param(
+    name,
+    assertive_tests_data(),
+    constructor,
+  )
 }

@@ -1,15 +1,69 @@
+import desugaring/authoring
+import desugaring/core.{
+  type Desugarer, type DesugarerTransform, type DesugaringError,
+}
+import desugaring/nodemaps_2_transform as n2t
 import gleam/dict.{type Dict}
 import gleam/list
-import gleam/option
-import desugaring/core.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as core
-import desugaring/nodemaps_2_transform as n2t
-import vxml.{type VXML, V, T}
-import vxml/blame as bl
+import vxml.{type VXML, T, V}
 
-fn nodemap(
-  vxml: VXML,
-  inner: InnerParam,
-) -> Result(VXML, DesugaringError) {
+pub const name = "rename_with_attributes__batch"
+
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
+// 🏖️🏖️ Desugarer 🏖️🏖️
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️️️️️🏖️
+
+/// Renames multiple element types and appends configured
+/// attributes.
+pub fn constructor(param: Param) -> Desugarer {
+  authoring.desugarer(
+    name: name,
+    param: param,
+    prepare: param_to_inner_param,
+    transform: inner_param_to_transform,
+  )
+}
+
+type Param =
+  List(
+    #(
+      // Existing tag.
+      String,
+      // New tag.
+      String,
+      // Attributes to append.
+      List(#(String, String)),
+    ),
+  )
+
+type InnerParam =
+  Dict(String, #(String, List(vxml.Attr)))
+
+fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
+  let inner_param =
+    param
+    |> list.map(fn(renaming: #(String, String, List(#(String, String)))) {
+      let #(old_tag, new_tag, attrs) = renaming
+      let attrs_converted =
+        list.map(attrs, fn(attr) {
+          let #(key, value) = attr
+          vxml.Attr(desugarer_blame(50), key, value)
+        })
+      #(old_tag, #(new_tag, attrs_converted))
+    })
+    |> dict.from_list
+  Ok(inner_param)
+}
+
+fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
+  n2t.one_to_one_nodemap_2_desugarer_transform(nodemap_factory(inner))
+}
+
+fn nodemap_factory(inner: InnerParam) -> n2t.OneToOneNodemap {
+  nodemap(_, inner)
+}
+
+fn nodemap(vxml: VXML, inner: InnerParam) -> Result(VXML, DesugaringError) {
   case vxml {
     T(_, _) -> Ok(vxml)
     V(blame, tag, attrs, children) -> {
@@ -25,60 +79,22 @@ fn nodemap(
   }
 }
 
-fn nodemap_factory(inner: InnerParam) -> n2t.OneToOneNodemap {
-  nodemap(_, inner)
-}
-
-fn transform_factory(inner: InnerParam) -> DesugarerTransform {
-  n2t.one_to_one_nodemap_2_desugarer_transform(nodemap_factory(inner))
-}
-
-fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
-  let inner_param = param
-    |> list.map(fn(renaming: #(String, String, List(#(String, String)))) {
-      let #(old_tag, new_tag, attrs) = renaming
-      let attrs_converted = list.map(attrs, fn(attr) {
-        let #(key, value) = attr
-        vxml.Attr(desugarer_blame(42), key, value)
-      })
-      #(old_tag, #(new_tag, attrs_converted))
-    })
-    |> dict.from_list
-  Ok(inner_param)
-}
-
-type Param = List(#(String, String, List(#(String, String))))
-//                  ↖       ↖       ↖
-//                  old_tag new_tag list of attrs as key value pairs
-type InnerParam = Dict(String, #(String, List(vxml.Attr)))
-
-pub const name = "rename_with_attributes__batch"
-fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
-
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-// 🏖️🏖️ Desugarer 🏖️🏖️
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-//------------------------------------------------53
-/// renames tags and adds attrs to them
-pub fn constructor(param: Param) -> Desugarer {
-  Desugarer(
-    name: name,
-    stringified_param: option.Some(param |> core.list_param_stringifier),
-    stringified_outside: option.None,
-    transform: case param_to_inner_param(param) {
-      Error(error) -> fn(_) { Error(error) }
-      Ok(inner) -> transform_factory(inner)
-    },
-  )
+fn desugarer_blame(line_no: Int) {
+  authoring.blame(name, line_no)
 }
 
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
-// 🌊🌊🌊 tests 🌊🌊🌊🌊🌊
+// 🌊🌊🌊 tests 🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
+
 fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
   []
 }
 
 pub fn assertive_tests() {
-  core.assertive_test_collection_from_data(name, assertive_tests_data(), constructor)
+  core.assertive_test_collection_from_data(
+    name,
+    assertive_tests_data(),
+    constructor,
+  )
 }

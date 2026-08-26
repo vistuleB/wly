@@ -1,6 +1,6 @@
+import desugaring/authoring
 import desugaring/core.{
-  type Desugarer, type DesugarerTransform, type DesugaringError, Desugarer,
-  DesugaringError,
+  type Desugarer, type DesugarerTransform, type DesugaringError, DesugaringError,
 }
 import desugaring/nodemaps_2_transform as n2t
 import gleam/list
@@ -9,6 +9,32 @@ import gleam/string
 import on
 import vxml.{type Attr, type VXML, V}
 import vxml/blame.{type Blame}
+
+pub const name = "ti2_cut_paste_width_height_to_descendant_img"
+
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
+// 🏖️🏖️ Desugarer 🏖️🏖️
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️️️️️🏖️
+
+/// Moves width and height settings from configured
+/// ancestors to their descendant images.
+pub fn constructor(param: Param) -> Desugarer {
+  authoring.desugarer(
+    name: name,
+    param: param,
+    prepare: param_to_inner_param,
+    transform: inner_param_to_transform,
+  )
+}
+
+type Param =
+  List(String)
+
+type InnerParam =
+  Param
+
+type State =
+  Option(String)
 
 fn extract_height_width_from_style_and_attrs(
   attrs: List(Attr),
@@ -181,7 +207,7 @@ fn nodemap_factory(
   )
 }
 
-fn transform_factory(inner: InnerParam) -> DesugarerTransform {
+fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
   nodemap_factory(inner)
   |> n2t.one_to_one_enter_exit_stateful_nodemap_2_desugarer_transform(None)
 }
@@ -190,41 +216,8 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
   Ok(param)
 }
 
-pub const name = "ti2_cut_paste_width_height_to_descendant_img"
-
-type State =
-  Option(String)
-
-type Param =
-  List(String)
-
-type InnerParam =
-  Param
-
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-// 🏖️🏖️ desugarer 🏖️🏖️
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-//------------------------------------------------53
-/// moves height and width styles or attributes from
-/// specified tags to descendant img elements.
-/// for img elements themselves, moves height/width
-/// attributes into the style attribute.
-/// empty style attributes are removed after
-/// extraction.
-pub fn constructor(param: Param) -> Desugarer {
-  Desugarer(
-    name: name,
-    stringified_param: option.None,
-    stringified_outside: option.None,
-    transform: case param_to_inner_param(param) {
-      Error(error) -> fn(_) { Error(error) }
-      Ok(inner) -> transform_factory(inner)
-    },
-  )
-}
-
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
-// 🌊🌊🌊 tests 🌊🌊🌊🌊🌊
+// 🌊🌊🌊 tests 🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
 fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
   [

@@ -10,19 +10,44 @@ blame provenance, or test meaning.
 
 ## File organization
 
-Prefer this order:
+Use this order by default:
 
 1. Imports.
-2. Nodemap callbacks and transformation helpers.
-3. `inner_param_to_transform`.
-4. `param_to_inner_param`.
-5. Private `State`, `Param`, and `InnerParam` declarations.
-6. `pub const name` and any blame helper.
-7. Constructor documentation and `constructor`.
-8. Assertive test data and `assertive_tests` at the bottom.
+2. `pub const name`.
+3. The beach banner labeled `Desugarer`, followed by the desugarer description
+   and `constructor`.
+4. `Param`, `InnerParam`, and `param_to_inner_param`, in that order. Place any
+   other parameter-preparation declarations alongside them as needed.
+5. The implementation, ordered from callers to callees: begin with
+   `inner_param_to_transform`, then the nodemap, then the helpers it calls.
+6. The wave banner and assertive tests, when tests exist.
 
 Keep tests at the bottom even when other declarations could technically follow
 them.
+
+The entire pre-test portion of the file should present logic top-down. Place
+each caller before the callees it invokes, including within chains of private
+implementation helpers. A reader should be able to begin at the constructor and
+continue downward through progressively lower-level details.
+
+Do not preserve the old implementation-first ordering merely because moving
+declarations requires a large diff. Ordinary desugarers should be fully
+reordered into the structure above.
+
+Preserve an implementation's existing internal ordering only as a narrow
+exception when both of these conditions hold:
+
+- The implementation is substantially large or complex.
+- It already has deliberate semantic organization expressed through section
+  comments, inter-function commentary, or carefully grouped cooperating
+  functions that would become less readable or riskier to review if moved.
+
+File length alone does not justify the exception. When using it, retain only
+the carefully organized implementation portion: still place `name`, the beach
+banner, description and constructor, and parameter preparation at the top when
+that can be done without disrupting the semantic sections. Record the file and
+the specific organization being preserved in `DESUGARER_REWRITE_REVIEW.md` and
+surface it to the human reviewer.
 
 ## Public parameters and private implementation types
 
@@ -200,6 +225,9 @@ describes the desugarer's observable transformation. During a rewrite:
 - Keep descriptions concise and behavioral. Explain what the desugarer does,
   including conditions that materially delimit the transformation; do not
   narrate its internal traversal machinery.
+- Write descriptions as complete sentences: begin with a capital letter and
+  end with punctuation. Wrap their `///` lines to roughly 60 characters,
+  including the comment prefix.
 - If the intended behavior or wording remains uncertain, still write the best
   description supported by the code, then record the uncertainty and the
   inferred interpretation in `DESUGARER_REWRITE_REVIEW.md` for human review.
@@ -207,12 +235,12 @@ describes the desugarer's observable transformation. During a rewrite:
 ## Desugarer section decoration
 
 The existing beach and wave section comments should remain. The beach section
-above the public constructor should be labeled `constructor`, not `Desugarer`,
-using this form:
+starts the public desugarer block and should be labeled `Desugarer`, using this
+form:
 
 ```gleam
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-// 🏖️🏖️ constructor 🏖️🏖️
+// 🏖️🏖️ Desugarer 🏖️🏖️
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️️️️️🏖️
 ```
 
@@ -223,11 +251,30 @@ encountered:
 //------------------------------------------------53
 ```
 
+Do not add a separate implementation banner. The caller-before-callee ordering
+provides the implementation's structure without another decorated section.
+
 Do not add replacement ruler lines.
+
+Leave exactly one blank line after the beach banner before the constructor
+description.
 
 ## Assertive tests
 
 Keep `assertive_tests_data` and `assertive_tests` at the bottom of the file.
+
+Use this exact wave banner, with one blank line between the banner and
+`assertive_tests_data`:
+
+```gleam
+// 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
+// 🌊🌊🌊 tests 🌊🌊🌊🌊
+// 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
+
+fn assertive_tests_data() {
+  // ...
+}
+```
 
 Within every multiline `source` and `expected` VXML string, normalize the
 minimum indentation of nonblank VXML lines to exactly 16 spaces. Move the block

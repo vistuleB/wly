@@ -1,17 +1,60 @@
+import desugaring/authoring
+import desugaring/core.{
+  type Desugarer, type DesugarerTransform, type DesugaringError,
+}
+import desugaring/nodemaps_2_transform as n2t
 import gleam/list
 import gleam/option.{type Option, Some}
 import gleam/result
 import gleam/string.{inspect as ins}
-import desugaring/core.{
-  type Desugarer,
-  type DesugarerTransform,
-  type DesugaringError,
-  Desugarer,
-} as core
-import vxml.{type VXML, Attr, V}
-import vxml/blame as bl
-import desugaring/nodemaps_2_transform as n2t
 import on
+import vxml.{type VXML, Attr, V}
+
+pub const name = "lbp_generate_table_of_contents"
+
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
+// 🏖️🏖️ Desugarer 🏖️🏖️
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️️️️️🏖️
+
+/// Generates the LBP table of contents using configured
+/// container, heading, link, and optional spacer elements.
+pub fn constructor(param: Param) -> Desugarer {
+  authoring.desugarer_with_stringified_param(
+    name: name,
+    param: param,
+    stringified_param: ins(param),
+    prepare: param_to_inner_param,
+    transform: inner_param_to_transform,
+  )
+}
+
+type Param =
+  #(
+    // Table-of-contents element name.
+    String,
+    // Category-heading element name.
+    String,
+    // Individual chapter-link element name.
+    String,
+    // Optional spacer element between link groups.
+    Option(String),
+  )
+
+type InnerParam =
+  Param
+
+fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
+  Ok(param)
+}
+
+fn inner_param_to_transform(inner: InnerParam) -> core.DesugarerTransform {
+  at_root(_, inner)
+  |> n2t.node_to_node_2_desugarer_transform_without_walking
+}
+
+fn desugarer_blame(line_no: Int) {
+  authoring.blame(name, line_no)
+}
 
 fn chapter_link(
   chapter_link_component_name: String,
@@ -32,8 +75,8 @@ fn chapter_link(
     blame,
     chapter_link_component_name,
     [
-      Attr(desugarer_blame(35), "article_type", count),
-      Attr(desugarer_blame(36), "href", tp <> count),
+      Attr(desugarer_blame(78), "article_type", count),
+      Attr(desugarer_blame(79), "href", tp <> count),
     ],
     title_element.children,
   )
@@ -45,9 +88,9 @@ fn type_of_chapters_title(
   label: String,
 ) -> VXML {
   V(
-    desugarer_blame(48),
+    desugarer_blame(91),
     type_of_chapters_title_component_name,
-    [Attr(desugarer_blame(50), "label", label)],
+    [Attr(desugarer_blame(93), "label", label)],
     [],
   )
 }
@@ -59,19 +102,20 @@ fn div_with_id_title_and_menu_items(
   menu_items: List(VXML),
 ) -> VXML {
   V(
-    desugarer_blame(62),
+    desugarer_blame(105),
     "div",
     [
-      Attr(desugarer_blame(65), "id", id),
+      Attr(desugarer_blame(108), "id", id),
     ],
     [
       type_of_chapters_title(type_of_chapters_title_component_name, title_label),
-      V(desugarer_blame(69), "ul", [], menu_items),
+      V(desugarer_blame(112), "ul", [], menu_items),
     ],
   )
 }
 
-type ArticalParams = #(String, String, String, CounterType)
+type ArticalParams =
+  #(String, String, String, CounterType)
 
 type CounterType {
   Number
@@ -81,15 +125,18 @@ type CounterType {
 fn increamentor(index: Int, counter_type: CounterType) -> String {
   case counter_type {
     Number -> ins(index + 1)
-    Alphabetic ->{
+    Alphabetic -> {
       let assert Ok(utf) = string.utf_codepoint(64 + index + 1)
       string.from_utf_codepoints([utf])
     }
   }
 }
 
-
-fn create_toc_child_div(article_params: ArticalParams, inner: InnerParam, children: List(VXML)) -> Result(List(VXML), DesugaringError) {
+fn create_toc_child_div(
+  article_params: ArticalParams,
+  inner: InnerParam,
+  children: List(VXML),
+) -> Result(List(VXML), DesugaringError) {
   let #(tag_name, link, title, counter_type) = article_params
   let #(
     _,
@@ -101,8 +148,14 @@ fn create_toc_child_div(article_params: ArticalParams, inner: InnerParam, childr
   use menu_items <- on.ok(
     children
     |> list.filter(core.is_v_and_tag_equals(_, tag_name))
-    |> list.index_map(fn(chapter: VXML, index) { chapter_link(chapter_link_component_name, chapter, increamentor(index, counter_type)) })
-    |> result.all
+    |> list.index_map(fn(chapter: VXML, index) {
+      chapter_link(
+        chapter_link_component_name,
+        chapter,
+        increamentor(index, counter_type),
+      )
+    })
+    |> result.all,
   )
 
   let div =
@@ -116,89 +169,53 @@ fn create_toc_child_div(article_params: ArticalParams, inner: InnerParam, childr
   on.false_true(
     list.is_empty(menu_items),
     on_false: fn() { Ok([div]) },
-    on_true: fn() { Ok([]) }
+    on_true: fn() { Ok([]) },
   )
 }
 
 fn at_root(root: VXML, param: InnerParam) -> Result(VXML, DesugaringError) {
   let assert V(_, _, _, children) = root
 
-  let #(
-    toc_tag,
-    _,
-    _,
-    maybe_spacer,
-  ) = param
+  let #(toc_tag, _, _, maybe_spacer) = param
 
-  let res = [
-    #("Chapter", "chapter", "Chapters", Number),
-    #("Bootcamp", "bootcamp", "Bootcamps", Number),
-    #("Appendix", "appendix", "Appendices", Alphabetic),
-  ] |> list.try_map(fn(a_params) { create_toc_child_div(a_params, param, children) })
+  let res =
+    [
+      #("Chapter", "chapter", "Chapters", Number),
+      #("Bootcamp", "bootcamp", "Bootcamps", Number),
+      #("Appendix", "appendix", "Appendices", Alphabetic),
+    ]
+    |> list.try_map(fn(a_params) {
+      create_toc_child_div(a_params, param, children)
+    })
 
   use merged <- on.ok(res)
 
   let flattened = list.flatten(merged)
 
   let toc_children = case maybe_spacer {
-    Some(spacer_tag) -> { list.intersperse(flattened, V(desugarer_blame(144), spacer_tag, [], [])) }
+    Some(spacer_tag) -> {
+      list.intersperse(flattened, V(desugarer_blame(197), spacer_tag, [], []))
+    }
     _ -> flattened
   }
 
-  let toc = V(desugarer_blame(148), toc_tag, [], toc_children)
+  let toc = V(desugarer_blame(202), toc_tag, [], toc_children)
 
   Ok(V(..root, children: [toc, ..children]))
 }
 
-fn desugarer_factory(inner: InnerParam) -> core.DesugarerTransform {
-  at_root(_, inner)
-  |> n2t.at_root_2_desugarer_transform
-}
-
-fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
-  Ok(param)
-}
-
-type Param = #(String,   String,                String,        Option(String))
-//             ↖         ↖                      ↖              ↖
-//             tag name  tag name               tag name       optional tag name
-//             table of  of 'big title'         individual     for spacer between
-//             contents  (Chapters, Bootcamps)  chapter links  two groups of chapter links
-type InnerParam = Param
-
-pub const name = "generate_lbp_table_of_contents"
-fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
-
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-// 🏖️🏖️ Desugarer 🏖️🏖️
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-//------------------------------------------------53
-/// generates the LBP table of contents while
-/// admitting custom values for the root tag name
-/// of the table of contents, as well as for the tag
-/// name of the chapter (& bootcamp) links and the
-/// tag name for the Chapter/Bootcamp category
-/// banners, and an optional spacer tag name for an
-/// element to be placed between the two categories
-pub fn constructor(param: Param) -> Desugarer {
-  Desugarer(
-    name: name,
-    stringified_param: option.None,
-    stringified_outside: option.None,
-    transform: case param_to_inner_param(param) {
-      Error(error) -> fn(_) { Error(error) }
-      Ok(inner) -> desugarer_factory(inner)
-    }
-  )
-}
-
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
-// 🌊🌊🌊 tests 🌊🌊🌊🌊🌊
+// 🌊🌊🌊 tests 🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
+
 fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
   []
 }
 
 pub fn assertive_tests() {
-  core.assertive_test_collection_from_data(name, assertive_tests_data(), constructor)
+  core.assertive_test_collection_from_data(
+    name,
+    assertive_tests_data(),
+    constructor,
+  )
 }

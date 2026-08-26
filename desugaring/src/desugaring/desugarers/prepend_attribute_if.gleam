@@ -1,26 +1,60 @@
-import gleam/option
-import gleam/string.{inspect as ins}
+import desugaring/authoring
 import desugaring/core.{
-  type Desugarer,
-  type DesugarerTransform,
-  type DesugaringError,
-  type TrafficLight,
-  Desugarer,
-  Continue,
-} as core
-import desugaring/nodemaps_2_transform as n2t
-import vxml.{
-  type Attr,
-  type VXML,
-  Attr,
-  V,
+  type Desugarer, type DesugarerTransform, type DesugaringError,
+  type TrafficLight, Continue,
 }
-import vxml/blame as bl
+import desugaring/nodemaps_2_transform as n2t
+import vxml.{type Attr, type VXML, Attr, V}
 
-fn nodemap(
-  vxml: VXML,
-  inner: InnerParam,
-) -> #(VXML, TrafficLight) {
+pub const name = "prepend_attribute_if"
+
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
+// 🏖️🏖️ Desugarer 🏖️🏖️
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️️️️️🏖️
+
+/// Prepends an attribute when a matching element satisfies
+/// the configured condition.
+pub fn constructor(param: Param) -> Desugarer {
+  authoring.desugarer(
+    name: name,
+    param: param,
+    prepare: param_to_inner_param,
+    transform: inner_param_to_transform,
+  )
+}
+
+type Param =
+  #(
+    // Target tag.
+    String,
+    // Condition applied to the target.
+    fn(VXML) -> Bool,
+    // Attribute key.
+    String,
+    // Attribute value.
+    String,
+    // Whether to return early after finding a target.
+    TrafficLight,
+  )
+
+type InnerParam =
+  #(String, fn(VXML) -> Bool, Attr, TrafficLight)
+
+fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
+  #(param.0, param.1, Attr(desugarer_blame(44), param.2, param.3), param.4)
+  |> Ok
+}
+
+fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
+  nodemap_factory(inner)
+  |> n2t.early_return_one_to_one_no_error_nodemap_2_desugarer_transform
+}
+
+fn nodemap_factory(inner: InnerParam) -> n2t.EarlyReturnOneToOneNoErrorNodemap {
+  nodemap(_, inner)
+}
+
+fn nodemap(vxml: VXML, inner: InnerParam) -> #(VXML, TrafficLight) {
   case vxml {
     V(_, tag, attrs, _) if tag == inner.0 -> {
       case inner.1(vxml) {
@@ -32,59 +66,53 @@ fn nodemap(
   }
 }
 
-fn nodemap_factory(inner: InnerParam) -> n2t.EarlyReturnOneToOneNoErrorNodemap {
-  nodemap(_, inner)
-}
-
-fn transform_factory(inner: InnerParam) -> DesugarerTransform {
-  nodemap_factory(inner)
-  |> n2t.early_return_one_to_one_no_error_nodemap_2_desugarer_transform
-}
-
-fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
-  #(
-    param.0,
-    param.1,
-    Attr(desugarer_blame(48), param.2, param.3),
-    param.4,
-  )
-  |> Ok
-}
-
-type Param = #(String, fn(VXML) -> Bool, String, String,   TrafficLight)
-//             ↖       ↖                 ↖       ↖         ↖
-//             tag     condition         attr    value     early return or not
-type InnerParam = #(String, fn(VXML) -> Bool, Attr, TrafficLight)
-
-pub const name = "prepend_attribute_if"
-fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
-
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-// 🏖️🏖️ Desugarer 🏖️🏖️
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-//------------------------------------------------53
-/// prepend an attribute to a given tag if the node
-/// meets a condition
-pub fn constructor(param: Param) -> Desugarer {
-  Desugarer(
-    name: name,
-    stringified_param: option.Some(ins(param)),
-    stringified_outside: option.None,
-    transform: case param_to_inner_param(param) {
-      Error(error) -> fn(_) { Error(error) }
-      Ok(inner) -> transform_factory(inner)
-    },
-  )
+fn desugarer_blame(line_no: Int) {
+  authoring.blame(name, line_no)
 }
 
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
-// 🌊🌊🌊 tests 🌊🌊🌊🌊🌊
+// 🌊🌊🌊 tests 🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
+
 fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
   [
+    core.AssertiveTestData(
+      param: #(
+        "section",
+        core.v_has_key_val(_, "enabled", "yes"),
+        "new",
+        "first",
+        Continue,
+      ),
+      source: "
+                <> root
+                  <> section
+                    enabled=yes
+                    old=second
+                  <> section
+                    enabled=no
+                  <> aside
+                    enabled=yes
+                ",
+      expected: "
+                <> root
+                  <> section
+                    new=first
+                    enabled=yes
+                    old=second
+                  <> section
+                    enabled=no
+                  <> aside
+                    enabled=yes
+                ",
+    ),
   ]
 }
 
 pub fn assertive_tests() {
-  core.assertive_test_collection_from_data(name, assertive_tests_data(), constructor)
+  core.assertive_test_collection_from_data(
+    name,
+    assertive_tests_data(),
+    constructor,
+  )
 }

@@ -23,9 +23,8 @@ import desugaring/desugarers/append_attribute_if
 import desugaring/desugarers/append_attribute_if_child_of
 import desugaring/desugarers/append_attribute_if_child_of__batch
 import desugaring/desugarers/append_attribute_if_fancy
-import desugaring/desugarers/append_attribute_to_second_of_kind
-import desugaring/desugarers/append_attribute_to_second_of_kind__outside
-import desugaring/desugarers/append_attributes
+import desugaring/desugarers/append_attribute_if_preceded_by_same
+import desugaring/desugarers/append_attribute_if_preceded_by_same__outside
 import desugaring/desugarers/append_class
 import desugaring/desugarers/append_class__batch
 import desugaring/desugarers/append_class_to_child_if
@@ -47,13 +46,9 @@ import desugaring/desugarers/check_proper_href_detokenization
 import desugaring/desugarers/check_proper_href_tokenization
 import desugaring/desugarers/check_proper_tokenization
 import desugaring/desugarers/check_tags
-import desugaring/desugarers/compute_max_element_width
-import desugaring/desugarers/compute_missing_images_width
 import desugaring/desugarers/concatenate_consecutive_lines_if
-import desugaring/desugarers/concatenate_tags
 import desugaring/desugarers/concatenate_text_nodes
 import desugaring/desugarers/convert_int_attributes_to_float
-import desugaring/desugarers/correct_parsed_html_tags
 import desugaring/desugarers/counters_substitute_and_assign_handles
 import desugaring/desugarers/cut_paste_attribute_from_first_child_to_self
 import desugaring/desugarers/cut_paste_attribute_from_self_to_child
@@ -89,6 +84,8 @@ import desugaring/desugarers/filter_nodes_by_key_values
 import desugaring/desugarers/filter_nodes_by_key_values_while_saving
 import desugaring/desugarers/filter_nodes_by_path_key_values
 import desugaring/desugarers/filter_nodes_by_path_key_values_while_saving
+import desugaring/desugarers/find_replace
+import desugaring/desugarers/find_replace__batch
 import desugaring/desugarers/find_replace__batch__outside
 import desugaring/desugarers/find_replace__outside
 import desugaring/desugarers/find_replace_if_has_ancestor_else
@@ -100,7 +97,7 @@ import desugaring/desugarers/fold_contents_into_text_if
 import desugaring/desugarers/fold_custom_into_text
 import desugaring/desugarers/fold_into_text
 import desugaring/desugarers/fold_into_text__batch
-import desugaring/desugarers/footnote_marker_to_sup_handle
+import desugaring/desugarers/footnote_marker_to_sup_handle__outside
 import desugaring/desugarers/free_children
 import desugaring/desugarers/free_children__batch
 import desugaring/desugarers/grand_wrapper_append_attributes
@@ -116,11 +113,10 @@ import desugaring/desugarers/handles_warn_unused
 import desugaring/desugarers/identity
 import desugaring/desugarers/ii2_carousel_component
 import desugaring/desugarers/ii2_class_well_container_theorem_2_statement
-import desugaring/desugarers/ii2_div_class_subchpater_2_sub
 import desugaring/desugarers/ii2_fix_local_links
-import desugaring/desugarers/ii2_generate_table_of_contents
 import desugaring/desugarers/ii2_generate_table_of_contents_html
 import desugaring/desugarers/ii2_insert_counter_commands
+import desugaring/desugarers/ii2_normalize_begin_end_align
 import desugaring/desugarers/ii2_remove_chapter_number_from_title
 import desugaring/desugarers/insert_attribute_as_text
 import desugaring/desugarers/insert_attribute_value_at_first_child_start
@@ -129,6 +125,7 @@ import desugaring/desugarers/insert_bookend_tags
 import desugaring/desugarers/insert_bookend_text_if_no_attributes
 import desugaring/desugarers/insert_custom_before_first
 import desugaring/desugarers/insert_line_start_end
+import desugaring/desugarers/insert_on_own_line_start_end
 import desugaring/desugarers/insert_text_start_end
 import desugaring/desugarers/insert_text_start_end_if_else
 import desugaring/desugarers/insert_text_start_end_if_unique_attr
@@ -144,15 +141,14 @@ import desugaring/desugarers/lbp_img_build
 import desugaring/desugarers/lbp_move_to_be_moved_from_grand_wrapper_to_exercise_graveyard
 import desugaring/desugarers/lbp_move_to_be_moved_to_grand_wrapper
 import desugaring/desugarers/lbp_select_content
-import desugaring/desugarers/lbp_turn_lines_into_3003_spans
+import desugaring/desugarers/lbp_turn_lines_into_3003_spans__outside
 import desugaring/desugarers/lbp_wrap_with_3003_spans
 import desugaring/desugarers/line_rewrap_no1__outside
 import desugaring/desugarers/line_rewrap_no2__outside
-import desugaring/desugarers/markdown_link_closing_handrolled_splitter
-import desugaring/desugarers/math_label_to_tag_handle
+import desugaring/desugarers/markdown_link_closing_handrolled_splitter__outside
+import desugaring/desugarers/math_label_with_handle_to_mathjax_tag
 import desugaring/desugarers/merge_parent_attributes_into_child
-import desugaring/desugarers/naive_unsecaped_split_and_replace__outside
-import desugaring/desugarers/normalize_begin_end_align
+import desugaring/desugarers/naive_unescaped_split_and_replace__outside
 import desugaring/desugarers/normalize_br_in_pre
 import desugaring/desugarers/normalize_math_delimiters_inside
 import desugaring/desugarers/normalize_spaces__outside
@@ -183,6 +179,10 @@ import desugaring/desugarers/rearrange_links_4_pre_tokenized_src
 import desugaring/desugarers/rearrange_links_4_pre_tokenized_src__batch
 import desugaring/desugarers/rearrange_links__batch
 import desugaring/desugarers/reassign_text_node_blame_to_blame_of_first_nonempty_line_in_text_node
+import desugaring/desugarers/regex_replace
+import desugaring/desugarers/regex_replace__batch
+import desugaring/desugarers/regex_replace__batch__outside
+import desugaring/desugarers/regex_replace__outside
 import desugaring/desugarers/regex_split_and_replace__batch__outside
 import desugaring/desugarers/regex_split_and_replace__outside
 import desugaring/desugarers/reinsert_math_dollar
@@ -204,7 +204,6 @@ import desugaring/desugarers/rename_with_class
 import desugaring/desugarers/rename_with_class_and_attributes
 import desugaring/desugarers/replace_in_attribute_values
 import desugaring/desugarers/replace_multiple_spaces_by_one
-import desugaring/desugarers/replace_string__outside
 import desugaring/desugarers/replace_with_arbitrary
 import desugaring/desugarers/set_handle_value
 import desugaring/desugarers/set_handle_value__outside
@@ -236,7 +235,7 @@ import desugaring/desugarers/ti2_parse_python_prompt_pre
 import desugaring/desugarers/ti2_parse_redyellow_pre
 import desugaring/desugarers/ti2_parse_xml_pre
 import desugaring/desugarers/ti2_process_pre_listing_classname
-import desugaring/desugarers/ti2_turn_lines_into_3003_spans
+import desugaring/desugarers/ti2_turn_lines_into_3003_spans__outside
 import desugaring/desugarers/ti2_wrap_with_3003_spans
 import desugaring/desugarers/timer
 import desugaring/desugarers/tokenize_href_surroundings
@@ -283,8 +282,6 @@ import desugaring/desugarers/wrap_with_custom_if_not_child_of
 
 pub const absorb_backward_one = absorb_backward_one.constructor
 pub const absorb_forward_one = absorb_forward_one.constructor
-/// moves each uninterrupted run of elements of the specified tags into the end
-/// of its preceding element when that element's tag is not specified
 pub const absorb_into_previous_sibling = absorb_into_previous_sibling.constructor
 pub const add_after_but_not_after_last_child__batch = add_after_but_not_after_last_child__batch.constructor
 pub const add_before = add_before.constructor
@@ -307,9 +304,8 @@ pub const append_attribute_if = append_attribute_if.constructor
 pub const append_attribute_if_child_of = append_attribute_if_child_of.constructor
 pub const append_attribute_if_child_of__batch = append_attribute_if_child_of__batch.constructor
 pub const append_attribute_if_fancy = append_attribute_if_fancy.constructor
-pub const append_attribute_to_second_of_kind = append_attribute_to_second_of_kind.constructor
-pub const append_attribute_to_second_of_kind__outside = append_attribute_to_second_of_kind__outside.constructor
-pub const append_attributes = append_attributes.constructor
+pub const append_attribute_if_preceded_by_same = append_attribute_if_preceded_by_same.constructor
+pub const append_attribute_if_preceded_by_same__outside = append_attribute_if_preceded_by_same__outside.constructor
 pub const append_class = append_class.constructor
 pub const append_class__batch = append_class__batch.constructor
 pub const append_class_to_child_if = append_class_to_child_if.constructor
@@ -331,13 +327,9 @@ pub const check_proper_href_detokenization = check_proper_href_detokenization.co
 pub const check_proper_href_tokenization = check_proper_href_tokenization.constructor
 pub const check_proper_tokenization = check_proper_tokenization.constructor
 pub const check_tags = check_tags.constructor
-pub const compute_max_element_width = compute_max_element_width.constructor
-pub const compute_missing_images_width = compute_missing_images_width.constructor
 pub const concatenate_consecutive_lines_if = concatenate_consecutive_lines_if.constructor
-pub const concatenate_tags = concatenate_tags.constructor
 pub const concatenate_text_nodes = concatenate_text_nodes.constructor
 pub const convert_int_attributes_to_float = convert_int_attributes_to_float.constructor
-pub const correct_parsed_html_tags = correct_parsed_html_tags.constructor
 pub const counters_substitute_and_assign_handles = counters_substitute_and_assign_handles.constructor
 pub const cut_paste_attribute_from_first_child_to_self = cut_paste_attribute_from_first_child_to_self.constructor
 pub const cut_paste_attribute_from_self_to_child = cut_paste_attribute_from_self_to_child.constructor
@@ -373,6 +365,8 @@ pub const filter_nodes_by_key_values = filter_nodes_by_key_values.constructor
 pub const filter_nodes_by_key_values_while_saving = filter_nodes_by_key_values_while_saving.constructor
 pub const filter_nodes_by_path_key_values = filter_nodes_by_path_key_values.constructor
 pub const filter_nodes_by_path_key_values_while_saving = filter_nodes_by_path_key_values_while_saving.constructor
+pub const find_replace = find_replace.constructor
+pub const find_replace__batch = find_replace__batch.constructor
 pub const find_replace__batch__outside = find_replace__batch__outside.constructor
 pub const find_replace__outside = find_replace__outside.constructor
 pub const find_replace_if_has_ancestor_else = find_replace_if_has_ancestor_else.constructor
@@ -384,7 +378,7 @@ pub const fold_contents_into_text_if = fold_contents_into_text_if.constructor
 pub const fold_custom_into_text = fold_custom_into_text.constructor
 pub const fold_into_text = fold_into_text.constructor
 pub const fold_into_text__batch = fold_into_text__batch.constructor
-pub const footnote_marker_to_sup_handle = footnote_marker_to_sup_handle.constructor
+pub const footnote_marker_to_sup_handle__outside = footnote_marker_to_sup_handle__outside.constructor
 pub const free_children = free_children.constructor
 pub const free_children__batch = free_children__batch.constructor
 pub const grand_wrapper_append_attributes = grand_wrapper_append_attributes.constructor
@@ -400,11 +394,10 @@ pub const handles_warn_unused = handles_warn_unused.constructor
 pub const identity = identity.constructor
 pub const ii2_carousel_component = ii2_carousel_component.constructor
 pub const ii2_class_well_container_theorem_2_statement = ii2_class_well_container_theorem_2_statement.constructor
-pub const ii2_div_class_subchpater_2_sub = ii2_div_class_subchpater_2_sub.constructor
 pub const ii2_fix_local_links = ii2_fix_local_links.constructor
-pub const ii2_generate_table_of_contents = ii2_generate_table_of_contents.constructor
 pub const ii2_generate_table_of_contents_html = ii2_generate_table_of_contents_html.constructor
 pub const ii2_insert_counter_commands = ii2_insert_counter_commands.constructor
+pub const ii2_normalize_begin_end_align = ii2_normalize_begin_end_align.constructor
 pub const ii2_remove_chapter_number_from_title = ii2_remove_chapter_number_from_title.constructor
 pub const insert_attribute_as_text = insert_attribute_as_text.constructor
 pub const insert_attribute_value_at_first_child_start = insert_attribute_value_at_first_child_start.constructor
@@ -413,6 +406,7 @@ pub const insert_bookend_tags = insert_bookend_tags.constructor
 pub const insert_bookend_text_if_no_attributes = insert_bookend_text_if_no_attributes.constructor
 pub const insert_custom_before_first = insert_custom_before_first.constructor
 pub const insert_line_start_end = insert_line_start_end.constructor
+pub const insert_on_own_line_start_end = insert_on_own_line_start_end.constructor
 pub const insert_text_start_end = insert_text_start_end.constructor
 pub const insert_text_start_end_if_else = insert_text_start_end_if_else.constructor
 pub const insert_text_start_end_if_unique_attr = insert_text_start_end_if_unique_attr.constructor
@@ -428,15 +422,14 @@ pub const lbp_img_build = lbp_img_build.constructor
 pub const lbp_move_to_be_moved_from_grand_wrapper_to_exercise_graveyard = lbp_move_to_be_moved_from_grand_wrapper_to_exercise_graveyard.constructor
 pub const lbp_move_to_be_moved_to_grand_wrapper = lbp_move_to_be_moved_to_grand_wrapper.constructor
 pub const lbp_select_content = lbp_select_content.constructor
-pub const lbp_turn_lines_into_3003_spans = lbp_turn_lines_into_3003_spans.constructor
+pub const lbp_turn_lines_into_3003_spans__outside = lbp_turn_lines_into_3003_spans__outside.constructor
 pub const lbp_wrap_with_3003_spans = lbp_wrap_with_3003_spans.constructor
 pub const line_rewrap_no1__outside = line_rewrap_no1__outside.constructor
 pub const line_rewrap_no2__outside = line_rewrap_no2__outside.constructor
-pub const markdown_link_closing_handrolled_splitter = markdown_link_closing_handrolled_splitter.constructor
-pub const math_label_to_tag_handle = math_label_to_tag_handle.constructor
+pub const markdown_link_closing_handrolled_splitter__outside = markdown_link_closing_handrolled_splitter__outside.constructor
+pub const math_label_with_handle_to_mathjax_tag = math_label_with_handle_to_mathjax_tag.constructor
 pub const merge_parent_attributes_into_child = merge_parent_attributes_into_child.constructor
-pub const naive_unsecaped_split_and_replace__outside = naive_unsecaped_split_and_replace__outside.constructor
-pub const normalize_begin_end_align = normalize_begin_end_align.constructor
+pub const naive_unescaped_split_and_replace__outside = naive_unescaped_split_and_replace__outside.constructor
 pub const normalize_br_in_pre = normalize_br_in_pre.constructor
 pub const normalize_math_delimiters_inside = normalize_math_delimiters_inside.constructor
 pub const normalize_spaces__outside = normalize_spaces__outside.constructor
@@ -467,6 +460,10 @@ pub const rearrange_links_4_pre_tokenized_src = rearrange_links_4_pre_tokenized_
 pub const rearrange_links_4_pre_tokenized_src__batch = rearrange_links_4_pre_tokenized_src__batch.constructor
 pub const rearrange_links__batch = rearrange_links__batch.constructor
 pub const reassign_text_node_blame_to_blame_of_first_nonempty_line_in_text_node = reassign_text_node_blame_to_blame_of_first_nonempty_line_in_text_node.constructor
+pub const regex_replace = regex_replace.constructor
+pub const regex_replace__batch = regex_replace__batch.constructor
+pub const regex_replace__batch__outside = regex_replace__batch__outside.constructor
+pub const regex_replace__outside = regex_replace__outside.constructor
 pub const regex_split_and_replace__batch__outside = regex_split_and_replace__batch__outside.constructor
 pub const regex_split_and_replace__outside = regex_split_and_replace__outside.constructor
 pub const reinsert_math_dollar = reinsert_math_dollar.constructor
@@ -488,7 +485,6 @@ pub const rename_with_class = rename_with_class.constructor
 pub const rename_with_class_and_attributes = rename_with_class_and_attributes.constructor
 pub const replace_in_attribute_values = replace_in_attribute_values.constructor
 pub const replace_multiple_spaces_by_one = replace_multiple_spaces_by_one.constructor
-pub const replace_string__outside = replace_string__outside.constructor
 pub const replace_with_arbitrary = replace_with_arbitrary.constructor
 pub const set_handle_value = set_handle_value.constructor
 pub const set_handle_value__outside = set_handle_value__outside.constructor
@@ -520,7 +516,7 @@ pub const ti2_parse_python_prompt_pre = ti2_parse_python_prompt_pre.constructor
 pub const ti2_parse_redyellow_pre = ti2_parse_redyellow_pre.constructor
 pub const ti2_parse_xml_pre = ti2_parse_xml_pre.constructor
 pub const ti2_process_pre_listing_classname = ti2_process_pre_listing_classname.constructor
-pub const ti2_turn_lines_into_3003_spans = ti2_turn_lines_into_3003_spans.constructor
+pub const ti2_turn_lines_into_3003_spans__outside = ti2_turn_lines_into_3003_spans__outside.constructor
 pub const ti2_wrap_with_3003_spans = ti2_wrap_with_3003_spans.constructor
 pub const timer = timer.constructor
 pub const tokenize_href_surroundings = tokenize_href_surroundings.constructor
@@ -590,9 +586,8 @@ pub const assertive_tests : List(fn() -> core.AssertiveTestCollection) = [
   append_attribute_if_child_of.assertive_tests,
   append_attribute_if_child_of__batch.assertive_tests,
   append_attribute_if_fancy.assertive_tests,
-  append_attribute_to_second_of_kind.assertive_tests,
-  append_attribute_to_second_of_kind__outside.assertive_tests,
-  append_attributes.assertive_tests,
+  append_attribute_if_preceded_by_same.assertive_tests,
+  append_attribute_if_preceded_by_same__outside.assertive_tests,
   append_class.assertive_tests,
   append_class__batch.assertive_tests,
   append_class_to_child_if.assertive_tests,
@@ -614,13 +609,9 @@ pub const assertive_tests : List(fn() -> core.AssertiveTestCollection) = [
   check_proper_href_tokenization.assertive_tests,
   check_proper_tokenization.assertive_tests,
   check_tags.assertive_tests,
-  compute_max_element_width.assertive_tests,
-  compute_missing_images_width.assertive_tests,
   concatenate_consecutive_lines_if.assertive_tests,
-  concatenate_tags.assertive_tests,
   concatenate_text_nodes.assertive_tests,
   convert_int_attributes_to_float.assertive_tests,
-  correct_parsed_html_tags.assertive_tests,
   counters_substitute_and_assign_handles.assertive_tests,
   cut_paste_attribute_from_first_child_to_self.assertive_tests,
   cut_paste_attribute_from_self_to_child.assertive_tests,
@@ -656,6 +647,8 @@ pub const assertive_tests : List(fn() -> core.AssertiveTestCollection) = [
   filter_nodes_by_key_values_while_saving.assertive_tests,
   filter_nodes_by_path_key_values.assertive_tests,
   filter_nodes_by_path_key_values_while_saving.assertive_tests,
+  find_replace.assertive_tests,
+  find_replace__batch.assertive_tests,
   find_replace__batch__outside.assertive_tests,
   find_replace__outside.assertive_tests,
   find_replace_if_has_ancestor_else.assertive_tests,
@@ -667,7 +660,7 @@ pub const assertive_tests : List(fn() -> core.AssertiveTestCollection) = [
   fold_custom_into_text.assertive_tests,
   fold_into_text.assertive_tests,
   fold_into_text__batch.assertive_tests,
-  footnote_marker_to_sup_handle.assertive_tests,
+  footnote_marker_to_sup_handle__outside.assertive_tests,
   free_children.assertive_tests,
   free_children__batch.assertive_tests,
   grand_wrapper_append_attributes.assertive_tests,
@@ -683,11 +676,10 @@ pub const assertive_tests : List(fn() -> core.AssertiveTestCollection) = [
   identity.assertive_tests,
   ii2_carousel_component.assertive_tests,
   ii2_class_well_container_theorem_2_statement.assertive_tests,
-  ii2_div_class_subchpater_2_sub.assertive_tests,
   ii2_fix_local_links.assertive_tests,
-  ii2_generate_table_of_contents.assertive_tests,
   ii2_generate_table_of_contents_html.assertive_tests,
   ii2_insert_counter_commands.assertive_tests,
+  ii2_normalize_begin_end_align.assertive_tests,
   ii2_remove_chapter_number_from_title.assertive_tests,
   insert_attribute_as_text.assertive_tests,
   insert_attribute_value_at_first_child_start.assertive_tests,
@@ -696,6 +688,7 @@ pub const assertive_tests : List(fn() -> core.AssertiveTestCollection) = [
   insert_bookend_text_if_no_attributes.assertive_tests,
   insert_custom_before_first.assertive_tests,
   insert_line_start_end.assertive_tests,
+  insert_on_own_line_start_end.assertive_tests,
   insert_text_start_end.assertive_tests,
   insert_text_start_end_if_else.assertive_tests,
   insert_text_start_end_if_unique_attr.assertive_tests,
@@ -711,15 +704,14 @@ pub const assertive_tests : List(fn() -> core.AssertiveTestCollection) = [
   lbp_move_to_be_moved_from_grand_wrapper_to_exercise_graveyard.assertive_tests,
   lbp_move_to_be_moved_to_grand_wrapper.assertive_tests,
   lbp_select_content.assertive_tests,
-  lbp_turn_lines_into_3003_spans.assertive_tests,
+  lbp_turn_lines_into_3003_spans__outside.assertive_tests,
   lbp_wrap_with_3003_spans.assertive_tests,
   line_rewrap_no1__outside.assertive_tests,
   line_rewrap_no2__outside.assertive_tests,
-  markdown_link_closing_handrolled_splitter.assertive_tests,
-  math_label_to_tag_handle.assertive_tests,
+  markdown_link_closing_handrolled_splitter__outside.assertive_tests,
+  math_label_with_handle_to_mathjax_tag.assertive_tests,
   merge_parent_attributes_into_child.assertive_tests,
-  naive_unsecaped_split_and_replace__outside.assertive_tests,
-  normalize_begin_end_align.assertive_tests,
+  naive_unescaped_split_and_replace__outside.assertive_tests,
   normalize_br_in_pre.assertive_tests,
   normalize_math_delimiters_inside.assertive_tests,
   normalize_spaces__outside.assertive_tests,
@@ -750,6 +742,10 @@ pub const assertive_tests : List(fn() -> core.AssertiveTestCollection) = [
   rearrange_links_4_pre_tokenized_src__batch.assertive_tests,
   rearrange_links__batch.assertive_tests,
   reassign_text_node_blame_to_blame_of_first_nonempty_line_in_text_node.assertive_tests,
+  regex_replace.assertive_tests,
+  regex_replace__batch.assertive_tests,
+  regex_replace__batch__outside.assertive_tests,
+  regex_replace__outside.assertive_tests,
   regex_split_and_replace__batch__outside.assertive_tests,
   regex_split_and_replace__outside.assertive_tests,
   reinsert_math_dollar.assertive_tests,
@@ -771,7 +767,6 @@ pub const assertive_tests : List(fn() -> core.AssertiveTestCollection) = [
   rename_with_class_and_attributes.assertive_tests,
   replace_in_attribute_values.assertive_tests,
   replace_multiple_spaces_by_one.assertive_tests,
-  replace_string__outside.assertive_tests,
   replace_with_arbitrary.assertive_tests,
   set_handle_value.assertive_tests,
   set_handle_value__outside.assertive_tests,
@@ -803,7 +798,7 @@ pub const assertive_tests : List(fn() -> core.AssertiveTestCollection) = [
   ti2_parse_redyellow_pre.assertive_tests,
   ti2_parse_xml_pre.assertive_tests,
   ti2_process_pre_listing_classname.assertive_tests,
-  ti2_turn_lines_into_3003_spans.assertive_tests,
+  ti2_turn_lines_into_3003_spans__outside.assertive_tests,
   ti2_wrap_with_3003_spans.assertive_tests,
   timer.assertive_tests,
   tokenize_href_surroundings.assertive_tests,

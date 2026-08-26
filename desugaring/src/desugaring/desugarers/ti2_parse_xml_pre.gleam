@@ -1,34 +1,43 @@
-import vxml/io_lines
-import gleam/option
-import gleam/string
-import gleam/list
-import desugaring/core.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as core
+import desugaring/authoring
+import desugaring/core.{type Desugarer, type DesugarerTransform}
 import desugaring/nodemaps_2_transform as n2t
-import vxml.{type VXML, V, T, Attr, Line}
-import xml_streamer as xs
+import gleam/list
+import gleam/string
+import vxml.{type VXML, Attr, Line, T, V}
 import vxml/blame.{type Blame} as bl
+import vxml/io_lines
+import xml_streamer as xs
 
-const newline_t =
-  T(
-    bl.Des([], name, 13),
-    [
-      Line(bl.Des([], name, 15), ""),
-      Line(bl.Des([], name, 16), ""),
-    ]
-  )
+pub const name = "ti2_parse_xml_pre"
 
-fn span(blame: Blame, class: String, content: String) -> VXML {
-  V(
-    blame,
-    "span",
-    [Attr(desugarer_blame(24), "class", class)],
-    [T(blame, [Line(blame, content)])],
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
+// 🏖️🏖️ Desugarer 🏖️🏖️
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️️️️️🏖️
+
+/// Converts XML and HTML code blocks into detailed
+/// syntax-highlighted span markup.
+pub fn constructor() -> Desugarer {
+  authoring.no_param_desugarer(
+    name: name,
+    transform: inner_param_to_transform(),
   )
 }
 
-fn nodemap(
-  vxml: VXML,
-) -> VXML {
+const newline_t = T(
+  bl.Des([], name, 27),
+  [
+    Line(bl.Des([], name, 29), ""),
+    Line(bl.Des([], name, 30), ""),
+  ],
+)
+
+fn span(blame: Blame, class: String, content: String) -> VXML {
+  V(blame, "span", [Attr(desugarer_blame(35), "class", class)], [
+    T(blame, [Line(blame, content)]),
+  ])
+}
+
+fn nodemap(vxml: VXML) -> VXML {
   case vxml {
     V(_, "pre", attrs, children) -> {
       case core.v_has_key_val(vxml, "language", "xml") {
@@ -42,56 +51,54 @@ fn nodemap(
               case x {
                 V(_, _, _, _) -> [x]
                 T(_, lines) -> {
-                  let pairs = list.map(lines, fn(l) { io_lines.InputLine(l.blame, 0, l.content) })
+                  let pairs =
+                    list.map(lines, fn(l) {
+                      io_lines.InputLine(l.blame, 0, l.content)
+                    })
                   let events = xs.input_lines_streamer(pairs)
-                  list.flat_map(
-                    events,
-                    fn(event) {
-                      case event {
-                        xs.Newline(_) ->
-                          [newline_t]
-                        xs.TagStartOrdinary(b, tag) ->
-                          [span(b, "xml-0", "<"), span(b |> bl.advance(1), "xml-1", tag)]
-                        xs.TagStartXMLVersion(b, tag) ->
-                          [span(b, "xml-0", "<?"), span(b |> bl.advance(2), "xml-1", tag)]
-                        xs.TagStartDoctype(b, tag) ->
-                          [span(b, "xml-0", "<!"), span(b |> bl.advance(2), "xml-1", tag)]
-                        xs.TagStartClosing(b, tag) ->
-                          [span(b, "xml-0", "</"), span(b |> bl.advance(2), "xml-1", tag)]
-                        xs.InTagWhitespace(b, load) -> {
-                          assert !string.contains(load, "\n")
-                          assert !string.contains(load, "\r")
-                          [T(b, [Line(b, load)])]
-                        }
-                        xs.Key(b, load) ->
-                          [span(b, "xml-2", load)]
-                        xs.KeyMalformed(b, load) ->
-                          [span(b, "xml-2b", load)]
-                        xs.Assignment(b) ->
-                          [span(b, "xml-3", "=")]
-                        xs.ValueDoubleQuoted(b, load) ->
-                          [span(b, "xml-4", "\"" <> load <> "\"")]
-                        xs.ValueSingleQuoted(b, load) ->
-                          [span(b, "xml-4", "'" <> load <> "'")]
-                        xs.ValueMalformed(b, load) ->
-                          [span(b, "xml-4b", load)]
-                        xs.TagEndOrdinary(b) ->
-                          [span(b, "xml-0", ">")]
-                        xs.TagEndXMLVersion(b) ->
-                          [span(b, "xml-0", "?>")]
-                        xs.TagEndSelfClosing(b) ->
-                          [span(b, "xml-0", "/>")]
-                        xs.Text(b, content) ->
-                          [span(b, "xml-5", content)]
-                        xs.CommentStartSequence(b) ->
-                          [span(b, "xml-6", "<!--")]
-                        xs.CommentEndSequence(b) ->
-                          [span(b, "xml-6", "-->")]
-                        xs.CommentContents(b, load) ->
-                          [span(b, "xml-6", load)]
+                  list.flat_map(events, fn(event) {
+                    case event {
+                      xs.Newline(_) -> [newline_t]
+                      xs.TagStartOrdinary(b, tag) -> [
+                        span(b, "xml-0", "<"),
+                        span(b |> bl.advance(1), "xml-1", tag),
+                      ]
+                      xs.TagStartXMLVersion(b, tag) -> [
+                        span(b, "xml-0", "<?"),
+                        span(b |> bl.advance(2), "xml-1", tag),
+                      ]
+                      xs.TagStartDoctype(b, tag) -> [
+                        span(b, "xml-0", "<!"),
+                        span(b |> bl.advance(2), "xml-1", tag),
+                      ]
+                      xs.TagStartClosing(b, tag) -> [
+                        span(b, "xml-0", "</"),
+                        span(b |> bl.advance(2), "xml-1", tag),
+                      ]
+                      xs.InTagWhitespace(b, load) -> {
+                        assert !string.contains(load, "\n")
+                        assert !string.contains(load, "\r")
+                        [T(b, [Line(b, load)])]
                       }
+                      xs.Key(b, load) -> [span(b, "xml-2", load)]
+                      xs.KeyMalformed(b, load) -> [span(b, "xml-2b", load)]
+                      xs.Assignment(b) -> [span(b, "xml-3", "=")]
+                      xs.ValueDoubleQuoted(b, load) -> [
+                        span(b, "xml-4", "\"" <> load <> "\""),
+                      ]
+                      xs.ValueSingleQuoted(b, load) -> [
+                        span(b, "xml-4", "'" <> load <> "'"),
+                      ]
+                      xs.ValueMalformed(b, load) -> [span(b, "xml-4b", load)]
+                      xs.TagEndOrdinary(b) -> [span(b, "xml-0", ">")]
+                      xs.TagEndXMLVersion(b) -> [span(b, "xml-0", "?>")]
+                      xs.TagEndSelfClosing(b) -> [span(b, "xml-0", "/>")]
+                      xs.Text(b, content) -> [span(b, "xml-5", content)]
+                      xs.CommentStartSequence(b) -> [span(b, "xml-6", "<!--")]
+                      xs.CommentEndSequence(b) -> [span(b, "xml-6", "-->")]
+                      xs.CommentContents(b, load) -> [span(b, "xml-6", load)]
                     }
-                  )
+                  })
                 }
               }
             })
@@ -104,54 +111,26 @@ fn nodemap(
   }
 }
 
-fn nodemap_factory(_inner: InnerParam) -> n2t.OneToOneNoErrorNodemap {
+fn nodemap_factory() -> n2t.OneToOneNoErrorNodemap {
   nodemap
 }
 
-fn transform_factory(inner: InnerParam) -> DesugarerTransform {
-  nodemap_factory(inner)
+fn inner_param_to_transform() -> DesugarerTransform {
+  nodemap_factory()
   |> n2t.one_to_one_no_error_nodemap_2_desugarer_transform
 }
 
-fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
-  Ok(param)
-}
-
-pub const name = "ti2_parse_xml_pre"
-fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
-
-type Param = Nil
-type InnerParam = Param
-
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-// 🏖️🏖️ Desugarer 🏖️🏖️
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-//------------------------------------------------53
-/// converts pre elements with language=xml or language=html
-/// to syntax-highlighted HTML with detailed span markup.
-///
-/// parses XML/HTML content and wraps different syntax
-/// elements (tags, attrs, values, comments) in spans
-/// with specific CSS classes for styling.
-pub fn constructor() -> Desugarer {
-  Desugarer(
-    name: name,
-    stringified_param: option.None,
-    stringified_outside: option.None,
-    transform: case param_to_inner_param(Nil) {
-      Error(e) -> fn(_) { Error(e) }
-      Ok(inner) -> transform_factory(inner)
-    },
-  )
+fn desugarer_blame(line_no: Int) {
+  bl.Des([], name, line_no)
 }
 
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
-// 🌊🌊🌊 tests 🌊🌊🌊🌊🌊
+// 🌊🌊🌊 tests 🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
 fn assertive_tests_data() -> List(core.AssertiveTestDataNoParam) {
   [
     core.AssertiveTestDataNoParam(
-      source:   "
+      source: "
                   <> root
                     <> pre
                       language=xml
@@ -206,7 +185,7 @@ fn assertive_tests_data() -> List(core.AssertiveTestDataNoParam) {
                 ",
     ),
     core.AssertiveTestDataNoParam(
-      source:   "
+      source: "
                   <> root
                     <> pre
                       language=xml
@@ -247,7 +226,7 @@ fn assertive_tests_data() -> List(core.AssertiveTestDataNoParam) {
                 ",
     ),
     core.AssertiveTestDataNoParam(
-      source:   "
+      source: "
                   <> root
                     <> pre
                       language=other
@@ -266,5 +245,9 @@ fn assertive_tests_data() -> List(core.AssertiveTestDataNoParam) {
 }
 
 pub fn assertive_tests() {
-  core.assertive_test_collection_from_data_no_param(name, assertive_tests_data(), constructor)
+  core.assertive_test_collection_from_data_no_param(
+    name,
+    assertive_tests_data(),
+    constructor,
+  )
 }

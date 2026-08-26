@@ -1,6 +1,7 @@
+import desugaring/authoring
 import desugaring/core.{
   type Desugarer, type DesugarerTransform, type DesugaringError,
-  type DesugaringWarning, Desugarer, DesugaringError, DesugaringWarning,
+  type DesugaringWarning, DesugaringError, DesugaringWarning,
 }
 import desugaring/nodemaps_2_transform as n2t
 import gleam/dict.{type Dict}
@@ -64,10 +65,10 @@ fn hyperlink_constructor(
 }
 
 fn warning_element(handle_name: String, blame: Blame) -> VXML {
-  V(desugarer_blame(67), "InTextWarning", [], [
-    T(desugarer_blame(68), [
+  V(desugarer_blame(68), "InTextWarning", [], [
+    T(desugarer_blame(69), [
       Line(
-        desugarer_blame(70),
+        desugarer_blame(71),
         "undefined handle at " <> bl.blame_digest(blame) <> ": " <> handle_name,
       ),
     ]),
@@ -463,7 +464,7 @@ fn substitute_hrefs_in_a(
         None, _ -> Ok(Some(href_type))
         _, _ ->
           Error(DesugaringError(
-            desugarer_blame(466),
+            desugarer_blame(467),
             "duplicate 'href' attribute",
           ))
       })
@@ -577,7 +578,7 @@ fn nodemap_factory(
   )
 }
 
-fn transform_factory(inner: InnerParam) -> DesugarerTransform {
+fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
   nodemap_factory(inner)
   |> n2t.one_to_many_enter_exit_stateful_with_warnings_nodemap_2_desugarer_transform(
     State(dict.new(), None, False, False, set.new()),
@@ -594,8 +595,8 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
     param.0,
     param.1,
     param.2,
-    param.3 |> core.string_pairs_to_attrs(desugarer_blame(597)),
-    param.4 |> core.string_pairs_to_attrs(desugarer_blame(598)),
+    param.3 |> core.string_pairs_to_attrs(desugarer_blame(598)),
+    param.4 |> core.string_pairs_to_attrs(desugarer_blame(599)),
     param.5,
     param.6,
     handles_regexp,
@@ -698,16 +699,17 @@ fn desugarer_blame(line_no: Int) {
 /// otherwise becomes plain 'undefined handle: <name>' text, warning in
 /// both cases.
 pub fn constructor(param: Param) -> Desugarer {
-  Desugarer(
+  authoring.desugarer(
     name: name,
-    stringified_param: option.Some(ins(param)),
-    stringified_outside: option.None,
-    transform: case param_to_inner_param(param) {
-      Error(error) -> fn(_) { Error(error) }
-      Ok(inner) -> transform_factory(inner)
-    },
+    param: param,
+    prepare: param_to_inner_param,
+    transform: inner_param_to_transform,
   )
 }
+
+// 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
+// 🌊🌊🌊 tests 🌊🌊🌊🌊
+// 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
 
 fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
   [
@@ -987,3 +989,6 @@ pub fn assertive_tests() {
     constructor,
   )
 }
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
+// 🏖️🏖️ Desugarer 🏖️🏖️
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️️️️🏖️

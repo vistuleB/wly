@@ -1,139 +1,154 @@
-import gleam/list
-import gleam/option
-import gleam/string.{inspect as ins}
-import desugaring/core.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError, DesugaringError} as core
+import desugaring/authoring
+import desugaring/core.{
+  type Desugarer, type DesugarerTransform, type DesugaringError, DesugaringError,
+}
 import desugaring/nodemaps_2_transform as n2t
-import vxml.{type VXML, T, V, Line}
+import gleam/list
+import gleam/string
+import vxml.{type Line, type VXML, Line, T, V}
 
-fn remove_first_prefix_found(c: String, prefixes: List(String)) -> String {
-  case prefixes {
-    [] -> c
-    [first, ..rest] -> case string.starts_with(c, first) {
-      True -> string.drop_start(c, string.length(first))
-      False -> remove_first_prefix_found(c, rest)
-    }
-  }
+pub const name = "strip_delimiters_inside_if"
+
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
+// 🏖️🏖️ Desugarer 🏖️🏖️
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️️️️️🏖️
+
+/// Removes configured LaTeX delimiters from matching target
+/// elements that satisfy a condition.
+pub fn constructor(param: Param) -> Desugarer {
+  authoring.desugarer(
+    name: name,
+    param: param,
+    prepare: param_to_inner_param,
+    transform: inner_param_to_transform,
+  )
 }
 
-fn remove_first_suffix_found(c: String, suffixes: List(String)) -> String {
-  case suffixes {
-    [] -> c
-    [first, ..rest] -> case string.ends_with(c, first) {
-      True -> string.drop_end(c, string.length(first))
-      False -> remove_first_suffix_found(c, rest)
-    }
-  }
+type Param =
+  #(
+    // Target tag.
+    String,
+    // Delimiters to remove.
+    List(core.LatexDelimiterPair),
+    // Condition on the target element.
+    fn(VXML) -> Bool,
+  )
+
+type InnerParam =
+  #(String, List(String), List(String), fn(VXML) -> Bool)
+
+fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
+  let #(opening, closing) = core.opening_and_closing_delimiter_strings(param.1)
+  Ok(#(param.0, opening, closing, param.2))
 }
 
-fn strip(
-  t: VXML,
-  inner: InnerParam,
-) -> VXML {
-  let assert T(_, lines) = t
-  let assert [first, ..rest] =
-    core.lines_trim_start(lines)
-  let lines = [
-    Line(..first, content: remove_first_prefix_found(first.content, inner.1)),
-    ..rest
-  ]
-  let assert [first, ..rest] =
-    core.reversed_lines_trim_end(lines |> list.reverse)
-  let lines = [
-    Line(..first, content: remove_first_suffix_found(first.content, inner.2)),
-    ..rest
-  ] |> list.reverse
-  T(..t, lines: lines)
-}
-
-fn nodemap(
-  node: VXML,
-  inner: InnerParam,
-) -> Result(VXML, DesugaringError) {
-  case node {
-    V(_, tag, _, children) if tag == inner.0 -> {
-      case inner.3(node) {
-        False -> Ok(node)
-        True -> case children {
-          [T(_, _) as t] -> Ok(V(..node, children: [strip(t, inner)]))
-          _ -> Error(DesugaringError(node.blame, "expecting unique text child in target tag"))
-        }
-      }
-    }
-    _ -> Ok(node)
-  }
+fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
+  n2t.one_to_one_nodemap_2_desugarer_transform(nodemap_factory(inner))
 }
 
 fn nodemap_factory(inner: InnerParam) -> n2t.OneToOneNodemap {
   nodemap(_, inner)
 }
 
-fn transform_factory(inner: InnerParam) -> DesugarerTransform {
-  n2t.one_to_one_nodemap_2_desugarer_transform(nodemap_factory(inner))
+fn nodemap(node: VXML, inner: InnerParam) -> Result(VXML, DesugaringError) {
+  case node {
+    V(_, tag, _, children) if tag == inner.0 -> {
+      case inner.3(node) {
+        False -> Ok(node)
+        True ->
+          case children {
+            [T(_, _) as t] -> Ok(V(..node, children: [strip(t, inner)]))
+            _ ->
+              Error(DesugaringError(
+                node.blame,
+                "expecting unique text child in target tag",
+              ))
+          }
+      }
+    }
+    _ -> Ok(node)
+  }
 }
 
-type Param = #(String,    List(core.LatexDelimiterPair), fn(VXML) -> Bool)
-//             ↖          ↖                               ↖
-//             tag        delimiters                      condition
-//             to target  to remove
-type InnerParam = #(String, List(String), List(String), fn(VXML) -> Bool)
+fn remove_first_prefix_found(c: String, prefixes: List(String)) -> String {
+  case prefixes {
+    [] -> c
+    [first, ..rest] ->
+      case string.starts_with(c, first) {
+        True -> string.drop_start(c, string.length(first))
+        False -> remove_first_prefix_found(c, rest)
+      }
+  }
+}
 
-pub const name = "strip_delimiters_inside_if"
+fn remove_first_suffix_found(c: String, suffixes: List(String)) -> String {
+  case suffixes {
+    [] -> c
+    [first, ..rest] ->
+      case string.ends_with(c, first) {
+        True -> string.drop_end(c, string.length(first))
+        False -> remove_first_suffix_found(c, rest)
+      }
+  }
+}
 
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-// 🏖️🏖️ Desugarer 🏖️🏖️
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-//------------------------------------------------53
-/// strips all Latex delimiters inside a targeted
-/// tag name; if called with tag "MathBlock", for
-/// example, will turn
-/// ```
-/// <> MathBlock
-///   <>
-///     "$$x$$"
-/// ```
-/// and
-/// ```
-/// <> MathBlock
-///   <>
-///     "\[x\]"
-/// ```
-/// and
-/// ```
-/// <> MathBlock
-///   <>
-///     "$$x\]"
-/// ```
-/// (even if this is a Mathjax error), into
-/// ```
-/// <> MathBlock
-///   <>
-///     "x"
-/// ```
-/// .
-pub fn constructor(param: Param) -> Desugarer {
-  let #(opening, closing) =
-    core.opening_and_closing_delimiter_strings(param.1)
-  let inner = #(param.0, opening, closing, param.2)
-  Desugarer(
-    name: name,
-    stringified_param: option.Some(ins(inner)),
-    stringified_outside: option.None,
-    transform: transform_factory(inner),
-  )
+fn strip(t: VXML, inner: InnerParam) -> VXML {
+  let assert T(_, lines) = t
+  let lines = strip_opening_delimiter(lines, inner.1)
+  let lines = strip_closing_delimiter(lines |> list.reverse, inner.2)
+  let lines = lines |> list.reverse
+  T(..t, lines: lines)
+}
+
+fn strip_opening_delimiter(
+  lines: List(Line),
+  prefixes: List(String),
+) -> List(Line) {
+  case lines {
+    [] -> []
+    [first, ..rest] ->
+      case string.trim_start(first.content) {
+        "" -> [first, ..strip_opening_delimiter(rest, prefixes)]
+        content -> [
+          Line(..first, content: remove_first_prefix_found(content, prefixes)),
+          ..rest
+        ]
+      }
+  }
+}
+
+fn strip_closing_delimiter(
+  reversed_lines: List(Line),
+  suffixes: List(String),
+) -> List(Line) {
+  case reversed_lines {
+    [] -> []
+    [first, ..rest] ->
+      case string.trim_end(first.content) {
+        "" -> [first, ..strip_closing_delimiter(rest, suffixes)]
+        content -> [
+          Line(..first, content: remove_first_suffix_found(content, suffixes)),
+          ..rest
+        ]
+      }
+  }
 }
 
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
-// 🌊🌊🌊 tests 🌊🌊🌊🌊🌊
+// 🌊🌊🌊 tests 🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
+
 fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
   [
     core.AssertiveTestData(
       param: #("Z", [core.DoubleDollar], core.descendant_text_contains(_, "x")),
-      source:   "
+      source: "
                 <> root
                   <> Z
                     <>
-                      '$$x$$'
+                      ''
+                      '  $$x$$  '
+                      ''
                   <> W
                     <>
                       '$$x$$'
@@ -145,7 +160,9 @@ fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
                 <> root
                   <> Z
                     <>
+                      ''
                       'x'
+                      ''
                   <> W
                     <>
                       '$$x$$'
@@ -158,5 +175,9 @@ fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
 }
 
 pub fn assertive_tests() {
-  core.assertive_test_collection_from_data(name, assertive_tests_data(), constructor)
+  core.assertive_test_collection_from_data(
+    name,
+    assertive_tests_data(),
+    constructor,
+  )
 }

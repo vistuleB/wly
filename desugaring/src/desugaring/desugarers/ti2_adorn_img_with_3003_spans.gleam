@@ -1,16 +1,42 @@
+import desugaring/authoring
 import desugaring/core.{
-  type Desugarer, type DesugarerTransform, type DesugaringError, Desugarer,
-  DesugaringError,
+  type Desugarer, type DesugarerTransform, type DesugaringError, DesugaringError,
 }
 import desugaring/nodemaps_2_transform as n2t
 import filepath
 import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/result
-import gleam/string.{inspect as ins}
 import on
 import vxml.{type VXML, Attr, Line, T, V}
 import vxml/blame.{type Blame} as bl
+
+pub const name = "ti2_adorn_img_with_3003_spans"
+
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
+// 🏖️🏖️ Desugarer 🏖️🏖️
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️️️️️🏖️
+
+/// Appends source-path tooltip spans after images while
+/// respecting inherited `original` image paths.
+pub fn constructor(param: Param) -> Desugarer {
+  authoring.desugarer(
+    name: name,
+    param: param,
+    prepare: param_to_inner_param,
+    transform: inner_param_to_transform,
+  )
+}
+
+type Param =
+  // Path from the execution directory to public assets.
+  String
+
+type InnerParam =
+  Param
+
+type State =
+  Option(String)
 
 const tooltip_classname = "t-3003 t-3003-i"
 
@@ -18,7 +44,7 @@ const tags = ["img", "figure", "Carousel"]
 
 const original_key = "original"
 
-const b = bl.Des([], name, 21)
+const b = bl.Des([], name, 47)
 
 const outer_span_attrs = [Attr(b, "class", tooltip_classname)]
 
@@ -102,7 +128,7 @@ fn nodemap_factory(
   )
 }
 
-fn transform_factory(inner: InnerParam) -> DesugarerTransform {
+fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
   nodemap_factory(inner)
   |> n2t.one_to_many_enter_exit_stateful_nodemap_2_desugarer_transform(None)
 }
@@ -111,43 +137,13 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
   Ok(param)
 }
 
-type State =
-  Option(String)
-
-type Param =
-  String
-
-//           ↖
-//           path from exec dir to public
-type InnerParam =
-  Param
-
-pub const name = "ti2_adorn_img_with_3003_spans"
-
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-// 🏖️🏖️ Desugarer 🏖️🏖️
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-//------------------------------------------------53
-pub fn constructor(param: Param, _outside: List(String)) -> Desugarer {
-  Desugarer(
-    name: name,
-    stringified_param: option.Some(ins(param)),
-    stringified_outside: option.None,
-    transform: case param_to_inner_param(param) {
-      Error(error) -> fn(_) { Error(error) }
-      Ok(inner) -> transform_factory(inner)
-    },
-  )
-}
-
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
-// 🌊🌊🌊 tests 🌊🌊🌊🌊🌊
+// 🌊🌊🌊 tests 🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
-fn assertive_tests_data() -> List(core.AssertiveTestDataWithOutside(Param)) {
+fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
   [
-    core.AssertiveTestDataWithOutside(
+    core.AssertiveTestData(
       param: "./public/",
-      outside: [],
       source: "
                           <> root
                             <> img
@@ -165,9 +161,8 @@ fn assertive_tests_data() -> List(core.AssertiveTestDataWithOutside(Param)) {
                                   'public/img/hello.svg'
                 ",
     ),
-    core.AssertiveTestDataWithOutside(
+    core.AssertiveTestData(
       param: "./assets/",
-      outside: [],
       source: "
                           <> root
                             <> img
@@ -192,9 +187,8 @@ fn assertive_tests_data() -> List(core.AssertiveTestDataWithOutside(Param)) {
                                   'assets/img/compressed.jpg'
                 ",
     ),
-    core.AssertiveTestDataWithOutside(
+    core.AssertiveTestData(
       param: "/media/",
-      outside: [],
       source: "
                           <> root
                             <> figure
@@ -221,9 +215,8 @@ fn assertive_tests_data() -> List(core.AssertiveTestDataWithOutside(Param)) {
                                     '/media/photos/thumb.png'
                 ",
     ),
-    core.AssertiveTestDataWithOutside(
+    core.AssertiveTestData(
       param: "./static/",
-      outside: [],
       source: "
                           <> root
                             <> Carousel
@@ -250,9 +243,8 @@ fn assertive_tests_data() -> List(core.AssertiveTestDataWithOutside(Param)) {
                                     'static/carousel/slide.webp'
                 ",
     ),
-    core.AssertiveTestDataWithOutside(
+    core.AssertiveTestData(
       param: "./public/",
-      outside: [],
       source: "
                           <> root
                             <> img
@@ -306,9 +298,8 @@ fn assertive_tests_data() -> List(core.AssertiveTestDataWithOutside(Param)) {
                                     'public/img/photo.png'
                 ",
     ),
-    core.AssertiveTestDataWithOutside(
+    core.AssertiveTestData(
       param: "./public/",
-      outside: [],
       source: "
                           <> root
                             <> figure
@@ -358,7 +349,7 @@ fn assertive_tests_data() -> List(core.AssertiveTestDataWithOutside(Param)) {
 }
 
 pub fn assertive_tests() {
-  core.assertive_test_collection_from_data_with_outside(
+  core.assertive_test_collection_from_data(
     name,
     assertive_tests_data(),
     constructor,

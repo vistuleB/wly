@@ -1,48 +1,44 @@
+import desugaring/authoring
+import desugaring/core.{
+  type Desugarer, type DesugarerTransform, type DesugaringError,
+}
+import desugaring/nodemaps_2_transform as n2t
 import gleam/dict.{type Dict}
 import gleam/list
-import gleam/option
-import desugaring/core.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as core
-import desugaring/nodemaps_2_transform as n2t
-import vxml.{type VXML, T, V}
 import on
+import vxml.{type VXML, T, V}
 
-fn nodemap(
-  vxml: VXML,
-  inner: InnerParam,
-) -> VXML {
-  case vxml {
-    T(_, _) -> vxml
-    V(blame, tag, attrs, children) -> {
+pub const name = "rename_if_child_of__batch"
 
-      use inner_dict <- on.error_ok(
-        dict.get(inner, tag),
-        fn(_) { vxml },
-      )
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
+// 🏖️🏖️ Desugarer 🏖️🏖️
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️️️️️🏖️
 
-      let new_children =
-        list.map(children, fn(child) {
-          use child_blame, child_tag, child_attrs, grandchildren <- core.on_t_on_v(child, fn(_, _){
-            child
-          })
-          case dict.get(inner_dict, child_tag) {
-            Error(Nil) -> child
-            Ok(new_name) -> V(child_blame, new_name, child_attrs, grandchildren)
-          }
-        })
-
-      V(blame, tag, attrs, new_children)
-    }
-  }
+/// Applies multiple direct-child renaming rules.
+pub fn constructor(param: Param) -> Desugarer {
+  authoring.desugarer_with_stringified_param(
+    name: name,
+    param: param,
+    stringified_param: core.list_param_stringifier(param),
+    prepare: param_to_inner_param,
+    transform: inner_param_to_transform,
+  )
 }
 
-fn nodemap_factory(inner: InnerParam) -> n2t.OneToOneNoErrorNodemap {
-  nodemap(_, inner)
-}
+type Param =
+  List(
+    #(
+      // Existing tag.
+      String,
+      // New tag.
+      String,
+      // Required parent tag.
+      String,
+    ),
+  )
 
-fn transform_factory(inner: InnerParam) -> DesugarerTransform {
-  nodemap_factory(inner)
-  |> n2t.one_to_one_no_error_nodemap_2_desugarer_transform()
-}
+type InnerParam =
+  Dict(String, Dict(String, String))
 
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
   list.fold(
@@ -55,11 +51,7 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
       let #(old_name, new_name, parent_name) = incoming
       case dict.get(acc, parent_name) {
         Error(Nil) -> {
-          dict.insert(
-            acc,
-            parent_name,
-            dict.from_list([#(old_name, new_name)]),
-          )
+          dict.insert(acc, parent_name, dict.from_list([#(old_name, new_name)]))
         }
         Ok(existing_dict) -> {
           dict.insert(
@@ -69,43 +61,55 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
           )
         }
       }
-    }
+    },
   )
   |> Ok
 }
 
-type Param = List(#(String,    String,    String))
-//                  ↖          ↖          ↖
-//                  old_name   new_name   parent
-type InnerParam = Dict(String, Dict(String, String))
+fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
+  nodemap_factory(inner)
+  |> n2t.one_to_one_no_error_nodemap_2_desugarer_transform()
+}
 
-pub const name = "rename_if_child_of__batch"
+fn nodemap_factory(inner: InnerParam) -> n2t.OneToOneNoErrorNodemap {
+  nodemap(_, inner)
+}
 
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-// 🏖️🏖️ Desugarer 🏖️🏖️
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-//------------------------------------------------53
-/// renames tags when they appear as children of a
-/// specified parent tag
-pub fn constructor(param: Param) -> Desugarer {
-  Desugarer(
-    name: name,
-    stringified_param: option.Some(param |> core.list_param_stringifier),
-    stringified_outside: option.None,
-    transform: case param_to_inner_param(param) {
-      Error(error) -> fn(_) { Error(error) }
-      Ok(inner) -> transform_factory(inner)
-    },
-  )
+fn nodemap(vxml: VXML, inner: InnerParam) -> VXML {
+  case vxml {
+    T(_, _) -> vxml
+    V(blame, tag, attrs, children) -> {
+      use inner_dict <- on.error_ok(dict.get(inner, tag), fn(_) { vxml })
+
+      let new_children =
+        list.map(children, fn(child) {
+          use child_blame, child_tag, child_attrs, grandchildren <- core.on_t_on_v(
+            child,
+            fn(_, _) { child },
+          )
+          case dict.get(inner_dict, child_tag) {
+            Error(Nil) -> child
+            Ok(new_name) -> V(child_blame, new_name, child_attrs, grandchildren)
+          }
+        })
+
+      V(blame, tag, attrs, new_children)
+    }
+  }
 }
 
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
-// 🌊🌊🌊 tests 🌊🌊🌊🌊🌊
+// 🌊🌊🌊 tests 🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
+
 fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
   []
 }
 
 pub fn assertive_tests() {
-  core.assertive_test_collection_from_data(name, assertive_tests_data(), constructor)
+  core.assertive_test_collection_from_data(
+    name,
+    assertive_tests_data(),
+    constructor,
+  )
 }

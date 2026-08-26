@@ -1,94 +1,96 @@
-import gleam/option
-import gleam/list
-import gleam/string.{inspect as ins}
-import desugaring/core.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError, type TrafficLight, Continue, GoBack} as core
+import desugaring/authoring
+import desugaring/core.{
+  type Desugarer, type DesugarerTransform, type DesugaringError,
+  type TrafficLight, Continue, GoBack,
+}
 import desugaring/nodemaps_2_transform as n2t
-import vxml.{ type VXML, Line, T, V }
-import vxml/blame as bl
+import gleam/list
+import gleam/string
+import vxml.{type VXML, Line, T, V}
 
-fn nodemap(
-  vxml: VXML,
+pub const name = "prepend_text_node__outside"
+
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
+// 🏖️🏖️ Desugarer 🏖️🏖️
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️️️️️🏖️
+
+/// Prepends a text node outside configured subtrees and
+/// skips traversal of matching descendants.
+pub fn constructor(param: Param, outside: List(String)) -> Desugarer {
+  authoring.desugarer_with_outside(
+    name: name,
+    param: param,
+    outside: outside,
+    prepare: param_to_inner_param,
+    transform: inner_param_to_transform,
+  )
+}
+
+type Param =
+  #(
+    // Target tag.
+    String,
+    // Text to prepend.
+    String,
+  )
+
+type InnerParam =
+  #(String, VXML)
+
+fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
+  let blame = desugarer_blame(41)
+  #(
+    param.0,
+    T(
+      blame,
+      param.1
+        |> string.split("\n")
+        |> list.map(Line(blame, _)),
+    ),
+  )
+  |> Ok
+}
+
+fn inner_param_to_transform(
   inner: InnerParam,
-) -> #(VXML, TrafficLight) {
-  case vxml {
-    V(_, tag, _, children) if tag == inner.0 ->
-      #(
-        V(..vxml, children: [inner.1, ..children]),
-        GoBack,
-      )
-    _ ->
-      #(vxml, Continue)
-  }
+  outside: List(String),
+) -> DesugarerTransform {
+  nodemap_factory(inner)
+  |> n2t.early_return_one_to_one_no_error_nodemap_2_desugarer_transform_with_forbidden(
+    outside,
+  )
 }
 
 fn nodemap_factory(inner: InnerParam) -> n2t.EarlyReturnOneToOneNoErrorNodemap {
   nodemap(_, inner)
 }
 
-fn transform_factory(inner: InnerParam, outside: List(String)) -> DesugarerTransform {
-  nodemap_factory(inner)
-  |> n2t.early_return_one_to_one_no_error_nodemap_2_desugarer_transform_with_forbidden(outside)
+fn nodemap(vxml: VXML, inner: InnerParam) -> #(VXML, TrafficLight) {
+  case vxml {
+    V(_, tag, _, children) if tag == inner.0 -> #(
+      V(..vxml, children: [inner.1, ..children]),
+      GoBack,
+    )
+    _ -> #(vxml, Continue)
+  }
 }
 
-fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
-  let blame = desugarer_blame(34)
-  #(
-    param.0,
-    T(
-      blame,
-      param.1
-      |> string.split("\n")
-      |> list.map(Line(blame, _))
-    ),
-  )
-  |> Ok
-}
-
-type Param = #(String, String)
-//             ↖       ↖
-//             tag     text
-//
-type InnerParam = #(String, VXML)
-
-pub const name = "prepend_text_node__outside"
-fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
-
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-// 🏖️🏖️ Desugarer 🏖️🏖️
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-//------------------------------------------------53
-/// Given arguments
-/// ```
-/// tag, text
-/// ```
-/// prepends a text node wit content 'text' to nodes
-/// of tag 'tag'. The newline character can be
-/// included in 'text', which will be translated to
-/// >1 Line.
-///
-/// Early-returns from nodes of tag 'tag'.
-///
-/// Stays outside of subtrees rooted at tags given
-/// by the third argument.
-pub fn constructor(param: Param, outside: List(String)) -> Desugarer {
-  Desugarer(
-    name: name,
-    stringified_param: option.Some(ins(param)),
-    stringified_outside: option.Some(ins(outside)),
-    transform: case param_to_inner_param(param) {
-      Error(error) -> fn(_) { Error(error) }
-      Ok(inner) -> transform_factory(inner, outside)
-    },
-  )
+fn desugarer_blame(line_no: Int) {
+  authoring.blame(name, line_no)
 }
 
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
-// 🌊🌊🌊 tests 🌊🌊🌊🌊🌊
+// 🌊🌊🌊 tests 🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
+
 fn assertive_tests_data() -> List(core.AssertiveTestDataWithOutside(Param)) {
   []
 }
 
 pub fn assertive_tests() {
-  core.assertive_test_collection_from_data_with_outside(name, assertive_tests_data(), constructor)
+  core.assertive_test_collection_from_data_with_outside(
+    name,
+    assertive_tests_data(),
+    constructor,
+  )
 }

@@ -1,15 +1,55 @@
+import desugaring/authoring
+import desugaring/core.{
+  type Desugarer, type DesugarerTransform, type DesugaringError,
+}
+import desugaring/nodemaps_2_transform as n2t
 import gleam/list
 import gleam/option.{type Option, None, Some}
-import gleam/string.{inspect as ins}
-import desugaring/core.{
-  type Desugarer,
-  type DesugarerTransform,
-  type DesugaringError,
-  Desugarer,
-} as core
-import desugaring/nodemaps_2_transform as n2t
 import vxml.{type VXML, T, V}
-import vxml/blame as bl
+
+pub const name = "bridge_whitespace"
+
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
+// 🏖️🏖️ Desugarer 🏖️🏖️
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️️️️️🏖️
+
+/// Merges consecutive matching siblings separated only by
+/// whitespace, incorporating the intervening text into
+/// their joined children.
+pub fn constructor(param: Param) -> Desugarer {
+  authoring.desugarer(
+    name: name,
+    param: param,
+    prepare: param_to_inner_param,
+    transform: inner_param_to_transform,
+  )
+}
+
+type Param =
+  String
+
+type InnerParam =
+  Param
+
+fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
+  Ok(param)
+}
+
+fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
+  let nodemap: n2t.OneToOneNoErrorNodemap = nodemap(_, inner)
+  nodemap
+  |> n2t.one_to_one_no_error_nodemap_2_desugarer_transform()
+}
+
+fn nodemap(vxml: VXML, inner: InnerParam) -> VXML {
+  case vxml {
+    T(_, _) -> vxml
+    V(_, _, _, children) -> {
+      let children = accumulator(inner, [], None, [], children)
+      V(..vxml, children: children)
+    }
+  }
+}
 
 fn accumulator(
   inner: String,
@@ -39,44 +79,42 @@ fn accumulator(
           // absorb the T-node into already_processed
           // *
           assert [] == whitespace
-          accumulator(
-            inner,
-            [first, ..already_processed],
-            None,
-            [],
-            rest,
-          )
+          accumulator(inner, [first, ..already_processed], None, [], rest)
         }
-        Some(dude) -> case core.lines_are_whitespace(first.lines) {
-          False -> {
-            // *
-            // flush whitespace & dude, start over
-            // *
-            accumulator(
-              inner,
-              case whitespace {
-                [] -> [first, dude, ..already_processed]
-                [one] -> [first, one, dude, ..already_processed]
-                _ -> [first, ..list.append(whitespace, [dude, ..already_processed])]
-              },
-              None,
-              [],
-              rest,
-            )
+        Some(dude) ->
+          case core.lines_are_whitespace(first.lines) {
+            False -> {
+              // *
+              // flush whitespace & dude, start over
+              // *
+              accumulator(
+                inner,
+                case whitespace {
+                  [] -> [first, dude, ..already_processed]
+                  [one] -> [first, one, dude, ..already_processed]
+                  _ -> [
+                    first,
+                    ..list.append(whitespace, [dude, ..already_processed])
+                  ]
+                },
+                None,
+                [],
+                rest,
+              )
+            }
+            True -> {
+              // *
+              // add to whitespace
+              // *
+              accumulator(
+                inner,
+                already_processed,
+                last_dude,
+                [first, ..whitespace],
+                rest,
+              )
+            }
           }
-          True ->  {
-            // *
-            // add to whitespace
-            // *
-            accumulator(
-              inner,
-              already_processed,
-              last_dude,
-              [first, ..whitespace],
-              rest,
-            )
-          }
-        }
       }
     }
 
@@ -87,13 +125,7 @@ fn accumulator(
           // absorb the V-node into already_processed
           // *
           assert [] == whitespace
-          accumulator(
-            inner,
-            [first, ..already_processed],
-            None,
-            [],
-            rest,
-          )
+          accumulator(inner, [first, ..already_processed], None, [], rest)
         }
         Some(dude) -> {
           // *
@@ -104,7 +136,10 @@ fn accumulator(
             case whitespace {
               [] -> [first, dude, ..already_processed]
               [one] -> [first, one, dude, ..already_processed]
-              _ -> [first, ..list.append(whitespace, [dude, ..already_processed])]
+              _ -> [
+                first,
+                ..list.append(whitespace, [dude, ..already_processed])
+              ]
             },
             None,
             [],
@@ -122,13 +157,7 @@ fn accumulator(
           // let last_dude = Some(first)
           // *
           assert [] == whitespace
-          accumulator(
-            inner,
-            already_processed,
-            Some(first),
-            [],
-            rest,
-          )
+          accumulator(inner, already_processed, Some(first), [], rest)
         }
         Some(dude) -> {
           // *
@@ -143,17 +172,15 @@ fn accumulator(
             [T(..) as first, ..rest] -> #(first.lines, rest)
             _ -> #([], c2)
           }
-          let whitespace = list.map(whitespace, fn(w) {
-            let assert T(_, lines) = w
-            assert lines != []
-            lines
-          })
-          let all_lists = list.flatten([
-            [c1_last_lines],
-            whitespace,
-            [c2_first_lines]
-          ])
-          |> list.filter(fn(x) { x != [] })
+          let whitespace =
+            list.map(whitespace, fn(w) {
+              let assert T(_, lines) = w
+              assert lines != []
+              lines
+            })
+          let all_lists =
+            list.flatten([[c1_last_lines], whitespace, [c2_first_lines]])
+            |> list.filter(fn(x) { x != [] })
           let bridge_lines = case all_lists {
             [] -> []
             _ -> core.last_to_first_concatenation_in_list_list_lines(all_lists)
@@ -161,7 +188,7 @@ fn accumulator(
           let children = case bridge_lines {
             [] -> core.pour(c1_others_reversed, c2_others)
             _ -> {
-              let bridge_child = T(desugarer_blame(164), bridge_lines)
+              let bridge_child = T(authoring.blame(name, 191), bridge_lines)
               core.pour([bridge_child, ..c1_others_reversed], c2_others)
             }
           }
@@ -178,76 +205,15 @@ fn accumulator(
   }
 }
 
-fn nodemap(
-  node: VXML,
-  inner: InnerParam,
-) -> VXML {
-  case node {
-    T(_, _) -> node
-    V(_, _, _, children) -> {
-      let children = accumulator(inner, [], None, [], children)
-      V(
-        ..node,
-        children: children,
-      )
-    }
-  }
-}
-
-fn nodemap_factory(inner: InnerParam) -> n2t.OneToOneNoErrorNodemap {
-  nodemap(_, inner)
-}
-
-fn transform_factory(inner: InnerParam) -> DesugarerTransform {
-  nodemap_factory(inner)
-  |> n2t.one_to_one_no_error_nodemap_2_desugarer_transform()
-}
-
-fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
-  Ok(param)
-}
-
-type Param = String
-//           ↖
-//           tag
-type InnerParam = Param
-
-pub const name = "bridge_whitespace"
-fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
-
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-// 🏖️🏖️ Desugarer 🏖️🏖️
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-//------------------------------------------------53
-/// Globs sibling nodes of the given tag together
-/// when adjacent or separated only by text nodes
-/// that contain whitespace. In more detail, when
-/// two nodes are globbed together, the intervening
-/// text nodes are concatenated in last-to-first-line
-/// fashion with the last child of the first node and
-/// the first child of the second node, if these
-/// children are text, to form the "bridging child"
-/// of the newly formed node.
-pub fn constructor(param: Param) -> Desugarer {
-  Desugarer(
-    name: name,
-    stringified_param: Some(ins(param)),
-    stringified_outside: None,
-    transform: case param_to_inner_param(param) {
-      Error(error) -> fn(_) { Error(error) }
-      Ok(inner) -> transform_factory(inner)
-    },
-  )
-}
-
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
-// 🌊🌊🌊 tests 🌊🌊🌊🌊🌊
+// 🌊🌊🌊 tests 🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
+
 fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
   [
     core.AssertiveTestData(
       param: "b",
-      source:   "
+      source: "
                 <> root
                   <> b
                     <>
@@ -265,7 +231,7 @@ fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
     ),
     core.AssertiveTestData(
       param: "b",
-      source:   "
+      source: "
                 <> root
                   <> b
                     <>
@@ -285,7 +251,7 @@ fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
     ),
     core.AssertiveTestData(
       param: "b",
-      source:   "
+      source: "
                 <> root
                   <> b
                     <>
@@ -311,7 +277,7 @@ fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
     ),
     core.AssertiveTestData(
       param: "b",
-      source:   "
+      source: "
                 <> root
                   <> b
                     <>
@@ -353,7 +319,7 @@ fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
     ),
     core.AssertiveTestData(
       param: "b",
-      source:   "
+      source: "
                 <> root
                   <> b
                     <>
@@ -386,5 +352,9 @@ fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
 }
 
 pub fn assertive_tests() {
-  core.assertive_test_collection_from_data(name, assertive_tests_data(), constructor)
+  core.assertive_test_collection_from_data(
+    name,
+    assertive_tests_data(),
+    constructor,
+  )
 }

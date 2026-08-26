@@ -1,11 +1,24 @@
-import gleam/option
-import desugaring/core.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as core
+import desugaring/authoring
+import desugaring/core.{type Desugarer, type DesugarerTransform}
 import desugaring/nodemaps_2_transform as n2t
 import vxml.{type VXML, T}
 
-fn nodemap(
-  vxml: VXML,
-) -> VXML {
+pub const name = "trim_spaces_around_newlines__outside"
+
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
+// 🏖️🏖️ Desugarer 🏖️🏖️
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️️️️️🏖️
+
+/// Trims spaces around newlines outside configured subtrees.
+pub fn constructor(outside: List(String)) -> Desugarer {
+  authoring.no_param_desugarer_with_outside(
+    name: name,
+    outside: outside,
+    transform: inner_param_to_transform,
+  )
+}
+
+fn nodemap(vxml: VXML) -> VXML {
   case vxml {
     T(_, _) ->
       vxml
@@ -19,36 +32,10 @@ fn nodemap_factory() -> n2t.OneToOneNoErrorNodemap {
   nodemap
 }
 
-fn transform_factory(outside: List(String)) -> DesugarerTransform {
+fn inner_param_to_transform(outside: List(String)) -> DesugarerTransform {
   nodemap_factory()
-  |> n2t.one_to_one_no_error_nodemap_2_desugarer_transform_with_forbidden(outside)
-}
-
-fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
-  Ok(param)
-}
-
-type Param = Nil
-type InnerParam = Nil
-
-pub const name = "trim_spaces_around_newlines__outside"
-
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-// 🏖️🏖️ Desugarer 🏖️🏖️
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-//------------------------------------------------53
-/// trims spaces around newlines in text nodes
-/// outside of subtrees rooted at tags given by the
-/// param argument
-pub fn constructor(outside: List(String)) -> Desugarer {
-  Desugarer(
-    name: name,
-    stringified_param: option.None,
-    stringified_outside: option.None,
-    transform: case param_to_inner_param(Nil) {
-      Error(error) -> fn(_) { Error(error) }
-      Ok(_) -> transform_factory(outside)
-    }
+  |> n2t.one_to_one_no_error_nodemap_2_desugarer_transform_with_forbidden(
+    outside,
   )
 }
 
@@ -56,9 +43,39 @@ pub fn constructor(outside: List(String)) -> Desugarer {
 // 🌊🌊🌊 tests 🌊🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
 fn assertive_tests_data() -> List(core.AssertiveTestDataNoParamWithOutside) {
-  []
+  [
+    core.AssertiveTestDataNoParamWithOutside(
+      outside: ["pre"],
+      source: "
+                <> root
+                  <>
+                    '  first  '
+                    '  middle  '
+                    '  last  '
+                  <> pre
+                    <>
+                      '  kept  '
+                      '  intact  '
+                ",
+      expected: "
+                <> root
+                  <>
+                    '  first'
+                    'middle'
+                    'last  '
+                  <> pre
+                    <>
+                      '  kept  '
+                      '  intact  '
+                ",
+    ),
+  ]
 }
 
 pub fn assertive_tests() {
-  core.assertive_test_collection_from_data_no_param_with_outside(name, assertive_tests_data(), constructor)
+  core.assertive_test_collection_from_data_no_param_with_outside(
+    name,
+    assertive_tests_data(),
+    constructor,
+  )
 }

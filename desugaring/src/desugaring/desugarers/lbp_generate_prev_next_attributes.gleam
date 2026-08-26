@@ -1,31 +1,32 @@
-import on
-import gleam/list
-import gleam/option
-import gleam/string.{inspect as ins}
-import desugaring/core.{
-  type Desugarer,
-  type DesugaringError,
-  Desugarer,
-  DesugaringError,
-} as core
-import vxml.{type VXML, Attr, V}
+import desugaring/authoring
+import desugaring/core.{type Desugarer, type DesugaringError, DesugaringError}
 import desugaring/nodemaps_2_transform as n2t
+import gleam/list
+import gleam/string.{inspect as ins}
+import on
+import vxml.{type VXML, Attr, V}
 
 fn prepend_link(vxml: VXML, link_value: String, link_key: String) -> VXML {
   core.v_prepend_attr(vxml, Attr(vxml.blame, link_key, link_value))
 }
 
-fn add_links_to_chapter(vxml: VXML, number: Int, num_chapters: Int, num_appendices: Int) -> VXML {
+fn add_links_to_chapter(
+  vxml: VXML,
+  number: Int,
+  num_chapters: Int,
+  num_appendices: Int,
+) -> VXML {
   let assert True = number >= 1 && number <= num_chapters
   let prev_link = case number == 1 {
     True -> "/"
     False -> "/article/chapter" <> ins(number - 1)
   }
   let next_link = case number == num_chapters {
-    True -> case num_appendices > 0 {
-      True -> "/article/appendixA"
-      False -> ""
-    }
+    True ->
+      case num_appendices > 0 {
+        True -> "/article/appendixA"
+        False -> ""
+      }
     False -> "/article/chapter" <> ins(number + 1)
   }
   vxml
@@ -39,13 +40,19 @@ fn number_to_appendix_letter(number: Int) -> String {
   string.from_utf_codepoints([utf])
 }
 
-fn add_links_to_appendix(vxml: VXML, number: Int, num_appendices: Int, num_chapters: Int) -> VXML {
+fn add_links_to_appendix(
+  vxml: VXML,
+  number: Int,
+  num_appendices: Int,
+  num_chapters: Int,
+) -> VXML {
   let assert True = number >= 1 && number <= num_appendices
   let prev_link = case number == 1 {
-    True -> case num_chapters > 0 {
-      True -> "/article/chapter" <> ins(num_chapters)
-      False -> "/"
-    }
+    True ->
+      case num_chapters > 0 {
+        True -> "/article/chapter" <> ins(num_chapters)
+        False -> "/"
+      }
     False -> "/article/appendix" <> number_to_appendix_letter(number - 1)
   }
   let next_link = case number == num_appendices {
@@ -94,56 +101,75 @@ fn at_root(root: VXML) -> Result(VXML, DesugaringError) {
   use toc <- on.empty_gt1_singleton(
     core.v_children_with_tag(root, "TOC"),
     on_empty: fn() { Error(DesugaringError(root.blame, "TOC missing")) },
-    on_gt1: fn(_, _, _) {Error(DesugaringError(root.blame, "> 1 TOC"))},
+    on_gt1: fn(_, _, _) { Error(DesugaringError(root.blame, "> 1 TOC")) },
   )
   let num_chapters = list.length(chapters)
   let num_bootcamps = list.length(bootcamps)
   let num_appendices = list.length(appendices)
-  let chapters = list.index_map(chapters, fn(c, i) {add_links_to_chapter(c, i + 1, num_chapters, num_appendices)})
-  let bootcamps = list.index_map(bootcamps, fn(c, i) {add_links_to_bootcamp(c, i + 1, num_bootcamps)})
-  let appendices = list.index_map(appendices, fn(a, i) {add_links_to_appendix(a, i + 1, num_appendices, num_chapters)})
+  let chapters =
+    list.index_map(chapters, fn(c, i) {
+      add_links_to_chapter(c, i + 1, num_chapters, num_appendices)
+    })
+  let bootcamps =
+    list.index_map(bootcamps, fn(c, i) {
+      add_links_to_bootcamp(c, i + 1, num_bootcamps)
+    })
+  let appendices =
+    list.index_map(appendices, fn(a, i) {
+      add_links_to_appendix(a, i + 1, num_appendices, num_chapters)
+    })
   let toc = add_links_to_toc(toc, num_bootcamps, num_chapters)
-  let other_children = list.filter(children, fn(c) { !core.is_v_and_tag_is_one_of(c, ["TOC", "Chapter", "Bootcamp", "Appendix"]) })
-  Ok(V(..root, children: list.flatten([other_children, [toc], chapters, bootcamps, appendices])))
+  let other_children =
+    list.filter(children, fn(c) {
+      !core.is_v_and_tag_is_one_of(c, ["TOC", "Chapter", "Bootcamp", "Appendix"])
+    })
+  Ok(
+    V(
+      ..root,
+      children: list.flatten([
+        other_children,
+        [toc],
+        chapters,
+        bootcamps,
+        appendices,
+      ]),
+    ),
+  )
 }
 
-fn transform_factory(_: InnerParam) -> core.DesugarerTransform {
+fn inner_param_to_transform(_: InnerParam) -> core.DesugarerTransform {
   at_root
-  |> n2t.at_root_2_desugarer_transform
+  |> n2t.node_to_node_2_desugarer_transform_without_walking
 }
 
-fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
-  Ok(param)
-}
+type InnerParam =
+  Nil
 
-type Param = Nil
-type InnerParam = Nil
-
-pub const name = "generate_lbp_prev_next_attributes"
+pub const name = "lbp_generate_prev_next_attributes"
 
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 // 🏖️🏖️ Desugarer 🏖️🏖️
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-//------------------------------------------------53
+/// Adds previous and next navigation attributes to LBP
+/// chapters, bootcamps, appendices, and the table of contents.
 pub fn constructor() -> Desugarer {
-  Desugarer(
+  authoring.no_param_desugarer(
     name: name,
-    stringified_param: option.None,
-    stringified_outside: option.None,
-    transform: case param_to_inner_param(Nil) {
-      Error(error) -> fn(_) { Error(error) }
-      Ok(inner) -> transform_factory(inner)
-    },
+    transform: inner_param_to_transform(Nil),
   )
 }
 
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
-// 🌊🌊🌊 tests 🌊🌊🌊🌊🌊
+// 🌊🌊🌊 tests 🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
 fn assertive_tests_data() -> List(core.AssertiveTestDataNoParam) {
   []
 }
 
 pub fn assertive_tests() {
-  core.assertive_test_collection_from_data_no_param(name, assertive_tests_data(), constructor)
+  core.assertive_test_collection_from_data_no_param(
+    name,
+    assertive_tests_data(),
+    constructor,
+  )
 }

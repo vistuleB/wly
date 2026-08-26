@@ -1,5 +1,6 @@
+import desugaring/authoring
 import desugaring/core.{
-  type Desugarer, type DesugarerTransform, type DesugaringError, Desugarer,
+  type Desugarer, type DesugarerTransform, type DesugaringError,
 }
 import desugaring/nodemaps_2_transform as n2t
 import gleam/list
@@ -148,7 +149,7 @@ fn nodemap_factory(
   )
 }
 
-fn transform_factory(inner: InnerParam) -> DesugarerTransform {
+fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
   n2t.one_to_one_enter_exit_stateful_nodemap_2_desugarer_transform(
     nodemap_factory(inner),
     [],
@@ -181,7 +182,6 @@ pub const name = "handles_generate_v_definitions_from_t_definitions"
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 // 🏖️🏖️ Desugarer 🏖️🏖️
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-//------------------------------------------------53
 /// Scans every text node (T) for in-text handle
 /// definitions of the form
 ///
@@ -211,19 +211,15 @@ pub const name = "handles_generate_v_definitions_from_t_definitions"
 /// generated 'handle=' attrs are in the same
 /// 'name value' format that handles_add_ids expects.
 pub fn constructor() -> Desugarer {
-  Desugarer(
+  let assert Ok(inner) = param_to_inner_param(Nil)
+  authoring.no_param_desugarer(
     name: name,
-    stringified_param: option.None,
-    stringified_outside: option.None,
-    transform: case param_to_inner_param(Nil) {
-      Error(error) -> fn(_) { Error(error) }
-      Ok(inner) -> transform_factory(inner)
-    },
+    transform: inner_param_to_transform(inner),
   )
 }
 
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
-// 🌊🌊🌊 tests 🌊🌊🌊🌊🌊
+// 🌊🌊🌊 tests 🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
 fn assertive_tests_data() -> List(core.AssertiveTestDataNoParam) {
   [

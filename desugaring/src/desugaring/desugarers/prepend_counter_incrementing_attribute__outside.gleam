@@ -1,41 +1,41 @@
-import gleam/option
-import gleam/string.{inspect as ins}
+import desugaring/authoring
 import desugaring/core.{
-  type Desugarer,
-  type DesugarerTransform,
-  type DesugaringError,
-  type TrafficLight,
-  Desugarer,
-  Continue,
-} as core
+  type Desugarer, type DesugarerTransform, type DesugaringError,
+  type TrafficLight, Continue,
+}
 import desugaring/nodemaps_2_transform as n2t
-import vxml.{
-  type VXML,
-  type Attr,
-  Attr,
-  V,
-}
-import vxml/blame as bl
+import vxml.{type Attr, type VXML, Attr, V}
 
-fn nodemap(
-  vxml: VXML,
-  inner: InnerParam,
-) -> #(VXML, TrafficLight) {
-  case vxml {
-    V(_, tag, attrs, _) if tag == inner.0 ->
-      #(V(..vxml, attrs: [inner.1, ..attrs]), inner.2)
-    _ -> #(vxml, Continue)
-  }
-}
+pub const name = "prepend_counter_incrementing_attribute__outside"
 
-fn nodemap_factory(inner: InnerParam) -> n2t.EarlyReturnOneToOneNoErrorNodemap {
-  nodemap(_, inner)
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
+// 🏖️🏖️ Desugarer 🏖️🏖️
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️️️️️🏖️
+
+/// Prepends a counter-increment attribute outside
+/// configured subtrees.
+pub fn constructor(param: Param, outside: List(String)) -> Desugarer {
+  authoring.desugarer_with_outside(
+    name: name,
+    param: param,
+    outside: outside,
+    prepare: param_to_inner_param,
+    transform: inner_param_to_transform,
+  )
 }
 
-fn transform_factory(inner: InnerParam, outside: List(String)) -> DesugarerTransform {
-  nodemap_factory(inner)
-  |> n2t.early_return_one_to_one_no_error_nodemap_2_desugarer_transform_with_forbidden(outside)
-}
+type Param =
+  #(
+    // Target tag.
+    String,
+    // Counter name.
+    String,
+    // Whether to traverse matching descendants.
+    TrafficLight,
+  )
+
+type InnerParam =
+  #(String, Attr, TrafficLight)
 
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
   #(
@@ -46,53 +46,46 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
   |> Ok
 }
 
-type Param = #(String, String,  TrafficLight)
-//             ↖       ↖        ↖
-//             tag     counter  pursue-nested-or-not
-type InnerParam = #(String, Attr, TrafficLight)
-fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
-
-pub const name = "prepend_counter_incrementing_attribute__outside"
-
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-// 🏖️🏖️ Desugarer 🏖️🏖️
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-//------------------------------------------------53
-/// For each #(tag, counter_name, traffic_light)
-/// tuple in the parameter list, this desugarer adds
-/// an attr of the form
-/// ```
-/// _=counter_name ::++counter_name
-/// ```
-/// to each node of tag 'tag', where the key is a
-/// period '.' and the value is the string
-/// '<counter_name> ::++<counter_name>'. As counters
-/// are evaluated and substitued also inside of
-/// key-value pairs, adding this key-value pair
-/// causes the counter <counter_name> to increment at
-/// each occurrence of a node of tag 'tag'.
-pub fn constructor(
-  param: Param,
+fn inner_param_to_transform(
+  inner: InnerParam,
   outside: List(String),
-) -> Desugarer {
-  Desugarer(
-    name: name,
-    stringified_param: option.Some(ins(param)),
-    stringified_outside: option.None,
-    transform: case param_to_inner_param(param) {
-      Error(error) -> fn(_) { Error(error) }
-      Ok(inner) -> transform_factory(inner, outside)
-    },
+) -> DesugarerTransform {
+  nodemap_factory(inner)
+  |> n2t.early_return_one_to_one_no_error_nodemap_2_desugarer_transform_with_forbidden(
+    outside,
   )
 }
 
+fn nodemap_factory(inner: InnerParam) -> n2t.EarlyReturnOneToOneNoErrorNodemap {
+  nodemap(_, inner)
+}
+
+fn nodemap(vxml: VXML, inner: InnerParam) -> #(VXML, TrafficLight) {
+  case vxml {
+    V(_, tag, attrs, _) if tag == inner.0 -> #(
+      V(..vxml, attrs: [inner.1, ..attrs]),
+      inner.2,
+    )
+    _ -> #(vxml, Continue)
+  }
+}
+
+fn desugarer_blame(line_no: Int) {
+  authoring.blame(name, line_no)
+}
+
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
-// 🌊🌊🌊 tests 🌊🌊🌊🌊🌊
+// 🌊🌊🌊 tests 🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
+
 fn assertive_tests_data() -> List(core.AssertiveTestDataWithOutside(Param)) {
   []
 }
 
 pub fn assertive_tests() {
-  core.assertive_test_collection_from_data_with_outside(name, assertive_tests_data(), constructor)
+  core.assertive_test_collection_from_data_with_outside(
+    name,
+    assertive_tests_data(),
+    constructor,
+  )
 }

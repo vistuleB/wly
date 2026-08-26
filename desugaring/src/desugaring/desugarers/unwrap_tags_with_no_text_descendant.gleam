@@ -1,81 +1,112 @@
-import gleam/list
-import gleam/option
-import gleam/string.{inspect as ins}
-import desugaring/core.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as core
+import desugaring/authoring
+import desugaring/core.{
+  type Desugarer, type DesugarerTransform, type DesugaringError,
+}
 import desugaring/nodemaps_2_transform as n2t
+import gleam/list
 import vxml.{type VXML, V}
-
-fn has_text_descendant(child: VXML) {
-  let assert V(_, _, _, children) = child
-  // do in DFS order:
-  {
-    list.any(children, core.is_t) ||
-    list.any(children, has_text_descendant)
-  }
-}
-
-fn is_text_or_has_text_descendant(node: VXML) {
-  core.is_t(node) || has_text_descendant(node)
-}
-
-fn nodemap(
-  node: VXML,
-  inner: InnerParam,
-) -> Result(List(VXML), DesugaringError) {
-  case node {
-    V(_, tag, _, children) -> {
-      case list.contains(inner, tag), list.any(children, is_text_or_has_text_descendant) {
-        True, False -> Ok(children)
-        _, _ -> Ok([node])
-      }
-    }
-    _ -> Ok([node])
-  }
-}
-
-fn nodemap_factory(inner: InnerParam) -> n2t.OneToManyNodemap {
-  nodemap(_, inner)
-}
-
-fn transform_factory(inner: InnerParam) -> DesugarerTransform {
-  n2t.one_to_many_nodemap_2_desugarer_transform(nodemap_factory(inner))
-}
-
-fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
-  Ok(param)
-}
-
-type Param = List(String)
-type InnerParam = List(String)
 
 pub const name = "unwrap_tags_with_no_text_descendant"
 
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 // 🏖️🏖️ Desugarer 🏖️🏖️
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-//------------------------------------------------53
-/// for a specified list of tag strings, unwraps
-/// nodes with tags from the list if the node does
-/// not have a text child descendant
+/// Unwraps configured elements that have no text
+/// descendants.
 pub fn constructor(param: Param) -> Desugarer {
-  Desugarer(
+  authoring.desugarer(
     name: name,
-    stringified_param: option.Some(ins(param)),
-    stringified_outside: option.None,
-    transform: case param_to_inner_param(param) {
-      Error(error) -> fn(_) { Error(error) }
-      Ok(inner) -> transform_factory(inner)
-    },
+    param: param,
+    prepare: param_to_inner_param,
+    transform: inner_param_to_transform,
   )
+}
+
+type Param =
+  // Tags to unwrap.
+  List(String)
+
+type InnerParam =
+  Param
+
+fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
+  Ok(param)
+}
+
+fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
+  let nodemap: n2t.OneToManyNodemap = fn(vxml) { nodemap(vxml, inner) }
+  n2t.one_to_many_nodemap_2_desugarer_transform(nodemap)
+}
+
+fn nodemap(
+  vxml: VXML,
+  inner: InnerParam,
+) -> Result(List(VXML), DesugaringError) {
+  case vxml {
+    V(_, tag, _, children) ->
+      case
+        list.contains(inner, tag),
+        list.any(children, is_text_or_has_text_descendant)
+      {
+        True, False -> Ok(children)
+        _, _ -> Ok([vxml])
+      }
+    _ -> Ok([vxml])
+  }
+}
+
+fn is_text_or_has_text_descendant(vxml: VXML) {
+  core.is_t(vxml) || has_text_descendant(vxml)
+}
+
+fn has_text_descendant(vxml: VXML) {
+  let assert V(_, _, _, children) = vxml
+  list.any(children, core.is_t) || list.any(children, has_text_descendant)
 }
 
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
 // 🌊🌊🌊 tests 🌊🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
 fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
-  []
+  [
+    core.AssertiveTestData(
+      param: ["Wrapper"],
+      source: "
+                <> root
+                  <> Wrapper
+                    <> Child
+                      <>
+                        'nested text'
+                ",
+      expected: "
+                <> root
+                  <> Wrapper
+                    <> Child
+                      <>
+                        'nested text'
+                ",
+    ),
+    core.AssertiveTestData(
+      param: ["Wrapper"],
+      source: "
+                <> root
+                  <> Wrapper
+                    <> Child
+                      <> Grandchild
+                ",
+      expected: "
+                <> root
+                  <> Child
+                    <> Grandchild
+                ",
+    ),
+  ]
 }
 
 pub fn assertive_tests() {
-  core.assertive_test_collection_from_data(name, assertive_tests_data(), constructor)
+  core.assertive_test_collection_from_data(
+    name,
+    assertive_tests_data(),
+    constructor,
+  )
 }

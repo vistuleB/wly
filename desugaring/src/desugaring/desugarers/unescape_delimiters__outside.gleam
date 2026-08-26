@@ -1,9 +1,29 @@
-import gleam/list
-import gleam/option
-import gleam/string.{inspect as ins}
-import desugaring/core.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as core
+import desugaring/authoring
+import desugaring/core.{
+  type Desugarer, type DesugarerTransform, type DesugaringError,
+}
 import desugaring/nodemaps_2_transform as n2t
+import gleam/list
+import gleam/string
 import vxml.{type VXML, Line, T}
+
+pub const name = "unescape_delimiters__outside"
+
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
+// 🏖️🏖️ Desugarer 🏖️🏖️
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️️️️️🏖️
+
+/// Unescapes neutralized delimiters outside configured
+/// subtrees after splitting.
+pub fn constructor(param: Param, outside: List(String)) -> Desugarer {
+  authoring.desugarer_with_outside(
+    name: name,
+    param: param,
+    outside: outside,
+    prepare: param_to_inner_param,
+    transform: inner_param_to_transform,
+  )
+}
 
 // walks a string left-to-right, consuming backslash escapes:
 //
@@ -58,49 +78,27 @@ fn nodemap_factory(inner: InnerParam) -> n2t.OneToOneNoErrorNodemap {
   nodemap(_, inner)
 }
 
-fn transform_factory(inner: InnerParam, outside: List(String)) -> DesugarerTransform {
+fn inner_param_to_transform(
+  inner: InnerParam,
+  outside: List(String),
+) -> DesugarerTransform {
   nodemap_factory(inner)
-  |> n2t.one_to_one_no_error_nodemap_2_desugarer_transform_with_forbidden(outside)
+  |> n2t.one_to_one_no_error_nodemap_2_desugarer_transform_with_forbidden(
+    outside,
+  )
 }
 
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
   Ok(param)
 }
 
-type Param = List(String)
-//           ↖
-//           single-character delimiters whose backslash-escape should be
-//           consumed, e.g. ["_", "*"]; a backslash is ALWAYS escapable
-type InnerParam = Param
+type Param =
+  // Single-character delimiters whose backslash escape
+  // should be consumed. A backslash is always escapable.
+  List(String)
 
-pub const name = "unescape_delimiters__outside"
-
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-// 🏖️🏖️ Desugarer 🏖️🏖️
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-//------------------------------------------------53
-/// removes the backslash from escaped delimiters in
-/// text nodes, after delimiter splitting has already
-/// decided which delimiters were live
-///
-/// must run AFTER every splitting step, or it would
-/// re-arm delimiters that splitting just neutralized
-///
-/// pass math/code tags in the second argument: inside
-/// those a backslash is meaningful to the downstream
-/// consumer (MathJax reads "\$" as a literal dollar)
-/// and must survive
-pub fn constructor(param: Param, outside: List(String)) -> Desugarer {
-  Desugarer(
-    name: name,
-    stringified_param: option.Some(ins(param)),
-    stringified_outside: option.Some(ins(outside)),
-    transform: case param_to_inner_param(param) {
-      Error(error) -> fn(_) { Error(error) }
-      Ok(inner) -> transform_factory(inner, outside)
-    },
-  )
-}
+type InnerParam =
+  Param
 
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
 // 🌊🌊🌊 tests 🌊🌊🌊🌊🌊
@@ -110,7 +108,7 @@ fn assertive_tests_data() -> List(core.AssertiveTestDataWithOutside(Param)) {
     core.AssertiveTestDataWithOutside(
       param: ["_", "*"],
       outside: ["Math"],
-      source:   "
+      source: "
                 <> root
                   <>
                     'a \\_x\\_ b'
@@ -137,5 +135,9 @@ fn assertive_tests_data() -> List(core.AssertiveTestDataWithOutside(Param)) {
 }
 
 pub fn assertive_tests() {
-  core.assertive_test_collection_from_data_with_outside(name, assertive_tests_data(), constructor)
+  core.assertive_test_collection_from_data_with_outside(
+    name,
+    assertive_tests_data(),
+    constructor,
+  )
 }

@@ -1,9 +1,62 @@
-import gleam/list
-import gleam/option
-import gleam/string.{inspect as ins}
-import desugaring/core.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as core
+import desugaring/authoring
+import desugaring/core.{
+  type Desugarer, type DesugarerTransform, type DesugaringError,
+}
 import desugaring/nodemaps_2_transform as n2t
-import vxml.{type VXML, T, V, Line }
+import gleam/list
+import vxml.{type VXML, Line, T, V}
+
+pub const name = "line_rewrap_no1__outside"
+
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
+// 🏖️🏖️ Desugarer 🏖️🏖️
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️️️️️🏖️
+
+/// Rewraps lines to a maximum width while reserving space
+/// for elements selected by a predicate.
+pub fn constructor(param: Param, outside: List(String)) -> Desugarer {
+  authoring.desugarer_with_outside(
+    name: name,
+    param: param,
+    outside: outside,
+    prepare: param_to_inner_param,
+    transform: inner_param_to_transform,
+  )
+}
+
+type Param =
+  #(Int, fn(VXML) -> Bool)
+
+type InnerParam =
+  Param
+
+fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
+  Ok(param)
+}
+
+fn inner_param_to_transform(
+  inner: InnerParam,
+  outside: List(String),
+) -> DesugarerTransform {
+  nodemap_factory(inner)
+  |> n2t.one_to_one_no_error_nodemap_2_desugarer_transform_with_forbidden(
+    outside,
+  )
+}
+
+fn nodemap_factory(inner: InnerParam) -> n2t.OneToOneNoErrorNodemap {
+  nodemap(_, inner)
+}
+
+fn nodemap(vxml: VXML, inner: InnerParam) -> VXML {
+  case vxml {
+    T(_, _) -> vxml
+    V(_, _, _, children) -> {
+      let children = line_wrap_in_list([], 0, False, children, inner)
+      V(..vxml, children: children)
+    }
+  }
+}
 
 fn line_wrap_in_list(
   already_wrapped: List(VXML),
@@ -19,11 +72,8 @@ fn line_wrap_in_list(
         True -> 0
         False -> deficit
       }
-      let #(lines, new_indent) =  core.line_wrap_rearrangement(
-        lines,
-        deficit,
-        inner.0,
-      )
+      let #(lines, new_indent) =
+        core.line_wrap_rearrangement(lines, deficit, inner.0)
       line_wrap_in_list(
         [T(blame, lines), ..already_wrapped],
         new_indent,
@@ -38,89 +88,30 @@ fn line_wrap_in_list(
         False -> 0
       }
       let #(deficit, already_wrapped) = case deficit > inner.0 {
-        True -> #(
-          core.total_chars(first),
-          [first, T(first.blame, [Line(first.blame, "")]), ..already_wrapped]
-        )
+        True -> #(core.total_chars(first), [
+          first,
+          T(first.blame, [Line(first.blame, "")]),
+          ..already_wrapped
+        ])
         False -> #(deficit, [first, ..already_wrapped])
       }
-      line_wrap_in_list(
-        already_wrapped,
-        deficit,
-        False,
-        rest,
-        inner,
-      )
+      line_wrap_in_list(already_wrapped, deficit, False, rest, inner)
     }
   }
 }
 
-fn nodemap(
-  vxml: VXML,
-  inner: InnerParam,
-) -> VXML {
-  case vxml {
-    T(_, _) -> vxml
-    V(_, _, _, children) -> {
-      let children = line_wrap_in_list(
-        [],
-        0,
-        False,
-        children,
-        inner,
-      )
-      V(..vxml, children: children)
-    }
-  }
-}
-
-fn nodemap_factory(inner: InnerParam) -> n2t.OneToOneNoErrorNodemap {
-  nodemap(_, inner)
-}
-
-fn transform_factory(inner: InnerParam, outside: List(String)) -> DesugarerTransform {
-  nodemap_factory(inner)
-  |> n2t.one_to_one_no_error_nodemap_2_desugarer_transform_with_forbidden(outside)
-}
-
-fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
-  Ok(param)
-}
-
-type Param = #(Int, fn(VXML) -> Bool)
-type InnerParam = Param
-
-pub const name = "line_rewrap_no1__outside"
-
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-// 🏖️🏖️ Desugarer 🏖️🏖️
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-//------------------------------------------------53
-/// wraps lines after they go beyond a certain
-/// length
-///
-/// accepts a function that determine which V-nodes
-/// will be "folded" and have contents that should
-/// be counted as a deficit toward the next T-node
-pub fn constructor(param: Param, outside: List(String)) -> Desugarer {
-  Desugarer(
-    name: name,
-    stringified_param: option.Some(ins(param)),
-    stringified_outside: option.Some(ins(outside)),
-    transform: case param_to_inner_param(param) {
-      Error(error) -> fn(_) { Error(error) }
-      Ok(inner) -> transform_factory(inner, outside)
-    },
-  )
-}
-
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
-// 🌊🌊🌊 tests 🌊🌊🌊🌊🌊
+// 🌊🌊🌊 tests 🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
+
 fn assertive_tests_data() -> List(core.AssertiveTestDataWithOutside(Param)) {
   []
 }
 
 pub fn assertive_tests() {
-  core.assertive_test_collection_from_data_with_outside(name, assertive_tests_data(), constructor)
+  core.assertive_test_collection_from_data_with_outside(
+    name,
+    assertive_tests_data(),
+    constructor,
+  )
 }

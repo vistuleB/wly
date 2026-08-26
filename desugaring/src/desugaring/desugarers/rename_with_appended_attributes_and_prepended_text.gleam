@@ -1,16 +1,73 @@
+import desugaring/authoring
+import desugaring/core.{
+  type Desugarer, type DesugarerTransform, type DesugaringError,
+}
+import desugaring/nodemaps_2_transform as n2t
 import gleam/dict.{type Dict}
 import gleam/list
-import gleam/option
-import gleam/string.{inspect as ins}
-import desugaring/core.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError} as core
-import desugaring/nodemaps_2_transform as n2t
-import vxml.{type VXML, V, T, Line}
-import vxml/blame as bl
+import vxml.{type VXML, Line, T, V}
 
-fn nodemap(
-  vxml: VXML,
-  inner: InnerParam,
-) -> Result(VXML, DesugaringError) {
+pub const name = "rename_with_appended_attributes_and_prepended_text"
+
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
+// 🏖️🏖️ Desugarer 🏖️🏖️
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️️️️️🏖️
+
+/// Renames configured elements, appends attributes, and
+/// prepends a text child.
+pub fn constructor(param: Param) -> Desugarer {
+  authoring.desugarer(
+    name: name,
+    param: param,
+    prepare: param_to_inner_param,
+    transform: inner_param_to_transform,
+  )
+}
+
+type Param =
+  List(
+    #(
+      // Existing tag.
+      String,
+      // New tag.
+      String,
+      // Text to prepend.
+      String,
+      // Attributes to append.
+      List(#(String, String)),
+    ),
+  )
+
+type InnerParam =
+  Dict(String, #(String, String, List(vxml.Attr)))
+
+fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
+  let inner_param =
+    param
+    |> list.map(
+      fn(renaming: #(String, String, String, List(#(String, String)))) {
+        let #(old_tag, new_tag, text, attrs) = renaming
+        let attrs_converted =
+          list.map(attrs, fn(attr) {
+            let #(key, value) = attr
+            vxml.Attr(desugarer_blame(53), key, value)
+          })
+        #(old_tag, #(new_tag, text, attrs_converted))
+      },
+    )
+    |> dict.from_list
+  Ok(inner_param)
+}
+
+fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
+  n2t.one_to_one_nodemap_2_desugarer_transform(nodemap_factory(inner))
+}
+
+fn nodemap_factory(inner: InnerParam) -> n2t.OneToOneNodemap {
+  nodemap(_, inner)
+}
+
+fn nodemap(vxml: VXML, inner: InnerParam) -> Result(VXML, DesugaringError) {
   case vxml {
     T(_, _) -> Ok(vxml)
     V(blame, tag, attrs, children) -> {
@@ -26,66 +83,19 @@ fn nodemap(
   }
 }
 
-fn nodemap_factory(inner: InnerParam) -> n2t.OneToOneNodemap {
-  nodemap(_, inner)
-}
-
-fn transform_factory(inner: InnerParam) -> DesugarerTransform {
-  n2t.one_to_one_nodemap_2_desugarer_transform(nodemap_factory(inner))
-}
-
-fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
-  let inner_param = param
-    |> list.map(fn(renaming: #(String, String, String, List(#(String, String)))) {
-      let #(old_tag, new_tag, text, attrs) = renaming
-      let attrs_converted = list.map(attrs, fn(attr) {
-        let #(key, value) = attr
-        vxml.Attr(desugarer_blame(43), key, value)
-      })
-      #(old_tag, #(new_tag, text, attrs_converted))
-    })
-    |> dict.from_list
-  Ok(inner_param)
-}
-
-type Param =
-  List(#(String, String, String, List(#(String, String))))
-//       ↖       ↖        ↖      ↖
-//       old_tag new_tag  text   list of attrs as key value pairs
-
-type InnerParam =
-  Dict(String, #(String, String, List(vxml.Attr)))
-
-pub const name = "rename_with_appended_attributes_and_prepended_text"
-fn desugarer_blame(line_no: Int) { bl.Des([], name, line_no) }
-
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-// 🏖️🏖️ Desugarer 🏖️🏖️
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-//------------------------------------------------53
-/// renames tags while adding attrs and
-/// prepending a new text node as the first child
-/// of the renamed tag
-pub fn constructor(param: Param) -> Desugarer {
-  Desugarer(
-    name: name,
-    stringified_param: option.Some(ins(param)),
-    stringified_outside: option.None,
-    transform: case param_to_inner_param(param) {
-      Error(error) -> fn(_) { Error(error) }
-      Ok(inner) -> transform_factory(inner)
-    },
-  )
+fn desugarer_blame(line_no: Int) {
+  authoring.blame(name, line_no)
 }
 
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
-// 🌊🌊🌊 tests 🌊🌊🌊🌊🌊
+// 🌊🌊🌊 tests 🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
+
 fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
   [
     core.AssertiveTestData(
       param: [#("QED", "span", "\\(\\square\\)", [#("class", "qed")])],
-      source:   "
+      source: "
                 <> root
                   <> QED
                 ",
@@ -97,10 +107,13 @@ fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
                       '\\(\\square\\)'
                 ",
     ),
-
   ]
 }
 
 pub fn assertive_tests() {
-  core.assertive_test_collection_from_data(name, assertive_tests_data(), constructor)
+  core.assertive_test_collection_from_data(
+    name,
+    assertive_tests_data(),
+    constructor,
+  )
 }

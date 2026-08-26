@@ -5,9 +5,23 @@ import desugaring/core.{
 import desugaring/nodemaps_2_transform as n2t
 import vxml.{type VXML, V}
 
-/// inserts an empty element of the specified tag between each adjacent pair
-/// whose first and second elements have the configured tags
 pub const name = "add_between"
+
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
+// 🏖️🏖️ Desugarer 🏖️🏖️
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️️️️️🏖️
+
+/// Inserts an empty element of the specified tag between
+/// each adjacent pair whose first and second elements have
+/// the configured tags.
+pub fn constructor(param: Param) -> Desugarer {
+  authoring.desugarer(
+    name: name,
+    param: param,
+    prepare: param_to_inner_param,
+    transform: inner_param_to_transform,
+  )
+}
 
 type Param =
   #(
@@ -28,14 +42,24 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
   InnerParam(
     first_tag,
     second_tag,
-    V(authoring.blame(name, 31), inserted_tag, [], []),
+    V(authoring.blame(name, 45), inserted_tag, [], []),
   )
   |> Ok
 }
 
-// ⚙️⚙️⚙️⚙️⚙️⚙️⚙️⚙️⚙️⚙️⚙️⚙️️️️⚙️️️️⚙️️️️
-// ⚙️⚙️ implementation ⚙️⚙️
-// ⚙️⚙️⚙️⚙️⚙️⚙️⚙️⚙️⚙️⚙️⚙️⚙️⚙️️️️⚙️️️️
+fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
+  let nodemap: n2t.OneToOneNoErrorNodemap = nodemap(_, inner)
+  nodemap
+  |> n2t.one_to_one_no_error_nodemap_2_desugarer_transform()
+}
+
+fn nodemap(vxml: VXML, inner: InnerParam) -> VXML {
+  case vxml {
+    V(_, _, _, children) -> V(..vxml, children: add_in_list(children, inner))
+    _ -> vxml
+  }
+}
+
 fn add_in_list(children: List(VXML), inner: InnerParam) -> List(VXML) {
   case children {
     [V(_, first_tag, _, _) as first, V(_, second_tag, _, _) as second, ..rest]
@@ -48,34 +72,10 @@ fn add_in_list(children: List(VXML), inner: InnerParam) -> List(VXML) {
   }
 }
 
-fn nodemap(vxml: VXML, inner: InnerParam) -> VXML {
-  case vxml {
-    V(_, _, _, children) -> V(..vxml, children: add_in_list(children, inner))
-    _ -> vxml
-  }
-}
-
-fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
-  let nodemap: n2t.OneToOneNoErrorNodemap = nodemap(_, inner)
-  nodemap
-  |> n2t.one_to_one_no_error_nodemap_2_desugarer_transform()
-}
-
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-// 🏖️🏖️ constructor 🏖️🏖️
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️️️️️🏖️
-pub fn constructor(param: Param) -> Desugarer {
-  authoring.desugarer(
-    name: name,
-    param: param,
-    prepare: param_to_inner_param,
-    transform: inner_param_to_transform,
-  )
-}
-
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
-// 🌊🌊🌊 tests 🌊🌊🌊🌊🌊
+// 🌊🌊🌊 tests 🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
+
 fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
   []
 }

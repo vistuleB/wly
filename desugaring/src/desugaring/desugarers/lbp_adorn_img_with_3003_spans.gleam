@@ -1,13 +1,14 @@
-import vxml/blame as bl
-import gleam/option.{None, Some}
-import gleam/string.{inspect as ins}
+import desugaring/authoring
 import desugaring/core.{
-  type Desugarer, type DesugarerTransform, type DesugaringError, Desugarer,
-} as core
+  type Desugarer, type DesugarerTransform, type DesugaringError,
+}
 import desugaring/nodemaps_2_transform as n2t
+import gleam/option.{None, Some}
+import gleam/string
 import vxml.{type Attr, type VXML, Attr, Line, T, V}
+import vxml/blame as bl
 
-const b = bl.Des([], name, 10)
+const b = bl.Des([], name, 11)
 
 const copy_symbol = "⧉"
 
@@ -124,7 +125,7 @@ fn nodemap_factory(inner: InnerParam) -> n2t.OneToManyNoErrorNodemap {
   nodemap(_, inner)
 }
 
-fn transform_factory(inner: InnerParam) -> DesugarerTransform {
+fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
   nodemap_factory(inner)
   |> n2t.one_to_many_no_error_nodemap_2_desugarer_transform()
 }
@@ -144,10 +145,14 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
   ))
 }
 
-type Param = #(String,      String)
-//             ↖            ↖
-//             local path   additional
-//             of source    class, if any
+type Param =
+  #(
+    // Local path of the source document.
+    String,
+    // Additional class, if any.
+    String,
+  )
+
 type InnerParam =
   #(String, String, List(Attr), List(Attr))
 
@@ -156,21 +161,19 @@ pub const name = "lbp_adorn_img_with_3003_spans"
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 // 🏖️🏖️ Desugarer 🏖️🏖️
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-//------------------------------------------------53
+/// Wraps LBP image markup in the spans required by the
+/// 3003 interface, including copy and source-link controls.
 pub fn constructor(param: Param) -> Desugarer {
-  Desugarer(
+  authoring.desugarer(
     name: name,
-    stringified_param: option.Some(ins(param)),
-    stringified_outside: option.None,
-    transform: case param_to_inner_param(param) {
-      Error(error) -> fn(_) { Error(error) }
-      Ok(inner) -> transform_factory(inner)
-    },
+    param: param,
+    prepare: param_to_inner_param,
+    transform: inner_param_to_transform,
   )
 }
 
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
-// 🌊🌊🌊 tests 🌊🌊🌊🌊🌊
+// 🌊🌊🌊 tests 🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
 fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
   [

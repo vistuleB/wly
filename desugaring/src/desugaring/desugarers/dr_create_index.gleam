@@ -1,6 +1,6 @@
+import desugaring/authoring
 import desugaring/core.{
-  type Desugarer, type DesugaringError, type TrafficLight, Continue, Desugarer,
-  GoBack,
+  type Desugarer, type DesugaringError, type TrafficLight, Continue, GoBack,
 }
 import desugaring/nodemaps_2_transform as n2t
 import gleam/list
@@ -9,6 +9,20 @@ import gleam/string.{inspect as ins}
 import on
 import vxml.{type VXML, Attr, Line, T, V}
 import vxml/blame.{type Blame} as bl
+
+pub const name = "dr_create_index"
+
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
+// 🏖️🏖️ Desugarer 🏖️🏖️
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️️️️️🏖️
+
+/// Prepends a generated course index to the document.
+pub fn constructor() -> Desugarer {
+  authoring.no_param_desugarer(
+    name: name,
+    transform: inner_param_to_transform(),
+  )
+}
 
 // 🌸🌸🌸🌸🌸🌸🌸
 // 🌸 header 🌸
@@ -22,7 +36,7 @@ fn get(root: VXML, key: String) -> Option(#(Blame, String)) {
 }
 
 fn header(root: VXML) -> VXML {
-  let b = desugarer_blame(25)
+  let b = authoring.blame(name, 39)
   let title = get(root, "title") |> option.unwrap(#(b, "no title"))
   let course = get(root, "course") |> option.unwrap(#(b, "no course"))
   let term = get(root, "term") |> option.unwrap(#(b, "no term"))
@@ -216,7 +230,7 @@ fn subsection_item(
   subsection_no: Int,
   subsection: SubSectionInfo,
 ) -> VXML {
-  let b = desugarer_blame(219)
+  let b = authoring.blame(name, 233)
   let SubSectionInfo(title) = subsection
 
   V(b, "li", [], [
@@ -232,7 +246,7 @@ fn subsection_item(
 }
 
 fn section_item(ch_no: Int, section_no: Int, section: SectionInfo) -> VXML {
-  let b = desugarer_blame(235)
+  let b = authoring.blame(name, 249)
   let SectionInfo(title, subsections) = section
   let subsections_ol = case subsections {
     [] -> []
@@ -262,7 +276,7 @@ fn section_item(ch_no: Int, section_no: Int, section: SectionInfo) -> VXML {
 }
 
 fn chapter_item(ch_no: Int, chapter: ChapterInfo) -> VXML {
-  let b = desugarer_blame(265)
+  let b = authoring.blame(name, 279)
   let ChapterInfo(title, has_content, sections) = chapter
   let sections_ol = case sections {
     [] -> []
@@ -287,7 +301,7 @@ fn chapter_item(ch_no: Int, chapter: ChapterInfo) -> VXML {
 }
 
 fn chapter_ol(chapters: List(ChapterInfo)) -> VXML {
-  let b = desugarer_blame(290)
+  let b = authoring.blame(name, 304)
   V(
     b,
     "ol",
@@ -335,7 +349,7 @@ fn gather_exercises_title(root: VXML) -> option.Option(Title) {
 }
 
 fn exercises_link(root: VXML) -> option.Option(VXML) {
-  let b = desugarer_blame(338)
+  let b = authoring.blame(name, 352)
   case gather_exercises_title(root) {
     option.None -> option.None
     option.Some(title) ->
@@ -381,7 +395,7 @@ fn gather_bibliography_title(root: VXML) -> option.Option(Title) {
 }
 
 fn bibliography_link(root: VXML) -> option.Option(VXML) {
-  let b = desugarer_blame(384)
+  let b = authoring.blame(name, 398)
   case gather_bibliography_title(root) {
     option.None -> option.None
     option.Some(title) ->
@@ -398,7 +412,7 @@ fn bibliography_link(root: VXML) -> option.Option(VXML) {
 // 🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸
 
 fn anchor(id: String, href_val: String) -> VXML {
-  let b = desugarer_blame(401)
+  let b = authoring.blame(name, 415)
   V(b, "a", [Attr(b, "id", id), Attr(b, "href", href_val)], [])
 }
 
@@ -427,7 +441,7 @@ fn index_next_page_href(root: VXML) -> option.Option(String) {
 
 fn index(root: VXML) -> Result(VXML, DesugaringError) {
   use chapter_infos <- on.ok(gather_chapter_infos(root))
-  let b = desugarer_blame(430)
+  let b = authoring.blame(name, 444)
 
   let nav = case index_next_page_href(root) {
     option.None -> []
@@ -452,7 +466,7 @@ fn index(root: VXML) -> Result(VXML, DesugaringError) {
     b,
     "Index",
     [
-      Attr(desugarer_blame(455), "path", "./index.html"),
+      Attr(authoring.blame(name, 469), "path", "./index.html"),
     ],
     list.flatten([
       nav,
@@ -469,47 +483,15 @@ fn at_root(root: VXML) -> Result(VXML, DesugaringError) {
   Ok(V(..root, children: [index, ..children]))
 }
 
-fn transform_factory(_: InnerParam) -> core.DesugarerTransform {
+fn inner_param_to_transform() -> core.DesugarerTransform {
   at_root
-  |> n2t.at_root_2_desugarer_transform
-}
-
-fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
-  Ok(param)
-}
-
-type Param =
-  Nil
-
-type InnerParam =
-  Nil
-
-pub const name = "dr_create_index"
-
-fn desugarer_blame(line_no: Int) {
-  bl.Des([], name, line_no)
-}
-
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-// 🏖️🏖️ Desugarer 🏖️🏖️
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-//------------------------------------------------53
-/// generate dr Index element
-pub fn constructor() -> Desugarer {
-  Desugarer(
-    name: name,
-    stringified_param: option.None,
-    stringified_outside: option.None,
-    transform: case param_to_inner_param(Nil) {
-      Error(error) -> fn(_) { Error(error) }
-      Ok(inner) -> transform_factory(inner)
-    },
-  )
+  |> n2t.node_to_node_2_desugarer_transform_without_walking
 }
 
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
-// 🌊🌊🌊 tests 🌊🌊🌊🌊🌊
+// 🌊🌊🌊 tests 🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
+
 fn assertive_tests_data() -> List(core.AssertiveTestDataNoParam) {
   []
 }

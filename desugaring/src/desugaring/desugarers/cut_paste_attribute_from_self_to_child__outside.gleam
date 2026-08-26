@@ -1,15 +1,81 @@
+import desugaring/authoring
+import desugaring/core.{
+  type Desugarer, type DesugarerTransform, type DesugaringError,
+  type TrafficLight, Continue, GoBack,
+}
+import desugaring/nodemaps_2_transform as n2t
 import gleam/list
 import gleam/option
-import gleam/string.{inspect as ins}
-import desugaring/core.{type Desugarer, Desugarer, type DesugarerTransform, type DesugaringError, type TrafficLight, Continue, GoBack} as core
-import desugaring/nodemaps_2_transform as n2t
-import vxml.{type VXML, V, type Attr}
+import vxml.{type Attr, type VXML, V}
 
-fn update_child(
-  child: VXML,
-  child_tag: String,
-  attr: Attr,
-) -> VXML {
+pub const name = "cut_paste_attribute_from_self_to_child__outside"
+
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
+// 🏖️🏖️ Desugarer 🏖️🏖️
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️️️️️🏖️
+
+/// Moves the first matching parent attribute onto every
+/// matching child outside forbidden subtrees.
+pub fn constructor(param: Param, outside: List(String)) -> Desugarer {
+  authoring.desugarer_with_outside(
+    name: name,
+    param: param,
+    outside: outside,
+    prepare: param_to_inner_param,
+    transform: inner_param_to_transform,
+  )
+}
+
+type Param =
+  #(
+    // Parent tag.
+    String,
+    // Child tag.
+    String,
+    // Attribute key to move.
+    String,
+  )
+
+type InnerParam {
+  InnerParam(parent_tag: String, child_tag: String, key: String)
+}
+
+fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
+  Ok(InnerParam(param.0, param.1, param.2))
+}
+
+fn inner_param_to_transform(
+  inner: InnerParam,
+  outside: List(String),
+) -> DesugarerTransform {
+  let nodemap: n2t.EarlyReturnOneToOneNoErrorNodemap = nodemap(_, inner)
+  nodemap
+  |> n2t.early_return_one_to_one_no_error_nodemap_2_desugarer_transform_with_forbidden(
+    outside,
+  )
+}
+
+fn nodemap(vxml: VXML, inner: InnerParam) -> #(VXML, TrafficLight) {
+  case vxml {
+    V(_, tag, _, _) if tag == inner.parent_tag -> {
+      case core.v_first_attr_with_key(vxml, inner.key) {
+        option.None -> #(vxml, GoBack)
+        option.Some(attr) -> #(
+          V(
+            ..vxml,
+            attrs: vxml.attrs |> list.filter(fn(x) { x.key != inner.key }),
+            children: vxml.children
+              |> list.map(update_child(_, inner.child_tag, attr)),
+          ),
+          GoBack,
+        )
+      }
+    }
+    _ -> #(vxml, Continue)
+  }
+}
+
+fn update_child(child: VXML, child_tag: String, attr: Attr) -> VXML {
   case child {
     V(_, tag, _, _) if tag == child_tag ->
       V(..child, attrs: list.append(child.attrs, [attr]))
@@ -17,80 +83,18 @@ fn update_child(
   }
 }
 
-fn nodemap(
-  node: VXML,
-  inner: InnerParam,
-) -> #(VXML, TrafficLight) {
-  case node {
-    V(_, tag, _, _) if tag == inner.0 -> {
-      case core.v_first_attr_with_key(node, inner.2) {
-        option.None -> #(node, GoBack)
-        option.Some(attr) -> #(
-          V(
-            ..node,
-            attrs: node.attrs |> list.filter(fn(x) { x.key != inner.2 }),
-            children: node.children |> list.map(update_child(_, inner.1, attr)),
-          ),
-          GoBack
-        )
-      }
-    }
-    _ -> #(node, Continue)
-  }
-}
-
-fn nodemap_factory(inner: InnerParam) -> n2t.EarlyReturnOneToOneNoErrorNodemap {
-    nodemap(_, inner)
-}
-
-fn transform_factory(inner: InnerParam, outside: List(String)) -> DesugarerTransform {
-  nodemap_factory(inner)
-  |> n2t.early_return_one_to_one_no_error_nodemap_2_desugarer_transform_with_forbidden(outside)
-}
-
-fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
-  Ok(param)
-}
-
-type Param = #(String, String, String)
-//             ↖       ↖       ↖
-//             parent  child   attr
-type InnerParam = Param
-
-pub const name = "cut_paste_attribute_from_self_to_child__outside"
-
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-// 🏖️🏖️ Desugarer 🏖️🏖️
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-//------------------------------------------------53
-/// For all nodes with a given 'parent_tag',
-/// removes all attrs of a given key. If the
-/// list of removed attrs is nonempty, pastes
-/// the first element of the list to all children
-/// of the `parent_tag` node that have a given
-/// `child_tag` tag.
-///
-/// Returns early after encountering a node of tag
-/// 'parent_tag'.
-pub fn constructor(param: Param, outside: List(String)) -> Desugarer {
-  Desugarer(
-    name: name,
-    stringified_param: option.Some(ins(param)),
-    stringified_outside: option.Some(ins(outside)),
-    transform: case param_to_inner_param(param) {
-      Error(error) -> fn(_) { Error(error) }
-      Ok(inner) -> transform_factory(inner, outside)
-    },
-  )
-}
-
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
-// 🌊🌊🌊 tests 🌊🌊🌊🌊🌊
+// 🌊🌊🌊 tests 🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
+
 fn assertive_tests_data() -> List(core.AssertiveTestDataWithOutside(Param)) {
   []
 }
 
 pub fn assertive_tests() {
-  core.assertive_test_collection_from_data_with_outside(name, assertive_tests_data(), constructor)
+  core.assertive_test_collection_from_data_with_outside(
+    name,
+    assertive_tests_data(),
+    constructor,
+  )
 }

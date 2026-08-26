@@ -1,6 +1,6 @@
+import desugaring/authoring
 import desugaring/core.{
-  type Desugarer, type DesugarerTransform, type DesugaringError, Desugarer,
-  DesugaringError,
+  type Desugarer, type DesugarerTransform, type DesugaringError, DesugaringError,
 }
 import desugaring/nodemaps_2_transform as n2t
 import gleam/dict.{type Dict}
@@ -13,7 +13,36 @@ import gleam/string.{inspect as ins}
 import on
 import roman
 import vxml.{type Attr, type Line, type VXML, Attr, Line, T, V}
-import vxml/blame.{type Blame} as bl
+import vxml/blame.{type Blame}
+
+pub const name = "counters_substitute_and_assign_handles"
+
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
+// 🏖️🏖️ Desugarer 🏖️🏖️
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️️️️️🏖️
+
+/// Substitutes counter expressions with rendered values and
+/// records associated handle assignments on their elements.
+pub fn constructor() -> Desugarer {
+  authoring.no_param_desugarer(
+    name: name,
+    transform: inner_param_to_transform(),
+  )
+}
+
+fn inner_param_to_transform() -> DesugarerTransform {
+  let regexes = our_two_regexes()
+  let nodemap: n2t.OneToOneEnterExitStatefulNodemap(State) =
+    n2t.OneToOneEnterExitStatefulNodemap(
+      on_enter: fn(vxml, state) { on_enter(vxml, state, regexes) },
+      on_exit: on_exit,
+      on_text: fn(vxml, state) { on_text(vxml, state, regexes) },
+    )
+  n2t.one_to_one_enter_exit_stateful_nodemap_2_desugarer_transform(
+    nodemap,
+    #(dict.from_list([]), []),
+  )
+}
 
 type CounterType {
   Arabic
@@ -312,7 +341,7 @@ fn handle_assignment_attrs_from_handle_assignments(
   handles
   |> list.map(fn(handle) {
     let #(name, value) = handle
-    Attr(desugarer_blame(315), "handle", name <> " " <> value)
+    Attr(authoring.blame(name, 344), "handle", name <> " " <> value)
   })
 }
 
@@ -593,101 +622,10 @@ fn our_two_regexes() -> #(Regexp, Regexp) {
   #(small, big)
 }
 
-fn nodemap_factory(
-  _: InnerParam,
-) -> n2t.OneToOneEnterExitStatefulNodemap(State) {
-  let regexes = our_two_regexes()
-  n2t.OneToOneEnterExitStatefulNodemap(
-    on_enter: fn(vxml, state) { on_enter(vxml, state, regexes) },
-    on_exit: on_exit,
-    on_text: fn(vxml, state) { on_text(vxml, state, regexes) },
-  )
-}
-
-fn transform_factory(inner: InnerParam) -> core.DesugarerTransform {
-  n2t.one_to_one_enter_exit_stateful_nodemap_2_desugarer_transform(
-    nodemap_factory(inner),
-    #(dict.from_list([]), []),
-  )
-}
-
-fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
-  Ok(param)
-}
-
-type Param =
-  Nil
-
-type InnerParam =
-  Nil
-
-pub const name = "counters_substitute_and_assign_handles"
-
-fn desugarer_blame(line_no: Int) {
-  bl.Des([], name, line_no)
-}
-
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-// 🏖️🏖️ Desugarer 🏖️🏖️
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-//------------------------------------------------53
-/// Substitutes counters by their numerical
-/// value converted to string form and assigns those
-/// values to prefixed handles.
-///
-/// If a counter named 'MyCounterName' is defined by
-/// an ancestor, replaces strings of the form
-///
-/// \<aa>\<bb>MyCounterName
-///
-/// where
-///
-/// \<aa> == \"::\"|\"..\" indicates whether
-/// the counter occurrence should be echoed as a
-/// string appearing in the document or not (\"::\" == echo,
-/// \"..\" == suppress), and where
-///
-/// \<bb> ==  \"++\"|\"--\"|\"øø\" indicates whether
-/// the counter should be incremented, decremented, or
-/// neither prior to possible insertion,
-///
-/// by the appropriate replacement string (possibly
-/// none), and assigns handles coming to the left
-/// using the '<<' assignment, e.g.,
-///
-/// handleName<<..++MyCounterName
-///
-/// would assign the stringified incremented value
-/// of MyCounterName to handle 'handleName' without
-/// echoing the value to the document, whereas
-///
-/// handleName<<::++MyCounterName
-///
-/// will do the same but also insert the new counter
-/// value at that point in the document.
-///
-/// The computed handle assignments are recorded as
-/// attrs of the form
-///
-/// handle_\<handleName> <counterValue>
-///
-/// on the parent tag to be later used by the
-/// 'handles_generate_dictionary' desugarer
-pub fn constructor() -> Desugarer {
-  Desugarer(
-    name: name,
-    stringified_param: option.None,
-    stringified_outside: option.None,
-    transform: case param_to_inner_param(Nil) {
-      Error(error) -> fn(_) { Error(error) }
-      Ok(inner) -> transform_factory(inner)
-    },
-  )
-}
-
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
-// 🌊🌊🌊 tests 🌊🌊🌊🌊🌊
+// 🌊🌊🌊 tests 🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
+
 fn assertive_tests_data() -> List(core.AssertiveTestDataNoParam) {
   [
     core.AssertiveTestDataNoParam(

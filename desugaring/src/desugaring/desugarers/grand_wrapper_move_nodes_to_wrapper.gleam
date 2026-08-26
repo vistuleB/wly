@@ -1,6 +1,7 @@
+import desugaring/authoring
 import desugaring/core.{
   type Desugarer, type DesugarerTransform, type DesugaringError,
-  type DesugaringWarning, Desugarer,
+  type DesugaringWarning,
 }
 import desugaring/nodemaps_2_transform as n2t
 import gleam/list
@@ -47,10 +48,10 @@ fn on_exit(
       let assert V(_, tag, _, _) = vxml
       let grand_wrapper = case tag {
         "GrandWrapper" -> vxml
-        _ -> V(desugarer_blame(50), "GrandWrapper", [], [vxml])
+        _ -> V(desugarer_blame(51), "GrandWrapper", [], [vxml])
       }
       let anointed_child =
-        V(desugarer_blame(53), inner.4, [], vxmls |> list.reverse)
+        V(desugarer_blame(54), inner.4, [], vxmls |> list.reverse)
       let assert V(_, _, _, children) = grand_wrapper
       Some(V(..grand_wrapper, children: [anointed_child, ..children]))
     }
@@ -87,7 +88,7 @@ fn nodemap_factory(
   )
 }
 
-fn transform_factory(inner: InnerParam(a)) -> core.DesugarerTransform {
+fn inner_param_to_transform(inner: InnerParam(a)) -> core.DesugarerTransform {
   n2t.early_return_fancy_one_to_option_enter_exit_stateful_with_warnings_nodemap_2_desugarer_transform(
     nodemap_factory(inner),
     #(inner.0, []),
@@ -136,21 +137,20 @@ fn desugarer_blame(line_no: Int) {
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 // 🏖️🏖️ Desugarer 🏖️🏖️
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-//------------------------------------------------53
+/// Collects selected nodes during traversal and moves them
+/// into a named child of a root `GrandWrapper`.
 pub fn constructor(param: Param(a)) -> Desugarer {
-  Desugarer(
+  authoring.desugarer_with_stringified_param(
     name: name,
-    stringified_param: option.None,
-    stringified_outside: option.None,
-    transform: case param_to_inner_param(param) {
-      Error(error) -> fn(_) { Error(error) }
-      Ok(inner) -> transform_factory(inner)
-    },
+    param: param,
+    stringified_param: "<functions>",
+    prepare: param_to_inner_param,
+    transform: inner_param_to_transform,
   )
 }
 
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
-// 🌊🌊🌊 tests 🌊🌊🌊🌊🌊
+// 🌊🌊🌊 tests 🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
 
 fn harvest_doomed_handles_from_grand_wrapper(vxml: VXML) -> List(String) {

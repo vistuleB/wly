@@ -1,10 +1,10 @@
+import desugaring/authoring
 import desugaring/core.{
   type Desugarer, type DesugarerTransform, type DesugaringError,
-  type DesugaringWarning, Desugarer, DesugaringWarning,
+  type DesugaringWarning, DesugaringWarning,
 }
 import desugaring/nodemaps_2_transform as n2t
 import gleam/list
-import gleam/option
 import gleam/result
 import gleam/string
 import on
@@ -76,7 +76,7 @@ fn nodemap_factory(
   )
 }
 
-fn transform_factory(inner: InnerParam(a)) -> core.DesugarerTransform {
+fn inner_param_to_transform(inner: InnerParam(a)) -> core.DesugarerTransform {
   n2t.early_return_fancy_one_to_one_enter_exit_stateful_with_warnings_nodemap_2_desugarer_transform(
     nodemap_factory(inner),
     #(inner.0, []),
@@ -123,21 +123,20 @@ fn desugarer_blame(line_no: Int) {
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 // 🏖️🏖️ Desugarer 🏖️🏖️
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-//------------------------------------------------53
+/// Collects attributes while traversing the tree and appends
+/// them to a root `GrandWrapper`, creating one when necessary.
 pub fn constructor(param: Param(a)) -> Desugarer {
-  Desugarer(
+  authoring.desugarer_with_stringified_param(
     name: name,
-    stringified_param: option.None,
-    stringified_outside: option.None,
-    transform: case param_to_inner_param(param) {
-      Error(error) -> fn(_) { Error(error) }
-      Ok(inner) -> transform_factory(inner)
-    },
+    param: param,
+    stringified_param: "<functions>",
+    prepare: param_to_inner_param,
+    transform: inner_param_to_transform,
   )
 }
 
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
-// 🌊🌊🌊 tests 🌊🌊🌊🌊🌊
+// 🌊🌊🌊 tests 🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
 
 fn tag_past_root(tag: String) -> core.TrafficLight {
@@ -162,7 +161,7 @@ fn v_before_1(
     core.attrs_have_key_val(attrs, "chapter", ">>exercise-graveyard"),
     fn() { Ok(#(Nil, [], [], core.GoBack)) },
   )
-  Ok(#(Nil, [Attr(desugarer_blame(165), "hey", "hello")], [], core.GoBack))
+  Ok(#(Nil, [Attr(desugarer_blame(164), "hey", "hello")], [], core.GoBack))
 }
 
 fn v_after_1(
@@ -192,7 +191,7 @@ fn harvest_handle_attrs_from_line(
             line.blame,
             "handle contains space or '>': " <> stuff,
           ))
-        False -> Ok(Attr(desugarer_blame(195), "source", ">>" <> stuff))
+        False -> Ok(Attr(desugarer_blame(194), "source", ">>" <> stuff))
       }
     }
     _ -> Error(DesugaringWarning(line.blame, "'>>' not found in text node"))
