@@ -1,19 +1,14 @@
-import desugaring/core.{type SelectionStatus, type Selector, type SLine} as core
+import desugaring/tracking.{type SLine, type SelectionStatus, type Selector}
 import gleam/string
 
-fn line_selector(
-  line: SLine,
-  s: String,
-) -> SelectionStatus {
+fn line_selector(line: SLine, s: String) -> SelectionStatus {
   case string.contains(line.content, s) {
-    True -> core.OG
-    _ -> core.NotSelected
+    True -> tracking.OG
+    _ -> tracking.NotSelected
   }
 }
 
-pub fn selector(
-  s: String,
-) -> Selector {
+pub fn selector(s: String) -> Selector {
   line_selector(_, s)
-  |> core.line_selector_to_selector()
+  |> tracking.line_selector_to_selector()
 }

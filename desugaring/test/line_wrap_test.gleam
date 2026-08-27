@@ -1,4 +1,4 @@
-import desugaring/core
+import desugaring/line_wrapping
 import gleam/list
 import vxml.{type Line, Line}
 import vxml/blame
@@ -17,7 +17,7 @@ fn rewrap(
     source_contents
     |> list.map(fn(content) { Line(blame.no_blame, content) })
   let #(lines, final_width) =
-    core.rewrap_lines(lines, occupied_width, max_width)
+    line_wrapping.rewrap_lines(lines, occupied_width, max_width)
   #(line_contents(lines), final_width)
 }
 
@@ -49,7 +49,7 @@ pub fn main() {
   // included source token.
   let source_blame = blame.Src([], "source.wly", 1, 1, blame.Movable)
   let assert #([Line(first_blame, "aa"), Line(second_blame, "bb")], 2) =
-    core.rewrap_lines([Line(source_blame, "aa bb")], 0, 2)
+    line_wrapping.rewrap_lines([Line(source_blame, "aa bb")], 0, 2)
   assert first_blame == source_blame
   assert second_blame == blame.Src([], "source.wly", 1, 4, blame.Movable)
 
@@ -57,7 +57,7 @@ pub fn main() {
   // the first content placed on the generated line.
   let later_blame = blame.Src([], "source.wly", 2, 1, blame.Movable)
   let assert #([Line(combined_blame, "one two")], 7) =
-    core.rewrap_lines(
+    line_wrapping.rewrap_lines(
       [Line(source_blame, "one"), Line(later_blame, "two")],
       0,
       20,
@@ -66,5 +66,5 @@ pub fn main() {
 
   // An empty text payload leaves the preceding occupied
   // width unchanged.
-  assert core.rewrap_lines([], 3, 20) == #([], 3)
+  assert line_wrapping.rewrap_lines([], 3, 20) == #([], 3)
 }

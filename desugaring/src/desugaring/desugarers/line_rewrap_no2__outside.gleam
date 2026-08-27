@@ -2,6 +2,7 @@ import desugaring/authoring
 import desugaring/core.{
   type Desugarer, type DesugarerTransform, type DesugaringError,
 }
+import desugaring/line_wrapping
 import desugaring/nodemaps_2_transform as n2t
 import gleam/int
 import gleam/list
@@ -90,7 +91,8 @@ fn line_wrap_in_list(
         True -> 0
         False -> deficit
       }
-      let #(lines, new_indent) = core.rewrap_lines(lines, deficit, line_length)
+      let #(lines, new_indent) =
+        line_wrapping.rewrap_lines(lines, deficit, line_length)
       line_wrap_in_list(
         [T(blame, lines), ..already_wrapped],
         new_indent,

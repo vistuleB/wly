@@ -1,7 +1,8 @@
-import desugaring/core.{type Desugarer, type Pipeline, type Selector}
+import desugaring/core.{type Desugarer, type Pipeline}
 import desugaring/desugarers as dl
 import desugaring/selectors as sl
 import desugaring/tables as pr
+import desugaring/tracking.{type Selector}
 import dirtree.{type DirTree} as dt
 import either_or.{Either, Or}
 import gleam/dict.{type Dict}
@@ -532,8 +533,8 @@ pub fn vanilla_options() -> RendererOptions(z) {
 
 type Tracker {
   Tracker(
-    printing_selector: Option(core.Selector),
-    change_selector: Option(core.Selector),
+    printing_selector: Option(tracking.Selector),
+    change_selector: Option(tracking.Selector),
     step_specs: List(PipelineStepSpec),
     interactive_mode: Bool,
   )
@@ -1819,12 +1820,12 @@ fn selector_from_definition(
     with_ancestors || with_elder_siblings || with_ancestor_attrs
   let selector =
     base_selector
-    |> core.extend_selector_up(definition.window.lines_before)
-    |> core.extend_selector_down(definition.window.lines_after)
+    |> tracking.extend_selector_up(definition.window.lines_before)
+    |> tracking.extend_selector_down(definition.window.lines_after)
   case with_ancestors {
     False -> Ok(selector)
     True ->
-      Ok(core.extend_selector_to_ancestors(
+      Ok(tracking.extend_selector_to_ancestors(
         selector,
         with_elder_siblings,
         with_ancestor_attrs,
@@ -1880,11 +1881,11 @@ fn join_trackers(pm1: Option(Tracker), pm2: Tracker) -> Tracker {
   use pm1 <- on.eager_none_some(pm1, pm2)
   Tracker(
     printing_selector: case pm1.printing_selector, pm2.printing_selector {
-      Some(s1), Some(s2) -> Some(core.or_selectors(s1, s2))
+      Some(s1), Some(s2) -> Some(tracking.or_selectors(s1, s2))
       _, _ -> option.or(pm1.printing_selector, pm2.printing_selector)
     },
     change_selector: case pm1.change_selector, pm2.change_selector {
-      Some(s1), Some(s2) -> Some(core.or_selectors(s1, s2))
+      Some(s1), Some(s2) -> Some(tracking.or_selectors(s1, s2))
       _, _ -> option.or(pm1.change_selector, pm2.change_selector)
     },
     step_specs: list.append(pm1.step_specs, pm2.step_specs),
@@ -2143,18 +2144,18 @@ fn monitor_output_heading(context: PipelineStepContext) -> List(String) {
 
 fn selected_vxml(vxml: VXML, selector: Selector) {
   vxml
-  |> core.vxml_to_s_lines
+  |> tracking.vxml_to_s_lines
   |> selector
 }
 
 fn selected_output_lines(vxml: VXML, selector: Selector) -> List(String) {
   selected_vxml(vxml, selector)
-  |> core.s_lines_table_lines("", False, 2)
+  |> tracking.s_lines_table_lines("", False, 2)
 }
 
 fn selected_comparison_string(vxml: VXML, selector: Selector) -> String {
   selected_vxml(vxml, selector)
-  |> core.s_lines_table("", True, 0)
+  |> tracking.s_lines_table("", True, 0)
 }
 
 fn tracking_monitor_output(
@@ -2254,9 +2255,9 @@ fn make_dump_monitor(
                 "💠",
                 ..{
                   vxml
-                  |> core.vxml_to_s_lines
+                  |> tracking.vxml_to_s_lines
                   |> sl.all()()
-                  |> core.s_lines_table_lines("", False, 2)
+                  |> tracking.s_lines_table_lines("", False, 2)
                 }
               ])
             ],

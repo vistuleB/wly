@@ -1,8 +1,6 @@
 import either_or as eo
 import gleam/dict.{type Dict}
-import gleam/float
 import gleam/int
-import gleam/io
 import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/pair
@@ -12,7 +10,6 @@ import on
 import splitter
 import vxml.{type Attr, type Line, type VXML, Attr, Line, T, V}
 import vxml/blame.{type Blame} as bl
-import vxml/io_lines.{type OutputLine, OutputLine} as io_l
 
 // ************************************************************
 // Traffic Light for early returns
@@ -24,52 +21,10 @@ pub type TrafficLight {
 }
 
 // ************************************************************
-// css-unit parsing
-// ************************************************************
-
-pub type CSSUnit {
-  PX
-  REM
-  EM
-}
-
-// ************************************************************
 // Helper Types
 // ************************************************************
 pub type ContextualVXMLCondition =
   fn(VXML, List(VXML), List(VXML), List(VXML), List(VXML)) -> Bool
-
-pub fn parse_to_float(s: String) -> Result(Float, Nil) {
-  case float.parse(s), int.parse(s) {
-    Ok(number), _ -> Ok(number)
-    _, Ok(number) -> Ok(int.to_float(number))
-    _, _ -> Error(Nil)
-  }
-}
-
-fn extract_css_unit(s: String) -> #(String, Option(CSSUnit)) {
-  use <- on.true_false(string.ends_with(s, "rem"), fn() {
-    #(string.drop_end(s, 3), Some(REM))
-  })
-
-  use <- on.true_false(string.ends_with(s, "em"), fn() {
-    #(string.drop_end(s, 2), Some(EM))
-  })
-
-  use <- on.true_false(string.ends_with(s, "px"), fn() {
-    #(string.drop_end(s, 2), Some(PX))
-  })
-
-  #(s, None)
-}
-
-pub fn parse_number_and_optional_css_unit(
-  s: String,
-) -> Result(#(Float, Option(CSSUnit)), Nil) {
-  let #(before_unit, unit) = extract_css_unit(s)
-  use number <- on.ok(parse_to_float(before_unit))
-  Ok(#(number, unit))
-}
 
 // ************************************************************
 // LatexDelimiterPair, LatexDelimiterSingleton
@@ -165,17 +120,6 @@ pub fn opening_and_closing_delimiter_strings(
 // use <- utilities
 // ************************************************************
 
-pub fn on_v_on_t(
-  node: VXML,
-  f1: fn(Blame, String, List(Attr), List(VXML)) -> c,
-  f2: fn(Blame, List(Line)) -> c,
-) -> c {
-  case node {
-    V(blame, tag, attrs, children) -> f1(blame, tag, attrs, children)
-    T(blame, lines) -> f2(blame, lines)
-  }
-}
-
 pub fn on_t_on_v(
   node: VXML,
   f1: fn(Blame, List(Line)) -> c,
@@ -228,14 +172,6 @@ pub fn filter_descendants(
 
 pub fn descendants_with_tag(vxml: VXML, tag: String) -> List(VXML) {
   filter_descendants(vxml, is_v_and_tag_equals(_, tag))
-}
-
-pub fn descendants_with_key_val(
-  vxml: VXML,
-  key: String,
-  val: String,
-) -> List(VXML) {
-  filter_descendants(vxml, is_v_and_has_key_val(_, key, val))
 }
 
 pub fn descendants_with_class(vxml: VXML, class: String) -> List(VXML) {
@@ -363,37 +299,6 @@ pub fn pour_but_last(from: List(a), into: List(a)) -> #(List(a), a) {
   }
 }
 
-fn index_try_map_acc(
-  i: Int,
-  rest: List(a),
-  f: fn(a, Int) -> Result(b, c),
-) -> Result(List(b), c) {
-  use first, rest <- on.eager_empty_nonempty(rest, Ok([]))
-  use b <- on.ok(f(first, i))
-  use bs <- on.ok(index_try_map_acc(i + 1, rest, f))
-  Ok([b, ..bs])
-}
-
-pub fn index_try_map(
-  list: List(a),
-  f: fn(a, Int) -> Result(b, c),
-) -> Result(List(b), c) {
-  index_try_map_acc(0, list, f)
-}
-
-pub fn index_map_fold(
-  list: List(a),
-  initial_acc: b,
-  f: fn(b, a, Int) -> #(b, c),
-) -> #(b, List(c)) {
-  list.index_fold(list, #(initial_acc, []), fn(acc, item, index) {
-    let #(current_acc, results) = acc
-    let #(new_acc, result) = f(current_acc, item, index)
-    #(new_acc, [result, ..results])
-  })
-  |> pair.map_second(list.reverse)
-}
-
 pub fn try_map_fold(
   over items: List(q),
   from state: a,
@@ -414,13 +319,6 @@ pub fn list_set(items: List(a), index: Int, element: a) -> List(a) {
   let prefix = list.take(items, index)
   let suffix = list.drop(items, index + 1)
   list.append(prefix, [element, ..suffix])
-}
-
-pub fn get_at(items: List(a), index: Int) -> Result(a, Nil) {
-  case index >= list.length(items) || index < 0 {
-    True -> Error(Nil)
-    False -> list.drop(items, index) |> list.first
-  }
 }
 
 pub fn list_string_stringifier(param: List(String)) -> String {
@@ -452,18 +350,6 @@ pub fn drop_last(z: List(a)) -> List(a) {
 pub fn assert_drop_last(z: List(a)) -> List(a) {
   let assert [_, ..rest] = z |> list.reverse
   rest |> list.reverse
-}
-
-fn index_of_internal(items: List(a), thing: a, current_index: Int) -> Int {
-  case items {
-    [] -> -1
-    [first, ..] if first == thing -> current_index
-    [_, ..rest] -> index_of_internal(rest, thing, current_index + 1)
-  }
-}
-
-pub fn index_of(items: List(a), thing: a) -> Int {
-  index_of_internal(items, thing, 0)
 }
 
 pub type SingletonError {
@@ -513,13 +399,6 @@ pub fn pour_before_first(
         True -> pour(to_pour, [first, ..rest])
         False -> [first, ..pour_before_first(rest, to_pour, condition)]
       }
-  }
-}
-
-pub fn map_first(list: List(a), f: fn(a) -> a) -> List(a) {
-  case list {
-    [first, ..rest] -> [f(first), ..rest]
-    [] -> []
   }
 }
 
@@ -723,13 +602,6 @@ pub fn find_replace_if_t__batch(
 // String
 // ************************************************************
 
-pub fn drop_starting_slash(path: String) -> String {
-  case string.starts_with(path, "/") {
-    True -> string.drop_start(path, 1)
-    False -> path
-  }
-}
-
 pub fn drop_ending_slash(path: String) -> String {
   case string.ends_with(path, "/") {
     True -> string.drop_end(path, 1)
@@ -807,22 +679,6 @@ pub fn lines_first_blame(lines: List(Line)) -> Blame {
     [] -> bl.no_blame
     [first, ..] -> first.blame
   }
-}
-
-pub fn echo_lines(lines: List(Line), announcer: String) -> List(Line) {
-  let table =
-    lines
-    |> list.map(fn(line) { #(line.blame, "\"" <> line.content <> "\"") })
-    |> bl.blamed_strings_annotated_table(
-      "",
-      bl.BlameTableMarginColumnsMinMax(48, 48),
-      bl.BlameTableMarginColumnsMinMax(30, 30),
-    )
-    |> list.map(fn(l) { "   " <> l })
-    |> string.join("\n")
-  io.println(announcer <> ":\n")
-  io.println(table)
-  lines
 }
 
 fn split_lines_internal(
@@ -941,134 +797,6 @@ pub fn lines_total_chars(lines: List(Line)) -> Int {
 }
 
 // ************************************************************
-// line wrapping
-// ************************************************************
-
-type RewrapToken {
-  RewrapToken(content: String, blame: Blame)
-}
-
-type RewrapState {
-  RewrapState(
-    wrapped_lines_rev: List(Line),
-    current_tokens_rev: List(String),
-    current_line_blame: Blame,
-    current_content_width: Int,
-    occupied_width_before_text: Int,
-    max_line_width: Int,
-  )
-}
-
-fn line_to_rewrap_tokens(line: Line) -> List(RewrapToken) {
-  line.content
-  |> string.split(" ")
-  |> list.map_fold(line.blame, fn(token_blame, content) {
-    #(
-      bl.advance(token_blame, string.length(content) + 1),
-      RewrapToken(content, token_blame),
-    )
-  })
-  |> pair.second
-}
-
-fn current_line(state: RewrapState) -> Line {
-  Line(
-    state.current_line_blame,
-    state.current_tokens_rev |> list.reverse |> string.join(" "),
-  )
-}
-
-fn add_token_to_current_line(
-  state: RewrapState,
-  token: RewrapToken,
-  separator_width: Int,
-) -> RewrapState {
-  RewrapState(
-    ..state,
-    current_tokens_rev: [token.content, ..state.current_tokens_rev],
-    current_content_width: state.current_content_width
-      + separator_width
-      + string.length(token.content),
-  )
-}
-
-fn start_new_line(state: RewrapState, token: RewrapToken) -> RewrapState {
-  RewrapState(
-    wrapped_lines_rev: [current_line(state), ..state.wrapped_lines_rev],
-    current_tokens_rev: [token.content],
-    current_line_blame: token.blame,
-    current_content_width: string.length(token.content),
-    occupied_width_before_text: 0,
-    max_line_width: state.max_line_width,
-  )
-}
-
-fn rewrap_tokens(
-  remaining_tokens: List(RewrapToken),
-  state: RewrapState,
-) -> RewrapState {
-  case remaining_tokens {
-    [] -> state
-    [token, ..rest] -> {
-      let current_line_is_empty = list.is_empty(state.current_tokens_rev)
-      let separator_width = case current_line_is_empty {
-        True -> 0
-        False -> 1
-      }
-      let width_with_token =
-        state.occupied_width_before_text
-        + state.current_content_width
-        + separator_width
-        + string.length(token.content)
-
-      case current_line_is_empty || width_with_token <= state.max_line_width {
-        True ->
-          rewrap_tokens(
-            rest,
-            add_token_to_current_line(state, token, separator_width),
-          )
-        False -> rewrap_tokens(rest, start_new_line(state, token))
-      }
-    }
-  }
-}
-
-pub fn rewrap_lines(
-  lines: List(Line),
-  occupied_width_before_text: Int,
-  max_line_width: Int,
-) -> #(List(Line), Int) {
-  // 🚨
-  // right now there is no option to protect empty first line
-  // or to protect empty last line; these will be sucked in & create leading and
-  // trailing spaces instead on the next & previous lines respectively;
-  // we apparently don't need this protection functionality, so far
-  // 🚨
-  let tokens = lines |> list.flat_map(line_to_rewrap_tokens)
-  case tokens {
-    [] -> #([], occupied_width_before_text)
-    [first, ..rest] -> {
-      let initial_state =
-        RewrapState(
-          wrapped_lines_rev: [],
-          current_tokens_rev: [first.content],
-          current_line_blame: first.blame,
-          current_content_width: string.length(first.content),
-          occupied_width_before_text: occupied_width_before_text,
-          max_line_width: max_line_width,
-        )
-      let final_state = rewrap_tokens(rest, initial_state)
-      let wrapped_lines =
-        [current_line(final_state), ..final_state.wrapped_lines_rev]
-        |> list.reverse
-      let final_width =
-        final_state.occupied_width_before_text
-        + final_state.current_content_width
-      #(wrapped_lines, final_width)
-    }
-  }
-}
-
 // ************************************************************
 // last_to_first_concatenation
 // ************************************************************
@@ -1099,29 +827,6 @@ pub fn last_to_first_concatenation_in_list_list_of_lines_where_all_but_last_list
         first,
         last_to_first_concatenation_in_list_list_of_lines_where_all_but_last_list_are_already_reversed(
           rest,
-        ),
-      )
-  }
-}
-
-pub fn last_to_first_concatenation_in_list_list_of_lines_where_all_but_last_list_are_already_reversed_v2(
-  list_of_reversed_lists: List(List(Line)),
-  last_list: List(Line),
-  // (not reversed)
-) -> List(Line) {
-  case list_of_reversed_lists {
-    [] -> last_list
-    [one] ->
-      lines_last_to_first_concatenation_where_first_lines_are_already_reversed(
-        one,
-        last_list,
-      )
-    [first, ..rest] ->
-      lines_last_to_first_concatenation_where_first_lines_are_already_reversed(
-        first,
-        last_to_first_concatenation_in_list_list_of_lines_where_all_but_last_list_are_already_reversed_v2(
-          rest,
-          last_list,
         ),
       )
   }
@@ -1246,23 +951,11 @@ pub fn delete_singleton_empty_lines_in_list(nodes: List(VXML)) -> List(VXML) {
 // t
 // ************************************************************
 
-pub fn is_t_and_is_whitespace(vxml: VXML) -> Bool {
-  case vxml {
-    T(_, lines) -> lines_are_whitespace(lines)
-    _ -> False
-  }
-}
-
 pub fn is_t_and_text_contains(vxml: VXML, content: String) -> Bool {
   case vxml {
     T(_, lines) -> lines_contain(lines, content)
     _ -> False
   }
-}
-
-pub fn t_total_chars(vxml: VXML) -> Int {
-  let assert T(_, lines) = vxml
-  lines_total_chars(lines)
 }
 
 pub fn total_chars(
@@ -1310,40 +1003,6 @@ pub fn t_trim_end(node: VXML) -> Option(VXML) {
     [] -> None
     lines -> Some(T(blame, lines |> list.reverse))
   }
-}
-
-pub fn lines_super_trim_end(lines: List(Line)) -> List(Line) {
-  lines
-  |> list.reverse
-  |> list.take_while(fn(line) { string.trim_end(line.content) == "" })
-}
-
-pub fn t_super_trim_end(node: VXML) -> Option(VXML) {
-  let assert T(blame, lines) = node
-  let lines = lines_super_trim_end(lines)
-  case lines {
-    [] -> None
-    _ -> Some(T(blame, lines |> list.reverse))
-  }
-}
-
-pub fn t_drop_start(node: VXML, to_drop: Int) -> VXML {
-  let assert T(blame, lines) = node
-  let assert [first, ..rest] = lines
-  T(blame, [
-    Line(first.blame, string.drop_start(first.content, to_drop)),
-    ..rest
-  ])
-}
-
-pub fn t_drop_end(node: VXML, to_drop: Int) -> VXML {
-  let assert T(blame, lines) = node
-  let assert [first, ..rest] = lines |> list.reverse
-  T(
-    blame,
-    [Line(first.blame, string.drop_end(first.content, to_drop)), ..rest]
-      |> list.reverse,
-  )
 }
 
 pub fn t_extract_starting_spaces(node: VXML) -> #(Option(VXML), VXML) {
@@ -1482,11 +1141,6 @@ pub fn extract_first_word_from_t_node_if_t(
 // ************************************************************
 // v
 // ************************************************************
-
-pub fn v_blame(vxml: VXML) -> Blame {
-  let assert V(blame, _, _, _) = vxml
-  blame
-}
 
 pub fn v_attrs_constructor(
   blame: Blame,
@@ -1650,21 +1304,6 @@ pub fn v_prepend_child(vxml: VXML, child: VXML) -> VXML {
   V(..vxml, children: [child, ..children])
 }
 
-pub fn v_prepend_children(vxml: VXML, new: List(VXML)) -> VXML {
-  let assert V(_, _, _, children) = vxml
-  V(..vxml, children: list.append(new, children))
-}
-
-pub fn v_pour_children(vxml: VXML, new: List(VXML)) -> VXML {
-  let assert V(_, _, _, children) = vxml
-  V(..vxml, children: pour(new, children))
-}
-
-pub fn v_append_child(vxml: VXML, child: VXML) -> VXML {
-  let assert V(_, _, _, children) = vxml
-  V(..vxml, children: list.append(children, [child]))
-}
-
 pub fn append_if_not_present(items: List(a), item: a) -> List(a) {
   case list.contains(items, item) {
     True -> items
@@ -1695,34 +1334,6 @@ pub fn v_pour_before_first(
 ) -> VXML {
   let assert V(_, _, _, children) = vxml
   V(..vxml, children: pour_before_first_in_list(children, to_insert, before))
-}
-
-pub fn v_insert_child_before_first(
-  vxml: VXML,
-  child: VXML,
-  before: String,
-) -> VXML {
-  let assert V(_, _, _, children) = vxml
-  V(
-    ..vxml,
-    children: insert_child_before_first_in_list(children, child, before),
-  )
-}
-
-pub fn v_assert_append_to_last_child(vxml: VXML, child: VXML) -> VXML {
-  let assert V(_, _, _, children) = vxml
-  let assert [last, ..rest] = children |> list.reverse
-  let assert V(_, _, _, last_children) = last
-  let last = V(..last, children: list.append(last_children, [child]))
-  V(..vxml, children: [last, ..rest] |> list.reverse)
-}
-
-pub fn v_assert_append_to_second_child(vxml: VXML, child: VXML) -> VXML {
-  let assert V(_, _, _, children) = vxml
-  let assert [first, second, ..rest] = children
-  let assert V(_, _, _, second_children) = second
-  let second = V(..second, children: list.append(second_children, [child]))
-  V(..vxml, children: [first, second, ..rest])
 }
 
 pub fn v_set_attr(vxml: VXML, blame: Blame, key: String, val: String) -> VXML {
@@ -2108,19 +1719,6 @@ pub fn attrs_unique_key_or_none(
   }
 }
 
-pub fn attrs_unique_key(
-  attrs: List(Attr),
-  key: String,
-  blame: Blame,
-) -> Result(Attr, DesugaringError) {
-  case attrs_with_key(attrs, key) {
-    [one] -> Ok(one)
-    [] -> Error(DesugaringError(blame, "missing attr: '" <> key <> "'"))
-    [_, second, ..] ->
-      Error(DesugaringError(second.blame, "non-unique key: " <> key))
-  }
-}
-
 pub fn attrs_val_of_unique_key(
   attrs: List(Attr),
   key: String,
@@ -2263,21 +1861,6 @@ pub fn attrs_replace_val(
   list.map(attrs, replace_attr_val(_, from, to))
 }
 
-pub fn replace_attr_val_recursive(
-  vxml: VXML,
-  from: String,
-  to: String,
-) -> VXML {
-  case vxml {
-    T(..) -> vxml
-    V(_, _, attrs, children) -> {
-      let children = list.map(children, replace_attr_val_recursive(_, from, to))
-      let attrs = attrs_replace_val(attrs, from, to)
-      V(..vxml, attrs: attrs, children: children)
-    }
-  }
-}
-
 // ************************************************************
 // validation
 // ************************************************************
@@ -2304,13 +1887,6 @@ pub fn is_t(node: VXML) -> Bool {
 pub fn is_v(node: VXML) -> Bool {
   case node {
     V(..) -> True
-    _ -> False
-  }
-}
-
-pub fn is_v_and_has_key_val(vxml: VXML, key: String, val: String) -> Bool {
-  case vxml {
-    V(_, _, attrs, _) -> attrs_have_key_val(attrs, key, val)
     _ -> False
   }
 }
@@ -2350,13 +1926,6 @@ pub fn is_t_or_is_one_of(node: VXML, tags: List(String)) -> Bool {
   }
 }
 
-pub fn has_text_child(vxml: VXML) -> Bool {
-  case vxml {
-    V(_, _, _, children) -> list.any(children, is_t)
-    _ -> False
-  }
-}
-
 pub fn is_v_and_has_class(vxml: VXML, class: String) -> Bool {
   case vxml {
     V(_, _, attrs, _) -> attrs_have_class(attrs, class)
@@ -2369,12 +1938,6 @@ pub fn vxml_digest(vxml: VXML) -> String {
     T(..) -> "T(..)"
     V(_, tag, _, _) -> "V(_, " <> tag <> ", _, _)"
   }
-}
-
-pub fn vxmls_digest(vxmls: List(VXML)) -> String {
-  vxmls
-  |> list.map(vxml_digest)
-  |> string.join(", ")
 }
 
 // ************************************************************
@@ -2530,24 +2093,6 @@ pub fn attrs_append_classes(
     list.index_fold(attrs, #(-1, Attr(blame, "", "")), fn(acc, attr, i) {
       case acc.0, attr.key {
         -1, "class" -> #(i, Attr(..attr, val: merge_classes(attr.val, classes)))
-        _, _ -> acc
-      }
-    })
-  case index >= 0 {
-    True -> list_set(attrs, index, new_attr)
-    False -> list.append(attrs, [Attr(blame, "class", classes)])
-  }
-}
-
-pub fn attrs_prepend_classes(
-  attrs: List(Attr),
-  blame: Blame,
-  classes: String,
-) -> List(Attr) {
-  let #(index, new_attr) =
-    list.index_fold(attrs, #(-1, Attr(blame, "", "")), fn(acc, attr, i) {
-      case acc.0, attr.key {
-        -1, "class" -> #(i, Attr(..attr, val: merge_classes(classes, attr.val)))
         _, _ -> acc
       }
     })
@@ -2858,401 +2403,6 @@ pub type Desugarer {
 }
 
 // ************************************************************
-// tracking-related part 1: types
-// ************************************************************
-
-/// A VXML instance is serialized into a list of SLine for the
-/// purposes of tracking (see "--track" command line option);
-/// each SLine (for "Selected (or not) Line") is one of four
-/// variants:
-///
-/// - VSLine: a tag "<> ..." of a V-node
-/// - ASLine: a key-attr pair line "key=val" of a V-node
-/// - TSLine: the caret "<>" that marks the start of a T-node
-/// - LSLine: a content-line for a T-node
-///
-/// Each SLine comes with a selection status, given by its 'selected'
-/// field.
-pub type SLine {
-  VSLine(
-    blame: Blame,
-    indent: Int,
-    content: String,
-    selected: SelectionStatus,
-    tag: String,
-  )
-  ASLine(
-    blame: Blame,
-    indent: Int,
-    content: String,
-    selected: SelectionStatus,
-    key: String,
-    val: String,
-  )
-  TSLine(blame: Blame, indent: Int, content: String, selected: SelectionStatus)
-  LSLine(blame: Blame, indent: Int, content: String, selected: SelectionStatus)
-}
-
-pub type SelectionStatus {
-  NotSelected
-  OG
-  Bystander
-}
-
-pub type LineSelector =
-  fn(SLine) -> SelectionStatus
-
-pub type Selector =
-  fn(List(SLine)) -> List(SLine)
-
-// ************************************************************
-// tracking-related part 2: VXML -> List(SLine)
-// ************************************************************
-
-fn v_s_line(blame: Blame, indent: Int, tag: String) -> SLine {
-  VSLine(blame, indent, "<> " <> tag, NotSelected, tag)
-}
-
-fn a_s_line(blame: Blame, indent: Int, key: String, val: String) -> SLine {
-  ASLine(blame, indent, key <> "=" <> val, NotSelected, key, val)
-}
-
-fn t_s_line(blame: Blame, indent: Int) -> SLine {
-  TSLine(blame, indent, "<>", NotSelected)
-}
-
-fn l_s_line(blame: Blame, indent: Int, content: String) -> SLine {
-  LSLine(
-    blame,
-    indent,
-    vxml.vxml_line_delimiter <> content <> vxml.vxml_line_delimiter,
-    NotSelected,
-  )
-}
-
-fn v_s_lines(vxml: VXML, indent: Int) -> List(SLine) {
-  let assert V(blame, tag, attrs, _) = vxml
-  let attrs =
-    attrs
-    |> list.map(fn(a) { a_s_line(a.blame, indent + 2, a.key, a.val) })
-  [v_s_line(blame, indent, tag), ..attrs]
-}
-
-fn t_s_lines(vxml: VXML, indent: Int) -> List(SLine) {
-  let assert T(blame, lines) = vxml
-  let lines =
-    lines
-    |> list.map(fn(line) { l_s_line(line.blame, indent + 2, line.content) })
-  [t_s_line(blame, indent), ..lines]
-}
-
-fn vxml_to_s_lines_internal(
-  previous_lines: List(SLine),
-  vxml: VXML,
-  indent: Int,
-) -> List(SLine) {
-  case vxml {
-    V(_, _, _, children) -> {
-      list.fold(
-        children,
-        pour(v_s_lines(vxml, indent), previous_lines),
-        fn(acc, child) { vxml_to_s_lines_internal(acc, child, indent + 2) },
-      )
-    }
-    T(..) -> {
-      pour(t_s_lines(vxml, indent), previous_lines)
-    }
-  }
-}
-
-pub fn vxml_to_s_lines(vxml: VXML) -> List(SLine) {
-  vxml_to_s_lines_internal([], vxml, 0)
-  |> list.reverse
-}
-
-// ************************************************************
-// tracking-related part 3: creating an initial selection from a LineSelector
-// ************************************************************
-
-pub fn apply_line_selector_to_line(
-  line: SLine,
-  line_selector: LineSelector,
-) -> SLine {
-  let sel = line_selector(line)
-  case line {
-    VSLine(_, _, _, _, _) -> VSLine(..line, selected: sel)
-    ASLine(_, _, _, _, _, _) -> ASLine(..line, selected: sel)
-    TSLine(_, _, _, _) -> TSLine(..line, selected: sel)
-    LSLine(_, _, _, _) -> LSLine(..line, selected: sel)
-  }
-}
-
-pub fn line_selector_to_selector(line_selector: LineSelector) -> Selector {
-  list.map(_, apply_line_selector_to_line(_, line_selector))
-}
-
-// ************************************************************
-// tracking-related part 4: List(SLine) -> List(SLine) operations (extending selections)
-// ************************************************************
-
-fn bring_to_bystander_level(line: SLine) -> SLine {
-  case line.selected {
-    OG | Bystander -> line
-    _ ->
-      case line {
-        VSLine(_, _, _, _, _) -> VSLine(..line, selected: Bystander)
-        ASLine(_, _, _, _, _, _) -> ASLine(..line, selected: Bystander)
-        TSLine(_, _, _, _) -> TSLine(..line, selected: Bystander)
-        LSLine(_, _, _, _) -> LSLine(..line, selected: Bystander)
-      }
-  }
-}
-
-fn is_v_or_t_s_line(line: SLine) -> Bool {
-  case line {
-    VSLine(_, _, _, _, _) -> True
-    TSLine(_, _, _, _) -> True
-    _ -> False
-  }
-}
-
-fn is_a_s_line(line: SLine) -> Bool {
-  case line {
-    ASLine(_, _, _, _, _, _) -> True
-    _ -> False
-  }
-}
-
-fn is_og(line: SLine) -> Bool {
-  line.selected == OG
-}
-
-fn extend_selection_down_no_reverse(
-  lines: List(SLine),
-  amt: Int,
-) -> List(SLine) {
-  let assert True = amt >= 0
-  list.fold(lines, #(0, []), fn(acc, line) {
-    let #(gas, lines) = acc
-    let gas = case line.selected == OG {
-      True -> amt + 1
-      False -> gas - 1
-    }
-    let lines = case gas > 0 {
-      True -> [line |> bring_to_bystander_level, ..lines]
-      False -> [line, ..lines]
-    }
-    #(gas, lines)
-  })
-  |> pair.second
-}
-
-pub fn extend_selection_down(lines: List(SLine), amt: Int) -> List(SLine) {
-  lines
-  |> extend_selection_down_no_reverse(amt)
-  |> list.reverse
-}
-
-pub fn extend_selection_up(lines: List(SLine), amt: Int) -> List(SLine) {
-  lines
-  |> list.reverse
-  |> extend_selection_down_no_reverse(amt)
-}
-
-pub fn extend_selection_to_ancestors(
-  lines: List(SLine),
-  with_elder_siblings w1: Bool,
-  with_ancestor_attrs w2: Bool,
-  with_elder_sibling_attrs w3: Bool,
-) -> List(SLine) {
-  lines
-  |> list.reverse
-  |> list.fold(#(-1, []), fn(acc, line) {
-    let #(indent, lines) = acc
-    let is_v_or_t = is_v_or_t_s_line(line)
-    let is_a = is_a_s_line(line)
-    let line = case
-      { line.indent < indent }
-      || { line.indent == indent && { { is_v_or_t && w1 } || { is_a && w2 } } }
-      || { line.indent == indent + 2 && w1 && is_a && w3 }
-    {
-      True -> line |> bring_to_bystander_level
-      False -> line
-    }
-    let indent = case
-      { line.indent < indent && is_v_or_t }
-      || { line.indent > indent && is_og(line) }
-    {
-      True -> line.indent
-      False -> indent
-    }
-    #(indent, [line, ..lines])
-  })
-  |> pair.second
-}
-
-pub fn extend_selector_up(f: Selector, amt: Int) -> Selector {
-  fn(lines) {
-    lines
-    |> f
-    |> extend_selection_up(amt)
-  }
-}
-
-pub fn extend_selector_down(f: Selector, amt: Int) -> Selector {
-  fn(lines) {
-    lines
-    |> f
-    |> extend_selection_down(amt)
-  }
-}
-
-pub fn extend_selector_to_ancestors(
-  f: Selector,
-  with_elder_siblings w1: Bool,
-  with_ancestor_attrs w2: Bool,
-  with_elder_sibling_attrs w3: Bool,
-) -> Selector {
-  fn(lines) {
-    lines
-    |> f
-    |> extend_selection_to_ancestors(w1, w2, w3)
-  }
-}
-
-// ************************************************************
-// tracking-related part 5: or-ing Selectors (esoteric, but we do it)
-// ************************************************************
-
-fn or_a_pair_of_s_lines(l1: SLine, l2: SLine) -> SLine {
-  // let assert True = l1.content == l2.content
-  // let assert True = l1.indent == l2.indent
-  // let assert True = l1.blame == l2.blame
-  case l1.selected, l2.selected {
-    OG, _ -> l1
-    _, OG -> l2
-    Bystander, _ -> l1
-    _, Bystander -> l2
-    _, _ -> l1
-  }
-}
-
-fn or_two_lists_of_s_lines(l1: List(SLine), l2: List(SLine)) -> List(SLine) {
-  let assert True = list.length(l1) == list.length(l2)
-  list.map2(l1, l2, or_a_pair_of_s_lines)
-}
-
-pub fn or_selectors(s1: Selector, s2: Selector) -> Selector {
-  fn(lines) {
-    let l1 = lines |> s1
-    let l2 = lines |> s2
-    or_two_lists_of_s_lines(l1, l2)
-  }
-}
-
-// ************************************************************
-// tracking-related part 6: pretty-printing selections
-// ************************************************************
-
-type SelectionOutputState {
-  SelectionOutputState(
-    has_selected_lines: Bool,
-    omitted_lines: Option(#(Int, Int)),
-    output_lines: List(OutputLine),
-  )
-}
-
-pub fn s_line_to_output_line(line: SLine) -> OutputLine {
-  OutputLine(line.blame, line.indent, line.content)
-}
-
-pub fn s_lines_to_output_lines(
-  lines: List(SLine),
-  dry_run: Bool,
-) -> List(OutputLine) {
-  let s2l = s_line_to_output_line
-  lines
-  |> list.fold(SelectionOutputState(False, None, []), fn(state, line) {
-    case line.selected {
-      OG | Bystander ->
-        case state.omitted_lines {
-          None ->
-            SelectionOutputState(
-              has_selected_lines: True,
-              omitted_lines: None,
-              output_lines: [line |> s2l, ..state.output_lines],
-            )
-
-          Some(#(indentation, num_lines)) ->
-            SelectionOutputState(
-              has_selected_lines: True,
-              omitted_lines: None,
-              output_lines: [
-                line |> s2l,
-                OutputLine(
-                  bl.NoBlame([
-                    ins(case dry_run {
-                      True -> 0
-                      False -> num_lines
-                    })
-                    <> " unselected lines",
-                  ]),
-                  indentation,
-                  "...",
-                ),
-                ..state.output_lines
-              ],
-            )
-        }
-      NotSelected ->
-        case state.has_selected_lines, state.omitted_lines {
-          False, None -> state
-
-          True, None ->
-            SelectionOutputState(
-              ..state,
-              omitted_lines: Some(#(line.indent, 1)),
-            )
-
-          True, Some(#(indentation, num_lines)) ->
-            SelectionOutputState(
-              ..state,
-              omitted_lines: Some(#(
-                int.min(line.indent, indentation),
-                num_lines + 1,
-              )),
-            )
-
-          False, Some(_) -> panic as "shouldn't reach this combo"
-        }
-    }
-  })
-  |> fn(state) { state.output_lines }
-  |> list.reverse
-}
-
-pub fn s_lines_table_lines(
-  lines: List(SLine),
-  banner: String,
-  dry_run: Bool,
-  indent: Int,
-) -> List(String) {
-  lines
-  |> s_lines_to_output_lines(dry_run)
-  |> io_l.output_lines_table_lines(banner, indent)
-}
-
-pub fn s_lines_table(
-  lines: List(SLine),
-  banner: String,
-  dry_run: Bool,
-  indent: Int,
-) -> String {
-  lines
-  |> s_lines_to_output_lines(dry_run)
-  |> io_l.output_lines_table(banner, indent)
-}
-
 // ************************************************************
 // Pipeline
 // ************************************************************
@@ -3260,35 +2410,3 @@ pub fn s_lines_table(
 /// The ordered VXML -> VXML transformation stage, not the full render loop.
 pub type Pipeline =
   List(Desugarer)
-
-// some debugging utils
-
-fn first_difference_acc(
-  list1: List(String),
-  list2: List(String),
-  index: Int,
-) -> Result(#(Int, String, String), Nil) {
-  case list1, list2 {
-    [h1, ..], [h2, ..] if h1 != h2 -> {
-      // Point of difference found
-      Ok(#(index, h1, h2))
-    }
-    [_, ..t1], [_, ..t2] -> {
-      // Characters match, continue to next index
-      first_difference_acc(t1, t2, index + 1)
-    }
-    _, _ -> {
-      // No differences found (e.g., strings are identical or one is a perfect prefix of the other)
-      Error(Nil)
-    }
-  }
-}
-
-pub fn string_first_difference(
-  str1: String,
-  str2: String,
-) -> Result(#(Int, String, String), Nil) {
-  let list1 = string.to_graphemes(str1)
-  let list2 = string.to_graphemes(str2)
-  first_difference_acc(list1, list2, 0)
-}
