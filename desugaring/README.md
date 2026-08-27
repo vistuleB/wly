@@ -31,8 +31,10 @@ A `Pipeline` is a list of `Desugarer` values. Each desugarer is a named transfor
 ## Main Modules
 
 - `desugaring` contains the renderer types, default parser/assembler/filterer/splitter/emitter/writer utilities, command-line option handling, tracking, dumping, and `run_renderer`.
-- `desugaring/core` contains the `Desugarer` and `Pipeline` types, warning/error types, VXML helpers, selector helpers, and shared desugarer utilities.
+- `desugaring/core` contains the `Desugarer` and `Pipeline` types, warning/error types, VXML helpers, and shared desugarer utilities.
 - `desugaring/nodemaps_2_transform` contains the tree-walking machinery used by many desugarers.
+- `desugaring/tracking` contains selector types, selection operations, and tracking-output rendering.
+- `desugaring/line_wrapping` contains the blame-preserving line-wrapping engine.
 - `desugaring/desugarers` is generated and re-exports desugarer constructors.
 - `desugaring/pipelines` contains reusable groups of desugarers for common text-splitting patterns such as math delimiters, markdown links, and inline markup.
 - `desugaring/writerly_defaults` contains Writerly adapter defaults for the generic renderer.
