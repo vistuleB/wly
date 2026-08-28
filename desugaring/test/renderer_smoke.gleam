@@ -1,6 +1,6 @@
-import desugaring/desugarers as dl
 import desugaring as ds
-import desugaring/core as core
+import desugaring/core
+import desugaring/desugarers as dl
 
 fn smoke_pipeline() -> core.Pipeline {
   [

@@ -320,6 +320,14 @@ pub fn s_lines_to_output_lines(
   lines: List(SLine),
   dry_run: Bool,
 ) -> List(OutputLine) {
+  s_lines_to_output_lines_with(lines, dry_run, True)
+}
+
+pub fn s_lines_to_output_lines_with(
+  lines: List(SLine),
+  dry_run: Bool,
+  include_ellipses: Bool,
+) -> List(OutputLine) {
   let s2l = s_line_to_output_line
   lines
   |> list.fold(SelectionOutputState(False, None, []), fn(state, line) {
@@ -337,21 +345,24 @@ pub fn s_lines_to_output_lines(
             SelectionOutputState(
               has_selected_lines: True,
               omitted_lines: None,
-              output_lines: [
-                line |> s2l,
-                OutputLine(
-                  bl.NoBlame([
-                    ins(case dry_run {
-                      True -> 0
-                      False -> num_lines
-                    })
-                    <> " unselected lines",
-                  ]),
-                  indentation,
-                  "...",
-                ),
-                ..state.output_lines
-              ],
+              output_lines: case include_ellipses {
+                True -> [
+                  line |> s2l,
+                  OutputLine(
+                    bl.NoBlame([
+                      ins(case dry_run {
+                        True -> 0
+                        False -> num_lines
+                      })
+                      <> " unselected lines",
+                    ]),
+                    indentation,
+                    "...",
+                  ),
+                  ..state.output_lines
+                ]
+                False -> [line |> s2l, ..state.output_lines]
+              },
             )
         }
       NotSelected ->
@@ -390,6 +401,62 @@ pub fn s_lines_table_lines(
   lines
   |> s_lines_to_output_lines(dry_run)
   |> io_l.output_lines_table_lines(banner, indent)
+}
+
+pub fn s_lines_table_lines_with(
+  lines: List(SLine),
+  banner: String,
+  dry_run: Bool,
+  indent: Int,
+  blame_digest_margin: bl.BlameTableMarginColumnsMinMax,
+  comments_margin: bl.BlameTableMarginColumnsMinMax,
+) -> List(String) {
+  lines
+  |> s_lines_to_output_lines(dry_run)
+  |> io_l.output_lines_table_lines_with(
+    banner,
+    indent,
+    blame_digest_margin,
+    comments_margin,
+  )
+}
+
+pub fn s_lines_table_lines_with_options(
+  lines: List(SLine),
+  banner: String,
+  dry_run: Bool,
+  indent: Int,
+  blame_digest_margin: bl.BlameTableMarginColumnsMinMax,
+  comments_margin: bl.BlameTableMarginColumnsMinMax,
+  include_ellipses: Bool,
+) -> List(String) {
+  lines
+  |> s_lines_to_output_lines_with(dry_run, include_ellipses)
+  |> io_l.output_lines_table_lines_with(
+    banner,
+    indent,
+    blame_digest_margin,
+    comments_margin,
+  )
+}
+
+pub fn s_lines_verbatim_lines(
+  lines: List(SLine),
+  dry_run: Bool,
+) -> List(String) {
+  lines
+  |> s_lines_to_output_lines(dry_run)
+  |> list.map(io_l.output_line_to_string)
+}
+
+pub fn s_lines_verbatim_lines_with_options(
+  lines: List(SLine),
+  dry_run: Bool,
+  include_ellipses: Bool,
+) -> List(String) {
+  lines
+  |> s_lines_to_output_lines_with(dry_run, include_ellipses)
+  |> list.map(io_l.output_line_to_string)
 }
 
 pub fn s_lines_table(

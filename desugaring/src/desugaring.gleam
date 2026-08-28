@@ -28,7 +28,7 @@ import vxml/io_lines.{type InputLine, type OutputLine, OutputLine} as io_l
 
 const default_times_table_char_width = 90
 
-const pipeline_runner_margin = 4
+const pipeline_runner_margin = 2
 
 const tracking_progress_interval = 10
 
@@ -66,7 +66,7 @@ pub opaque type Monitor {
 
 pub opaque type MonitorFactory {
   TrackingMonitorFactory(Tracker)
-  DumpMonitorFactory(List(PipelineStepSpec))
+  DumpMonitorFactory(List(PipelineStepSpec), VxmlMonitorOutput)
 }
 
 pub fn new_monitor(
@@ -492,6 +492,8 @@ pub type RendererOptions(z) {
     only_path_key_vals: List(#(String, String, String)),
     monitors: List(Monitor),
     monitor_factories: List(MonitorFactory),
+    output_lines_table_default_comment_columns: Int,
+    output_lines_table_default_blame_columns: Int,
     echo_assembled_lines: Bool,
     echo_parsed_vxml: Bool,
     echo_filtered_vxml: Bool,
@@ -515,6 +517,8 @@ pub fn vanilla_options() -> RendererOptions(z) {
     only_path_key_vals: [],
     monitors: [],
     monitor_factories: [],
+    output_lines_table_default_comment_columns: 30,
+    output_lines_table_default_blame_columns: 48,
     echo_assembled_lines: False,
     echo_parsed_vxml: False,
     echo_filtered_vxml: False,
@@ -537,7 +541,14 @@ type Tracker {
     change_selector: Option(tracking.Selector),
     step_specs: List(PipelineStepSpec),
     interactive_mode: Bool,
+    output: Option(VxmlMonitorOutput),
+    include_selection_ellipses: Option(Bool),
   )
+}
+
+type VxmlMonitorOutput {
+  TrackingTable(blame_columns: Option(Int), comment_columns: Option(Int))
+  TrackingVerbatim
 }
 
 pub type CommandLineAmendments {
@@ -836,6 +847,24 @@ pub fn track_cli_usage(header: String) {
     <> "     mistaken for a desugarer-relative range, or to force output.",
   )
   io.println("")
+  io.println(margin <> "  output formatting")
+  io.println(
+    margin <> "     -verbatim  print raw selected VXML without the blame table",
+  )
+  io.println(margin <> "     -cc<n>     use n columns for blame comments")
+  io.println(margin <> "     -bc<n>     use n columns for blame provenance")
+  io.println(margin <> "     -no-ellipses  suppress lines marking omitted VXML")
+  io.println("")
+  io.println(
+    margin <> "     A column count of zero suppresses that table column.",
+  )
+  io.println(margin <> "     Column options have no effect with '-verbatim'.")
+  io.println("")
+  io.println(margin <> "       gleam run -- --track src=img/23.svg -cc10 -bc20")
+  io.println(
+    margin <> "       gleam run -- --track \"<> ImageRight\" -verbatim",
+  )
+  io.println("")
   io.println(margin <> "  interactive mode")
   io.println(
     margin <> "     Add '-i' to pause after each monitor output. At the prompt:",
@@ -1130,13 +1159,13 @@ pub fn process_command_line_arguments(
         }
 
         "--dump" -> {
-          use specs <- on.ok(parse_dump_args(values))
+          use #(specs, output) <- on.ok(parse_dump_args(values))
           case amendments.dump_monitor_factory {
             None ->
               Ok(
                 CommandLineAmendments(
                   ..amendments,
-                  dump_monitor_factory: Some(DumpMonitorFactory(specs)),
+                  dump_monitor_factory: Some(DumpMonitorFactory(specs, output)),
                 ),
               )
             _ -> Error(DuplicateOption(option))
@@ -1626,6 +1655,118 @@ fn parse_selector_anchor(
   }
 }
 
+type VxmlMonitorOutputArguments {
+  VxmlMonitorOutputArguments(
+    verbatim: Bool,
+    blame_columns: Option(Int),
+    comment_columns: Option(Int),
+    remaining: List(String),
+  )
+}
+
+fn parse_tracking_column_count(
+  option: String,
+  value: String,
+) -> Result(Int, CommandLineError) {
+  use columns <- on.error_ok(int.parse(value), fn(_) {
+    Error(SelectorValues("invalid column count in '" <> option <> value <> "'"))
+  })
+  case columns >= 0 {
+    True -> Ok(columns)
+    False ->
+      Error(SelectorValues(
+        "column count cannot be negative in '" <> option <> value <> "'",
+      ))
+  }
+}
+
+fn parse_vxml_monitor_output_arguments(
+  values: List(String),
+) -> Result(#(VxmlMonitorOutput, List(String)), CommandLineError) {
+  use parsed <- on.ok(
+    list.try_fold(
+      values,
+      VxmlMonitorOutputArguments(False, None, None, []),
+      fn(acc, value) {
+        case
+          value == "-verbatim",
+          string.starts_with(value, "-bc"),
+          string.starts_with(value, "-cc")
+        {
+          True, _, _ ->
+            case acc.verbatim {
+              True -> Error(SelectorValues("duplicate '-verbatim' option"))
+              False -> Ok(VxmlMonitorOutputArguments(..acc, verbatim: True))
+            }
+          _, True, _ ->
+            case acc.blame_columns {
+              Some(_) -> Error(SelectorValues("duplicate '-bc' option"))
+              None -> {
+                use columns <- on.ok(parse_tracking_column_count(
+                  "-bc",
+                  string.drop_start(value, 3),
+                ))
+                Ok(
+                  VxmlMonitorOutputArguments(
+                    ..acc,
+                    blame_columns: Some(columns),
+                  ),
+                )
+              }
+            }
+          _, _, True ->
+            case acc.comment_columns {
+              Some(_) -> Error(SelectorValues("duplicate '-cc' option"))
+              None -> {
+                use columns <- on.ok(parse_tracking_column_count(
+                  "-cc",
+                  string.drop_start(value, 3),
+                ))
+                Ok(
+                  VxmlMonitorOutputArguments(
+                    ..acc,
+                    comment_columns: Some(columns),
+                  ),
+                )
+              }
+            }
+          _, _, _ ->
+            Ok(
+              VxmlMonitorOutputArguments(
+                ..acc,
+                remaining: list.append(acc.remaining, [value]),
+              ),
+            )
+        }
+      },
+    ),
+  )
+
+  case parsed.verbatim {
+    True -> Ok(#(TrackingVerbatim, parsed.remaining))
+    False ->
+      Ok(#(
+        TrackingTable(parsed.blame_columns, parsed.comment_columns),
+        parsed.remaining,
+      ))
+  }
+}
+
+fn parse_track_ellipsis_argument(
+  values: List(String),
+) -> Result(#(Bool, List(String)), CommandLineError) {
+  use #(found, remaining) <- on.ok(
+    list.try_fold(values, #(False, []), fn(acc, value) {
+      case value == "-no-ellipses", acc.0 {
+        True, True -> Error(SelectorValues("duplicate '-no-ellipses' option"))
+        True, False -> Ok(#(True, acc.1))
+        False, _ -> Ok(#(acc.0, list.append(acc.1, [value])))
+      }
+    }),
+  )
+  Ok(#(!found, remaining))
+}
+
 fn partition_track_arguments(
   values: List(String),
 ) -> Result(#(Bool, List(String), List(PipelineStepSpec)), CommandLineError) {
@@ -1840,6 +1981,10 @@ fn parse_track_args(values: List(String)) -> Result(Tracker, CommandLineError) {
   })
 
   let assert True = first_payload != ""
+  use #(include_selection_ellipses, values) <- on.ok(
+    parse_track_ellipsis_argument(values),
+  )
+  use #(output, values) <- on.ok(parse_vxml_monitor_output_arguments(values))
   use #(with_enter, selector_arguments, step_specs) <- on.ok(
     partition_track_arguments(values),
   )
@@ -1861,6 +2006,8 @@ fn parse_track_args(values: List(String)) -> Result(Tracker, CommandLineError) {
     change_selector: Some(change_selector),
     step_specs: step_specs,
     interactive_mode: with_enter,
+    output: Some(output),
+    include_selection_ellipses: Some(include_selection_ellipses),
   ))
 }
 
@@ -1874,6 +2021,8 @@ fn parse_track_steps_args(
     change_selector: None,
     step_specs: step_specs,
     interactive_mode: with_enter,
+    output: None,
+    include_selection_ellipses: None,
   ))
 }
 
@@ -1890,6 +2039,14 @@ fn join_trackers(pm1: Option(Tracker), pm2: Tracker) -> Tracker {
     },
     step_specs: list.append(pm1.step_specs, pm2.step_specs),
     interactive_mode: { pm1.interactive_mode || pm2.interactive_mode },
+    output: case pm2.output {
+      Some(_) -> pm2.output
+      None -> pm1.output
+    },
+    include_selection_ellipses: case pm2.include_selection_ellipses {
+      Some(_) -> pm2.include_selection_ellipses
+      None -> pm1.include_selection_ellipses
+    },
   )
 }
 
@@ -1906,8 +2063,10 @@ fn join_tracking_monitor_factory(
 
 fn parse_dump_args(
   values: List(String),
-) -> Result(List(PipelineStepSpec), CommandLineError) {
-  parse_pipeline_step_specs(values)
+) -> Result(#(List(PipelineStepSpec), VxmlMonitorOutput), CommandLineError) {
+  use #(output, values) <- on.ok(parse_vxml_monitor_output_arguments(values))
+  use specs <- on.ok(parse_pipeline_step_specs(values))
+  Ok(#(specs, output))
 }
 
 // --times parsing
@@ -2005,6 +2164,8 @@ pub fn amend_renderer_options_by_command_line_amendments(
     monitor_factories: options.monitor_factories
       |> append_optional_monitor_factory(amendments.tracking_monitor_factory)
       |> append_optional_monitor_factory(amendments.dump_monitor_factory),
+    output_lines_table_default_comment_columns: options.output_lines_table_default_comment_columns,
+    output_lines_table_default_blame_columns: options.output_lines_table_default_blame_columns,
     echo_assembled_lines: amendments.echo_assembled
       || options.echo_assembled_lines,
     echo_parsed_vxml: amendments.echo_parsed || options.echo_parsed_vxml,
@@ -2148,9 +2309,38 @@ fn selected_vxml(vxml: VXML, selector: Selector) {
   |> selector
 }
 
-fn selected_output_lines(vxml: VXML, selector: Selector) -> List(String) {
-  selected_vxml(vxml, selector)
-  |> tracking.s_lines_table_lines("", False, 2)
+fn selected_output_lines(
+  vxml: VXML,
+  selector: Selector,
+  output: VxmlMonitorOutput,
+  include_ellipses: Bool,
+  table_indent: Int,
+  default_blame_columns: Int,
+  default_comment_columns: Int,
+) -> List(String) {
+  let lines = selected_vxml(vxml, selector)
+  case output {
+    TrackingVerbatim ->
+      tracking.s_lines_verbatim_lines_with_options(
+        lines,
+        False,
+        include_ellipses,
+      )
+    TrackingTable(blame_columns, comment_columns) -> {
+      let blame_columns = option.unwrap(blame_columns, default_blame_columns)
+      let comment_columns =
+        option.unwrap(comment_columns, default_comment_columns)
+      tracking.s_lines_table_lines_with_options(
+        lines,
+        "",
+        False,
+        table_indent,
+        bl.BlameTableMarginColumnsMinMax(blame_columns, blame_columns),
+        bl.BlameTableMarginColumnsMinMax(comment_columns, comment_columns),
+        include_ellipses,
+      )
+    }
+  }
 }
 
 fn selected_comparison_string(vxml: VXML, selector: Selector) -> String {
@@ -2158,26 +2348,49 @@ fn selected_comparison_string(vxml: VXML, selector: Selector) -> String {
   |> tracking.s_lines_table("", True, 0)
 }
 
+fn vxml_monitor_output_margin(
+  output: VxmlMonitorOutput,
+) -> MonitorOutputMargin {
+  case output {
+    TrackingTable(_, _) -> AtRunnerMargin
+    TrackingVerbatim -> Verbatim
+  }
+}
+
 fn tracking_monitor_output(
   vxml: VXML,
   selector: Selector,
   context: PipelineStepContext,
+  output: VxmlMonitorOutput,
+  include_ellipses: Bool,
+  default_blame_columns: Int,
+  default_comment_columns: Int,
 ) -> MonitorOutput {
   MonitorOutput(
     lines: [
       "💠",
       ..list.append(monitor_output_heading(context), [
         "💠",
-        ..selected_output_lines(vxml, selector)
+        ..selected_output_lines(
+          vxml,
+          selector,
+          output,
+          include_ellipses,
+          0,
+          default_blame_columns,
+          default_comment_columns,
+        )
       ])
     ],
-    margin: AtRunnerMargin,
+    margin: vxml_monitor_output_margin(output),
   )
 }
 
 fn make_tracking_monitor(
   tracker: Tracker,
   pipeline: Pipeline,
+  default_blame_columns: Int,
+  default_comment_columns: Int,
 ) -> Result(Monitor, String) {
   use ResolvedStepSelection(on_change_steps, forced_steps) <- on.ok(
     resolve_pipeline_step_specs(tracker.step_specs, pipeline),
@@ -2187,6 +2400,10 @@ fn make_tracking_monitor(
     option.unwrap(tracker.printing_selector, fn(lines) { lines })
   let change_selector =
     option.unwrap(tracker.change_selector, printing_selector)
+  let output = option.unwrap(tracker.output, TrackingTable(None, None))
+  let output_margin = vxml_monitor_output_margin(output)
+  let include_selection_ellipses =
+    option.unwrap(tracker.include_selection_ellipses, True)
   new_monitor("track", #(None, None), fn(vxml, state, context) {
     let #(previous, last_output_step) = state
     let forced = list.contains(forced_steps, context.step_no)
@@ -2195,9 +2412,18 @@ fn make_tracking_monitor(
       False -> #(previous, [])
       True -> {
         let comparison = selected_comparison_string(vxml, change_selector)
-        let output = tracking_monitor_output(vxml, printing_selector, context)
+        let monitor_output =
+          tracking_monitor_output(
+            vxml,
+            printing_selector,
+            context,
+            output,
+            include_selection_ellipses,
+            default_blame_columns,
+            default_comment_columns,
+          )
         case forced || Some(comparison) != previous {
-          True -> #(Some(comparison), [output])
+          True -> #(Some(comparison), [monitor_output])
           False -> #(Some(comparison), [])
         }
       }
@@ -2216,7 +2442,7 @@ fn make_tracking_monitor(
           True -> [
             MonitorOutput(
               lines: ["..." <> ins(context.step_no) <> ". " <> desugarer.name],
-              margin: AtRunnerMargin,
+              margin: output_margin,
             ),
           ]
           False -> []
@@ -2235,7 +2461,10 @@ fn make_tracking_monitor(
 
 fn make_dump_monitor(
   specs: List(PipelineStepSpec),
+  output: VxmlMonitorOutput,
   pipeline: Pipeline,
+  default_blame_columns: Int,
+  default_comment_columns: Int,
 ) -> Result(Monitor, String) {
   use ResolvedStepSelection(on_change_steps, forced_steps) <- on.ok(
     resolve_pipeline_step_specs(specs, pipeline),
@@ -2247,23 +2476,26 @@ fn make_dump_monitor(
     case dump_all || list.contains(selected_steps, context.step_no) {
       False -> Ok(#(state, []))
       True -> {
-        let output =
+        let monitor_output =
           MonitorOutput(
             lines: [
               "💠",
               ..list.append(monitor_output_heading(context), [
                 "💠",
-                ..{
-                  vxml
-                  |> tracking.vxml_to_s_lines
-                  |> sl.all()()
-                  |> tracking.s_lines_table_lines("", False, 2)
-                }
+                ..selected_output_lines(
+                  vxml,
+                  sl.all(),
+                  output,
+                  True,
+                  0,
+                  default_blame_columns,
+                  default_comment_columns,
+                )
               ])
             ],
-            margin: AtRunnerMargin,
+            margin: vxml_monitor_output_margin(output),
           )
-        Ok(#(state, [output]))
+        Ok(#(state, [monitor_output]))
       }
     }
   })
@@ -2278,8 +2510,20 @@ fn make_monitors(
     list.try_map(options.monitor_factories, fn(factory) {
       case factory {
         TrackingMonitorFactory(tracker) ->
-          make_tracking_monitor(tracker, pipeline)
-        DumpMonitorFactory(specs) -> make_dump_monitor(specs, pipeline)
+          make_tracking_monitor(
+            tracker,
+            pipeline,
+            options.output_lines_table_default_blame_columns,
+            options.output_lines_table_default_comment_columns,
+          )
+        DumpMonitorFactory(specs, output) ->
+          make_dump_monitor(
+            specs,
+            output,
+            pipeline,
+            options.output_lines_table_default_blame_columns,
+            options.output_lines_table_default_comment_columns,
+          )
       }
     }),
     fn(message) { Error(DesugarerNameNotFoundError(message)) },
@@ -2608,7 +2852,9 @@ pub fn run_renderer(
 ) -> Result(List(String), RendererError(a, b, c, d, e, f)) {
   let parameters = sanitize_input_output_dirs(parameters)
 
-  let RendererParameters(input_dir, output_dir, prettifier_mode) = parameters
+  let input_dir = parameters.input_dir
+  let output_dir = parameters.output_dir
+  let prettifier_mode = parameters.prettifier_behavior
 
   case options.steps_table {
     True -> pr.print_pipeline(renderer.pipeline)

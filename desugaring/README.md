@@ -69,9 +69,43 @@ Run a compile check with:
 gleam check
 ```
 
+## Local Desugarers
+
+A consumer project can keep its own desugarers in `src/desugarers/`. The
+generated local registry has the fixed path `src/local_desugarers.gleam`, so
+imports are consistent across consumer projects:
+
+```gleam
+import desugaring/desugarers as dl
+import local_desugarers as local_dl
+```
+
+Regenerate the local registry from the consumer project's Gleam root:
+
+```sh
+gleam run -m desugaring/generate_local_desugarers_dot_gleam
+```
+
+The generator exports each module's `constructor` and collects each module's
+`assertive_tests`.
+
+Renumber blame references after editing local desugarers:
+
+```sh
+gleam run -m desugaring/renumber_local_desugarer_blames
+```
+
+With a consumer-provided `src/local_desugarer_tests.gleam`, test all local
+desugarers or one named desugarer:
+
+```sh
+gleam run -m local_desugarer_tests
+gleam run -m local_desugarer_tests -- my_desugarer
+```
+
 ## Current Boundaries
 
-The package still contains both generic and project-specific desugarers. Files prefixed with names such as `lbp_`, `ti2_`, `ii2_`, and `dr_` are project-specific and are expected to move or be separated later. The generated `desugaring/desugarers` module currently exports all desugarers together, so package consumers should treat that surface as transitional.
+The package still contains both generic and project-specific desugarers. Files prefixed with names such as `ti2_`, `ii2_`, and `dr_` are project-specific and are expected to move or be separated later. The LBP desugarers have moved into their consumer project as the first client-owned desugarer pilot. The generated `desugaring/desugarers` module currently exports the remaining desugarers together, so package consumers should treat that surface as transitional.
 
 The intended future shape is:
 
