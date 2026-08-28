@@ -41,7 +41,8 @@ fn contents_test() -> Result(Nil, String) {
   list.index_map(
     vxmls,
     fn (vxml, i) {
-      vxml.vxml_table(vxml, "#" <> ins(i + 1), 0) |> io.println
+      let assert Ok(table) = vxml.vxml_table(vxml, "#" <> ins(i + 1), 0)
+      io.println(table)
     }
   )
 
@@ -84,7 +85,9 @@ fn sample_test() -> Result(Nil, String) {
   vxmls
   |> list.index_map(
     fn (wxml, i) {
-      vxml.vxml_table(wxml, "sample_test vxml" <> ins(i + 1), 0) |> io.println
+      let assert Ok(table) =
+        vxml.vxml_table(wxml, "sample_test vxml" <> ins(i + 1), 0)
+      io.println(table)
     }
   )
 
