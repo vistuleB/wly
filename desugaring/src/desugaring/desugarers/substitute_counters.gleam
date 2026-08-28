@@ -71,7 +71,6 @@ fn update_info(info: CounterInfo, mutation: String) -> CounterInfo {
       CounterInfo(..info, value: info.value - info.step)
     _ if mutation == no_change.string -> info
     _ -> {
-      echo mutation
       panic as "bad mutation"
     }
   }

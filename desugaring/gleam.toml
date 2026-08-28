@@ -1,5 +1,7 @@
 name = "desugaring"
 version = "1.0.0"
+description = "Run and debug VXML transformation pipelines."
+licences = ["MIT"]
 
 [dependencies]
 vxml = ">= 1.0.3 and < 2.0.0"

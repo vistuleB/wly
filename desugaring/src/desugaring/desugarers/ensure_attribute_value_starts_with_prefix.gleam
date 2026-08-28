@@ -40,7 +40,7 @@ type InnerParam {
 }
 
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
-  Ok(InnerParam(param.0, echo prefix_suffix_list(param.1)))
+  Ok(InnerParam(param.0, prefix_suffix_list(param.1)))
 }
 
 fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
