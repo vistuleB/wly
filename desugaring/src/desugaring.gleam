@@ -28,6 +28,8 @@ import vxml/io_lines.{type InputLine, type OutputLine, OutputLine} as io_l
 
 const default_times_table_char_width = 90
 
+pub const help_message_margin = 3
+
 const pipeline_runner_margin = 2
 
 const tracking_progress_interval = 10
@@ -622,7 +624,7 @@ pub fn basic_cli_usage(header: String) {
     "" -> Nil
     _ -> io.println(header <> "\n")
   }
-  let margin = "   "
+  let margin = string.repeat(" ", help_message_margin)
   io.println(margin <> "--help")
   io.println(
     margin <> "  -> print the basic command line options (this message)",
@@ -705,7 +707,7 @@ pub fn track_cli_usage(header: String) {
     "" -> Nil
     _ -> io.println(header <> "\n")
   }
-  let margin = "   "
+  let margin = string.repeat(" ", help_message_margin)
   io.println(
     margin <> "--track <string> [<selector arguments>] [<step ranges>]",
   )
@@ -887,7 +889,7 @@ pub fn track_cli_usage(header: String) {
 }
 
 pub fn advanced_cli_usage(header: String) {
-  let margin = "   "
+  let margin = string.repeat(" ", help_message_margin)
   case header {
     "" -> Nil
     _ -> io.println(header <> "\n")
