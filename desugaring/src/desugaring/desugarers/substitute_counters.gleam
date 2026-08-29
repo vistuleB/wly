@@ -383,19 +383,15 @@ fn counter_regex() -> Regexp {
   re
 }
 
-fn nodemap_factory(
-  inner: InnerParam,
-) -> n2t.OneToOneEnterExitStatefulNodemap(State) {
-  n2t.OneToOneEnterExitStatefulNodemap(
-    on_enter: fn(vxml, state) { on_enter(vxml, state, inner) },
-    on_exit: on_exit,
-    on_text: fn(vxml, state) { on_text(vxml, state, inner) },
-  )
-}
-
 fn inner_param_to_transform(inner: InnerParam) -> core.DesugarerTransform {
+  let nodemap: n2t.OneToOneEnterExitStatefulNodemap(State) =
+    n2t.OneToOneEnterExitStatefulNodemap(
+      on_enter: fn(vxml, state) { on_enter(vxml, state, inner) },
+      on_exit: on_exit,
+      on_text: fn(vxml, state) { on_text(vxml, state, inner) },
+    )
   n2t.one_to_one_enter_exit_stateful_nodemap_2_desugarer_transform(
-    nodemap_factory(inner),
+    nodemap,
     dict.from_list([]),
   )
 }

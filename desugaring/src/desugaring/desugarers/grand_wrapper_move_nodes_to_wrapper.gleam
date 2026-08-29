@@ -74,23 +74,19 @@ fn t_transform(
   Ok(#(option_vxml, #(a, vxmls), warnings))
 }
 
-fn nodemap_factory(
-  inner: InnerParam(a),
-) -> n2t.EarlyReturnFancyOneToOptionEnterExitStatefulWithWarningsNodemap(
-  State(a),
-) {
-  n2t.EarlyReturnFancyOneToOptionEnterExitStatefulWithWarningsNodemap(
-    on_enter: fn(vxml, _, _, _, _, state) { on_enter(vxml, state, inner) },
-    on_exit: fn(vxml, ancestors, _, _, _, original_state, latest_state) {
-      on_exit(vxml, ancestors, original_state, latest_state, inner)
-    },
-    on_text: fn(vxml, _, _, _, _, state) { t_transform(vxml, state, inner) },
-  )
-}
-
 fn inner_param_to_transform(inner: InnerParam(a)) -> core.DesugarerTransform {
+  let nodemap: n2t.EarlyReturnFancyOneToOptionEnterExitStatefulWithWarningsNodemap(
+    State(a),
+  ) =
+    n2t.EarlyReturnFancyOneToOptionEnterExitStatefulWithWarningsNodemap(
+      on_enter: fn(vxml, _, _, _, _, state) { on_enter(vxml, state, inner) },
+      on_exit: fn(vxml, ancestors, _, _, _, original_state, latest_state) {
+        on_exit(vxml, ancestors, original_state, latest_state, inner)
+      },
+      on_text: fn(vxml, _, _, _, _, state) { t_transform(vxml, state, inner) },
+    )
   n2t.early_return_fancy_one_to_option_enter_exit_stateful_with_warnings_nodemap_2_desugarer_transform(
-    nodemap_factory(inner),
+    nodemap,
     #(inner.0, []),
   )
 }
@@ -195,7 +191,7 @@ fn v_before_1(
   // normalize the cut node, putting the (normalized) handle first:
   let vxml =
     V(..vxml, attrs: [
-      Attr(desugarer_blame(198), attr.key, handle_name),
+      Attr(desugarer_blame(194), attr.key, handle_name),
       ..attrs
     ])
   Ok(#(doomed_handles, Error(vxml), [], core.GoBack))

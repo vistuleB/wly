@@ -27,11 +27,8 @@ type InnerParam =
   Param
 
 fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
-  n2t.one_to_one_nodemap_2_desugarer_transform(nodemap_factory(inner))
-}
-
-fn nodemap_factory(inner: InnerParam) -> n2t.OneToOneNodemap {
-  nodemap(_, inner)
+  let nodemap: n2t.OneToOneNodemap = nodemap(_, inner)
+  n2t.one_to_one_nodemap_2_desugarer_transform(nodemap)
 }
 
 fn nodemap(vxml: VXML, inner: InnerParam) -> Result(VXML, DesugaringError) {

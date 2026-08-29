@@ -54,12 +54,9 @@ fn nodemap(
   }
 }
 
-fn nodemap_factory(inner: InnerParam) -> n2t.OneToManyNodemap {
-  nodemap(_, inner)
-}
-
 fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
-  n2t.one_to_many_nodemap_2_desugarer_transform(nodemap_factory(inner))
+  let nodemap: n2t.OneToManyNodemap = nodemap(_, inner)
+  n2t.one_to_many_nodemap_2_desugarer_transform(nodemap)
 }
 
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {

@@ -139,21 +139,14 @@ fn v_after(
   Ok(#(V(..vxml, attrs: list.append(new_handle_attrs, attrs)), original_state))
 }
 
-fn nodemap_factory(
-  re: InnerParam,
-) -> n2t.OneToOneEnterExitStatefulNodemap(State) {
-  n2t.OneToOneEnterExitStatefulNodemap(
-    on_enter: v_before,
-    on_exit: v_after,
-    on_text: fn(vxml, state) { on_text(vxml, state, re) },
-  )
-}
-
 fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
-  n2t.one_to_one_enter_exit_stateful_nodemap_2_desugarer_transform(
-    nodemap_factory(inner),
-    [],
-  )
+  let nodemap: n2t.OneToOneEnterExitStatefulNodemap(State) =
+    n2t.OneToOneEnterExitStatefulNodemap(
+      on_enter: v_before,
+      on_exit: v_after,
+      on_text: fn(vxml, state) { on_text(vxml, state, inner) },
+    )
+  n2t.one_to_one_enter_exit_stateful_nodemap_2_desugarer_transform(nodemap, [])
 }
 
 fn param_to_inner_param(_param: Param) -> Result(InnerParam, DesugaringError) {

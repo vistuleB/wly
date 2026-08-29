@@ -48,11 +48,10 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
 }
 
 fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
-  n2t.fancy_one_to_many_nodemap_2_desugarer_transform(nodemap_factory(inner))
-}
-
-fn nodemap_factory(inner: InnerParam) -> n2t.FancyOneToManyNodemap {
-  fn(node, ancestors, _, _, _) { nodemap(node, ancestors, inner) }
+  let nodemap: n2t.FancyOneToManyNodemap = fn(node, ancestors, _, _, _) {
+    nodemap(node, ancestors, inner)
+  }
+  n2t.fancy_one_to_many_nodemap_2_desugarer_transform(nodemap)
 }
 
 fn nodemap(

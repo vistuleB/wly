@@ -45,12 +45,11 @@ fn nodemap(vxml: VXML, ancestors: List(VXML), inner: InnerParam) -> List(VXML) {
   }
 }
 
-fn nodemap_factory(inner: InnerParam) -> n2t.FancyOneToManyNoErrorNodemap {
-  fn(node, ancestors, _, _, _) { nodemap(node, ancestors, inner) }
-}
-
 fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
-  nodemap_factory(inner)
+  let nodemap: n2t.FancyOneToManyNoErrorNodemap = fn(node, ancestors, _, _, _) {
+    nodemap(node, ancestors, inner)
+  }
+  nodemap
   |> n2t.fancy_one_to_many_no_error_nodemap_2_desugarer_transform()
 }
 

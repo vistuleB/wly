@@ -22,13 +22,10 @@ pub fn constructor() -> Desugarer {
 type InnerParam =
   Nil
 
-fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
-  nodemap_factory(inner)
-  |> n2t.one_to_one_no_error_nodemap_2_desugarer_transform()
-}
-
-fn nodemap_factory(_: InnerParam) -> n2t.OneToOneNoErrorNodemap {
+fn inner_param_to_transform(_inner: InnerParam) -> DesugarerTransform {
+  let nodemap: n2t.OneToOneNoErrorNodemap = nodemap
   nodemap
+  |> n2t.one_to_one_no_error_nodemap_2_desugarer_transform()
 }
 
 fn nodemap(vxml: VXML) -> VXML {

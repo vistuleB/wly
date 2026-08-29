@@ -48,15 +48,9 @@ fn inner_param_to_transform(
   inner: InnerParam,
   outside: List(String),
 ) -> DesugarerTransform {
-  nodemap_factory(inner, outside)
+  let nodemap: n2t.EarlyReturnOneToOneNodemap = nodemap(_, inner, outside)
+  nodemap
   |> n2t.early_return_one_to_one_nodemap_2_desugarer_transform
-}
-
-fn nodemap_factory(
-  inner: InnerParam,
-  outside: List(String),
-) -> n2t.EarlyReturnOneToOneNodemap {
-  nodemap(_, inner, outside)
 }
 
 fn nodemap(

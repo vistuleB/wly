@@ -133,12 +133,9 @@ fn nodemap(vxml: VXML) -> Result(VXML, DesugaringError) {
   }
 }
 
-fn nodemap_factory() -> n2t.OneToOneNodemap {
-  nodemap
-}
-
 fn inner_param_to_transform() -> DesugarerTransform {
-  nodemap_factory()
+  let nodemap: n2t.OneToOneNodemap = nodemap
+  nodemap
   |> n2t.one_to_one_nodemap_2_desugarer_transform()
 }
 

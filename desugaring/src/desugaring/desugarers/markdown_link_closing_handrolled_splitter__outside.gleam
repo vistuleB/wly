@@ -42,14 +42,11 @@ fn inner_param_to_transform(
   inner: InnerParam,
   outside: List(String),
 ) -> DesugarerTransform {
-  nodemap_factory(inner)
+  let nodemap: n2t.OneToManyNoErrorNodemap = nodemap(_, inner)
+  nodemap
   |> n2t.one_to_many_no_error_nodemap_2_desugarer_transform_with_forbidden(
     outside,
   )
-}
-
-fn nodemap_factory(inner: InnerParam) -> n2t.OneToManyNoErrorNodemap {
-  nodemap(_, inner)
 }
 
 fn nodemap(vxml: VXML, inner: InnerParam) -> List(VXML) {
@@ -132,7 +129,7 @@ fn line_map(l: Line, inner: InnerParam) -> List(VXML) {
       V(
         bl.advance(blame, string.length(before) + 2),
         inner,
-        [vxml.Attr(desugarer_blame(135), "href", maybe_href)],
+        [vxml.Attr(desugarer_blame(132), "href", maybe_href)],
         [],
       ),
       ..line_map(
@@ -157,7 +154,7 @@ fn line_map(l: Line, inner: InnerParam) -> List(VXML) {
         V(
           bl.advance(blame, string.length(before) + 2),
           inner,
-          [vxml.Attr(desugarer_blame(160), "href", href)],
+          [vxml.Attr(desugarer_blame(157), "href", href)],
           [],
         ),
         ..line_map(

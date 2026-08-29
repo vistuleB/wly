@@ -53,12 +53,7 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
 }
 
 fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
-  nodemap_factory(inner)
-  |> n2t.fancy_one_to_one_no_error_nodemap_2_desugarer_transform
-}
-
-fn nodemap_factory(inner: InnerParam) -> n2t.FancyOneToOneNoErrorNodemap {
-  fn(
+  let nodemap: n2t.FancyOneToOneNoErrorNodemap = fn(
     vxml,
     ancestors,
     previous_siblings_before_mapping,
@@ -74,6 +69,8 @@ fn nodemap_factory(inner: InnerParam) -> n2t.FancyOneToOneNoErrorNodemap {
       inner,
     )
   }
+  nodemap
+  |> n2t.fancy_one_to_one_no_error_nodemap_2_desugarer_transform
 }
 
 fn nodemap(

@@ -40,11 +40,8 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
 }
 
 fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
-  n2t.one_to_one_no_error_nodemap_2_desugarer_transform(nodemap_factory(inner))
-}
-
-fn nodemap_factory(inner: InnerParam) -> n2t.OneToOneNoErrorNodemap {
-  nodemap(_, inner)
+  let nodemap: n2t.OneToOneNoErrorNodemap = nodemap(_, inner)
+  n2t.one_to_one_no_error_nodemap_2_desugarer_transform(nodemap)
 }
 
 fn nodemap(vxml: VXML, inner: InnerParam) -> VXML {

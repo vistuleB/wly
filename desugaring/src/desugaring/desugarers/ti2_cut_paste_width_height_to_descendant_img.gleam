@@ -197,18 +197,14 @@ fn on_enter(
   }
 }
 
-fn nodemap_factory(
-  inner: InnerParam,
-) -> n2t.OneToOneEnterExitStatefulNodemap(State) {
-  n2t.OneToOneEnterExitStatefulNodemap(
-    on_enter: fn(node, state) { on_enter(node, state, inner) },
-    on_exit: fn(n, o, _) { Ok(#(n, o)) },
-    on_text: fn(n, s) { Ok(#(n, s)) },
-  )
-}
-
 fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
-  nodemap_factory(inner)
+  let nodemap: n2t.OneToOneEnterExitStatefulNodemap(State) =
+    n2t.OneToOneEnterExitStatefulNodemap(
+      on_enter: fn(node, state) { on_enter(node, state, inner) },
+      on_exit: fn(n, o, _) { Ok(#(n, o)) },
+      on_text: fn(n, s) { Ok(#(n, s)) },
+    )
+  nodemap
   |> n2t.one_to_one_enter_exit_stateful_nodemap_2_desugarer_transform(None)
 }
 

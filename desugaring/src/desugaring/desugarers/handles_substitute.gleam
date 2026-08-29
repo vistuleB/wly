@@ -566,20 +566,16 @@ fn t_transform(
   ))
 }
 
-fn nodemap_factory(
-  inner: InnerParam,
-) -> n2t.OneToManyEnterExitStatefulWithWarningsNodemap(State) {
-  n2t.OneToManyEnterExitStatefulWithWarningsNodemap(
-    on_enter: fn(vxml, state) { v_before_transform(vxml, state, inner) },
-    on_exit: fn(vxml, original_state, latest_state) {
-      v_after_transform(vxml, original_state, latest_state)
-    },
-    on_text: fn(vxml, state) { t_transform(vxml, state, inner) },
-  )
-}
-
 fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
-  nodemap_factory(inner)
+  let nodemap: n2t.OneToManyEnterExitStatefulWithWarningsNodemap(State) =
+    n2t.OneToManyEnterExitStatefulWithWarningsNodemap(
+      on_enter: fn(vxml, state) { v_before_transform(vxml, state, inner) },
+      on_exit: fn(vxml, original_state, latest_state) {
+        v_after_transform(vxml, original_state, latest_state)
+      },
+      on_text: fn(vxml, state) { t_transform(vxml, state, inner) },
+    )
+  nodemap
   |> n2t.one_to_many_enter_exit_stateful_with_warnings_nodemap_2_desugarer_transform(
     State(dict.new(), None, False, False, set.new()),
   )
@@ -595,8 +591,8 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
     param.0,
     param.1,
     param.2,
-    param.3 |> core.string_pairs_to_attrs(desugarer_blame(598)),
-    param.4 |> core.string_pairs_to_attrs(desugarer_blame(599)),
+    param.3 |> core.string_pairs_to_attrs(desugarer_blame(594)),
+    param.4 |> core.string_pairs_to_attrs(desugarer_blame(595)),
     param.5,
     param.6,
     handles_regexp,

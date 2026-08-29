@@ -33,12 +33,9 @@ fn nodemap(node: VXML, inner: InnerParam) -> List(VXML) {
   }
 }
 
-fn nodemap_factory(inner: InnerParam) -> n2t.OneToManyNoErrorNodemap {
-  nodemap(_, inner)
-}
-
 fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
-  nodemap_factory(inner)
+  let nodemap: n2t.OneToManyNoErrorNodemap = nodemap(_, inner)
+  nodemap
   |> n2t.one_to_many_no_error_nodemap_2_desugarer_transform()
 }
 

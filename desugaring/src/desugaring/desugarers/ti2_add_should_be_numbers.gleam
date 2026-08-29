@@ -67,13 +67,10 @@ fn nodemap(
   }
 }
 
-fn nodemap_factory(inner: InnerParam) -> n2t.EarlyReturnOneToOneNodemap {
-  nodemap(_, inner)
-}
-
 fn inner_param_to_transform() -> DesugarerTransform {
   let inner = param_to_inner_param()
-  nodemap_factory(inner)
+  let nodemap: n2t.EarlyReturnOneToOneNodemap = nodemap(_, inner)
+  nodemap
   |> n2t.early_return_one_to_one_nodemap_2_desugarer_transform
 }
 

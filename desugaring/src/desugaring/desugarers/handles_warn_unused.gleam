@@ -127,19 +127,17 @@ fn v_after(
   }
 }
 
-fn nodemap_factory(
-  inner: InnerParam,
-) -> n2t.EarlyReturnOneToOneEnterExitStatefulWithWarningsNodemap(State) {
-  n2t.EarlyReturnOneToOneEnterExitStatefulWithWarningsNodemap(
-    on_enter: fn(vxml, state) { v_before(vxml, state, inner) },
-    on_exit: v_after,
-    on_text: fn(vxml, state) { Ok(#(vxml, state, [])) },
-  )
-}
-
 fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
+  let nodemap: n2t.EarlyReturnOneToOneEnterExitStatefulWithWarningsNodemap(
+    State,
+  ) =
+    n2t.EarlyReturnOneToOneEnterExitStatefulWithWarningsNodemap(
+      on_enter: fn(vxml, state) { v_before(vxml, state, inner) },
+      on_exit: v_after,
+      on_text: fn(vxml, state) { Ok(#(vxml, state, [])) },
+    )
   n2t.early_return_one_to_one_enter_exit_stateful_with_warnings_nodemap_2_desugarer_transform(
-    nodemap_factory(inner),
+    nodemap,
     State(dict.new(), []),
   )
 }

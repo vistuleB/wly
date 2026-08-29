@@ -48,14 +48,11 @@ fn inner_param_to_transform(
   inner: InnerParam,
   outside: List(String),
 ) -> DesugarerTransform {
-  nodemap_factory(inner)
+  let nodemap: n2t.EarlyReturnOneToOneNoErrorNodemap = nodemap(_, inner)
+  nodemap
   |> n2t.early_return_one_to_one_no_error_nodemap_2_desugarer_transform_with_forbidden(
     outside,
   )
-}
-
-fn nodemap_factory(inner: InnerParam) -> n2t.EarlyReturnOneToOneNoErrorNodemap {
-  nodemap(_, inner)
 }
 
 fn nodemap(vxml: VXML, inner: InnerParam) -> #(VXML, TrafficLight) {

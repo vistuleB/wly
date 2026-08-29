@@ -57,43 +57,40 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
 }
 
 fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
-  let #(ancestor_tag, _, _) = inner
-  n2t.one_to_one_enter_exit_stateful_no_error_nodemap_2_desugarer_transform(
-    nodemap_factory(inner),
-    ancestor_tag == "",
-  )
-}
-
-fn nodemap_factory(
-  inner: InnerParam,
-) -> n2t.OneToOneEnterExitStatefulNoErrorNodemap(State) {
   let #(ancestor_tag, counter_expr, re) = inner
-  n2t.OneToOneEnterExitStatefulNoErrorNodemap(
-    on_enter: fn(vxml, state) {
-      let assert V(_, tag, _, _) = vxml
-      #(vxml, state || tag == ancestor_tag)
-    },
-    on_exit: fn(vxml, original_state, _latest_state) { #(vxml, original_state) },
-    on_text: fn(vxml, state) {
-      case state {
-        False -> #(vxml, state)
-        True -> {
-          let assert T(blame, lines) = vxml
-          let new_lines =
-            list.map(lines, fn(line) {
-              Line(
-                ..line,
-                content: replace_labels_in_content(
-                  line.content,
-                  re,
-                  counter_expr,
-                ),
-              )
-            })
-          #(T(blame, new_lines), state)
+  let nodemap: n2t.OneToOneEnterExitStatefulNoErrorNodemap(State) =
+    n2t.OneToOneEnterExitStatefulNoErrorNodemap(
+      on_enter: fn(vxml, state) {
+        let assert V(_, tag, _, _) = vxml
+        #(vxml, state || tag == ancestor_tag)
+      },
+      on_exit: fn(vxml, original_state, _latest_state) {
+        #(vxml, original_state)
+      },
+      on_text: fn(vxml, state) {
+        case state {
+          False -> #(vxml, state)
+          True -> {
+            let assert T(blame, lines) = vxml
+            let new_lines =
+              list.map(lines, fn(line) {
+                Line(
+                  ..line,
+                  content: replace_labels_in_content(
+                    line.content,
+                    re,
+                    counter_expr,
+                  ),
+                )
+              })
+            #(T(blame, new_lines), state)
+          }
         }
-      }
-    },
+      },
+    )
+  n2t.one_to_one_enter_exit_stateful_no_error_nodemap_2_desugarer_transform(
+    nodemap,
+    ancestor_tag == "",
   )
 }
 

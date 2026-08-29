@@ -116,20 +116,16 @@ fn v_after(
   Ok(#([vxml, outer_span], original_state))
 }
 
-fn nodemap_factory(
-  inner: InnerParam,
-) -> n2t.OneToManyEnterExitStatefulNodemap(State) {
-  n2t.OneToManyEnterExitStatefulNodemap(
-    on_enter: fn(vxml, state) { v_before(vxml, state, inner) },
-    on_exit: fn(vxml, original_state, latest_state) {
-      v_after(vxml, inner, original_state, latest_state)
-    },
-    on_text: fn(vxml, _) { Ok(#([vxml], None)) },
-  )
-}
-
 fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
-  nodemap_factory(inner)
+  let nodemap: n2t.OneToManyEnterExitStatefulNodemap(State) =
+    n2t.OneToManyEnterExitStatefulNodemap(
+      on_enter: fn(vxml, state) { v_before(vxml, state, inner) },
+      on_exit: fn(vxml, original_state, latest_state) {
+        v_after(vxml, inner, original_state, latest_state)
+      },
+      on_text: fn(vxml, _) { Ok(#([vxml], None)) },
+    )
+  nodemap
   |> n2t.one_to_many_enter_exit_stateful_nodemap_2_desugarer_transform(None)
 }
 

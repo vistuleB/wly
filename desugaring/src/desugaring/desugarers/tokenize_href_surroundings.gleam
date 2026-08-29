@@ -168,12 +168,9 @@ fn nodemap(opening_parenthesis_splitter: Splitter, vxml: VXML) -> VXML {
   }
 }
 
-fn nodemap_factory(inner: InnerParam) -> n2t.OneToOneNoErrorNodemap {
-  fn(vxml) { nodemap(inner, vxml) }
-}
-
 fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
-  nodemap_factory(inner)
+  let nodemap: n2t.OneToOneNoErrorNodemap = fn(vxml) { nodemap(inner, vxml) }
+  nodemap
   |> n2t.one_to_one_no_error_nodemap_2_desugarer_transform()
 }
 

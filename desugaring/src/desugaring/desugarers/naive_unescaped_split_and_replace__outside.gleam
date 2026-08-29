@@ -44,14 +44,16 @@ fn inner_param_to_transform(
   inner: InnerParam,
   outside: List(String),
 ) -> DesugarerTransform {
-  nodemap_factory(inner)
+  let nodemap: n2t.OneToManyNoErrorNodemap = grs.naive_unescaped_split_node(
+    _,
+    inner.0,
+    inner.1,
+    inner.2,
+  )
+  nodemap
   |> n2t.one_to_many_no_error_nodemap_2_desugarer_transform_with_forbidden(
     outside,
   )
-}
-
-fn nodemap_factory(inner: InnerParam) -> n2t.OneToManyNoErrorNodemap {
-  grs.naive_unescaped_split_node(_, inner.0, inner.1, inner.2)
 }
 
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊

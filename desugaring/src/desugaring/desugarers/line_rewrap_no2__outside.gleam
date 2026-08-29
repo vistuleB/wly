@@ -52,27 +52,23 @@ fn inner_param_to_transform(
   inner: InnerParam,
   outside: List(String),
 ) -> DesugarerTransform {
-  nodemap_factory(inner)
+  let nodemap: n2t.OneToOneEnterExitStatefulNoErrorNodemap(State) =
+    n2t.OneToOneEnterExitStatefulNoErrorNodemap(
+      on_enter: fn(v: VXML, s: State) { v_before(v, s, inner) },
+      on_exit: fn(v: VXML, o: State, s: State) { v_after(v, o, s, inner) },
+      on_text: fn(v, state) { #(v, state) },
+    )
+  nodemap
   |> n2t.one_to_one_enter_exit_stateful_no_error_nodemap_2_desugarer_transform_with_forbidden(
     0,
     outside,
   )
 }
 
-fn nodemap_factory(
-  inner: InnerParam,
-) -> n2t.OneToOneEnterExitStatefulNoErrorNodemap(State) {
-  n2t.OneToOneEnterExitStatefulNoErrorNodemap(
-    on_enter: fn(v: VXML, s: State) { v_before(v, s, inner) },
-    on_exit: fn(v: VXML, o: State, s: State) { v_after(v, o, s, inner) },
-    on_text: fn(v, state) { #(v, state) },
-  )
-}
-
 type State =
   Int
 
-const const_blame = Des([], name, 74)
+const const_blame = Des([], name, 71)
 
 const one_empty_line = T(const_blame, [Line(const_blame, "")])
 

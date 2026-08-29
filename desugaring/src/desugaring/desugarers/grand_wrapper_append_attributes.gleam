@@ -64,21 +64,19 @@ fn t_transform(
   Ok(#(vxml, #(a, attrs), warnings))
 }
 
-fn nodemap_factory(
-  inner: InnerParam(a),
-) -> n2t.EarlyReturnFancyOneToOneEnterExitStatefulWithWarningsNodemap(State(a)) {
-  n2t.EarlyReturnFancyOneToOneEnterExitStatefulWithWarningsNodemap(
-    on_enter: fn(vxml, _, _, _, _, state) { on_enter(vxml, state, inner) },
-    on_exit: fn(vxml, ancestors, _, _, _, original_state, latest_state) {
-      on_exit(vxml, ancestors, original_state, latest_state, inner)
-    },
-    on_text: fn(vxml, _, _, _, _, state) { t_transform(vxml, state, inner) },
-  )
-}
-
 fn inner_param_to_transform(inner: InnerParam(a)) -> core.DesugarerTransform {
+  let nodemap: n2t.EarlyReturnFancyOneToOneEnterExitStatefulWithWarningsNodemap(
+    State(a),
+  ) =
+    n2t.EarlyReturnFancyOneToOneEnterExitStatefulWithWarningsNodemap(
+      on_enter: fn(vxml, _, _, _, _, state) { on_enter(vxml, state, inner) },
+      on_exit: fn(vxml, ancestors, _, _, _, original_state, latest_state) {
+        on_exit(vxml, ancestors, original_state, latest_state, inner)
+      },
+      on_text: fn(vxml, _, _, _, _, state) { t_transform(vxml, state, inner) },
+    )
   n2t.early_return_fancy_one_to_one_enter_exit_stateful_with_warnings_nodemap_2_desugarer_transform(
-    nodemap_factory(inner),
+    nodemap,
     #(inner.0, []),
   )
 }
@@ -161,7 +159,7 @@ fn v_before_1(
     core.attrs_have_key_val(attrs, "chapter", ">>exercise-graveyard"),
     fn() { Ok(#(Nil, [], [], core.GoBack)) },
   )
-  Ok(#(Nil, [Attr(desugarer_blame(164), "hey", "hello")], [], core.GoBack))
+  Ok(#(Nil, [Attr(desugarer_blame(162), "hey", "hello")], [], core.GoBack))
 }
 
 fn v_after_1(
@@ -191,7 +189,7 @@ fn harvest_handle_attrs_from_line(
             line.blame,
             "handle contains space or '>': " <> stuff,
           ))
-        False -> Ok(Attr(desugarer_blame(194), "source", ">>" <> stuff))
+        False -> Ok(Attr(desugarer_blame(192), "source", ">>" <> stuff))
       }
     }
     _ -> Error(DesugaringWarning(line.blame, "'>>' not found in text node"))

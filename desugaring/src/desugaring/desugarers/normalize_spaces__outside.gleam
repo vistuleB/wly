@@ -20,14 +20,11 @@ pub fn constructor(outside: List(String)) -> Desugarer {
 }
 
 fn inner_param_to_transform(outside: List(String)) -> DesugarerTransform {
-  nodemap_factory()
+  let nodemap: n2t.OneToOneNoErrorNodemap = nodemap
+  nodemap
   |> n2t.one_to_one_no_error_nodemap_2_desugarer_transform_with_forbidden(
     outside,
   )
-}
-
-fn nodemap_factory() -> n2t.OneToOneNoErrorNodemap {
-  nodemap
 }
 
 fn nodemap(vxml: VXML) -> VXML {

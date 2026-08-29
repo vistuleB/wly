@@ -170,21 +170,17 @@ fn on_exit(
   }
 }
 
-fn nodemap_factory(
-  inner: InnerParam,
-) -> n2t.FancyOneToOneEnterExitStatefulNodemap(State) {
-  n2t.FancyOneToOneEnterExitStatefulNodemap(
-    on_enter: fn(vxml, _, _, _, _, state) { on_enter(vxml, state, inner) },
-    on_exit: fn(vxml, ancestors, _, _, _, original_state, latest_state) {
-      on_exit(vxml, ancestors, original_state, latest_state)
-    },
-    on_text: fn(vxml, _, _, _, _, state) { t_transform(vxml, state) },
-  )
-}
-
 fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
+  let nodemap: n2t.FancyOneToOneEnterExitStatefulNodemap(State) =
+    n2t.FancyOneToOneEnterExitStatefulNodemap(
+      on_enter: fn(vxml, _, _, _, _, state) { on_enter(vxml, state, inner) },
+      on_exit: fn(vxml, ancestors, _, _, _, original_state, latest_state) {
+        on_exit(vxml, ancestors, original_state, latest_state)
+      },
+      on_text: fn(vxml, _, _, _, _, state) { t_transform(vxml, state) },
+    )
   n2t.fancy_one_to_one_enter_exit_stateful_nodemap_2_desugarer_transform(
-    nodemap_factory(inner),
+    nodemap,
     State(dict.new(), None),
   )
 }

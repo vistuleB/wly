@@ -48,12 +48,9 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
 }
 
 fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
-  nodemap_factory(inner)
+  let nodemap: n2t.OneToOneNodemap = nodemap(_, inner)
+  nodemap
   |> n2t.one_to_one_nodemap_2_desugarer_transform
-}
-
-fn nodemap_factory(inner: InnerParam) -> n2t.OneToOneNodemap {
-  nodemap(_, inner)
 }
 
 fn nodemap(vxml: VXML, inner: InnerParam) -> Result(VXML, DesugaringError) {
@@ -91,7 +88,7 @@ fn split_and_insert_before_unless_allowable_ending_found_ez_version(
   if_no_allowable_found_insert: String,
   // will almost always be "$$"
 ) -> List(Line) {
-  let blame = desugarer_blame(94)
+  let blame = desugarer_blame(91)
 
   let add_prescribed_to_end_if_missing = fn(lines) {
     let trimmed =
@@ -167,7 +164,7 @@ fn split_and_insert_after_unless_allowable_beginning_found_ez_version(
   if_no_allowable_found_insert: String,
   // this will almost always be "$$"
 ) -> List(Line) {
-  let blame = desugarer_blame(170)
+  let blame = desugarer_blame(167)
 
   let add_prescribed_to_start_if_missing = fn(lines) {
     let trimmed = core.lines_trim_start(lines)

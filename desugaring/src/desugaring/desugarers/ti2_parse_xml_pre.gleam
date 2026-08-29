@@ -111,12 +111,9 @@ fn nodemap(vxml: VXML) -> VXML {
   }
 }
 
-fn nodemap_factory() -> n2t.OneToOneNoErrorNodemap {
-  nodemap
-}
-
 fn inner_param_to_transform() -> DesugarerTransform {
-  nodemap_factory()
+  let nodemap: n2t.OneToOneNoErrorNodemap = nodemap
+  nodemap
   |> n2t.one_to_one_no_error_nodemap_2_desugarer_transform
 }
 
