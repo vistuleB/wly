@@ -1,6 +1,8 @@
 import desugaring/assertive_testing
 import desugaring/core
+import gleam/io
 import gleam/list
+import gleam/string
 
 pub type AssertiveTest =
   core.AssertiveTest
@@ -116,4 +118,36 @@ pub fn all_passed(results: List(AssertiveTestResults)) -> Bool {
       }
     })
   })
+}
+
+/// Run some or all tests from a desugarer collection registry.
+///
+/// An empty list of names selects every collection. Names may optionally end
+/// in `.gleam`.
+pub fn test_desugarers(
+  collection_builders: List(fn() -> AssertiveTestCollection),
+  requested_names: List(String),
+) -> Result(Nil, String) {
+  let result = test_desugarers_content(collection_builders, requested_names)
+  io.println("")
+  result
+}
+
+/// Run local desugarer tests without closing the surrounding output block.
+pub fn test_desugarers_content(
+  collection_builders: List(fn() -> AssertiveTestCollection),
+  requested_names: List(String),
+) -> Result(Nil, String) {
+  let requested_names = list.map(requested_names, without_gleam_extension)
+  assertive_testing.run_assertive_desugarer_tests_content(
+    collection_builders,
+    requested_names,
+  )
+}
+
+fn without_gleam_extension(name: String) -> String {
+  case string.ends_with(name, ".gleam") {
+    True -> string.drop_end(name, 6)
+    False -> name
+  }
 }

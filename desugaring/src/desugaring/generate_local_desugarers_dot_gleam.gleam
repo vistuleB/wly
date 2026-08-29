@@ -12,8 +12,27 @@ const module_prefix = "desugarers"
 const output_path = "src/local_desugarers.gleam"
 
 pub fn main() -> Nil {
+  io.println("")
+  case run() {
+    Ok(Nil) -> Nil
+    Error(message) -> panic as message
+  }
+}
+
+pub fn run() -> Result(Nil, String) {
+  case perform() {
+    Ok(Nil) -> {
+      io.println("")
+      Ok(Nil)
+    }
+    Error(message) -> Error(message)
+  }
+}
+
+/// Generate the local desugarer registry without closing its output block.
+pub fn perform() -> Result(Nil, String) {
   case generate() {
-    Ok(#(output_path, count)) ->
+    Ok(#(output_path, count)) -> {
       io.println(
         "Generated "
         <> output_path
@@ -21,7 +40,9 @@ pub fn main() -> Nil {
         <> int.to_string(count)
         <> " local desugarer(s).",
       )
-    Error(message) -> panic as message
+      Ok(Nil)
+    }
+    Error(message) -> Error(message)
   }
 }
 

@@ -1,7 +1,10 @@
 import desugaring/core.{type Desugarer, type Pipeline}
 import desugaring/desugarers as dl
+import desugaring/generate_local_desugarers_dot_gleam as local_desugarer_generator
+import desugaring/renumber_local_desugarer_blames as local_desugarer_blame_renumberer
 import desugaring/selectors as sl
 import desugaring/tables as pr
+import desugaring/testing
 import desugaring/tracking.{type Selector}
 import dirtree.{type DirTree} as dt
 import either_or.{Either, Or}
@@ -957,6 +960,205 @@ pub fn advanced_cli_usage(header: String) {
   io.println("")
 }
 
+fn print_with_terminal_blank_line(message: String) {
+  let message = string.trim_end(message)
+  case message {
+    "" -> Nil
+    _ -> {
+      io.println(message)
+      io.println("")
+    }
+  }
+}
+
+/// Print requested help and remove help flags from command-line arguments.
+///
+/// Each requested help section is printed at most once. `local_cli_usage` is
+/// evaluated and appended only when `--help` is present.
+pub fn handle_help_requests(
+  args: List(String),
+  local_cli_usage: fn() -> String,
+) -> #(List(String), Bool) {
+  let basic =
+    list.contains(args, "--help")
+    || list.contains(args, "-help")
+    || list.contains(args, "-h")
+  let esoteric = list.contains(args, "--esoteric")
+  let track = list.contains(args, "--track-help")
+
+  case basic {
+    True -> {
+      basic_cli_usage("'gleam run' command line options (basic):")
+      case local_cli_usage() {
+        "" -> Nil
+        local_usage -> local_usage |> print_with_terminal_blank_line
+      }
+    }
+    False -> Nil
+  }
+  case esoteric {
+    True -> advanced_cli_usage("'gleam run' command line options (esoteric):")
+    False -> Nil
+  }
+  case track {
+    True -> track_cli_usage("'gleam run -- --track' command line options:")
+    False -> Nil
+  }
+
+  let args =
+    list.filter(args, fn(arg) {
+      arg != "--help"
+      && arg != "-help"
+      && arg != "-h"
+      && arg != "--esoteric"
+      && arg != "--track-help"
+    })
+  #(args, basic || esoteric || track)
+}
+
+/// Run requested local-desugarer maintenance and remove its command-line flags.
+///
+/// Each operation runs at most once. `--desugarers` requests blame
+/// renumbering, local-library generation, and all local desugarer tests.
+pub fn handle_maintenance_requests(
+  args: List(String),
+  local_desugarer_tests: List(fn() -> core.AssertiveTestCollection),
+) -> Result(#(List(String), Bool), String) {
+  let renumber =
+    list.contains(args, "--renumber") || list.contains(args, "--desugarers")
+  let generate =
+    list.contains(args, "--generate")
+    || list.contains(args, "--regenerate")
+    || list.contains(args, "--desugarers")
+  use #(args, requested_test_names) <- result.try(
+    extract_desugarer_test_request(args),
+  )
+  let requested_test_names = case
+    requested_test_names,
+    list.contains(args, "--desugarers")
+  {
+    None, True -> Some([])
+    requested, _ -> requested
+  }
+  let tests_requested = option.is_some(requested_test_names)
+
+  let #(maintenance_result, printed) =
+    perform_requested_maintenance(
+      renumber,
+      generate,
+      requested_test_names,
+      local_desugarer_tests,
+      False,
+    )
+  case printed {
+    True -> io.println("")
+    False -> Nil
+  }
+  use _ <- result.try(maintenance_result)
+
+  let args =
+    list.filter(args, fn(arg) {
+      arg != "--renumber"
+      && arg != "--generate"
+      && arg != "--regenerate"
+      && arg != "--desugarers"
+    })
+  Ok(#(args, renumber || generate || tests_requested))
+}
+
+fn perform_requested_maintenance(
+  renumber: Bool,
+  generate: Bool,
+  requested_test_names: Option(List(String)),
+  local_desugarer_tests: List(fn() -> core.AssertiveTestCollection),
+  content_printed: Bool,
+) -> #(Result(Nil, String), Bool) {
+  case renumber {
+    True ->
+      case local_desugarer_blame_renumberer.perform() {
+        Error(message) -> #(Error(message), content_printed)
+        Ok(Nil) ->
+          perform_requested_maintenance(
+            False,
+            generate,
+            requested_test_names,
+            local_desugarer_tests,
+            True,
+          )
+      }
+    False ->
+      case generate {
+        True ->
+          case local_desugarer_generator.perform() {
+            Error(message) -> #(Error(message), content_printed)
+            Ok(Nil) ->
+              perform_requested_maintenance(
+                False,
+                False,
+                requested_test_names,
+                local_desugarer_tests,
+                True,
+              )
+          }
+        False ->
+          case requested_test_names {
+            None -> #(Ok(Nil), content_printed)
+            Some(names) -> {
+              case content_printed {
+                True -> io.println("")
+                False -> Nil
+              }
+              #(
+                testing.test_desugarers_content(local_desugarer_tests, names),
+                True,
+              )
+            }
+          }
+      }
+  }
+}
+
+fn extract_desugarer_test_request(
+  args: List(String),
+) -> Result(#(List(String), Option(List(String))), String) {
+  extract_desugarer_test_request_loop(args, [])
+}
+
+fn extract_desugarer_test_request_loop(
+  args: List(String),
+  reversed_before: List(String),
+) -> Result(#(List(String), Option(List(String))), String) {
+  case args {
+    [] -> Ok(#(list.reverse(reversed_before), None))
+    [arg, ..after] ->
+      case is_desugarer_test_option(arg) {
+        True ->
+          case list.any(after, is_desugarer_test_option) {
+            True -> Error("Duplicate desugarer-test options.")
+            False -> {
+              let #(names, after) =
+                list.split_while(after, fn(arg) {
+                  !string.starts_with(arg, "-")
+                })
+              Ok(#(
+                list.append(list.reverse(reversed_before), after),
+                Some(names),
+              ))
+            }
+          }
+        False ->
+          extract_desugarer_test_request_loop(after, [arg, ..reversed_before])
+      }
+  }
+}
+
+fn is_desugarer_test_option(arg: String) -> Bool {
+  case arg {
+    "--desugarer-tests" | "--test-desugarers" -> True
+    _ -> False
+  }
+}
+
 // ************************************************************
 // process_command_line_arguments
 // ************************************************************
@@ -992,7 +1194,7 @@ pub fn process_command_line_arguments(
       let #(option, values) = pair
       case option {
         "--help" -> {
-          basic_cli_usage("\nrenderer common command line options:")
+          basic_cli_usage("renderer common command line options:")
           case list.is_empty(values) {
             True -> Ok(CommandLineAmendments(..amendments, help: True))
             False -> Error(UnexpectedArgumentsToOption("option"))
@@ -1002,14 +1204,14 @@ pub fn process_command_line_arguments(
         "--track-help" ->
           case list.is_empty(values) {
             True -> {
-              track_cli_usage("\nrenderer '--track' command line instructions:")
+              track_cli_usage("renderer '--track' command line instructions:")
               Ok(CommandLineAmendments(..amendments, help: True))
             }
             False -> Error(UnexpectedArgumentsToOption("--track-help"))
           }
 
         "--esoteric" -> {
-          advanced_cli_usage("\nrenderer advanced command line options:")
+          advanced_cli_usage("renderer advanced command line options:")
           case list.is_empty(values) {
             True -> Ok(CommandLineAmendments(..amendments, help: True))
             False -> Error(UnexpectedArgumentsToOption("option"))

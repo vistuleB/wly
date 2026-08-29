@@ -14,17 +14,39 @@ type Patterns {
 }
 
 pub fn main() -> Nil {
-  case renumber_all() {
-    Ok(changed) ->
-      io.println(
-        "Renumbered local desugarer blames. Files changed: "
-        <> int.to_string(changed),
-      )
+  io.println("")
+  case run() {
+    Ok(Nil) -> Nil
     Error(message) -> panic as message
   }
 }
 
-fn renumber_all() -> Result(Int, String) {
+pub fn run() -> Result(Nil, String) {
+  case perform() {
+    Ok(Nil) -> {
+      io.println("")
+      Ok(Nil)
+    }
+    Error(message) -> Error(message)
+  }
+}
+
+/// Renumber local desugarer blames without closing its output block.
+pub fn perform() -> Result(Nil, String) {
+  case renumber_all() {
+    Ok(#(changed, changed_files)) -> {
+      list.each(changed_files, fn(file) { io.println("Processed: " <> file) })
+      io.println(
+        "Renumbered local desugarer blames. Files changed: "
+        <> int.to_string(changed),
+      )
+      Ok(Nil)
+    }
+    Error(message) -> Error(message)
+  }
+}
+
+fn renumber_all() -> Result(#(Int, List(String)), String) {
   use entries <- result.try(
     simplifile.read_directory(desugarer_dir)
     |> result.map_error(fn(_) { "Could not read " <> desugarer_dir <> "." }),
@@ -37,18 +59,18 @@ fn renumber_all() -> Result(Int, String) {
 
   let patterns = patterns()
 
-  list.try_fold(files, 0, fn(changed_count, file) {
+  list.try_fold(files, #(0, []), fn(state, file) {
     let path = filepath.join(desugarer_dir, file)
     use changed <- result.try(renumber_file(path, patterns))
 
     case changed {
       True -> {
-        io.println("Processed: " <> file)
-        Ok(changed_count + 1)
+        Ok(#(state.0 + 1, [file, ..state.1]))
       }
-      False -> Ok(changed_count)
+      False -> Ok(state)
     }
   })
+  |> result.map(fn(state) { #(state.0, list.reverse(state.1)) })
 }
 
 fn patterns() -> Patterns {
