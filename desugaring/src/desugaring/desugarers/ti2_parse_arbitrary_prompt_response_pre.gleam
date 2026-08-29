@@ -60,7 +60,7 @@ const response_span = V(
   [],
 )
 
-fn line_2_t(line: Line) -> VXML {
+fn line_to_text_node(line: Line) -> VXML {
   T(line.blame, [line])
 }
 
@@ -77,14 +77,16 @@ fn elements_for_line(line: Line) -> List(VXML) {
   let after_blame = bl.advance(line.blame, string.length(before) + 2)
   case before == terminal_prompt {
     False -> [
-      prompt_span |> core.v_prepend_child(line_2_t(Line(line.blame, before))),
-      response_span |> core.v_prepend_child(line_2_t(Line(after_blame, after))),
+      prompt_span
+        |> core.v_prepend_child(line_to_text_node(Line(line.blame, before))),
+      response_span
+        |> core.v_prepend_child(line_to_text_node(Line(after_blame, after))),
     ]
     True -> [
       terminal_prompt_span
-        |> core.v_prepend_child(line_2_t(Line(line.blame, before))),
+        |> core.v_prepend_child(line_to_text_node(Line(line.blame, before))),
       terminal_prompt_content_span
-        |> core.v_prepend_child(line_2_t(Line(after_blame, after))),
+        |> core.v_prepend_child(line_to_text_node(Line(after_blame, after))),
     ]
   }
 }
@@ -109,7 +111,7 @@ fn nodemap(vxml: VXML) -> VXML {
             attrs
               |> core.attrs_delete("language")
               |> core.attrs_append_classes(
-                desugarer_blame(112),
+                desugarer_blame(114),
                 "arbitrary-prompt-response",
               ),
             children,
@@ -128,7 +130,7 @@ fn inner_param_to_transform() -> DesugarerTransform {
   |> n2t.one_to_one_no_error_nodemap_2_desugarer_transform
 }
 
-fn desugarer_blame(line_no) {
+fn desugarer_blame(line_no: Int) {
   bl.Des([], name, line_no)
 }
 

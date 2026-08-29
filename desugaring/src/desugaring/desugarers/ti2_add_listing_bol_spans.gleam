@@ -36,7 +36,7 @@ const bol_span_with_texts = [
   bol_span,
 ]
 
-fn line_2_t(line: Line) -> VXML {
+fn line_to_text_node(line: Line) -> VXML {
   T(line.blame, [line])
 }
 
@@ -49,8 +49,9 @@ fn nodemap(vxml: VXML) -> VXML {
           case c {
             T(_, lines) ->
               {
-                let ts = list.map(lines, fn(x) { [line_2_t(x)] })
-                list.intersperse(ts, bol_span_with_texts)
+                let text_nodes =
+                  list.map(lines, fn(line) { [line_to_text_node(line)] })
+                list.intersperse(text_nodes, bol_span_with_texts)
               }
               |> list.flatten
               |> core.plain_concatenation_in_list

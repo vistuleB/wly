@@ -1,6 +1,7 @@
 import desugaring/authoring
 import desugaring/core.{
-  type Desugarer, type DesugaringError, type TrafficLight, Continue, GoBack,
+  type Desugarer, type DesugaringError, type TrafficLight, Continue,
+  DesugaringError, GoBack,
 }
 import desugaring/nodemaps_2_transform as n2t
 import gleam/list
@@ -29,7 +30,7 @@ pub fn constructor() -> Desugarer {
 // 🌸 header 🌸
 // 🌸🌸🌸🌸🌸🌸🌸
 
-fn get(root: VXML, key: String) -> Option(#(Blame, String)) {
+fn attribute_text(root: VXML, key: String) -> Option(#(Blame, String)) {
   core.v_first_attr_with_key(root, key)
   |> option.map(fn(attr) {
     #(attr.blame |> bl.advance(string.length(key) + 1), attr.val)
@@ -37,12 +38,14 @@ fn get(root: VXML, key: String) -> Option(#(Blame, String)) {
 }
 
 fn header(root: VXML) -> VXML {
-  let b = desugarer_blame(40)
-  let title = get(root, "title") |> option.unwrap(#(b, "no title"))
-  let program = get(root, "program") |> option.unwrap(#(b, "no program"))
+  let b = desugarer_blame(41)
+  let title = attribute_text(root, "title") |> option.unwrap(#(b, "no title"))
+  let program =
+    attribute_text(root, "program") |> option.unwrap(#(b, "no program"))
   let institution =
-    get(root, "institution") |> option.unwrap(#(b, "no institution"))
-  let lecturer = get(root, "lecturer") |> option.unwrap(#(b, "no lecturer"))
+    attribute_text(root, "institution") |> option.unwrap(#(b, "no institution"))
+  let lecturer =
+    attribute_text(root, "lecturer") |> option.unwrap(#(b, "no lecturer"))
   V(
     b,
     "header",
@@ -80,7 +83,7 @@ fn header(root: VXML) -> VXML {
 }
 
 // 🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸
-// 🌸 gathering for table of contents~ 🌸
+// 🌸 gathering for table of contents 🌸
 // 🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸
 
 type Title =
@@ -128,10 +131,18 @@ fn add_chapter_with_title_to_state(
 fn add_sub_with_title_to_state(
   state: List(ChapterInfo),
   title: Title,
-) -> List(ChapterInfo) {
-  let assert [ChapterInfo(_, subs) as first, ..rest] = state
-  let first = ChapterInfo(..first, subs: [SubInfo(title), ..subs])
-  [first, ..rest]
+) -> Result(List(ChapterInfo), DesugaringError) {
+  case state {
+    [ChapterInfo(_, subs) as first, ..rest] -> {
+      let first = ChapterInfo(..first, subs: [SubInfo(title), ..subs])
+      Ok([first, ..rest])
+    }
+    [] ->
+      Error(DesugaringError(
+        bl.no_blame,
+        "encountered a Sub element before any Chapter element",
+      ))
+  }
 }
 
 fn chapter_info_information_collector(
@@ -148,7 +159,8 @@ fn chapter_info_information_collector(
 
     V(_, "Sub", _, _) -> {
       use title <- on.ok(gather_title(vxml, Sub))
-      Ok(#(state |> add_sub_with_title_to_state(title), GoBack))
+      use state <- on.ok(add_sub_with_title_to_state(state, title))
+      Ok(#(state, GoBack))
     }
 
     _ -> Ok(#(state, GoBack))
@@ -162,7 +174,7 @@ fn gather_chapter_infos(
 }
 
 // 🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸
-// 🌸 table of contents~~ 🌸
+// 🌸 table of contents 🌸
 // 🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸🌸
 
 fn href(chapter_no: Int, sub_no: Int) -> String {
@@ -170,7 +182,7 @@ fn href(chapter_no: Int, sub_no: Int) -> String {
 }
 
 fn sub_item(ch_no: Int, sub_no: Int, sub: SubInfo) -> VXML {
-  let b = desugarer_blame(173)
+  let b = desugarer_blame(185)
   let SubInfo(title) = sub
   V(b, "li", [], [
     V(
@@ -185,7 +197,7 @@ fn sub_item(ch_no: Int, sub_no: Int, sub: SubInfo) -> VXML {
 }
 
 fn chapter_item(ch_no: Int, chapter: ChapterInfo) -> VXML {
-  let b = desugarer_blame(188)
+  let b = desugarer_blame(200)
   let ChapterInfo(title, subs) = chapter
   let subchapters_ol = case subs {
     [] -> []
@@ -215,7 +227,7 @@ fn chapter_item(ch_no: Int, chapter: ChapterInfo) -> VXML {
 }
 
 fn chapter_ol(chapters: List(ChapterInfo)) -> VXML {
-  let b = desugarer_blame(218)
+  let b = desugarer_blame(230)
   V(
     b,
     "ol",
@@ -229,7 +241,7 @@ fn chapter_ol(chapters: List(ChapterInfo)) -> VXML {
 }
 
 // 🌸🌸🌸🌸🌸🌸🌸
-// 🌸 main~~ 🌸
+// 🌸 main 🌸
 // 🌸🌸🌸🌸🌸🌸🌸
 
 fn index(root: VXML) -> Result(VXML, DesugaringError) {
@@ -237,10 +249,10 @@ fn index(root: VXML) -> Result(VXML, DesugaringError) {
 
   Ok(
     V(
-      desugarer_blame(240),
+      desugarer_blame(252),
       "Index",
       [
-        Attr(desugarer_blame(243), "path", "./index.html"),
+        Attr(desugarer_blame(255), "path", "./index.html"),
       ],
       [
         header(root),
@@ -251,9 +263,14 @@ fn index(root: VXML) -> Result(VXML, DesugaringError) {
 }
 
 fn at_root(root: VXML) -> Result(VXML, DesugaringError) {
-  let assert V(_, "Document", _, children) = root
-  use index <- on.ok(index(root))
-  Ok(V(..root, children: [index, ..children]))
+  case root {
+    V(_, "Document", _, children) -> {
+      use index <- on.ok(index(root))
+      Ok(V(..root, children: [index, ..children]))
+    }
+    V(blame, _, _, _) | T(blame, _) ->
+      Error(DesugaringError(blame, "expected a Document root element"))
+  }
 }
 
 fn inner_param_to_transform() -> core.DesugarerTransform {
@@ -269,7 +286,69 @@ fn desugarer_blame(line_no: Int) {
 // 🌊🌊🌊 tests 🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
 fn assertive_tests_data() -> List(core.AssertiveTestDataNoParam) {
-  []
+  [
+    core.AssertiveTestDataNoParam(
+      source: "
+                <> Document
+                  title=Course title
+                  program=Program
+                  institution=Institution
+                  lecturer=Lecturer
+                  <> Chapter
+                    <> ChapterTitle
+                      <>
+                        'Introduction'
+                    <> Sub
+                      <> SubTitle
+                        <>
+                          'Details'
+                ",
+      expected: "
+                <> Document
+                  title=Course title
+                  program=Program
+                  institution=Institution
+                  lecturer=Lecturer
+                  <> Index
+                    path=./index.html
+                    <> header
+                      class=index__header
+                      <> h1
+                        class=index__header__title
+                        <>
+                          'Course title'
+                      <> div
+                        class=index__header__subtitle
+                        <>
+                          'Program'
+                        <> br
+                        <>
+                          'Lecturer,'
+                          'Institution'
+                    <> ol
+                      class=index__toc
+                      <> li
+                        <> a
+                          href=./1-0.html
+                          <>
+                            'Introduction'
+                        <> ol
+                          <> li
+                            <> a
+                              href=./1-1.html
+                              <>
+                                'Details'
+                  <> Chapter
+                    <> ChapterTitle
+                      <>
+                        'Introduction'
+                    <> Sub
+                      <> SubTitle
+                        <>
+                          'Details'
+                ",
+    ),
+  ]
 }
 
 pub fn assertive_tests() {

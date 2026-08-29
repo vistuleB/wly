@@ -130,7 +130,7 @@ fn gather_pages(root: VXML) -> Result(List(Page), DesugaringError) {
 type PageDepositorState =
   #(List(Page), List(Page))
 
-fn attrs_4_page(page: Page) -> List(Attr) {
+fn attrs_for_page(page: Page) -> List(Attr) {
   case page {
     Chapter(_, number_chiron, ch_no) -> [
       Attr(desugarer_blame(136), "ch_no", ins(ch_no)),
@@ -151,7 +151,7 @@ fn deposit_next(vxml: VXML, next: Option(Page)) -> VXML {
     V(
       desugarer_blame(152),
       "NextChapterOrSubTitle",
-      attrs_4_page(next),
+      attrs_for_page(next),
       next.title,
     )
   V(..vxml, children: [title, ..children])
@@ -164,7 +164,7 @@ fn deposit_prev(vxml: VXML, prev: Option(Page)) -> VXML {
     V(
       desugarer_blame(165),
       "PrevChapterOrSubTitle",
-      attrs_4_page(prev),
+      attrs_for_page(prev),
       prev.title,
     )
   V(..vxml, children: [title, ..children])

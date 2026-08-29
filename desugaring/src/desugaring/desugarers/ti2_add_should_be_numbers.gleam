@@ -11,7 +11,7 @@ import gleam/regexp.{type Regexp}
 import gleam/string.{inspect as ins}
 import on
 import vxml.{type VXML, V}
-import vxml/blame as bl
+import vxml/blame.{type Blame} as bl
 
 pub const name = "ti2_add_should_be_numbers"
 
@@ -28,19 +28,33 @@ pub fn constructor() -> Desugarer {
   )
 }
 
+fn source_path(
+  blame: Blame,
+  element: String,
+) -> Result(String, DesugaringError) {
+  case blame {
+    bl.Src(_, path, _, _, _) -> Ok(path)
+    _ ->
+      Error(DesugaringError(
+        blame,
+        element <> " must retain source blame to infer its number",
+      ))
+  }
+}
+
 fn process_sub(node: VXML, inner: InnerParam) -> Result(VXML, DesugaringError) {
   case node {
     V(blame, "Sub", _, _) -> {
-      let assert bl.Src(_, path, _, _, _) = blame
+      use path <- on.ok(source_path(blame, "Sub"))
       use first, _ <- on.empty_nonempty(regexp.scan(inner.1, path), fn() {
         Error(DesugaringError(
           blame,
-          "cannot not read subchapter number in blame path: " <> path,
+          "cannot read subchapter number in blame path: " <> path,
         ))
       })
       let assert [Some(x)] = first.submatches
       let assert Ok(x) = int.parse(x)
-      Ok(core.v_set_attr(node, desugarer_blame(43), "should-be-number", ins(x)))
+      Ok(core.v_set_attr(node, desugarer_blame(57), "should-be-number", ins(x)))
     }
     _ -> Ok(node)
   }
@@ -52,7 +66,7 @@ fn nodemap(
 ) -> Result(#(VXML, TrafficLight), DesugaringError) {
   case node {
     V(blame, "Chapter", attrs, children) -> {
-      let assert bl.Src(_, path, _, _, _) = blame
+      use path <- on.ok(source_path(blame, "Chapter"))
       use first, _ <- on.empty_nonempty(regexp.scan(inner.0, path), fn() {
         Error(DesugaringError(blame, "cannot read directory number"))
       })
@@ -60,7 +74,7 @@ fn nodemap(
       let assert Ok(x) = int.parse(x)
       use children <- on.ok(list.try_map(children, process_sub(_, inner)))
       let attrs =
-        core.attrs_set(attrs, desugarer_blame(63), "should-be-number", ins(x))
+        core.attrs_set(attrs, desugarer_blame(77), "should-be-number", ins(x))
       Ok(#(V(..node, attrs: attrs, children: children), GoBack))
     }
     _ -> Ok(#(node, Continue))
@@ -91,7 +105,22 @@ type InnerParam =
 // 🌊🌊🌊 tests 🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
 fn assertive_tests_data() -> List(core.AssertiveTestDataNoParam) {
-  []
+  [
+    core.AssertiveTestDataNoParam(
+      source: "
+                <> Document
+                  <> Aside
+                    <>
+                      'unchanged'
+                ",
+      expected: "
+                <> Document
+                  <> Aside
+                    <>
+                      'unchanged'
+                ",
+    ),
+  ]
 }
 
 pub fn assertive_tests() {

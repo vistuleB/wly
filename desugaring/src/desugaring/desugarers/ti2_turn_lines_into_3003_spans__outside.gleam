@@ -5,7 +5,6 @@ import desugaring/core.{
 import desugaring/nodemaps_2_transform as n2t
 import gleam/list
 import gleam/string.{inspect as ins}
-import on
 import vxml.{type Line, type VXML, Attr, Line, T, V}
 import vxml/blame as bl
 
@@ -40,7 +39,7 @@ const container_classname = "t-3003-c"
 
 const tooltip_classname = "t-3003"
 
-const b = bl.Des([], name, 43)
+const b = bl.Des([], name, 42)
 
 const newline_t = T(b, [Line(b, ""), Line(b, "")])
 
@@ -55,22 +54,16 @@ fn line_to_tooltip_span(line: Line, inner: InnerParam) -> VXML {
       _ -> ""
     }
 
-  use _ <- on.stay(case location == inner {
-    True -> on.Return(T(line.blame, [line]))
-    False -> on.Stay(Nil)
-  })
-
-  V(line.blame, "span", [Attr(line.blame, "class", container_classname)], [
-    T(line.blame, [Line(line.blame, line.content)]),
-    V(
-      line.blame,
-      "span",
-      [
-        Attr(line.blame, "class", tooltip_classname),
-      ],
-      [T(line.blame, [Line(line.blame, location)])],
-    ),
-  ])
+  case location == inner {
+    True -> T(line.blame, [line])
+    False ->
+      V(line.blame, "span", [Attr(line.blame, "class", container_classname)], [
+        T(line.blame, [Line(line.blame, line.content)]),
+        V(line.blame, "span", [Attr(line.blame, "class", tooltip_classname)], [
+          T(line.blame, [Line(line.blame, location)]),
+        ]),
+      ])
+  }
 }
 
 fn nodemap(vxml: VXML, inner: InnerParam) -> List(VXML) {

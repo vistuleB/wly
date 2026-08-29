@@ -126,7 +126,7 @@ fn nodemap(vxml: VXML) -> Result(VXML, DesugaringError) {
         }
       })
 
-      Ok(V(..vxml, attrs: attrs, children: [imgs, others] |> list.flatten))
+      Ok(V(..vxml, attrs: attrs, children: list.append(imgs, others)))
     }
 
     _ -> Ok(vxml)

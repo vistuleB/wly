@@ -61,7 +61,7 @@ fn compose_and_simplify_path(
   |> result.map_error(fn(_) {
     DesugaringError(
       blame,
-      "path '" <> path <> "' points outside of root directory (?)",
+      "path '" <> path <> "' points outside the root directory",
     )
   })
 }
@@ -100,9 +100,14 @@ fn v_after(
   original_state: State,
   latest_state: State,
 ) -> Result(#(List(VXML), State), DesugaringError) {
-  let assert V(_, tag, attrs, _) = vxml
+  let assert V(blame, tag, attrs, _) = vxml
   use <- on.false_true(tag == "img", fn() { Ok(#([vxml], original_state)) })
-  let assert Some(attr) = core.attrs_first_with_key(attrs, "src")
+  use attr <- on.none_some(core.attrs_first_with_key(attrs, "src"), fn() {
+    Error(DesugaringError(
+      blame,
+      "img element is missing its required 'src' attribute",
+    ))
+  })
   use src <- on.ok(compose_and_simplify_path(attr.blame, attr.val, inner))
   let children = case latest_state {
     None -> [inner_span(src)]

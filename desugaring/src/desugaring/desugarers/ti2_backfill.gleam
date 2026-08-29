@@ -5,7 +5,6 @@ import desugaring/core.{
 }
 import desugaring/nodemaps_2_transform as n2t
 import gleam/int
-import gleam/io
 import gleam/list
 import gleam/string.{inspect as ins}
 import on
@@ -27,7 +26,7 @@ pub fn constructor() -> Desugarer {
   )
 }
 
-const const_blame = bl.Des([], name, 30)
+const const_blame = bl.Des([], name, 29)
 
 const stub_sub = V(
   const_blame,
@@ -103,17 +102,16 @@ fn nodemap(node: VXML) -> Result(#(VXML, TrafficLight), DesugaringError) {
     V(_, "WriterlyBlankLine", _, _) -> {
       Ok(#(node, Continue))
     }
-    V(_, tag, _, _children) -> {
-      let msg = "unexpected tag: " <> tag
-      panic as msg
-    }
-    T(_, lines) -> {
-      io.println("")
-      list.each(lines, fn(line) { io.println(line.content) })
-      io.println("")
-      let msg = "unexpected text node at top level of Document (printout above)"
-      panic as msg
-    }
+    V(blame, tag, _, _) ->
+      Error(DesugaringError(
+        blame,
+        "unexpected " <> tag <> " element at the top level of Document",
+      ))
+    T(blame, _) ->
+      Error(DesugaringError(
+        blame,
+        "unexpected text node at the top level of Document",
+      ))
   }
 }
 

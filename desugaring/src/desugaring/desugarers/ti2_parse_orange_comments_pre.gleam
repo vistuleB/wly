@@ -14,7 +14,7 @@ pub const name = "ti2_parse_orange_comments_pre"
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️️️️️🏖️
 
 /// Highlights comment text following `//` in code blocks
-/// configured with the `orange-comment` language.
+/// configured with the `orange-comments` language.
 pub fn constructor() -> Desugarer {
   authoring.no_param_desugarer(
     name: name,
@@ -32,18 +32,19 @@ const orange = V(
   [],
 )
 
-fn line_2_t(line: Line) -> VXML {
+fn line_to_text_node(line: Line) -> VXML {
   T(line.blame, [line])
 }
 
 fn elements_for_line(line: Line) -> List(VXML) {
   case string.split_once(line.content, "//") {
-    Error(_) -> [line_2_t(line)]
+    Error(_) -> [line_to_text_node(line)]
     Ok(#(before, after)) -> {
       let after_blame = bl.advance(line.blame, string.length(before) + 2)
-      let before = line_2_t(Line(line.blame, before))
+      let before = line_to_text_node(Line(line.blame, before))
       let orange =
-        orange |> core.v_prepend_child(line_2_t(Line(after_blame, after)))
+        orange
+        |> core.v_prepend_child(line_to_text_node(Line(after_blame, after)))
       [before, orange, t_1_empty_line]
     }
   }
@@ -74,7 +75,7 @@ fn nodemap(vxml: VXML) -> VXML {
             attrs
               |> core.attrs_delete("language")
               |> core.attrs_append_classes(
-                desugarer_blame(77),
+                desugarer_blame(78),
                 "orange-comments",
               ),
             children,
