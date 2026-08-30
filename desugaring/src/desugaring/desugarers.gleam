@@ -108,13 +108,6 @@ import desugaring/desugarers/handles_setup_grand_wrapper
 import desugaring/desugarers/handles_substitute
 import desugaring/desugarers/handles_warn_unused
 import desugaring/desugarers/identity
-import desugaring/desugarers/ii2_carousel_component
-import desugaring/desugarers/ii2_class_well_container_theorem_2_statement
-import desugaring/desugarers/ii2_fix_local_links
-import desugaring/desugarers/ii2_generate_table_of_contents_html
-import desugaring/desugarers/ii2_insert_counter_commands
-import desugaring/desugarers/ii2_normalize_begin_end_align
-import desugaring/desugarers/ii2_remove_chapter_number_from_title
 import desugaring/desugarers/insert_attribute_as_text
 import desugaring/desugarers/insert_attribute_value_at_first_child_start
 import desugaring/desugarers/insert_attribute_value_at_start
@@ -359,13 +352,6 @@ pub const handles_setup_grand_wrapper = handles_setup_grand_wrapper.constructor
 pub const handles_substitute = handles_substitute.constructor
 pub const handles_warn_unused = handles_warn_unused.constructor
 pub const identity = identity.constructor
-pub const ii2_carousel_component = ii2_carousel_component.constructor
-pub const ii2_class_well_container_theorem_2_statement = ii2_class_well_container_theorem_2_statement.constructor
-pub const ii2_fix_local_links = ii2_fix_local_links.constructor
-pub const ii2_generate_table_of_contents_html = ii2_generate_table_of_contents_html.constructor
-pub const ii2_insert_counter_commands = ii2_insert_counter_commands.constructor
-pub const ii2_normalize_begin_end_align = ii2_normalize_begin_end_align.constructor
-pub const ii2_remove_chapter_number_from_title = ii2_remove_chapter_number_from_title.constructor
 pub const insert_attribute_as_text = insert_attribute_as_text.constructor
 pub const insert_attribute_value_at_first_child_start = insert_attribute_value_at_first_child_start.constructor
 pub const insert_attribute_value_at_start = insert_attribute_value_at_start.constructor
@@ -611,13 +597,6 @@ pub const assertive_tests : List(fn() -> core.AssertiveTestCollection) = [
   handles_substitute.assertive_tests,
   handles_warn_unused.assertive_tests,
   identity.assertive_tests,
-  ii2_carousel_component.assertive_tests,
-  ii2_class_well_container_theorem_2_statement.assertive_tests,
-  ii2_fix_local_links.assertive_tests,
-  ii2_generate_table_of_contents_html.assertive_tests,
-  ii2_insert_counter_commands.assertive_tests,
-  ii2_normalize_begin_end_align.assertive_tests,
-  ii2_remove_chapter_number_from_title.assertive_tests,
   insert_attribute_as_text.assertive_tests,
   insert_attribute_value_at_first_child_start.assertive_tests,
   insert_attribute_value_at_start.assertive_tests,
