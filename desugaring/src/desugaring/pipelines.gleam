@@ -350,6 +350,7 @@ fn create_math_or_mathblock_elements(
       split_pair_fold_for_delimiter_pair(_, which, unbridgeable, [
         "Math",
         "MathBlock",
+        "pre",
       ]),
     )
     |> list.flatten
