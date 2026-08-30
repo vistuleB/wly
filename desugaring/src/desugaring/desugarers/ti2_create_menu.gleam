@@ -72,142 +72,133 @@ type Menu {
   Bottom
 }
 
-fn attribute(key: String, value: String) -> Attr {
-  Attr(desugarer_blame(76), key, value)
+fn inner_param_to_transform() -> core.DesugarerTransform {
+  at_root
+  |> n2t.node_to_node_2_desugarer_transform_without_walking
 }
 
-fn string_to_text_node(content: String) -> VXML {
-  T(desugarer_blame(80), [Line(desugarer_blame(80), content)])
-}
-
-fn homepage_link(at_root_data: ConstructedAtRootData) -> Option(VXML) {
-  case at_root_data.homepage_url {
-    "" -> None
-    url ->
-      Some(
-        V(desugarer_blame(88), "a", [attribute("href", url)], [
-          string_to_text_node(at_root_data.homepage_word),
-        ]),
-      )
-  }
-}
-
-fn index_link(toc_word: String) -> VXML {
-  V(desugarer_blame(96), "a", [attribute("href", "./index.html")], [
-    V(desugarer_blame(97), "span", [attribute("class", "inhalts_arrows")], [
-      string_to_text_node("<< "),
-    ]),
-    string_to_text_node(toc_word),
-  ])
-}
-
-fn page_href(page: Page) -> String {
-  case page {
-    Chapter(_, _, ch_no) -> "./" <> ins(ch_no) <> "-0.html"
-    Sub(_, _, ch_no, sub_no) ->
-      "./" <> ins(ch_no) <> "-" <> ins(sub_no) <> ".html"
-  }
-}
-
-fn tooltip(page: Page, relation: Relation, which: Menu) -> VXML {
-  let p1 = case which {
-    Top -> "top-"
-    Bottom -> "bottom-"
-  }
-
-  let p2 = case relation {
-    Prev -> "prev-"
-    Next -> "next-"
-  }
-
-  V(
-    desugarer_blame(124),
-    "span",
-    [
-      attribute("style", "visibility:hidden"),
-      attribute("id", p1 <> p2 <> "page-tooltip"),
-    ],
-    page.title,
-  )
-}
-
-fn page_link(
-  page: Page,
-  relation: Relation,
-  which: Menu,
-  chapter_word: String,
-) -> VXML {
-  let href_attr =
-    page
-    |> page_href
-    |> attribute("href", _)
-
-  let #(prev_prefix, next_suffix) = case relation {
-    Prev -> #("<< ", "")
-    Next -> #("", " >>")
-  }
-
-  let content = case page {
-    Chapter(_, _, ch_no) ->
-      prev_prefix <> chapter_word <> " " <> ins(ch_no) <> next_suffix
-    Sub(_, _, ch_no, sub_no) ->
-      prev_prefix
-      <> chapter_word
-      <> " "
-      <> ins(ch_no)
-      <> "."
-      <> ins(sub_no)
-      <> next_suffix
-  }
-
-  V(desugarer_blame(163), "a", [href_attr], [
-    string_to_text_node(content),
-    tooltip(page, relation, which),
-  ])
-}
-
-fn menu_from_link_rows(
-  row1: #(Option(VXML), Option(VXML)),
-  row2: #(Option(VXML), Option(VXML)),
-  which: Menu,
-) -> VXML {
-  let #(tag, p1) = case which {
-    Top -> #("TopMenu", "top-")
-    Bottom -> #("BottomMenu", "bottom-")
-  }
-  let dummy =
-    V(
-      desugarer_blame(180),
-      "a",
-      [attribute("class", "menu-row-placeholder")],
-      [],
-    )
-  let row_constructor = fn(row: #(Option(VXML), Option(VXML))) {
-    let #(left, right) = row
-    let right = case right {
-      None -> None
-      Some(x) -> Some(core.v_append_classes(x, "menu-row-right"))
+fn nodemap(
+  vxml: VXML,
+  at_root_data: ConstructedAtRootData,
+) -> Result(#(VXML, TrafficLight), DesugaringError) {
+  use #(data, continue) <- on.ok(case vxml {
+    V(_, "Index", _, _) -> {
+      use data <- on.ok(link_data_at_index(vxml, at_root_data))
+      Ok(#(Some(data), GoBack))
     }
-    case left, right {
-      None, None -> None
-      _, _ -> {
-        let left = option.unwrap(left, dummy)
-        let right = option.unwrap(right, dummy)
-        Some(
-          V(desugarer_blame(197), "MenuRow", [attribute("class", "menu-row")], [
-            left,
-            right,
-          ]),
-        )
+
+    V(_, "Chapter", _, _) -> {
+      use data <- on.ok(link_data_at_ch_or_sub(vxml, at_root_data))
+      Ok(#(Some(data), Continue))
+    }
+
+    V(_, "Sub", _, _) -> {
+      use data <- on.ok(link_data_at_ch_or_sub(vxml, at_root_data))
+      Ok(#(Some(data), GoBack))
+    }
+
+    V(_, "Document", _, _) -> {
+      Ok(#(None, Continue))
+    }
+
+    _ -> {
+      Ok(#(None, GoBack))
+    }
+  })
+
+  let vxml = case data {
+    None -> vxml
+    Some(data) -> {
+      case data.index {
+        None -> vxml |> add_menu(data, Top)
+        // the index gets no bottom menu
+        Some(_) -> vxml |> add_menu(data, Top) |> add_menu(data, Bottom)
       }
     }
   }
-  V(
-    desugarer_blame(206),
-    tag,
-    [attribute("id", p1 <> "menu")],
-    [row1, row2] |> list.map(row_constructor) |> option.values,
+
+  Ok(#(vxml, continue))
+}
+
+fn link_data_at_index(
+  index: VXML,
+  at_root_data: ConstructedAtRootData,
+) -> Result(LinkData, DesugaringError) {
+  use next <- on.ok(page_from_title(index, Next))
+  case next {
+    None ->
+      Error(DesugaringError(
+        bl.no_blame,
+        "Index is missing a NextChapterOrSubTitle child",
+      ))
+    _ -> Ok(LinkData(at_root_data, None, None, next))
+  }
+}
+
+fn page_from_title(
+  vxml: VXML,
+  relation: Relation,
+) -> Result(Option(Page), DesugaringError) {
+  let title_tag = case relation {
+    Prev -> "PrevChapterOrSubTitle"
+    Next -> "NextChapterOrSubTitle"
+  }
+  use title <- on.eager_none_some(
+    core.v_first_child_with_tag(vxml, title_tag),
+    Ok(None),
   )
+  let assert V(blame, _, attrs, title) = title
+  use chiron <- on.ok(core.attrs_val_of_unique_key(
+    attrs,
+    "number-chiron",
+    blame,
+  ))
+  use ch_no <- on.ok(core.attrs_val_of_unique_key(attrs, "ch_no", blame))
+  use ch_no <- on.ok(parse_page_number(blame, "ch_no", ch_no))
+  let sub_no = case core.attrs_val_of_unique_key(attrs, "sub_no", blame) {
+    Ok(x) -> {
+      use x <- on.ok(parse_page_number(blame, "sub_no", x))
+      Ok(Some(x))
+    }
+    _ -> Ok(None)
+  }
+  use sub_no <- on.ok(sub_no)
+  let page = case sub_no {
+    None -> Chapter(title, chiron, ch_no)
+    Some(sub_no) -> Sub(title, chiron, ch_no, sub_no)
+  }
+  Ok(Some(page))
+}
+
+fn parse_page_number(
+  blame: bl.Blame,
+  key: String,
+  value: String,
+) -> Result(Int, DesugaringError) {
+  int.parse(value)
+  |> result.map_error(fn(_) {
+    DesugaringError(
+      blame,
+      "cannot parse '" <> key <> "' attribute as an integer: " <> value,
+    )
+  })
+}
+
+fn link_data_at_ch_or_sub(
+  vxml: VXML,
+  at_root_data: ConstructedAtRootData,
+) -> Result(LinkData, DesugaringError) {
+  use prev <- on.ok(page_from_title(vxml, Prev))
+  use next <- on.ok(page_from_title(vxml, Next))
+  Ok(LinkData(at_root_data, Some("./index.html"), prev, next))
+}
+
+fn add_menu(node: VXML, data: LinkData, which: Menu) -> VXML {
+  let menu = menu_from_link_data(data, which)
+  case which {
+    Top -> core.v_prepend_child(node, menu)
+    Bottom -> core.v_pour_before_first(node, [menu, hr], "Sub")
+  }
 }
 
 fn menu_from_link_data(data: LinkData, which: Menu) -> VXML {
@@ -272,128 +263,146 @@ fn menu_from_link_data(data: LinkData, which: Menu) -> VXML {
   }
 }
 
-fn parse_page_number(
-  blame: bl.Blame,
-  key: String,
-  value: String,
-) -> Result(Int, DesugaringError) {
-  int.parse(value)
-  |> result.map_error(fn(_) {
-    DesugaringError(
-      blame,
-      "cannot parse '" <> key <> "' attribute as an integer: " <> value,
-    )
-  })
+fn homepage_link(at_root_data: ConstructedAtRootData) -> Option(VXML) {
+  case at_root_data.homepage_url {
+    "" -> None
+    url ->
+      Some(
+        V(desugarer_blame(88), "a", [attribute("href", url)], [
+          string_to_text_node(at_root_data.homepage_word),
+        ]),
+      )
+  }
 }
 
-fn page_from_title(
-  vxml: VXML,
+fn page_link(
+  page: Page,
   relation: Relation,
-) -> Result(Option(Page), DesugaringError) {
-  let title_tag = case relation {
-    Prev -> "PrevChapterOrSubTitle"
-    Next -> "NextChapterOrSubTitle"
+  which: Menu,
+  chapter_word: String,
+) -> VXML {
+  let href_attr =
+    page
+    |> page_href
+    |> attribute("href", _)
+
+  let #(prev_prefix, next_suffix) = case relation {
+    Prev -> #("<< ", "")
+    Next -> #("", " >>")
   }
-  use title <- on.eager_none_some(
-    core.v_first_child_with_tag(vxml, title_tag),
-    Ok(None),
+
+  let content = case page {
+    Chapter(_, _, ch_no) ->
+      prev_prefix <> chapter_word <> " " <> ins(ch_no) <> next_suffix
+    Sub(_, _, ch_no, sub_no) ->
+      prev_prefix
+      <> chapter_word
+      <> " "
+      <> ins(ch_no)
+      <> "."
+      <> ins(sub_no)
+      <> next_suffix
+  }
+
+  V(desugarer_blame(163), "a", [href_attr], [
+    string_to_text_node(content),
+    tooltip(page, relation, which),
+  ])
+}
+
+fn attribute(key: String, value: String) -> Attr {
+  Attr(desugarer_blame(76), key, value)
+}
+
+fn desugarer_blame(line_no: Int) {
+  bl.Des([], name, line_no)
+}
+
+fn string_to_text_node(content: String) -> VXML {
+  T(desugarer_blame(80), [Line(desugarer_blame(80), content)])
+}
+
+fn tooltip(page: Page, relation: Relation, which: Menu) -> VXML {
+  let p1 = case which {
+    Top -> "top-"
+    Bottom -> "bottom-"
+  }
+
+  let p2 = case relation {
+    Prev -> "prev-"
+    Next -> "next-"
+  }
+
+  V(
+    desugarer_blame(124),
+    "span",
+    [
+      attribute("style", "visibility:hidden"),
+      attribute("id", p1 <> p2 <> "page-tooltip"),
+    ],
+    page.title,
   )
-  let assert V(blame, _, attrs, title) = title
-  use chiron <- on.ok(core.attrs_val_of_unique_key(
-    attrs,
-    "number-chiron",
-    blame,
-  ))
-  use ch_no <- on.ok(core.attrs_val_of_unique_key(attrs, "ch_no", blame))
-  use ch_no <- on.ok(parse_page_number(blame, "ch_no", ch_no))
-  let sub_no = case core.attrs_val_of_unique_key(attrs, "sub_no", blame) {
-    Ok(x) -> {
-      use x <- on.ok(parse_page_number(blame, "sub_no", x))
-      Ok(Some(x))
-    }
-    _ -> Ok(None)
-  }
-  use sub_no <- on.ok(sub_no)
-  let page = case sub_no {
-    None -> Chapter(title, chiron, ch_no)
-    Some(sub_no) -> Sub(title, chiron, ch_no, sub_no)
-  }
-  Ok(Some(page))
 }
 
-fn link_data_at_index(
-  index: VXML,
-  at_root_data: ConstructedAtRootData,
-) -> Result(LinkData, DesugaringError) {
-  use next <- on.ok(page_from_title(index, Next))
-  case next {
-    None ->
-      Error(DesugaringError(
-        bl.no_blame,
-        "Index is missing a NextChapterOrSubTitle child",
-      ))
-    _ -> Ok(LinkData(at_root_data, None, None, next))
+fn menu_from_link_rows(
+  row1: #(Option(VXML), Option(VXML)),
+  row2: #(Option(VXML), Option(VXML)),
+  which: Menu,
+) -> VXML {
+  let #(tag, p1) = case which {
+    Top -> #("TopMenu", "top-")
+    Bottom -> #("BottomMenu", "bottom-")
   }
-}
-
-fn link_data_at_ch_or_sub(
-  vxml: VXML,
-  at_root_data: ConstructedAtRootData,
-) -> Result(LinkData, DesugaringError) {
-  use prev <- on.ok(page_from_title(vxml, Prev))
-  use next <- on.ok(page_from_title(vxml, Next))
-  Ok(LinkData(at_root_data, Some("./index.html"), prev, next))
-}
-
-fn add_menu(node: VXML, data: LinkData, which: Menu) -> VXML {
-  let menu = menu_from_link_data(data, which)
-  case which {
-    Top -> core.v_prepend_child(node, menu)
-    Bottom -> core.v_pour_before_first(node, [menu, hr], "Sub")
-  }
-}
-
-fn nodemap(
-  vxml: VXML,
-  at_root_data: ConstructedAtRootData,
-) -> Result(#(VXML, TrafficLight), DesugaringError) {
-  use #(data, continue) <- on.ok(case vxml {
-    V(_, "Index", _, _) -> {
-      use data <- on.ok(link_data_at_index(vxml, at_root_data))
-      Ok(#(Some(data), GoBack))
+  let dummy =
+    V(
+      desugarer_blame(180),
+      "a",
+      [attribute("class", "menu-row-placeholder")],
+      [],
+    )
+  let row_constructor = fn(row: #(Option(VXML), Option(VXML))) {
+    let #(left, right) = row
+    let right = case right {
+      None -> None
+      Some(x) -> Some(core.v_append_classes(x, "menu-row-right"))
     }
-
-    V(_, "Chapter", _, _) -> {
-      use data <- on.ok(link_data_at_ch_or_sub(vxml, at_root_data))
-      Ok(#(Some(data), Continue))
-    }
-
-    V(_, "Sub", _, _) -> {
-      use data <- on.ok(link_data_at_ch_or_sub(vxml, at_root_data))
-      Ok(#(Some(data), GoBack))
-    }
-
-    V(_, "Document", _, _) -> {
-      Ok(#(None, Continue))
-    }
-
-    _ -> {
-      Ok(#(None, GoBack))
-    }
-  })
-
-  let vxml = case data {
-    None -> vxml
-    Some(data) -> {
-      case data.index {
-        None -> vxml |> add_menu(data, Top)
-        // the index gets no bottom menu
-        Some(_) -> vxml |> add_menu(data, Top) |> add_menu(data, Bottom)
+    case left, right {
+      None, None -> None
+      _, _ -> {
+        let left = option.unwrap(left, dummy)
+        let right = option.unwrap(right, dummy)
+        Some(
+          V(desugarer_blame(197), "MenuRow", [attribute("class", "menu-row")], [
+            left,
+            right,
+          ]),
+        )
       }
     }
   }
+  V(
+    desugarer_blame(206),
+    tag,
+    [attribute("id", p1 <> "menu")],
+    [row1, row2] |> list.map(row_constructor) |> option.values,
+  )
+}
 
-  Ok(#(vxml, continue))
+fn index_link(toc_word: String) -> VXML {
+  V(desugarer_blame(96), "a", [attribute("href", "./index.html")], [
+    V(desugarer_blame(97), "span", [attribute("class", "inhalts_arrows")], [
+      string_to_text_node("<< "),
+    ]),
+    string_to_text_node(toc_word),
+  ])
+}
+
+fn page_href(page: Page) -> String {
+  case page {
+    Chapter(_, _, ch_no) -> "./" <> ins(ch_no) <> "-0.html"
+    Sub(_, _, ch_no, sub_no) ->
+      "./" <> ins(ch_no) <> "-" <> ins(sub_no) <> ".html"
+  }
 }
 
 fn at_root(root: VXML) -> Result(VXML, DesugaringError) {
@@ -437,15 +446,6 @@ fn at_root(root: VXML) -> Result(VXML, DesugaringError) {
   })
 
   n2t.early_return_one_to_one_nodemap_walk(root, nodemap(_, at_root_data))
-}
-
-fn inner_param_to_transform() -> core.DesugarerTransform {
-  at_root
-  |> n2t.node_to_node_2_desugarer_transform_without_walking
-}
-
-fn desugarer_blame(line_no: Int) {
-  bl.Des([], name, line_no)
 }
 
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊

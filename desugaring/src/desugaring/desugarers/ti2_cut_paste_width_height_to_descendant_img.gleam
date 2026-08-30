@@ -36,6 +36,116 @@ type InnerParam =
 type State =
   Option(String)
 
+fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
+  Ok(param)
+}
+
+fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
+  let nodemap: n2t.OneToOneEnterExitStatefulNodemap(State) =
+    n2t.OneToOneEnterExitStatefulNodemap(
+      on_enter: fn(node, state) { on_enter(node, state, inner) },
+      on_exit: fn(n, o, _) { Ok(#(n, o)) },
+      on_text: fn(n, s) { Ok(#(n, s)) },
+    )
+  nodemap
+  |> n2t.one_to_one_enter_exit_stateful_nodemap_2_desugarer_transform(None)
+}
+
+fn on_enter(
+  node: VXML,
+  state: State,
+  inner: InnerParam,
+) -> Result(#(VXML, State), DesugaringError) {
+  let assert V(_, tag, _, _) = node
+  case tag {
+    "img" -> img_case(node, state)
+    _ ->
+      case list.contains(inner, tag) {
+        True -> ancestor_case(node, state)
+        False -> Ok(#(node, state))
+      }
+  }
+}
+
+fn img_case(
+  node: VXML,
+  state: State,
+) -> Result(#(VXML, State), DesugaringError) {
+  let assert V(blame, _, attrs, _) = node
+
+  // could not use 'extract_height_width_from_style_and_attrs'
+  // here because it gets very expensive to gratuitously
+  // extract from and then reinsert into the 'style' attribute
+  // of all img elements; if we wanted to avoid overwriting
+  // existing local styles would need an alternate version of
+  // 'attrs_merge_prepend_styles' that throws an error when a
+  // style property is about to be overwritten
+
+  use #(width_attr, attrs) <- on.ok(core.attrs_extract_unique_key_or_none(
+    attrs,
+    "width",
+  ))
+
+  use #(height_attr, attrs) <- on.ok(core.attrs_extract_unique_key_or_none(
+    attrs,
+    "height",
+  ))
+
+  let width_style = width_attr |> option.map(fn(x) { "width:" <> x.val })
+  let height_style = height_attr |> option.map(fn(x) { "height:" <> x.val })
+
+  let local_style =
+    [width_style, height_style]
+    |> option.values
+    |> string.join(";")
+
+  use state <- on.ok(merge_new_style_into_state(state, blame, local_style))
+
+  case state {
+    None -> Ok(#(node, state))
+    Some(width_height_style) -> {
+      let attrs =
+        core.attrs_merge_prepend_styles(attrs, blame, width_height_style)
+      Ok(#(V(..node, attrs: attrs), state))
+    }
+  }
+}
+
+fn merge_new_style_into_state(
+  state: State,
+  blame: Blame,
+  width_height_style: String,
+) -> Result(State, DesugaringError) {
+  case state, width_height_style {
+    _, "" -> Ok(state)
+    None, _ -> Ok(Some(width_height_style))
+    Some(x), _ ->
+      Error(DesugaringError(
+        blame,
+        "found overlapping img width-height instructions of ancestor/descendant "
+          <> x
+          <> " "
+          <> width_height_style,
+      ))
+  }
+}
+
+fn ancestor_case(
+  node: VXML,
+  state: State,
+) -> Result(#(VXML, State), DesugaringError) {
+  let assert V(blame, _, attrs, _) = node
+  use #(width_height_style, attrs) <- on.ok(
+    extract_height_width_from_style_and_attrs(attrs),
+  )
+  use state <- on.ok(merge_new_style_into_state(
+    state,
+    blame,
+    width_height_style,
+  ))
+  Ok(#(V(..node, attrs: attrs), state))
+}
+
 fn extract_height_width_from_style_and_attrs(
   attrs: List(Attr),
 ) -> Result(#(String, List(vxml.Attr)), DesugaringError) {
@@ -100,116 +210,6 @@ fn extract_height_width_from_style_and_attrs(
       |> string.join(";"),
     new_attrs,
   ))
-}
-
-fn merge_new_style_into_state(
-  state: State,
-  blame: Blame,
-  width_height_style: String,
-) -> Result(State, DesugaringError) {
-  case state, width_height_style {
-    _, "" -> Ok(state)
-    None, _ -> Ok(Some(width_height_style))
-    Some(x), _ ->
-      Error(DesugaringError(
-        blame,
-        "found overlapping img width-height instructions of ancestor/descendant "
-          <> x
-          <> " "
-          <> width_height_style,
-      ))
-  }
-}
-
-fn img_case(
-  node: VXML,
-  state: State,
-) -> Result(#(VXML, State), DesugaringError) {
-  let assert V(blame, _, attrs, _) = node
-
-  // could not use 'extract_height_width_from_style_and_attrs'
-  // here because it gets very expensive to gratuitously
-  // extract from and then reinsert into the 'style' attribute
-  // of all img elements; if we wanted to avoid overwriting
-  // existing local styles would need an alternate version of
-  // 'attrs_merge_prepend_styles' that throws an error when a
-  // style property is about to be overwritten
-
-  use #(width_attr, attrs) <- on.ok(core.attrs_extract_unique_key_or_none(
-    attrs,
-    "width",
-  ))
-
-  use #(height_attr, attrs) <- on.ok(core.attrs_extract_unique_key_or_none(
-    attrs,
-    "height",
-  ))
-
-  let width_style = width_attr |> option.map(fn(x) { "width:" <> x.val })
-  let height_style = height_attr |> option.map(fn(x) { "height:" <> x.val })
-
-  let local_style =
-    [width_style, height_style]
-    |> option.values
-    |> string.join(";")
-
-  use state <- on.ok(merge_new_style_into_state(state, blame, local_style))
-
-  case state {
-    None -> Ok(#(node, state))
-    Some(width_height_style) -> {
-      let attrs =
-        core.attrs_merge_prepend_styles(attrs, blame, width_height_style)
-      Ok(#(V(..node, attrs: attrs), state))
-    }
-  }
-}
-
-fn ancestor_case(
-  node: VXML,
-  state: State,
-) -> Result(#(VXML, State), DesugaringError) {
-  let assert V(blame, _, attrs, _) = node
-  use #(width_height_style, attrs) <- on.ok(
-    extract_height_width_from_style_and_attrs(attrs),
-  )
-  use state <- on.ok(merge_new_style_into_state(
-    state,
-    blame,
-    width_height_style,
-  ))
-  Ok(#(V(..node, attrs: attrs), state))
-}
-
-fn on_enter(
-  node: VXML,
-  state: State,
-  inner: InnerParam,
-) -> Result(#(VXML, State), DesugaringError) {
-  let assert V(_, tag, _, _) = node
-  case tag {
-    "img" -> img_case(node, state)
-    _ ->
-      case list.contains(inner, tag) {
-        True -> ancestor_case(node, state)
-        False -> Ok(#(node, state))
-      }
-  }
-}
-
-fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
-  let nodemap: n2t.OneToOneEnterExitStatefulNodemap(State) =
-    n2t.OneToOneEnterExitStatefulNodemap(
-      on_enter: fn(node, state) { on_enter(node, state, inner) },
-      on_exit: fn(n, o, _) { Ok(#(n, o)) },
-      on_text: fn(n, s) { Ok(#(n, s)) },
-    )
-  nodemap
-  |> n2t.one_to_one_enter_exit_stateful_nodemap_2_desugarer_transform(None)
-}
-
-fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
-  Ok(param)
 }
 
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊

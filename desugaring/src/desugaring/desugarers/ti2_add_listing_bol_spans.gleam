@@ -36,8 +36,10 @@ const bol_span_with_texts = [
   bol_span,
 ]
 
-fn line_to_text_node(line: Line) -> VXML {
-  T(line.blame, [line])
+fn inner_param_to_transform() -> DesugarerTransform {
+  let nodemap: n2t.OneToOneNoErrorNodemap = nodemap
+  nodemap
+  |> n2t.one_to_one_no_error_nodemap_2_desugarer_transform
 }
 
 fn nodemap(vxml: VXML) -> VXML {
@@ -65,10 +67,8 @@ fn nodemap(vxml: VXML) -> VXML {
   }
 }
 
-fn inner_param_to_transform() -> DesugarerTransform {
-  let nodemap: n2t.OneToOneNoErrorNodemap = nodemap
-  nodemap
-  |> n2t.one_to_one_no_error_nodemap_2_desugarer_transform
+fn line_to_text_node(line: Line) -> VXML {
+  T(line.blame, [line])
 }
 
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊

@@ -31,24 +31,10 @@ const newline = T(
   ],
 )
 
-fn span(line: Line, class: String, content: String) -> VXML {
-  V(line.blame, "span", [Attr(desugarer_blame(38), "class", class)], [
-    T(line.blame, [Line(line.blame, content)]),
-  ])
-}
-
-fn line_to_elements(line: Line) -> List(VXML) {
-  case string.starts_with(line.content, command_prefix) {
-    True -> [
-      span(line, "terminal-prompt", "$"),
-      span(
-        Line(bl.advance(line.blame, 1), line.content |> string.drop_start(1)),
-        "terminal-prompt-content",
-        line.content |> string.drop_start(1),
-      ),
-    ]
-    False -> [span(line, "terminal-output", line.content)]
-  }
+fn inner_param_to_transform() -> DesugarerTransform {
+  let nodemap: n2t.OneToOneNoErrorNodemap = nodemap
+  nodemap
+  |> n2t.one_to_one_no_error_nodemap_2_desugarer_transform
 }
 
 fn nodemap(vxml: VXML) -> VXML {
@@ -80,14 +66,28 @@ fn nodemap(vxml: VXML) -> VXML {
   }
 }
 
-fn inner_param_to_transform() -> DesugarerTransform {
-  let nodemap: n2t.OneToOneNoErrorNodemap = nodemap
-  nodemap
-  |> n2t.one_to_one_no_error_nodemap_2_desugarer_transform
-}
-
 fn desugarer_blame(line_no: Int) {
   bl.Des([], name, line_no)
+}
+
+fn span(line: Line, class: String, content: String) -> VXML {
+  V(line.blame, "span", [Attr(desugarer_blame(38), "class", class)], [
+    T(line.blame, [Line(line.blame, content)]),
+  ])
+}
+
+fn line_to_elements(line: Line) -> List(VXML) {
+  case string.starts_with(line.content, command_prefix) {
+    True -> [
+      span(line, "terminal-prompt", "$"),
+      span(
+        Line(bl.advance(line.blame, 1), line.content |> string.drop_start(1)),
+        "terminal-prompt-content",
+        line.content |> string.drop_start(1),
+      ),
+    ]
+    False -> [span(line, "terminal-output", line.content)]
+  }
 }
 
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊

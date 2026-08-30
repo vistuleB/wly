@@ -42,20 +42,19 @@ pub fn constructor(param: Param, outside: List(String)) -> Desugarer {
 // "\\<i>x</i>". No occurrence of that shape exists in any current
 // document; fixing it properly means teaching the splitter itself to
 // halve the run at the point it consumes it.
-fn unescape_graphemes(
-  graphemes: List(String),
-  escapable: List(String),
-  acc: List(String),
-) -> String {
-  case graphemes {
-    [] -> acc |> list.reverse |> string.join("")
-    ["\\", second, ..rest] ->
-      case list.contains(escapable, second) {
-        True -> unescape_graphemes(rest, escapable, [second, ..acc])
-        False -> unescape_graphemes(rest, escapable, [second, "\\", ..acc])
-      }
-    [first, ..rest] -> unescape_graphemes(rest, escapable, [first, ..acc])
-  }
+fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
+  Ok(param)
+}
+
+fn inner_param_to_transform(
+  inner: InnerParam,
+  outside: List(String),
+) -> DesugarerTransform {
+  let nodemap: n2t.OneToOneNoErrorNodemap = nodemap(_, inner)
+  nodemap
+  |> n2t.one_to_one_no_error_nodemap_2_desugarer_transform_with_forbidden(
+    outside,
+  )
 }
 
 fn nodemap(node: VXML, inner: InnerParam) -> VXML {
@@ -74,19 +73,20 @@ fn nodemap(node: VXML, inner: InnerParam) -> VXML {
   }
 }
 
-fn inner_param_to_transform(
-  inner: InnerParam,
-  outside: List(String),
-) -> DesugarerTransform {
-  let nodemap: n2t.OneToOneNoErrorNodemap = nodemap(_, inner)
-  nodemap
-  |> n2t.one_to_one_no_error_nodemap_2_desugarer_transform_with_forbidden(
-    outside,
-  )
-}
-
-fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
-  Ok(param)
+fn unescape_graphemes(
+  graphemes: List(String),
+  escapable: List(String),
+  acc: List(String),
+) -> String {
+  case graphemes {
+    [] -> acc |> list.reverse |> string.join("")
+    ["\\", second, ..rest] ->
+      case list.contains(escapable, second) {
+        True -> unescape_graphemes(rest, escapable, [second, ..acc])
+        False -> unescape_graphemes(rest, escapable, [second, "\\", ..acc])
+      }
+    [first, ..rest] -> unescape_graphemes(rest, escapable, [first, ..acc])
+  }
 }
 
 type Param =

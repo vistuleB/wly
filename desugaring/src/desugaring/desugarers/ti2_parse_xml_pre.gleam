@@ -31,10 +31,10 @@ const newline_t = T(
   ],
 )
 
-fn span(blame: Blame, class: String, content: String) -> VXML {
-  V(blame, "span", [Attr(desugarer_blame(35), "class", class)], [
-    T(blame, [Line(blame, content)]),
-  ])
+fn inner_param_to_transform() -> DesugarerTransform {
+  let nodemap: n2t.OneToOneNoErrorNodemap = nodemap
+  nodemap
+  |> n2t.one_to_one_no_error_nodemap_2_desugarer_transform
 }
 
 fn nodemap(vxml: VXML) -> VXML {
@@ -111,10 +111,10 @@ fn nodemap(vxml: VXML) -> VXML {
   }
 }
 
-fn inner_param_to_transform() -> DesugarerTransform {
-  let nodemap: n2t.OneToOneNoErrorNodemap = nodemap
-  nodemap
-  |> n2t.one_to_one_no_error_nodemap_2_desugarer_transform
+fn span(blame: Blame, class: String, content: String) -> VXML {
+  V(blame, "span", [Attr(desugarer_blame(35), "class", class)], [
+    T(blame, [Line(blame, content)]),
+  ])
 }
 
 fn desugarer_blame(line_no: Int) {

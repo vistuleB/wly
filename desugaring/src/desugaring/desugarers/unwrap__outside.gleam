@@ -23,11 +23,8 @@ pub fn constructor(param: Param, outside: List(String)) -> Desugarer {
   )
 }
 
-fn nodemap(node: VXML, inner: InnerParam) -> #(List(VXML), TrafficLight) {
-  case node {
-    V(_, tag, _, children) if tag == inner -> #(children, GoBack)
-    _ -> #([node], Continue)
-  }
+fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
+  Ok(param)
 }
 
 fn inner_param_to_transform(
@@ -41,8 +38,11 @@ fn inner_param_to_transform(
   )
 }
 
-fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
-  Ok(param)
+fn nodemap(node: VXML, inner: InnerParam) -> #(List(VXML), TrafficLight) {
+  case node {
+    V(_, tag, _, children) if tag == inner -> #(children, GoBack)
+    _ -> #([node], Continue)
+  }
 }
 
 type Param =

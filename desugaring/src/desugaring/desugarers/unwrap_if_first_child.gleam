@@ -22,15 +22,14 @@ pub fn constructor(param: Param) -> Desugarer {
   )
 }
 
-fn map_children(children: List(VXML), inner: InnerParam) -> List(VXML) {
-  case children {
-    [V(_, tag, _, grandchildren), ..more] if tag == inner ->
-      case grandchildren {
-        [] -> map_children(more, inner)
-        _ -> map_children(list.append(grandchildren, more), inner)
-      }
-    _ -> children
-  }
+fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
+  Ok(param)
+}
+
+fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
+  let nodemap: n2t.OneToOneNoErrorNodemap = nodemap(_, inner)
+  nodemap
+  |> n2t.one_to_one_no_error_nodemap_2_desugarer_transform()
 }
 
 fn nodemap(node: VXML, inner: InnerParam) -> VXML {
@@ -40,14 +39,15 @@ fn nodemap(node: VXML, inner: InnerParam) -> VXML {
   }
 }
 
-fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
-  let nodemap: n2t.OneToOneNoErrorNodemap = nodemap(_, inner)
-  nodemap
-  |> n2t.one_to_one_no_error_nodemap_2_desugarer_transform()
-}
-
-fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
-  Ok(param)
+fn map_children(children: List(VXML), inner: InnerParam) -> List(VXML) {
+  case children {
+    [V(_, tag, _, grandchildren), ..more] if tag == inner ->
+      case grandchildren {
+        [] -> map_children(more, inner)
+        _ -> map_children(list.append(grandchildren, more), inner)
+      }
+    _ -> children
+  }
 }
 
 type Param =

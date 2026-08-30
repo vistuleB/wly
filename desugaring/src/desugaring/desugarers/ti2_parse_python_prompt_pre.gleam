@@ -41,6 +41,48 @@ type PythonPromptChunk {
   ErrorResponseLines(List(Line))
 }
 
+fn inner_param_to_transform() -> DesugarerTransform {
+  let nodemap: n2t.OneToOneNoErrorNodemap = nodemap
+  nodemap
+  |> n2t.one_to_one_no_error_nodemap_2_desugarer_transform
+}
+
+fn nodemap(vxml: VXML) -> VXML {
+  case vxml {
+    V(blame, "pre", attrs, [T(_, lines)]) -> {
+      case core.v_has_key_val(vxml, "language", "python-prompt") {
+        True -> {
+          let children =
+            lines
+            |> process_python_prompt_lines
+            |> list.map(python_prompt_chunk_to_vxmls)
+            |> list.intersperse([newline_t])
+            |> list.flatten
+
+          V(
+            blame,
+            "pre",
+            attrs
+              |> core.attrs_delete("language")
+              |> core.attrs_append_classes(
+                desugarer_blame(158),
+                "python-prompt",
+              ),
+            children,
+          )
+        }
+
+        _ -> vxml
+      }
+    }
+    _ -> vxml
+  }
+}
+
+fn desugarer_blame(line_no: Int) {
+  bl.Des([], name, line_no)
+}
+
 fn python_prompt_chunk_to_vxmls(chunk: PythonPromptChunk) -> List(VXML) {
   case chunk {
     TerminalPrompt(line) -> {
@@ -135,48 +177,6 @@ fn process_python_prompt_lines(lines: List(Line)) -> List(PythonPromptChunk) {
         }
     }
   })
-}
-
-fn nodemap(vxml: VXML) -> VXML {
-  case vxml {
-    V(blame, "pre", attrs, [T(_, lines)]) -> {
-      case core.v_has_key_val(vxml, "language", "python-prompt") {
-        True -> {
-          let children =
-            lines
-            |> process_python_prompt_lines
-            |> list.map(python_prompt_chunk_to_vxmls)
-            |> list.intersperse([newline_t])
-            |> list.flatten
-
-          V(
-            blame,
-            "pre",
-            attrs
-              |> core.attrs_delete("language")
-              |> core.attrs_append_classes(
-                desugarer_blame(158),
-                "python-prompt",
-              ),
-            children,
-          )
-        }
-
-        _ -> vxml
-      }
-    }
-    _ -> vxml
-  }
-}
-
-fn inner_param_to_transform() -> DesugarerTransform {
-  let nodemap: n2t.OneToOneNoErrorNodemap = nodemap
-  nodemap
-  |> n2t.one_to_one_no_error_nodemap_2_desugarer_transform
-}
-
-fn desugarer_blame(line_no: Int) {
-  bl.Des([], name, line_no)
 }
 
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊

@@ -22,14 +22,8 @@ pub fn constructor(param: Param) -> Desugarer {
   )
 }
 
-fn nodemap(vxml: VXML, inner: InnerParam) -> VXML {
-  case vxml {
-    V(_, tag, _, _) if tag == inner ->
-      vxml
-      |> core.v_remove_starting_empty_lines
-      |> core.v_remove_ending_empty_lines
-    _ -> vxml
-  }
+fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
+  Ok(param)
 }
 
 fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
@@ -38,8 +32,14 @@ fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
   |> n2t.one_to_one_no_error_nodemap_2_desugarer_transform()
 }
 
-fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
-  Ok(param)
+fn nodemap(vxml: VXML, inner: InnerParam) -> VXML {
+  case vxml {
+    V(_, tag, _, _) if tag == inner ->
+      vxml
+      |> core.v_remove_starting_empty_lines
+      |> core.v_remove_ending_empty_lines
+    _ -> vxml
+  }
 }
 
 type Param =

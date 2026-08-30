@@ -9,6 +9,11 @@ import gleam/regexp
 import on
 import vxml.{type VXML, Line, T, V}
 
+fn inner_param_to_transform(_: InnerParam) -> DesugarerTransform {
+  let nodemap: n2t.OneToOneNoErrorWithWarningsNodemap = nodemap
+  n2t.one_to_one_no_error_with_warnings_nodemap_2_desugarer_transform(nodemap)
+}
+
 fn nodemap(vxml: VXML) -> #(VXML, List(DesugaringWarning)) {
   case vxml {
     V(blame, t, attrs, children) -> {
@@ -42,11 +47,6 @@ fn nodemap(vxml: VXML) -> #(VXML, List(DesugaringWarning)) {
     }
     _ -> #(vxml, [])
   }
-}
-
-fn inner_param_to_transform(_: InnerParam) -> DesugarerTransform {
-  let nodemap: n2t.OneToOneNoErrorWithWarningsNodemap = nodemap
-  n2t.one_to_one_no_error_with_warnings_nodemap_2_desugarer_transform(nodemap)
 }
 
 type InnerParam =

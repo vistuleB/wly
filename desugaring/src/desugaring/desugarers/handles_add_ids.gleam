@@ -9,17 +9,9 @@ import gleam/string.{inspect as ins}
 import on
 import vxml.{type VXML, Attr, T, V}
 
-fn ensure_has_id_attr(vxml: VXML, counter: Int) -> #(VXML, Int, String) {
-  let assert V(_, _, _, _) = vxml
-  case core.v_first_attr_with_key(vxml, "id") {
-    Some(attr) -> #(vxml, counter, attr.val)
-    None -> {
-      let counter = counter + 1
-      let id = "_" <> ins(counter) <> "_h.a.i_"
-      let attrs = list.append(vxml.attrs, [Attr(vxml.blame, "id", id)])
-      #(V(..vxml, attrs: attrs), counter, id)
-    }
-  }
+fn inner_param_to_transform(_: InnerParam) -> DesugarerTransform {
+  let nodemap: n2t.OneToOneStatefulNodemap(Int) = nodemap
+  n2t.one_to_one_stateful_nodemap_2_desugarer_transform(nodemap, 0)
 }
 
 fn nodemap(node: VXML, counter: Int) -> Result(#(VXML, Int), DesugaringError) {
@@ -79,9 +71,17 @@ fn nodemap(node: VXML, counter: Int) -> Result(#(VXML, Int), DesugaringError) {
   }
 }
 
-fn inner_param_to_transform(_: InnerParam) -> DesugarerTransform {
-  let nodemap: n2t.OneToOneStatefulNodemap(Int) = nodemap
-  n2t.one_to_one_stateful_nodemap_2_desugarer_transform(nodemap, 0)
+fn ensure_has_id_attr(vxml: VXML, counter: Int) -> #(VXML, Int, String) {
+  let assert V(_, _, _, _) = vxml
+  case core.v_first_attr_with_key(vxml, "id") {
+    Some(attr) -> #(vxml, counter, attr.val)
+    None -> {
+      let counter = counter + 1
+      let id = "_" <> ins(counter) <> "_h.a.i_"
+      let attrs = list.append(vxml.attrs, [Attr(vxml.blame, "id", id)])
+      #(V(..vxml, attrs: attrs), counter, id)
+    }
+  }
 }
 
 type InnerParam =

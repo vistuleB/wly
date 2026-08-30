@@ -18,6 +18,14 @@ pub fn constructor(outside: List(String)) -> Desugarer {
   )
 }
 
+fn inner_param_to_transform(outside: List(String)) -> DesugarerTransform {
+  let nodemap: n2t.OneToOneNoErrorNodemap = nodemap
+  nodemap
+  |> n2t.one_to_one_no_error_nodemap_2_desugarer_transform_with_forbidden(
+    outside,
+  )
+}
+
 fn nodemap(vxml: VXML) -> VXML {
   case vxml {
     T(_, _) ->
@@ -26,14 +34,6 @@ fn nodemap(vxml: VXML) -> VXML {
       |> core.trim_starting_spaces_except_first_line
     _ -> vxml
   }
-}
-
-fn inner_param_to_transform(outside: List(String)) -> DesugarerTransform {
-  let nodemap: n2t.OneToOneNoErrorNodemap = nodemap
-  nodemap
-  |> n2t.one_to_one_no_error_nodemap_2_desugarer_transform_with_forbidden(
-    outside,
-  )
 }
 
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊

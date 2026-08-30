@@ -46,6 +46,31 @@ const b = bl.Des([], name, 42)
 
 const newline_t = T(b, [Line(b, ""), Line(b, "")])
 
+fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
+  Ok(param)
+}
+
+fn inner_param_to_transform(
+  inner: InnerParam,
+  outside: List(String),
+) -> DesugarerTransform {
+  let nodemap: n2t.OneToManyNoErrorNodemap = nodemap(_, inner)
+  nodemap
+  |> n2t.one_to_many_no_error_nodemap_2_desugarer_transform_with_forbidden(
+    outside,
+  )
+}
+
+fn nodemap(vxml: VXML, inner: InnerParam) -> List(VXML) {
+  case vxml {
+    T(_, lines) ->
+      lines
+      |> list.map(line_to_tooltip_span(_, inner))
+      |> list.intersperse(newline_t)
+    _ -> [vxml]
+  }
+}
+
 fn line_to_tooltip_span(line: Line, inner: InnerParam) -> VXML {
   let location =
     inner
@@ -67,31 +92,6 @@ fn line_to_tooltip_span(line: Line, inner: InnerParam) -> VXML {
         ]),
       ])
   }
-}
-
-fn nodemap(vxml: VXML, inner: InnerParam) -> List(VXML) {
-  case vxml {
-    T(_, lines) ->
-      lines
-      |> list.map(line_to_tooltip_span(_, inner))
-      |> list.intersperse(newline_t)
-    _ -> [vxml]
-  }
-}
-
-fn inner_param_to_transform(
-  inner: InnerParam,
-  outside: List(String),
-) -> DesugarerTransform {
-  let nodemap: n2t.OneToManyNoErrorNodemap = nodemap(_, inner)
-  nodemap
-  |> n2t.one_to_many_no_error_nodemap_2_desugarer_transform_with_forbidden(
-    outside,
-  )
-}
-
-fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
-  Ok(param)
 }
 
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊

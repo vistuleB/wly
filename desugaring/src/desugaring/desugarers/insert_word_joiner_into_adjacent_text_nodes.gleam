@@ -10,31 +10,22 @@ import vxml.{type Line, type VXML, Line, T, V}
 // word joiner character
 const word_joiner = "&#8288;"
 
-fn edit_last_line(lines: List(Line)) -> List(Line) {
-  case list.reverse(lines) {
-    [] -> []
-    [last, ..rest] -> {
-      let content = last.content
-      case content != "" && !string.ends_with(content, " ") {
-        True -> [Line(..last, content: content <> word_joiner), ..rest]
-        False -> [last, ..rest]
-      }
-    }
-  }
-  |> list.reverse
+fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
+  Ok(param)
 }
 
-fn edit_first_line(lines: List(Line)) -> List(Line) {
-  case lines {
-    [] -> []
-    [first, ..rest] -> {
-      let content = first.content
-      case content != "" && !string.starts_with(content, " ") {
-        True -> [Line(..first, content: word_joiner <> content), ..rest]
-        False -> [first, ..rest]
-      }
-    }
+fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
+  let nodemap: n2t.FancyOneToOneNoErrorNodemap = fn(
+    vxml,
+    _,
+    previous,
+    _,
+    following,
+  ) {
+    nodemap(vxml, previous, following, inner)
   }
+  nodemap
+  |> n2t.fancy_one_to_one_no_error_nodemap_2_desugarer_transform
 }
 
 fn nodemap(
@@ -72,22 +63,31 @@ fn nodemap(
   }
 }
 
-fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
-  let nodemap: n2t.FancyOneToOneNoErrorNodemap = fn(
-    vxml,
-    _,
-    previous,
-    _,
-    following,
-  ) {
-    nodemap(vxml, previous, following, inner)
+fn edit_first_line(lines: List(Line)) -> List(Line) {
+  case lines {
+    [] -> []
+    [first, ..rest] -> {
+      let content = first.content
+      case content != "" && !string.starts_with(content, " ") {
+        True -> [Line(..first, content: word_joiner <> content), ..rest]
+        False -> [first, ..rest]
+      }
+    }
   }
-  nodemap
-  |> n2t.fancy_one_to_one_no_error_nodemap_2_desugarer_transform
 }
 
-fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
-  Ok(param)
+fn edit_last_line(lines: List(Line)) -> List(Line) {
+  case list.reverse(lines) {
+    [] -> []
+    [last, ..rest] -> {
+      let content = last.content
+      case content != "" && !string.ends_with(content, " ") {
+        True -> [Line(..last, content: content <> word_joiner), ..rest]
+        False -> [last, ..rest]
+      }
+    }
+  }
+  |> list.reverse
 }
 
 type Param =

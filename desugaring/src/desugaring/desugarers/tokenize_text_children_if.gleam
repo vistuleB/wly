@@ -26,28 +26,64 @@ pub fn constructor(param: Param) -> Desugarer {
   )
 }
 
-fn desugarer_blame(line_no: Int) {
-  authoring.blame(name, line_no)
+fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
+  let opening_punctuation_splitter: Splitter =
+    splitter.new([" ", "(", "[", "—"])
+  Ok(#(param, opening_punctuation_splitter))
 }
 
-fn start_node(blame: Blame) {
-  V(blame, "__StartTokenizedT", [], [])
+fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
+  let nodemap: n2t.OneToOneNoErrorNodemap = nodemap(_, inner)
+  nodemap
+  |> n2t.one_to_one_no_error_nodemap_2_desugarer_transform()
 }
 
-fn word_node(blame: Blame, word: String) {
-  V(blame, "__OneWord", [Attr(desugarer_blame(38), "val", word)], [])
+fn nodemap(vxml: VXML, inner: InnerParam) -> VXML {
+  case vxml {
+    T(_, _) -> vxml
+    V(_, _, _, children) ->
+      case inner.0(vxml) {
+        False -> vxml
+        True -> {
+          let children =
+            list.map(children, fn(vxml) { tokenize_if_t(inner.1, vxml) })
+            |> list.flatten
+          V(..vxml, children: children)
+        }
+      }
+  }
 }
 
-fn space_node(blame: Blame) {
-  V(blame, "__OneSpace", [], [])
+fn tokenize_if_t(
+  opening_punctuation_splitter: Splitter,
+  vxml: VXML,
+) -> List(VXML) {
+  case vxml {
+    T(_, _) -> tokenize_t(opening_punctuation_splitter, vxml)
+    _ -> [vxml]
+  }
 }
 
-fn newline_node(blame: Blame) {
-  V(blame, "__OneNewLine", [], [])
-}
-
-fn end_node(blame: Blame) {
-  V(blame, "__EndTokenizedT", [], [])
+fn tokenize_t(
+  opening_punctuation_splitter: Splitter,
+  vxml: VXML,
+) -> List(VXML) {
+  let assert T(blame, lines) = vxml
+  lines
+  |> list.index_map(fn(line, i) {
+    tokenize_string_acc(
+      opening_punctuation_splitter,
+      [],
+      line.blame,
+      line.content,
+    )
+    |> list.prepend(case i == 0 {
+      True -> start_node(line.blame)
+      False -> newline_node(line.blame)
+    })
+  })
+  |> list.flatten
+  |> list.append([end_node(blame)])
 }
 
 fn tokenize_string_acc(
@@ -102,64 +138,28 @@ fn tokenize_string_acc(
   }
 }
 
-fn tokenize_t(
-  opening_punctuation_splitter: Splitter,
-  vxml: VXML,
-) -> List(VXML) {
-  let assert T(blame, lines) = vxml
-  lines
-  |> list.index_map(fn(line, i) {
-    tokenize_string_acc(
-      opening_punctuation_splitter,
-      [],
-      line.blame,
-      line.content,
-    )
-    |> list.prepend(case i == 0 {
-      True -> start_node(line.blame)
-      False -> newline_node(line.blame)
-    })
-  })
-  |> list.flatten
-  |> list.append([end_node(blame)])
+fn word_node(blame: Blame, word: String) {
+  V(blame, "__OneWord", [Attr(desugarer_blame(38), "val", word)], [])
 }
 
-fn tokenize_if_t(
-  opening_punctuation_splitter: Splitter,
-  vxml: VXML,
-) -> List(VXML) {
-  case vxml {
-    T(_, _) -> tokenize_t(opening_punctuation_splitter, vxml)
-    _ -> [vxml]
-  }
+fn desugarer_blame(line_no: Int) {
+  authoring.blame(name, line_no)
 }
 
-fn nodemap(vxml: VXML, inner: InnerParam) -> VXML {
-  case vxml {
-    T(_, _) -> vxml
-    V(_, _, _, children) ->
-      case inner.0(vxml) {
-        False -> vxml
-        True -> {
-          let children =
-            list.map(children, fn(vxml) { tokenize_if_t(inner.1, vxml) })
-            |> list.flatten
-          V(..vxml, children: children)
-        }
-      }
-  }
+fn space_node(blame: Blame) {
+  V(blame, "__OneSpace", [], [])
 }
 
-fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
-  let nodemap: n2t.OneToOneNoErrorNodemap = nodemap(_, inner)
-  nodemap
-  |> n2t.one_to_one_no_error_nodemap_2_desugarer_transform()
+fn start_node(blame: Blame) {
+  V(blame, "__StartTokenizedT", [], [])
 }
 
-fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
-  let opening_punctuation_splitter: Splitter =
-    splitter.new([" ", "(", "[", "—"])
-  Ok(#(param, opening_punctuation_splitter))
+fn newline_node(blame: Blame) {
+  V(blame, "__OneNewLine", [], [])
+}
+
+fn end_node(blame: Blame) {
+  V(blame, "__EndTokenizedT", [], [])
 }
 
 type Param =

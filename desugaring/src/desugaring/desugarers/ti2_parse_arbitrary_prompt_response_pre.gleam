@@ -60,8 +60,43 @@ const response_span = V(
   [],
 )
 
-fn line_to_text_node(line: Line) -> VXML {
-  T(line.blame, [line])
+fn inner_param_to_transform() -> DesugarerTransform {
+  let nodemap: n2t.OneToOneNoErrorNodemap = nodemap
+  nodemap
+  |> n2t.one_to_one_no_error_nodemap_2_desugarer_transform
+}
+
+fn nodemap(vxml: VXML) -> VXML {
+  case vxml {
+    V(blame, "pre", attrs, [T(_, lines)]) -> {
+      case core.v_has_key_val(vxml, "language", "arbitrary-prompt-response") {
+        True -> {
+          let children = process_lines(lines)
+          V(
+            blame,
+            "pre",
+            attrs
+              |> core.attrs_delete("language")
+              |> core.attrs_append_classes(
+                desugarer_blame(114),
+                "arbitrary-prompt-response",
+              ),
+            children,
+          )
+        }
+        _ -> vxml
+      }
+    }
+    _ -> vxml
+  }
+}
+
+fn process_lines(lines: List(Line)) -> List(VXML) {
+  lines
+  |> list.fold([], fn(acc, line) { [elements_for_line(line), ..acc] })
+  |> list.reverse
+  |> list.intersperse([newline_t])
+  |> list.flatten
 }
 
 fn elements_for_line(line: Line) -> List(VXML) {
@@ -91,43 +126,8 @@ fn elements_for_line(line: Line) -> List(VXML) {
   }
 }
 
-fn process_lines(lines: List(Line)) -> List(VXML) {
-  lines
-  |> list.fold([], fn(acc, line) { [elements_for_line(line), ..acc] })
-  |> list.reverse
-  |> list.intersperse([newline_t])
-  |> list.flatten
-}
-
-fn nodemap(vxml: VXML) -> VXML {
-  case vxml {
-    V(blame, "pre", attrs, [T(_, lines)]) -> {
-      case core.v_has_key_val(vxml, "language", "arbitrary-prompt-response") {
-        True -> {
-          let children = process_lines(lines)
-          V(
-            blame,
-            "pre",
-            attrs
-              |> core.attrs_delete("language")
-              |> core.attrs_append_classes(
-                desugarer_blame(114),
-                "arbitrary-prompt-response",
-              ),
-            children,
-          )
-        }
-        _ -> vxml
-      }
-    }
-    _ -> vxml
-  }
-}
-
-fn inner_param_to_transform() -> DesugarerTransform {
-  let nodemap: n2t.OneToOneNoErrorNodemap = nodemap
-  nodemap
-  |> n2t.one_to_one_no_error_nodemap_2_desugarer_transform
+fn line_to_text_node(line: Line) -> VXML {
+  T(line.blame, [line])
 }
 
 fn desugarer_blame(line_no: Int) {

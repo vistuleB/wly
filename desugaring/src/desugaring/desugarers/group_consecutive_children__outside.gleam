@@ -8,11 +8,33 @@ import gleam/list
 import vxml.{type VXML, T, V}
 import vxml/blame.{type Blame} as bl
 
-fn is_forbidden(elem: VXML, forbidden: List(String)) {
-  case elem {
-    T(_, _) -> False
-    V(_, tag, _, _) -> list.contains(forbidden, tag)
+fn param_to_inner_param(
+  param: Param,
+  outside: List(String),
+) -> Result(InnerParam, DesugaringError) {
+  case list.contains(outside, param.0) {
+    True -> Ok(#(param.0, param.1, desugarer_blame(57)))
+    False ->
+      Error(DesugaringError(
+        bl.no_blame,
+        "the wrapper must be included either in the list of things not to be contained in in order to avoid infinite recursion",
+      ))
   }
+}
+
+fn desugarer_blame(line_no: Int) {
+  authoring.blame(name, line_no)
+}
+
+fn inner_param_to_transform(
+  inner: InnerParam,
+  outside: List(String),
+) -> DesugarerTransform {
+  let nodemap: n2t.OneToOneNoErrorNodemap = nodemap(_, inner)
+  nodemap
+  |> n2t.one_to_one_no_error_nodemap_2_desugarer_transform_with_forbidden_self_first(
+    outside,
+  )
 }
 
 fn nodemap(vxml: VXML, inner: InnerParam) -> VXML {
@@ -38,31 +60,6 @@ fn nodemap(vxml: VXML, inner: InnerParam) -> VXML {
   }
 }
 
-fn inner_param_to_transform(
-  inner: InnerParam,
-  outside: List(String),
-) -> DesugarerTransform {
-  let nodemap: n2t.OneToOneNoErrorNodemap = nodemap(_, inner)
-  nodemap
-  |> n2t.one_to_one_no_error_nodemap_2_desugarer_transform_with_forbidden_self_first(
-    outside,
-  )
-}
-
-fn param_to_inner_param(
-  param: Param,
-  outside: List(String),
-) -> Result(InnerParam, DesugaringError) {
-  case list.contains(outside, param.0) {
-    True -> Ok(#(param.0, param.1, desugarer_blame(57)))
-    False ->
-      Error(DesugaringError(
-        bl.no_blame,
-        "the wrapper must be included either in the list of things not to be contained in in order to avoid infinite recursion",
-      ))
-  }
-}
-
 type Param =
   #(
     // Wrapper element name.
@@ -76,8 +73,11 @@ type InnerParam =
 
 pub const name = "group_consecutive_children__outside"
 
-fn desugarer_blame(line_no: Int) {
-  authoring.blame(name, line_no)
+fn is_forbidden(elem: VXML, forbidden: List(String)) {
+  case elem {
+    T(_, _) -> False
+    V(_, tag, _, _) -> list.contains(forbidden, tag)
+  }
 }
 
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️

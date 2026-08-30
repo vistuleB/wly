@@ -7,6 +7,16 @@ import desugaring/nodemaps_2_transform as n2t
 import on
 import vxml.{type VXML, T, V}
 
+fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
+  Ok(InnerParam(param.0, param.1, param.2, param.3))
+}
+
+fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
+  let nodemap: n2t.EarlyReturnOneToOneNodemap = nodemap(_, inner)
+  nodemap
+  |> n2t.early_return_one_to_one_nodemap_2_desugarer_transform
+}
+
 fn nodemap(
   vxml: VXML,
   inner: InnerParam,
@@ -39,16 +49,6 @@ fn nodemap(
     }
     _ -> Ok(#(vxml, Continue))
   }
-}
-
-fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
-  let nodemap: n2t.EarlyReturnOneToOneNodemap = nodemap(_, inner)
-  nodemap
-  |> n2t.early_return_one_to_one_nodemap_2_desugarer_transform
-}
-
-fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
-  Ok(InnerParam(param.0, param.1, param.2, param.3))
 }
 
 type Param =

@@ -42,6 +42,38 @@ const stub_chapter = V(
   [],
 )
 
+fn inner_param_to_transform() -> DesugarerTransform {
+  let nodemap: n2t.EarlyReturnOneToOneNodemap = nodemap
+  nodemap
+  |> n2t.early_return_one_to_one_nodemap_2_desugarer_transform
+}
+
+fn nodemap(node: VXML) -> Result(#(VXML, TrafficLight), DesugaringError) {
+  case node {
+    V(_, "Chapter", _, children) -> {
+      use children <- on.ok(backfill_elements(children, stub_sub))
+      Ok(#(V(..node, children: children), GoBack))
+    }
+    V(_, "Document", _, children) -> {
+      use children <- on.ok(backfill_elements(children, stub_chapter))
+      Ok(#(V(..node, children: children), Continue))
+    }
+    V(_, "WriterlyBlankLine", _, _) -> {
+      Ok(#(node, Continue))
+    }
+    V(blame, tag, _, _) ->
+      Error(DesugaringError(
+        blame,
+        "unexpected " <> tag <> " element at the top level of Document",
+      ))
+    T(blame, _) ->
+      Error(DesugaringError(
+        blame,
+        "unexpected text node at the top level of Document",
+      ))
+  }
+}
+
 fn backfill_elements(
   children: List(VXML),
   stub: VXML,
@@ -87,38 +119,6 @@ fn backfill_elements(
     }),
   )
   Ok(children |> list.reverse)
-}
-
-fn nodemap(node: VXML) -> Result(#(VXML, TrafficLight), DesugaringError) {
-  case node {
-    V(_, "Chapter", _, children) -> {
-      use children <- on.ok(backfill_elements(children, stub_sub))
-      Ok(#(V(..node, children: children), GoBack))
-    }
-    V(_, "Document", _, children) -> {
-      use children <- on.ok(backfill_elements(children, stub_chapter))
-      Ok(#(V(..node, children: children), Continue))
-    }
-    V(_, "WriterlyBlankLine", _, _) -> {
-      Ok(#(node, Continue))
-    }
-    V(blame, tag, _, _) ->
-      Error(DesugaringError(
-        blame,
-        "unexpected " <> tag <> " element at the top level of Document",
-      ))
-    T(blame, _) ->
-      Error(DesugaringError(
-        blame,
-        "unexpected text node at the top level of Document",
-      ))
-  }
-}
-
-fn inner_param_to_transform() -> DesugarerTransform {
-  let nodemap: n2t.EarlyReturnOneToOneNodemap = nodemap
-  nodemap
-  |> n2t.early_return_one_to_one_nodemap_2_desugarer_transform
 }
 
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊

@@ -7,6 +7,17 @@ import gleam/list
 import gleam/pair
 import vxml.{type VXML, T, V}
 
+fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
+  param
+  |> core.triples_to_pairs
+  |> Ok
+}
+
+fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
+  let nodemap: n2t.OneToOneNodemap = nodemap(_, inner)
+  n2t.one_to_one_nodemap_2_desugarer_transform(nodemap)
+}
+
 fn nodemap(vxml: VXML, inner: InnerParam) -> Result(VXML, DesugaringError) {
   case vxml {
     V(blame, tag, attrs, children) -> {
@@ -29,17 +40,6 @@ fn nodemap(vxml: VXML, inner: InnerParam) -> Result(VXML, DesugaringError) {
     }
     T(_, _) -> Ok(vxml)
   }
-}
-
-fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
-  let nodemap: n2t.OneToOneNodemap = nodemap(_, inner)
-  n2t.one_to_one_nodemap_2_desugarer_transform(nodemap)
-}
-
-fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
-  param
-  |> core.triples_to_pairs
-  |> Ok
 }
 
 type Param =

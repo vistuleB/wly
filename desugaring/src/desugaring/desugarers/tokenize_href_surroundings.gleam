@@ -27,24 +27,84 @@ pub fn constructor() -> Desugarer {
 
 const had_href_child = Attr(bl.Des([], name, 28), "had_href_child", "true")
 
-fn start_node(blame: Blame) {
-  V(blame, "__StartTokenizedT", [], [])
+fn param_to_inner_param(_param: Param) -> Result(InnerParam, DesugaringError) {
+  let opening_parenthesis_splitter: Splitter =
+    splitter.new([" ", "(", "[", "—"])
+  Ok(opening_parenthesis_splitter)
 }
 
-fn word_node(blame: Blame, word: String) {
-  V(blame, "__OneWord", [Attr(blame, "val", word)], [])
+fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
+  let nodemap: n2t.OneToOneNoErrorNodemap = fn(vxml) { nodemap(inner, vxml) }
+  nodemap
+  |> n2t.one_to_one_no_error_nodemap_2_desugarer_transform()
 }
 
-fn space_node(blame: Blame) {
-  V(blame, "__OneSpace", [], [])
+fn nodemap(opening_parenthesis_splitter: Splitter, vxml: VXML) -> VXML {
+  case vxml {
+    T(_, _) -> vxml
+    V(_, _, attrs, children) -> {
+      case list.any(children, core.is_v_and_has_attr_with_key(_, "href")) {
+        False -> vxml
+        True -> {
+          let attrs = [had_href_child, ..attrs]
+          let children =
+            list.flat_map(children, fn(vxml) {
+              tokenize_if_t_or_has_href_attr_and_recurse(
+                opening_parenthesis_splitter,
+                vxml,
+              )
+            })
+          V(..vxml, attrs: attrs, children: children)
+        }
+      }
+    }
+  }
 }
 
-fn newline_node(blame: Blame) {
-  V(blame, "__OneNewLine", [], [])
+fn tokenize_if_t_or_has_href_attr_and_recurse(
+  opening_parenthesis_splitter: Splitter,
+  vxml: VXML,
+) -> List(VXML) {
+  case vxml {
+    T(_, _) -> tokenize_t(opening_parenthesis_splitter, vxml)
+    V(_, _, attrs, children) ->
+      case core.attrs_have_key(attrs, "href") {
+        True -> [
+          V(
+            ..vxml,
+            children: list.flat_map(children, fn(vxml) {
+              tokenize_if_t_or_has_href_attr_and_recurse(
+                opening_parenthesis_splitter,
+                vxml,
+              )
+            }),
+          ),
+        ]
+        False -> [vxml]
+      }
+  }
 }
 
-fn end_node(blame: Blame) {
-  V(blame, "__EndTokenizedT", [], [])
+fn tokenize_t(
+  opening_parenthesis_splitter: Splitter,
+  vxml: VXML,
+) -> List(VXML) {
+  let assert T(blame, lines) = vxml
+  lines
+  |> list.index_map(fn(line, i) {
+    tokenize_string_acc(
+      opening_parenthesis_splitter,
+      [],
+      line.blame,
+      line.content,
+    )
+    |> list.prepend(case i == 0 {
+      True -> start_node(line.blame)
+      False -> newline_node(line.blame)
+    })
+  })
+  |> list.flatten
+  |> list.append([end_node(blame)])
 }
 
 fn tokenize_string_acc(
@@ -100,84 +160,24 @@ fn tokenize_string_acc(
   }
 }
 
-fn tokenize_t(
-  opening_parenthesis_splitter: Splitter,
-  vxml: VXML,
-) -> List(VXML) {
-  let assert T(blame, lines) = vxml
-  lines
-  |> list.index_map(fn(line, i) {
-    tokenize_string_acc(
-      opening_parenthesis_splitter,
-      [],
-      line.blame,
-      line.content,
-    )
-    |> list.prepend(case i == 0 {
-      True -> start_node(line.blame)
-      False -> newline_node(line.blame)
-    })
-  })
-  |> list.flatten
-  |> list.append([end_node(blame)])
+fn word_node(blame: Blame, word: String) {
+  V(blame, "__OneWord", [Attr(blame, "val", word)], [])
 }
 
-fn tokenize_if_t_or_has_href_attr_and_recurse(
-  opening_parenthesis_splitter: Splitter,
-  vxml: VXML,
-) -> List(VXML) {
-  case vxml {
-    T(_, _) -> tokenize_t(opening_parenthesis_splitter, vxml)
-    V(_, _, attrs, children) ->
-      case core.attrs_have_key(attrs, "href") {
-        True -> [
-          V(
-            ..vxml,
-            children: list.flat_map(children, fn(vxml) {
-              tokenize_if_t_or_has_href_attr_and_recurse(
-                opening_parenthesis_splitter,
-                vxml,
-              )
-            }),
-          ),
-        ]
-        False -> [vxml]
-      }
-  }
+fn space_node(blame: Blame) {
+  V(blame, "__OneSpace", [], [])
 }
 
-fn nodemap(opening_parenthesis_splitter: Splitter, vxml: VXML) -> VXML {
-  case vxml {
-    T(_, _) -> vxml
-    V(_, _, attrs, children) -> {
-      case list.any(children, core.is_v_and_has_attr_with_key(_, "href")) {
-        False -> vxml
-        True -> {
-          let attrs = [had_href_child, ..attrs]
-          let children =
-            list.flat_map(children, fn(vxml) {
-              tokenize_if_t_or_has_href_attr_and_recurse(
-                opening_parenthesis_splitter,
-                vxml,
-              )
-            })
-          V(..vxml, attrs: attrs, children: children)
-        }
-      }
-    }
-  }
+fn start_node(blame: Blame) {
+  V(blame, "__StartTokenizedT", [], [])
 }
 
-fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
-  let nodemap: n2t.OneToOneNoErrorNodemap = fn(vxml) { nodemap(inner, vxml) }
-  nodemap
-  |> n2t.one_to_one_no_error_nodemap_2_desugarer_transform()
+fn newline_node(blame: Blame) {
+  V(blame, "__OneNewLine", [], [])
 }
 
-fn param_to_inner_param(_param: Param) -> Result(InnerParam, DesugaringError) {
-  let opening_parenthesis_splitter: Splitter =
-    splitter.new([" ", "(", "[", "—"])
-  Ok(opening_parenthesis_splitter)
+fn end_node(blame: Blame) {
+  V(blame, "__EndTokenizedT", [], [])
 }
 
 type Param =

@@ -22,19 +22,8 @@ pub fn constructor(param: Param) -> Desugarer {
   )
 }
 
-fn nodemap(node: VXML, ancestors: List(VXML), inner: InnerParam) -> List(VXML) {
-  case node {
-    V(_, tag, _, children) if tag == inner.0 ->
-      case
-        list.any(inner.1, fn(b) {
-          list.any(ancestors, fn(a) { core.is_v_and_tag_equals(a, b) })
-        })
-      {
-        True -> children
-        False -> [node]
-      }
-    _ -> [node]
-  }
+fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
+  Ok(param)
 }
 
 fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
@@ -51,8 +40,19 @@ fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
   |> n2t.fancy_one_to_many_no_error_nodemap_2_desugarer_transform()
 }
 
-fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
-  Ok(param)
+fn nodemap(node: VXML, ancestors: List(VXML), inner: InnerParam) -> List(VXML) {
+  case node {
+    V(_, tag, _, children) if tag == inner.0 ->
+      case
+        list.any(inner.1, fn(b) {
+          list.any(ancestors, fn(a) { core.is_v_and_tag_equals(a, b) })
+        })
+      {
+        True -> children
+        False -> [node]
+      }
+    _ -> [node]
+  }
 }
 
 type Param =

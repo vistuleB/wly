@@ -55,18 +55,21 @@ const inner_span_attrs = [Attr(b, "class", "t-3003-i-url")]
 
 const br = V(b, "br", [], [])
 
-fn compose_and_simplify_path(
-  blame: Blame,
-  path: String,
-  inner: InnerParam,
-) -> Result(String, DesugaringError) {
-  filepath.expand(inner <> path)
-  |> result.map_error(fn(_) {
-    DesugaringError(
-      blame,
-      "path '" <> path <> "' points outside the root directory",
+fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
+  Ok(param)
+}
+
+fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
+  let nodemap: n2t.OneToManyEnterExitStatefulNodemap(State) =
+    n2t.OneToManyEnterExitStatefulNodemap(
+      on_enter: fn(vxml, state) { v_before(vxml, state, inner) },
+      on_exit: fn(vxml, original_state, latest_state) {
+        v_after(vxml, inner, original_state, latest_state)
+      },
+      on_text: fn(vxml, _) { Ok(#([vxml], None)) },
     )
-  })
+  nodemap
+  |> n2t.one_to_many_enter_exit_stateful_nodemap_2_desugarer_transform(None)
 }
 
 fn v_before(
@@ -93,8 +96,18 @@ fn v_before(
   }
 }
 
-fn inner_span(path: String) -> VXML {
-  V(b, "span", inner_span_attrs, [T(b, [Line(b, path)])])
+fn compose_and_simplify_path(
+  blame: Blame,
+  path: String,
+  inner: InnerParam,
+) -> Result(String, DesugaringError) {
+  filepath.expand(inner <> path)
+  |> result.map_error(fn(_) {
+    DesugaringError(
+      blame,
+      "path '" <> path <> "' points outside the root directory",
+    )
+  })
 }
 
 fn v_after(
@@ -124,21 +137,8 @@ fn v_after(
   Ok(#([vxml, outer_span], original_state))
 }
 
-fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
-  let nodemap: n2t.OneToManyEnterExitStatefulNodemap(State) =
-    n2t.OneToManyEnterExitStatefulNodemap(
-      on_enter: fn(vxml, state) { v_before(vxml, state, inner) },
-      on_exit: fn(vxml, original_state, latest_state) {
-        v_after(vxml, inner, original_state, latest_state)
-      },
-      on_text: fn(vxml, _) { Ok(#([vxml], None)) },
-    )
-  nodemap
-  |> n2t.one_to_many_enter_exit_stateful_nodemap_2_desugarer_transform(None)
-}
-
-fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
-  Ok(param)
+fn inner_span(path: String) -> VXML {
+  V(b, "span", inner_span_attrs, [T(b, [Line(b, path)])])
 }
 
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊

@@ -8,6 +8,15 @@ import gleam/string
 import on
 import vxml.{type VXML, T, V}
 
+fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
+  Ok(param)
+}
+
+fn inner_param_to_transform(_: InnerParam) -> DesugarerTransform {
+  let nodemap: n2t.OneToOneNodemap = nodemap
+  n2t.one_to_one_nodemap_2_desugarer_transform(nodemap)
+}
+
 fn nodemap(vxml: VXML) -> Result(VXML, DesugaringError) {
   case vxml {
     V(blame, tag, attrs, children) -> {
@@ -38,15 +47,6 @@ fn nodemap(vxml: VXML) -> Result(VXML, DesugaringError) {
     }
     T(_, _) -> Ok(vxml)
   }
-}
-
-fn inner_param_to_transform(_: InnerParam) -> DesugarerTransform {
-  let nodemap: n2t.OneToOneNodemap = nodemap
-  n2t.one_to_one_nodemap_2_desugarer_transform(nodemap)
-}
-
-fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
-  Ok(param)
 }
 
 type Param =

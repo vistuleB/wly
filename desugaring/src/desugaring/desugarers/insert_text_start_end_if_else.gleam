@@ -5,6 +5,15 @@ import desugaring/core.{
 import desugaring/nodemaps_2_transform as n2t
 import vxml.{type VXML, V}
 
+fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
+  Ok(InnerParam(param.0, param.1.0, param.1.1, param.2.0, param.2.1, param.3))
+}
+
+fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
+  let nodemap: n2t.OneToOneNoErrorNodemap = nodemap(_, inner)
+  n2t.one_to_one_no_error_nodemap_2_desugarer_transform(nodemap)
+}
+
 fn nodemap(vxml: VXML, inner: InnerParam) -> VXML {
   case vxml {
     V(_, tag, _, _) if tag == inner.target_tag -> {
@@ -21,15 +30,6 @@ fn nodemap(vxml: VXML, inner: InnerParam) -> VXML {
     }
     _ -> vxml
   }
-}
-
-fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
-  let nodemap: n2t.OneToOneNoErrorNodemap = nodemap(_, inner)
-  n2t.one_to_one_no_error_nodemap_2_desugarer_transform(nodemap)
-}
-
-fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
-  Ok(InnerParam(param.0, param.1.0, param.1.1, param.2.0, param.2.1, param.3))
 }
 
 type Param =

@@ -49,6 +49,22 @@ type InnerParam {
 
 const b = bl.Des([], name, 40)
 
+fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
+  let inner_span_class = case param.1 {
+    "" -> "t-3003"
+    _ -> "t-3003 " <> param.1
+  }
+  let inner_span_attrs = [Attr(b, "class", inner_span_class)]
+  let outer_span_attrs = [Attr(b, "class", "t-3003-c")]
+  Ok(InnerParam(param.0, param.1, param.2, inner_span_attrs, outer_span_attrs))
+}
+
+fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
+  let nodemap: n2t.OneToOneNoErrorNodemap = nodemap(_, inner)
+  nodemap
+  |> n2t.one_to_one_no_error_nodemap_2_desugarer_transform()
+}
+
 fn nodemap(vxml: VXML, inner: InnerParam) -> VXML {
   case vxml {
     V(blame, tag, _, _) -> {
@@ -69,22 +85,6 @@ fn nodemap(vxml: VXML, inner: InnerParam) -> VXML {
     }
     _ -> vxml
   }
-}
-
-fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
-  let nodemap: n2t.OneToOneNoErrorNodemap = nodemap(_, inner)
-  nodemap
-  |> n2t.one_to_one_no_error_nodemap_2_desugarer_transform()
-}
-
-fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
-  let inner_span_class = case param.1 {
-    "" -> "t-3003"
-    _ -> "t-3003 " <> param.1
-  }
-  let inner_span_attrs = [Attr(b, "class", inner_span_class)]
-  let outer_span_attrs = [Attr(b, "class", "t-3003-c")]
-  Ok(InnerParam(param.0, param.1, param.2, inner_span_attrs, outer_span_attrs))
 }
 
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊

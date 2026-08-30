@@ -22,21 +22,8 @@ pub fn constructor(param: Param) -> Desugarer {
   )
 }
 
-fn nodemap(node: VXML, ancestors: List(VXML), inner: InnerParam) -> List(VXML) {
-  case node {
-    V(_, tag, _, children) ->
-      case core.use_list_pair_as_dict(inner, tag) {
-        Error(Nil) -> [node]
-        Ok(forbidden) -> {
-          let ancestor_names = list.map(ancestors, core.v_get_tag)
-          case list.any(ancestor_names, list.contains(forbidden, _)) {
-            True -> children
-            False -> [node]
-          }
-        }
-      }
-    _ -> [node]
-  }
+fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
+  Ok(param)
 }
 
 fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
@@ -53,8 +40,21 @@ fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
   |> n2t.fancy_one_to_many_no_error_nodemap_2_desugarer_transform()
 }
 
-fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
-  Ok(param)
+fn nodemap(node: VXML, ancestors: List(VXML), inner: InnerParam) -> List(VXML) {
+  case node {
+    V(_, tag, _, children) ->
+      case core.use_list_pair_as_dict(inner, tag) {
+        Error(Nil) -> [node]
+        Ok(forbidden) -> {
+          let ancestor_names = list.map(ancestors, core.v_get_tag)
+          case list.any(ancestor_names, list.contains(forbidden, _)) {
+            True -> children
+            False -> [node]
+          }
+        }
+      }
+    _ -> [node]
+  }
 }
 
 type Param =

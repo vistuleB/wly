@@ -28,6 +28,40 @@ pub fn constructor() -> Desugarer {
   )
 }
 
+fn param_to_inner_param() -> InnerParam {
+  let assert Ok(re_chapter) = regexp.from_string("(\\d\\d)\\/")
+  let assert Ok(re_sub) = regexp.from_string("\\d\\d/(\\d\\d)-")
+  #(re_chapter, re_sub)
+}
+
+fn inner_param_to_transform() -> DesugarerTransform {
+  let inner = param_to_inner_param()
+  let nodemap: n2t.EarlyReturnOneToOneNodemap = nodemap(_, inner)
+  nodemap
+  |> n2t.early_return_one_to_one_nodemap_2_desugarer_transform
+}
+
+fn nodemap(
+  node: VXML,
+  inner: InnerParam,
+) -> Result(#(VXML, TrafficLight), DesugaringError) {
+  case node {
+    V(blame, "Chapter", attrs, children) -> {
+      use path <- on.ok(source_path(blame, "Chapter"))
+      use first, _ <- on.empty_nonempty(regexp.scan(inner.0, path), fn() {
+        Error(DesugaringError(blame, "cannot read directory number"))
+      })
+      let assert [Some(x)] = first.submatches
+      let assert Ok(x) = int.parse(x)
+      use children <- on.ok(list.try_map(children, process_sub(_, inner)))
+      let attrs =
+        core.attrs_set(attrs, desugarer_blame(77), "should-be-number", ins(x))
+      Ok(#(V(..node, attrs: attrs, children: children), GoBack))
+    }
+    _ -> Ok(#(node, Continue))
+  }
+}
+
 fn source_path(
   blame: Blame,
   element: String,
@@ -58,40 +92,6 @@ fn process_sub(node: VXML, inner: InnerParam) -> Result(VXML, DesugaringError) {
     }
     _ -> Ok(node)
   }
-}
-
-fn nodemap(
-  node: VXML,
-  inner: InnerParam,
-) -> Result(#(VXML, TrafficLight), DesugaringError) {
-  case node {
-    V(blame, "Chapter", attrs, children) -> {
-      use path <- on.ok(source_path(blame, "Chapter"))
-      use first, _ <- on.empty_nonempty(regexp.scan(inner.0, path), fn() {
-        Error(DesugaringError(blame, "cannot read directory number"))
-      })
-      let assert [Some(x)] = first.submatches
-      let assert Ok(x) = int.parse(x)
-      use children <- on.ok(list.try_map(children, process_sub(_, inner)))
-      let attrs =
-        core.attrs_set(attrs, desugarer_blame(77), "should-be-number", ins(x))
-      Ok(#(V(..node, attrs: attrs, children: children), GoBack))
-    }
-    _ -> Ok(#(node, Continue))
-  }
-}
-
-fn inner_param_to_transform() -> DesugarerTransform {
-  let inner = param_to_inner_param()
-  let nodemap: n2t.EarlyReturnOneToOneNodemap = nodemap(_, inner)
-  nodemap
-  |> n2t.early_return_one_to_one_nodemap_2_desugarer_transform
-}
-
-fn param_to_inner_param() -> InnerParam {
-  let assert Ok(re_chapter) = regexp.from_string("(\\d\\d)\\/")
-  let assert Ok(re_sub) = regexp.from_string("\\d\\d/(\\d\\d)-")
-  #(re_chapter, re_sub)
 }
 
 fn desugarer_blame(line_no: Int) {

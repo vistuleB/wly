@@ -4,6 +4,12 @@ import desugaring/nodemaps_2_transform as n2t
 import gleam/string
 import vxml.{type VXML, T, V}
 
+fn inner_param_to_transform(_: InnerParam) -> DesugarerTransform {
+  let nodemap: n2t.OneToOneNoErrorNodemap = nodemap
+  nodemap
+  |> n2t.one_to_one_no_error_nodemap_2_desugarer_transform()
+}
+
 fn nodemap(vxml: VXML) -> VXML {
   case vxml {
     V(_, "div", _, children) -> {
@@ -51,12 +57,6 @@ fn nodemap(vxml: VXML) -> VXML {
     }
     _ -> vxml
   }
-}
-
-fn inner_param_to_transform(_: InnerParam) -> DesugarerTransform {
-  let nodemap: n2t.OneToOneNoErrorNodemap = nodemap
-  nodemap
-  |> n2t.one_to_one_no_error_nodemap_2_desugarer_transform()
 }
 
 type Param =

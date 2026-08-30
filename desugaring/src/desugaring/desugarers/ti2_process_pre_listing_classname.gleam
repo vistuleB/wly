@@ -26,6 +26,12 @@ pub fn constructor() -> Desugarer {
   )
 }
 
+fn inner_param_to_transform() -> DesugarerTransform {
+  let nodemap: n2t.OneToOneNodemap = nodemap
+  nodemap
+  |> n2t.one_to_one_nodemap_2_desugarer_transform
+}
+
 fn nodemap(vxml: VXML) -> Result(VXML, DesugaringError) {
   case vxml {
     V(_, "pre", attrs, _) -> {
@@ -77,12 +83,6 @@ fn nodemap(vxml: VXML) -> Result(VXML, DesugaringError) {
     }
     _ -> Ok(vxml)
   }
-}
-
-fn inner_param_to_transform() -> DesugarerTransform {
-  let nodemap: n2t.OneToOneNodemap = nodemap
-  nodemap
-  |> n2t.one_to_one_nodemap_2_desugarer_transform
 }
 
 fn desugarer_blame(line_no: Int) {

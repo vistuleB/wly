@@ -23,14 +23,13 @@ pub fn constructor(param: Param) -> Desugarer {
   )
 }
 
-fn matches_all_key_val_pairs(
-  attrs: List(Attr),
-  key_value_pairs: List(#(String, String)),
-) -> Bool {
-  list.all(key_value_pairs, fn(key_value) {
-    let #(key, value) = key_value
-    list.any(attrs, fn(attr) { attr.key == key && attr.val == value })
-  })
+fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
+  Ok(param)
+}
+
+fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
+  let nodemap: n2t.OneToManyNodemap = nodemap(_, inner)
+  n2t.one_to_many_nodemap_2_desugarer_transform(nodemap)
 }
 
 fn nodemap(
@@ -54,13 +53,14 @@ fn nodemap(
   }
 }
 
-fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
-  let nodemap: n2t.OneToManyNodemap = nodemap(_, inner)
-  n2t.one_to_many_nodemap_2_desugarer_transform(nodemap)
-}
-
-fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
-  Ok(param)
+fn matches_all_key_val_pairs(
+  attrs: List(Attr),
+  key_value_pairs: List(#(String, String)),
+) -> Bool {
+  list.all(key_value_pairs, fn(key_value) {
+    let #(key, value) = key_value
+    list.any(attrs, fn(attr) { attr.key == key && attr.val == value })
+  })
 }
 
 type Param =

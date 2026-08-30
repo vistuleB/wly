@@ -9,49 +9,18 @@ import gleam/string
 import on
 import vxml.{type Line, type VXML, Line, T, V}
 
-fn updated_node(
-  vxml: VXML,
-  prefix: Option(Line),
-  cc: #(Line, Option(String)),
-  rest: Line,
-) -> VXML {
-  let assert V(blame, tag, attrs, children) = vxml
-  let assert [T(t_blame, lines), ..] = children
+fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
+  Ok(InnerParam(
+    counter_command: param.0,
+    target_key_value: param.1,
+    before_strings: param.2,
+    wrapper_tag: param.3,
+  ))
+}
 
-  let prefix = on.eager_none_some(prefix, [], fn(p) { [p] })
-
-  let #(counter_command, wrapper) = cc
-
-  let new_children =
-    on.none_some(
-      wrapper,
-      fn() {
-        [
-          T(
-            t_blame,
-            list.flatten([
-              prefix,
-              [counter_command],
-              [rest],
-              list.drop(lines, 1),
-            ]),
-          ),
-          ..list.drop(children, 1)
-        ]
-      },
-      fn(wrapper) {
-        let wrapper_node =
-          V(t_blame, wrapper, [], [T(t_blame, [counter_command])])
-        [
-          T(t_blame, prefix),
-          wrapper_node,
-          T(t_blame, [rest, ..list.drop(lines, 1)]),
-          ..list.drop(children, 1)
-        ]
-      },
-    )
-
-  V(blame, tag, attrs, new_children)
+fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
+  let nodemap: n2t.OneToOneNodemap = nodemap(_, inner)
+  n2t.one_to_one_nodemap_2_desugarer_transform(nodemap)
 }
 
 fn nodemap(vxml: VXML, inner: InnerParam) -> Result(VXML, DesugaringError) {
@@ -110,18 +79,49 @@ fn nodemap(vxml: VXML, inner: InnerParam) -> Result(VXML, DesugaringError) {
   }
 }
 
-fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
-  let nodemap: n2t.OneToOneNodemap = nodemap(_, inner)
-  n2t.one_to_one_nodemap_2_desugarer_transform(nodemap)
-}
+fn updated_node(
+  vxml: VXML,
+  prefix: Option(Line),
+  cc: #(Line, Option(String)),
+  rest: Line,
+) -> VXML {
+  let assert V(blame, tag, attrs, children) = vxml
+  let assert [T(t_blame, lines), ..] = children
 
-fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
-  Ok(InnerParam(
-    counter_command: param.0,
-    target_key_value: param.1,
-    before_strings: param.2,
-    wrapper_tag: param.3,
-  ))
+  let prefix = on.eager_none_some(prefix, [], fn(p) { [p] })
+
+  let #(counter_command, wrapper) = cc
+
+  let new_children =
+    on.none_some(
+      wrapper,
+      fn() {
+        [
+          T(
+            t_blame,
+            list.flatten([
+              prefix,
+              [counter_command],
+              [rest],
+              list.drop(lines, 1),
+            ]),
+          ),
+          ..list.drop(children, 1)
+        ]
+      },
+      fn(wrapper) {
+        let wrapper_node =
+          V(t_blame, wrapper, [], [T(t_blame, [counter_command])])
+        [
+          T(t_blame, prefix),
+          wrapper_node,
+          T(t_blame, [rest, ..list.drop(lines, 1)]),
+          ..list.drop(children, 1)
+        ]
+      },
+    )
+
+  V(blame, tag, attrs, new_children)
 }
 
 type Param =

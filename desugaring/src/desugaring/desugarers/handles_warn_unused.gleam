@@ -11,62 +11,23 @@ import gleam/string
 import on
 import vxml.{type Attr, type VXML, V}
 
-fn collect_unused_ids(
-  attrs: List(Attr),
-) -> Result(Dict(String, List(String)), DesugaringError) {
-  list.try_fold(attrs, dict.new(), fn(acc, attr) {
-    case attr.key == "handle" {
-      False -> Ok(acc)
-      True ->
-        case attr.val |> string.split("|") {
-          [_, _, _, _, _, "used"] -> Ok(acc)
-          [name, _, _, id, _, ""] ->
-            Ok(
-              dict.upsert(acc, id, fn(existing) {
-                [name, ..option.unwrap(existing, [])]
-              }),
-            )
-          _ ->
-            Error(DesugaringError(
-              attr.blame,
-              "GrandWrapper handle entry has no 'used' column (run "
-                <> "handles_substitute first); found: “"
-                <> attr.val
-                <> "”",
-            ))
-        }
-    }
-  })
+fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
+  Ok(param)
 }
 
-fn traffic_light(remaining: Dict(String, List(String))) -> core.TrafficLight {
-  case dict.is_empty(remaining) {
-    True -> core.GoBack
-    False -> core.Continue
-  }
-}
-
-fn warnings_for(
-  names: List(String),
-  vxml: VXML,
-  inner: InnerParam,
-) -> List(DesugaringWarning) {
-  let assert V(blame, tag, _, _) = vxml
-  case list.contains(inner, tag) {
-    False -> []
-    True ->
-      names
-      |> list.map(fn(name) {
-        DesugaringWarning(
-          blame,
-          "handle '"
-            <> name
-            <> "' is defined on a '"
-            <> tag
-            <> "' element but is never used",
-        )
-      })
-  }
+fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
+  let nodemap: n2t.EarlyReturnOneToOneEnterExitStatefulWithWarningsNodemap(
+    State,
+  ) =
+    n2t.EarlyReturnOneToOneEnterExitStatefulWithWarningsNodemap(
+      on_enter: fn(vxml, state) { v_before(vxml, state, inner) },
+      on_exit: v_after,
+      on_text: fn(vxml, state) { Ok(#(vxml, state, [])) },
+    )
+  n2t.early_return_one_to_one_enter_exit_stateful_with_warnings_nodemap_2_desugarer_transform(
+    nodemap,
+    State(dict.new(), []),
+  )
 }
 
 fn v_before(
@@ -107,9 +68,67 @@ fn v_before(
   }
 }
 
+fn collect_unused_ids(
+  attrs: List(Attr),
+) -> Result(Dict(String, List(String)), DesugaringError) {
+  list.try_fold(attrs, dict.new(), fn(acc, attr) {
+    case attr.key == "handle" {
+      False -> Ok(acc)
+      True ->
+        case attr.val |> string.split("|") {
+          [_, _, _, _, _, "used"] -> Ok(acc)
+          [name, _, _, id, _, ""] ->
+            Ok(
+              dict.upsert(acc, id, fn(existing) {
+                [name, ..option.unwrap(existing, [])]
+              }),
+            )
+          _ ->
+            Error(DesugaringError(
+              attr.blame,
+              "GrandWrapper handle entry has no 'used' column (run "
+                <> "handles_substitute first); found: “"
+                <> attr.val
+                <> "”",
+            ))
+        }
+    }
+  })
+}
+
+fn traffic_light(remaining: Dict(String, List(String))) -> core.TrafficLight {
+  case dict.is_empty(remaining) {
+    True -> core.GoBack
+    False -> core.Continue
+  }
+}
+
 fn our_id(vxml: VXML) -> Option(String) {
   core.v_first_attr_with_key(vxml, "id")
   |> option.map(fn(attr) { attr.val })
+}
+
+fn warnings_for(
+  names: List(String),
+  vxml: VXML,
+  inner: InnerParam,
+) -> List(DesugaringWarning) {
+  let assert V(blame, tag, _, _) = vxml
+  case list.contains(inner, tag) {
+    False -> []
+    True ->
+      names
+      |> list.map(fn(name) {
+        DesugaringWarning(
+          blame,
+          "handle '"
+            <> name
+            <> "' is defined on a '"
+            <> tag
+            <> "' element but is never used",
+        )
+      })
+  }
 }
 
 fn v_after(
@@ -125,25 +144,6 @@ fn v_after(
       Ok(#(vxml, latest_state, latest_state.warnings |> list.reverse))
     _ -> Ok(#(vxml, latest_state, []))
   }
-}
-
-fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
-  let nodemap: n2t.EarlyReturnOneToOneEnterExitStatefulWithWarningsNodemap(
-    State,
-  ) =
-    n2t.EarlyReturnOneToOneEnterExitStatefulWithWarningsNodemap(
-      on_enter: fn(vxml, state) { v_before(vxml, state, inner) },
-      on_exit: v_after,
-      on_text: fn(vxml, state) { Ok(#(vxml, state, [])) },
-    )
-  n2t.early_return_one_to_one_enter_exit_stateful_with_warnings_nodemap_2_desugarer_transform(
-    nodemap,
-    State(dict.new(), []),
-  )
-}
-
-fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
-  Ok(param)
 }
 
 type State {

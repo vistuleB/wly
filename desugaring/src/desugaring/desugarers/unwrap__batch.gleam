@@ -22,6 +22,16 @@ pub fn constructor(param: Param) -> Desugarer {
   )
 }
 
+fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
+  Ok(param)
+}
+
+fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
+  let nodemap: n2t.OneToManyNoErrorNodemap = nodemap(_, inner)
+  nodemap
+  |> n2t.one_to_many_no_error_nodemap_2_desugarer_transform()
+}
+
 fn nodemap(node: VXML, inner: InnerParam) -> List(VXML) {
   case node {
     V(_, tag, _, children) ->
@@ -31,16 +41,6 @@ fn nodemap(node: VXML, inner: InnerParam) -> List(VXML) {
       }
     _ -> [node]
   }
-}
-
-fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
-  let nodemap: n2t.OneToManyNoErrorNodemap = nodemap(_, inner)
-  nodemap
-  |> n2t.one_to_many_no_error_nodemap_2_desugarer_transform()
-}
-
-fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
-  Ok(param)
 }
 
 type Param =
