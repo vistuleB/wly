@@ -37,8 +37,14 @@ type Param =
     String,
   )
 
-type InnerParam =
-  Param
+type InnerParam {
+  InnerParam(
+    target_tag: String,
+    ancestor_tag: String,
+    inside_value: String,
+    outside_value: String,
+  )
+}
 
 type AncestorHasBeenSeen =
   Bool
@@ -47,8 +53,7 @@ type State =
   AncestorHasBeenSeen
 
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
-  param
-  |> Ok
+  Ok(InnerParam(param.0, param.1, param.2, param.3))
 }
 
 fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
@@ -70,8 +75,8 @@ fn v_before_nodemap(
   inner: InnerParam,
 ) -> Result(#(VXML, State), DesugaringError) {
   let assert V(_, tag, attrs, _) = vxml
-  let state = state || tag == inner.1
-  case tag == inner.0 {
+  let state = state || tag == inner.ancestor_tag
+  case tag == inner.target_tag {
     False -> Ok(#(vxml, state))
     True -> {
       use attrs <- result.try(list.try_map(attrs, map_attr(_, state, inner)))
@@ -95,8 +100,8 @@ fn map_attr(
           }
         Error(Nil) -> {
           let appended_value = case state {
-            True -> inner.2
-            False -> inner.3
+            True -> inner.inside_value
+            False -> inner.outside_value
           }
           Ok(Attr(..attr, val: attr.val <> " " <> appended_value))
         }

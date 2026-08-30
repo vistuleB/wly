@@ -35,11 +35,17 @@ type Param =
     TrafficLight,
   )
 
-type InnerParam =
-  #(String, Attr, ContextualVXMLCondition, TrafficLight)
+type InnerParam {
+  InnerParam(
+    target_tag: String,
+    attribute: Attr,
+    condition: ContextualVXMLCondition,
+    traffic_light: TrafficLight,
+  )
+}
 
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
-  #(
+  InnerParam(
     param.0,
     Attr(desugarer_blame(44), "_", param.1 <> " ::++" <> param.1),
     param.2,
@@ -78,9 +84,9 @@ fn nodemap(
   inner: InnerParam,
 ) -> #(VXML, TrafficLight) {
   case vxml {
-    V(_, tag, attrs, _) if tag == inner.0 -> {
+    V(_, tag, attrs, _) if tag == inner.target_tag -> {
       case
-        inner.2(
+        inner.condition(
           vxml,
           ancestors,
           previous_siblings_before_mapping,
@@ -88,7 +94,10 @@ fn nodemap(
           following_siblings_before_mapping,
         )
       {
-        True -> #(V(..vxml, attrs: [inner.1, ..attrs]), inner.3)
+        True -> #(
+          V(..vxml, attrs: [inner.attribute, ..attrs]),
+          inner.traffic_light,
+        )
         False -> #(vxml, Continue)
       }
     }

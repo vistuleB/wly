@@ -12,8 +12,11 @@ fn nodemap(
   inner: InnerParam,
 ) -> Result(#(VXML, TrafficLight), DesugaringError) {
   case vxml {
-    V(_, tag, attrs, children) if tag == inner.0 -> {
-      use attr <- on.ok(core.attrs_unique_key_or_none(attrs, inner.1))
+    V(_, tag, attrs, children) if tag == inner.target_tag -> {
+      use attr <- on.ok(core.attrs_unique_key_or_none(
+        attrs,
+        inner.attribute_key,
+      ))
 
       use attr <- on.none_some(attr, fn() { Ok(#(vxml, Continue)) })
 
@@ -28,8 +31,9 @@ fn nodemap(
             "first child is text node instead of V-node",
           ))
         V(..) -> {
-          let first = first |> core.v_start_insert_text(attr.val <> inner.2)
-          Ok(#(V(..vxml, children: [first, ..rest]), inner.3))
+          let first =
+            first |> core.v_start_insert_text(attr.val <> inner.connector)
+          Ok(#(V(..vxml, children: [first, ..rest]), inner.traffic_light))
         }
       }
     }
@@ -44,7 +48,7 @@ fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
 }
 
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
-  Ok(param)
+  Ok(InnerParam(param.0, param.1, param.2, param.3))
 }
 
 type Param =
@@ -59,8 +63,14 @@ type Param =
     TrafficLight,
   )
 
-type InnerParam =
-  Param
+type InnerParam {
+  InnerParam(
+    target_tag: String,
+    attribute_key: String,
+    connector: String,
+    traffic_light: TrafficLight,
+  )
+}
 
 pub const name = "insert_attribute_value_at_first_child_start"
 

@@ -33,10 +33,17 @@ type Param =
     TrafficLight,
   )
 
-type InnerParam = Param
+type InnerParam {
+  InnerParam(
+    parent_tag: String,
+    stop_tag: String,
+    wrapper_tag: String,
+    traffic_light: TrafficLight,
+  )
+}
 
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
-  Ok(param)
+  Ok(InnerParam(param.0, param.1, param.2, param.3))
 }
 
 fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
@@ -49,10 +56,11 @@ fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
 
 fn nodemap(vxml: VXML, inner: InnerParam) -> #(VXML, TrafficLight) {
   case vxml {
-    V(blame, tag, _, children) if tag == inner.0 -> {
-      let #(before, after) = children_up_to_not_including(children, inner.1, [])
-      let children = [V(blame, inner.2, [], before), ..after]
-      #(V(..vxml, children: children), inner.3)
+    V(blame, tag, _, children) if tag == inner.parent_tag -> {
+      let #(before, after) =
+        children_up_to_not_including(children, inner.stop_tag, [])
+      let children = [V(blame, inner.wrapper_tag, [], before), ..after]
+      #(V(..vxml, children: children), inner.traffic_light)
     }
     _ -> #(vxml, Continue)
   }
@@ -90,4 +98,5 @@ pub fn assertive_tests() {
     constructor,
   )
 }
+
 import desugaring/authoring

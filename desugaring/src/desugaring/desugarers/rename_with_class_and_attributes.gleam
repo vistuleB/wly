@@ -35,14 +35,20 @@ type Param =
     List(#(String, String)),
   )
 
-type InnerParam =
-  #(String, String, String, List(Attr))
+type InnerParam {
+  InnerParam(
+    old_tag: String,
+    new_tag: String,
+    class_name: String,
+    attributes: List(Attr),
+  )
+}
 
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
   let attrs =
     param.3
     |> list.map(fn(x) { Attr(desugarer_blame(44), x.0, x.1) })
-  Ok(#(param.0, param.1, param.2, attrs))
+  Ok(InnerParam(param.0, param.1, param.2, attrs))
 }
 
 fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
@@ -53,12 +59,12 @@ fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
 
 fn nodemap(vxml: VXML, inner: InnerParam) -> VXML {
   case vxml {
-    V(blame, tag, attrs, _) if tag == inner.0 -> {
+    V(blame, tag, attrs, _) if tag == inner.old_tag -> {
       let attrs =
         attrs
-        |> core.attrs_append_classes(blame, inner.2)
-        |> list.append(inner.3)
-      V(..vxml, tag: inner.1, attrs: attrs)
+        |> core.attrs_append_classes(blame, inner.class_name)
+        |> list.append(inner.attributes)
+      V(..vxml, tag: inner.new_tag, attrs: attrs)
     }
     _ -> vxml
   }

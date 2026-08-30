@@ -7,16 +7,16 @@ import vxml.{type VXML, V}
 
 fn nodemap(vxml: VXML, inner: InnerParam) -> VXML {
   case vxml {
-    V(_, tag, _, _) if tag == inner.0 -> {
-      case inner.5(vxml) {
+    V(_, tag, _, _) if tag == inner.target_tag -> {
+      case inner.condition(vxml) {
         True ->
           vxml
-          |> core.v_start_insert_text(inner.1)
-          |> core.v_end_insert_text(inner.2)
+          |> core.v_start_insert_text(inner.true_start)
+          |> core.v_end_insert_text(inner.true_end)
         False ->
           vxml
-          |> core.v_start_insert_text(inner.3)
-          |> core.v_end_insert_text(inner.4)
+          |> core.v_start_insert_text(inner.false_start)
+          |> core.v_end_insert_text(inner.false_end)
       }
     }
     _ -> vxml
@@ -29,8 +29,7 @@ fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
 }
 
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
-  #(param.0, param.1.0, param.1.1, param.2.0, param.2.1, param.3)
-  |> Ok
+  Ok(InnerParam(param.0, param.1.0, param.1.1, param.2.0, param.2.1, param.3))
 }
 
 type Param =
@@ -45,8 +44,16 @@ type Param =
     fn(VXML) -> Bool,
   )
 
-type InnerParam =
-  #(String, String, String, String, String, fn(VXML) -> Bool)
+type InnerParam {
+  InnerParam(
+    target_tag: String,
+    true_start: String,
+    true_end: String,
+    false_start: String,
+    false_end: String,
+    condition: fn(VXML) -> Bool,
+  )
+}
 
 pub const name = "insert_text_start_end_if_else"
 

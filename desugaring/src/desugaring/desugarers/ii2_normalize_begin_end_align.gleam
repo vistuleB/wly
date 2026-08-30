@@ -33,8 +33,14 @@ type Param =
     List(LatexDelimiterPair),
   )
 
-type InnerParam =
-  #(List(String), String, List(String), String)
+type InnerParam {
+  InnerParam(
+    opening_delimiters: List(String),
+    opening_replacement: String,
+    closing_delimiters: List(String),
+    closing_replacement: String,
+  )
+}
 
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
   let #(allowed_starts, allowed_ends) =
@@ -43,8 +49,12 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
     |> list.unzip
   let #(prescribed_start, prescribed_end) =
     core.opening_and_closing_string_for_pair(param.0)
-  #(allowed_starts, prescribed_start, allowed_ends, prescribed_end)
-  |> Ok
+  Ok(InnerParam(
+    opening_delimiters: allowed_starts,
+    opening_replacement: prescribed_start,
+    closing_delimiters: allowed_ends,
+    closing_replacement: prescribed_end,
+  ))
 }
 
 fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
@@ -61,18 +71,18 @@ fn nodemap(vxml: VXML, inner: InnerParam) -> Result(VXML, DesugaringError) {
         lines
         |> split_and_insert_before_unless_allowable_ending_found_ez_version(
           "\\begin{align",
-          inner.0,
-          inner.1,
+          inner.opening_delimiters,
+          inner.opening_replacement,
         )
         |> split_and_insert_after_unless_allowable_beginning_found_ez_version(
           "\\end{align}",
-          inner.2,
-          inner.3,
+          inner.closing_delimiters,
+          inner.closing_replacement,
         )
         |> split_and_insert_after_unless_allowable_beginning_found_ez_version(
           "\\end{align*}",
-          inner.2,
-          inner.3,
+          inner.closing_delimiters,
+          inner.closing_replacement,
         )
       Ok(T(blame, lines))
     }

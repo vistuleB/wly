@@ -36,11 +36,17 @@ type Param =
     VXML,
   )
 
-type InnerParam =
-  Param
+type InnerParam {
+  InnerParam(
+    target_tag: String,
+    attribute_key: String,
+    wrapper: VXML,
+    fallback: VXML,
+  )
+}
 
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
-  Ok(param)
+  Ok(InnerParam(param.0, param.1, param.2, param.3))
 }
 
 fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
@@ -51,16 +57,18 @@ fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
 
 fn nodemap(vxml: VXML, inner: InnerParam) -> VXML {
   case vxml {
-    V(_, tag, _, children) if tag == inner.0 -> {
-      let node_to_prepend = case core.v_first_attr_with_key(vxml, inner.1) {
+    V(_, tag, _, children) if tag == inner.target_tag -> {
+      let node_to_prepend = case
+        core.v_first_attr_with_key(vxml, inner.attribute_key)
+      {
         Some(Attr(_, _, value)) if value != "" -> {
-          let assert V(b, t, a, c) = inner.2
+          let assert V(b, t, a, c) = inner.wrapper
           V(b, t, a, [
             T(desugarer_blame(59), [Line(desugarer_blame(59), value)]),
             ..c
           ])
         }
-        _ -> inner.3
+        _ -> inner.fallback
       }
       V(..vxml, children: [node_to_prepend, ..children])
     }

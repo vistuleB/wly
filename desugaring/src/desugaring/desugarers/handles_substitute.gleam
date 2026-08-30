@@ -52,8 +52,8 @@ fn hyperlink_constructor(
     ))
   })
   let #(tag, attrs) = case target_path == our_path {
-    True -> #(inner.1, inner.3)
-    False -> #(inner.2, inner.4)
+    True -> #(inner.in_page_tag, inner.in_page_attrs)
+    False -> #(inner.out_page_tag, inner.out_page_attrs)
   }
   let page = page || page_by_default
   let target_path = case page {
@@ -248,7 +248,7 @@ fn process_line_inside_math(
 ) -> #(Line, List(DesugaringWarning), List(String)) {
   let Line(blame, content) = line
   let splits =
-    regexp.split(inner.7, content)
+    regexp.split(inner.handles_regexp, content)
     |> augment_to_1_mod_3
     |> retain_0_mod_3
   let #(new_content, warnings, used) = rebuild(splits, matches, blame, state)
@@ -263,7 +263,7 @@ fn process_lines_inside_math(
   let triples =
     lines
     |> list.map(fn(line) {
-      case regexp.scan(inner.7, line.content) {
+      case regexp.scan(inner.handles_regexp, line.content) {
         [] -> #(line, [], [])
         matches -> process_line_inside_math(line, matches, state, inner)
       }
@@ -295,9 +295,9 @@ fn process_line(
   DesugaringError,
 ) {
   let Line(blame, content) = line
-  case regexp.scan(inner.7, content) {
+  case regexp.scan(inner.handles_regexp, content) {
     [_, ..] as matches -> {
-      let splits = regexp.split(inner.7, content)
+      let splits = regexp.split(inner.handles_regexp, content)
       use #(hyperlinks, warnings, used) <- on.ok(matches_2_hyperlinks(
         matches,
         blame,
@@ -472,8 +472,11 @@ fn substitute_hrefs_in_a(
     }),
   )
   let #(tag, attrs) = case acc.0 {
-    Some(InPage) -> #(inner.1, core.pour(inner.3, attrs))
-    Some(OutOfPage) -> #(inner.2, core.pour(inner.4, attrs))
+    Some(InPage) -> #(inner.in_page_tag, core.pour(inner.in_page_attrs, attrs))
+    Some(OutOfPage) -> #(
+      inner.out_page_tag,
+      core.pour(inner.out_page_attrs, attrs),
+    )
     _ -> #(vxml.tag, attrs)
   }
   Ok(#(
@@ -485,7 +488,7 @@ fn substitute_hrefs_in_a(
 
 fn update_state_path(state: State, vxml: VXML, inner: InnerParam) -> State {
   let assert V(_, _, _, _) = vxml
-  case core.v_first_attr_with_key(vxml, inner.0) {
+  case core.v_first_attr_with_key(vxml, inner.handle_key) {
     Some(Attr(_, _, value)) -> State(..state, path: Some(value))
     None -> state
   }
@@ -501,11 +504,13 @@ fn v_before_transform(
     "GrandWrapper" -> grand_wrapper_load(state, attrs)
     _ -> update_state_path(state, vxml, inner)
   }
-  let state = case state.inside_a_link_tag || !list.contains(inner.5, tag) {
+  let state = case
+    state.inside_a_link_tag || !list.contains(inner.link_tags, tag)
+  {
     True -> state
     False -> State(..state, inside_a_link_tag: True)
   }
-  let state = case state.inside_math || !list.contains(inner.6, tag) {
+  let state = case state.inside_math || !list.contains(inner.math_tags, tag) {
     True -> state
     False -> State(..state, inside_math: True)
   }
@@ -587,17 +592,16 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
       "(>>)([\\w^.:'-]+[\\w'](?:#page)?(?:#decoy:[0-9]+)?(?:##)?)",
     )
 
-  #(
-    param.0,
-    param.1,
-    param.2,
-    param.3 |> core.string_pairs_to_attrs(desugarer_blame(594)),
-    param.4 |> core.string_pairs_to_attrs(desugarer_blame(595)),
-    param.5,
-    param.6,
-    handles_regexp,
-  )
-  |> Ok
+  Ok(InnerParam(
+    handle_key: param.0,
+    in_page_tag: param.1,
+    out_page_tag: param.2,
+    in_page_attrs: param.3 |> core.string_pairs_to_attrs(desugarer_blame(594)),
+    out_page_attrs: param.4 |> core.string_pairs_to_attrs(desugarer_blame(595)),
+    link_tags: param.5,
+    math_tags: param.6,
+    handles_regexp: handles_regexp,
+  ))
 }
 
 type HandlesDict =
@@ -640,17 +644,18 @@ type Param =
     // tags whose contents are LaTeX (typically Math, MathBlock)
   )
 
-type InnerParam =
-  #(
-    String,
-    String,
-    String,
-    List(Attr),
-    List(Attr),
-    List(String),
-    List(String),
-    Regexp,
+type InnerParam {
+  InnerParam(
+    handle_key: String,
+    in_page_tag: String,
+    out_page_tag: String,
+    in_page_attrs: List(Attr),
+    out_page_attrs: List(Attr),
+    link_tags: List(String),
+    math_tags: List(String),
+    handles_regexp: Regexp,
   )
+}
 
 pub const name = "handles_substitute"
 

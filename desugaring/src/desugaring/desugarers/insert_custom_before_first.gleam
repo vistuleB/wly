@@ -8,17 +8,17 @@ import vxml.{type VXML, V}
 
 fn nodemap(vxml: VXML, inner: InnerParam) -> #(VXML, TrafficLight) {
   case vxml {
-    V(_, tag, _, children) if tag == inner.0 -> {
+    V(_, tag, _, children) if tag == inner.target_tag -> {
       #(
         V(
           ..vxml,
           children: core.insert_child_before_first_in_list(
             children,
-            inner.1,
-            inner.2,
+            inner.child,
+            inner.before_tag,
           ),
         ),
-        inner.3,
+        inner.traffic_light,
       )
     }
     _ -> #(vxml, Continue)
@@ -32,7 +32,7 @@ fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
 }
 
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
-  Ok(param)
+  Ok(InnerParam(param.0, param.1, param.2, param.3))
 }
 
 type Param =
@@ -47,8 +47,14 @@ type Param =
     TrafficLight,
   )
 
-type InnerParam =
-  Param
+type InnerParam {
+  InnerParam(
+    target_tag: String,
+    child: VXML,
+    before_tag: String,
+    traffic_light: TrafficLight,
+  )
+}
 
 pub const name = "insert_custom_before_first"
 

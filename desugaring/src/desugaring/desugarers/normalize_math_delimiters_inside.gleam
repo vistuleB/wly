@@ -33,19 +33,15 @@ type Param =
     LatexDelimiterPair,
   )
 
-type InnerParam =
-  #(
-    // Opening delimiters to remove.
-    List(String),
-    // Closing delimiters to remove.
-    List(String),
-    // Opening delimiter to use.
-    String,
-    // Closing delimiter to use.
-    String,
-    // Target tag.
-    String,
+type InnerParam {
+  InnerParam(
+    opening_delimiters: List(String),
+    closing_delimiters: List(String),
+    opening_replacement: String,
+    closing_replacement: String,
+    target_tag: String,
   )
+}
 
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
   let #(left_target, right_target) =
@@ -56,17 +52,17 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
     |> list.unzip
   let left_delims = list.filter(left_delims, fn(c) { c != left_target })
   let right_delims = list.filter(right_delims, fn(c) { c != right_target })
-  Ok(#(
+  Ok(InnerParam(
     left_delims,
-    // inner.0
+    // inner.opening_delimiters
     right_delims,
-    // inner.1
+    // inner.closing_delimiters
     left_target,
-    // inner.2
+    // inner.opening_replacement
     right_target,
-    // inner.3
+    // inner.closing_replacement
     param.0,
-    // inner.4
+    // inner.target_tag
   ))
 }
 
@@ -77,7 +73,7 @@ fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
 
 fn nodemap(node: VXML, inner: InnerParam) -> Result(VXML, DesugaringError) {
   case node {
-    V(_, tag, _, children) if tag == inner.4 ->
+    V(_, tag, _, children) if tag == inner.target_tag ->
       case children {
         [T(_, _) as t] -> Ok(V(..node, children: [normalize_t(t, inner)]))
         _ ->
@@ -97,7 +93,8 @@ fn normalize_t(t: VXML, inner: InnerParam) -> VXML {
   let lines = [
     Line(
       ..first,
-      content: inner.2 <> remove_first_prefix_found(first.content, inner.0),
+      content: inner.opening_replacement
+        <> remove_first_prefix_found(first.content, inner.opening_delimiters),
     ),
     ..rest
   ]
@@ -106,7 +103,11 @@ fn normalize_t(t: VXML, inner: InnerParam) -> VXML {
   let lines = [
     Line(
       ..first,
-      content: remove_first_suffix_found(first.content, inner.1) <> inner.3,
+      content: remove_first_suffix_found(
+          first.content,
+          inner.closing_delimiters,
+        )
+        <> inner.closing_replacement,
     ),
     ..rest
   ]

@@ -38,11 +38,17 @@ type Param =
     List(String),
   )
 
-type InnerParam =
-  Param
+type InnerParam {
+  InnerParam(
+    opening_tag: String,
+    closing_tag: String,
+    enclosing_tag: String,
+    unbridgeable_tags: List(String),
+  )
+}
 
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
-  Ok(param)
+  Ok(InnerParam(param.0, param.1, param.2, param.3))
 }
 
 fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
@@ -52,16 +58,15 @@ fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
 }
 
 fn nodemap(node: VXML, inner: InnerParam) -> VXML {
-  let #(opening, closing, enclosing, unbridgeable) = inner
   case node {
     T(_, _) -> node
     V(blame, tag, attrs, children) -> {
       let new_children =
         accumulator(
-          opening,
-          closing,
-          enclosing,
-          unbridgeable,
+          inner.opening_tag,
+          inner.closing_tag,
+          inner.enclosing_tag,
+          inner.unbridgeable_tags,
           [],
           option.None,
           [],

@@ -55,7 +55,7 @@ fn updated_node(
 }
 
 fn nodemap(vxml: VXML, inner: InnerParam) -> Result(VXML, DesugaringError) {
-  let #(counter_command, #(key, value), prefixes, wrapper) = inner
+  let #(key, value) = inner.target_key_value
 
   case vxml {
     T(_, _) -> Ok(vxml)
@@ -68,13 +68,13 @@ fn nodemap(vxml: VXML, inner: InnerParam) -> Result(VXML, DesugaringError) {
         [T(t_blame, lines), ..] -> {
           let assert [first_line, ..] = lines
           let found_prefix =
-            list.find(prefixes, fn(prefix) {
+            list.find(inner.before_strings, fn(prefix) {
               string.starts_with(first_line.content, prefix)
             })
 
-          case found_prefix, list.is_empty(prefixes) {
+          case found_prefix, list.is_empty(inner.before_strings) {
             Ok(found_prefix), _ -> {
-              let blamed_cc = Line(first_line.blame, counter_command)
+              let blamed_cc = Line(first_line.blame, inner.counter_command)
               let blamed_prefix = Line(first_line.blame, found_prefix)
               let rest =
                 Line(
@@ -86,14 +86,19 @@ fn nodemap(vxml: VXML, inner: InnerParam) -> Result(VXML, DesugaringError) {
               updated_node(
                 vxml,
                 option.Some(blamed_prefix),
-                #(blamed_cc, wrapper),
+                #(blamed_cc, inner.wrapper_tag),
                 rest,
               )
               |> Ok
             }
             Error(_), True -> {
-              let blamed_cc = Line(t_blame, counter_command)
-              updated_node(vxml, option.None, #(blamed_cc, wrapper), first_line)
+              let blamed_cc = Line(t_blame, inner.counter_command)
+              updated_node(
+                vxml,
+                option.None,
+                #(blamed_cc, inner.wrapper_tag),
+                first_line,
+              )
               |> Ok
             }
             Error(_), False -> Ok(vxml)
@@ -111,7 +116,12 @@ fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
 }
 
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
-  Ok(param)
+  Ok(InnerParam(
+    counter_command: param.0,
+    target_key_value: param.1,
+    before_strings: param.2,
+    wrapper_tag: param.3,
+  ))
 }
 
 type Param =
@@ -126,8 +136,14 @@ type Param =
     Option(String),
   )
 
-type InnerParam =
-  Param
+type InnerParam {
+  InnerParam(
+    counter_command: String,
+    target_key_value: #(String, String),
+    before_strings: List(String),
+    wrapper_tag: Option(String),
+  )
+}
 
 pub const name = "ii2_insert_counter_commands"
 

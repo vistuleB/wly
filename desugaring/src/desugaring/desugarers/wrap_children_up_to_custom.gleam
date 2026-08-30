@@ -34,12 +34,18 @@ type Param =
     TrafficLight,
   )
 
-type InnerParam =
-  Param
+type InnerParam {
+  InnerParam(
+    parent_tag: String,
+    stop_tag: String,
+    wrapper: VXML,
+    traffic_light: TrafficLight,
+  )
+}
 
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
   case param.2 {
-    V(..) -> Ok(param)
+    V(..) -> Ok(InnerParam(param.0, param.1, param.2, param.3))
     T(..) -> Error(DesugaringError(bl.no_blame, "expecting V-node as wrapper"))
   }
 }
@@ -54,15 +60,16 @@ fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
 
 fn nodemap(vxml: VXML, inner: InnerParam) -> #(VXML, TrafficLight) {
   case vxml {
-    V(_, tag, _, children) if tag == inner.0 -> {
-      let #(before, after) = children_up_to_not_including(children, inner.1, [])
-      let wrapper = inner.2
+    V(_, tag, _, children) if tag == inner.parent_tag -> {
+      let #(before, after) =
+        children_up_to_not_including(children, inner.stop_tag, [])
+      let wrapper = inner.wrapper
       case wrapper {
         V(..) -> {
           let children = [V(..wrapper, children: before), ..after]
-          #(V(..vxml, children: children), inner.3)
+          #(V(..vxml, children: children), inner.traffic_light)
         }
-        T(..) -> #(vxml, inner.3)
+        T(..) -> #(vxml, inner.traffic_light)
       }
     }
     _ -> #(vxml, Continue)

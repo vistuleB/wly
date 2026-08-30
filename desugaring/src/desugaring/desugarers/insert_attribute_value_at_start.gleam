@@ -13,12 +13,18 @@ fn nodemap(
   inner: InnerParam,
 ) -> Result(#(VXML, TrafficLight), DesugaringError) {
   case vxml {
-    V(_, tag, attrs, _) if tag == inner.0 -> {
-      use maybe <- on.ok(core.attrs_unique_key_or_none(attrs, inner.1))
+    V(_, tag, attrs, _) if tag == inner.target_tag -> {
+      use maybe <- on.ok(core.attrs_unique_key_or_none(
+        attrs,
+        inner.attribute_key,
+      ))
       case maybe {
         None -> Ok(#(vxml, Continue))
         Some(attr) ->
-          Ok(#(vxml |> core.v_start_insert_text(attr.val <> inner.2), inner.3))
+          Ok(#(
+            vxml |> core.v_start_insert_text(attr.val <> inner.connector),
+            inner.traffic_light,
+          ))
       }
     }
     _ -> Ok(#(vxml, Continue))
@@ -32,7 +38,7 @@ fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
 }
 
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
-  Ok(param)
+  Ok(InnerParam(param.0, param.1, param.2, param.3))
 }
 
 type Param =
@@ -47,8 +53,14 @@ type Param =
     TrafficLight,
   )
 
-type InnerParam =
-  Param
+type InnerParam {
+  InnerParam(
+    target_tag: String,
+    attribute_key: String,
+    connector: String,
+    traffic_light: TrafficLight,
+  )
+}
 
 pub const name = "insert_attribute_value_at_start"
 

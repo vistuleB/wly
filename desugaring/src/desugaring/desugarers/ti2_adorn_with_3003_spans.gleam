@@ -34,19 +34,25 @@ type Param =
     List(String),
   )
 
-type InnerParam =
-  #(String, String, List(String), List(Attr))
+type InnerParam {
+  InnerParam(
+    source_path: String,
+    additional_class: String,
+    target_tags: List(String),
+    span_attrs: List(Attr),
+  )
+}
 
 const b = bl.Des([], name, 40)
 
 fn nodemap(vxml: VXML, inner: InnerParam) -> VXML {
   case vxml {
     V(blame, tag, _, children) -> {
-      case list.contains(inner.2, tag), blame {
+      case list.contains(inner.target_tags, tag), blame {
         True, bl.Src(..) -> {
           let span =
-            V(b, "span", inner.3, [
-              T(b, [Line(b, inner.0 <> bl.blame_digest(blame))]),
+            V(b, "span", inner.span_attrs, [
+              T(b, [Line(b, inner.source_path <> bl.blame_digest(blame))]),
             ])
           V(..vxml, children: list.append(children, [span]))
         }
@@ -69,7 +75,7 @@ fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
     _ -> "t-3003 " <> param.1
   }
   let attrs = [Attr(b, "class", span_class)]
-  Ok(#(param.0, param.1, param.2, attrs))
+  Ok(InnerParam(param.0, param.1, param.2, attrs))
 }
 
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊

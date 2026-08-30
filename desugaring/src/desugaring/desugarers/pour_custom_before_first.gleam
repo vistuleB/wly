@@ -35,11 +35,17 @@ type Param =
     TrafficLight,
   )
 
-type InnerParam =
-  Param
+type InnerParam {
+  InnerParam(
+    parent_tag: String,
+    nodes: List(VXML),
+    before_tag: String,
+    traffic_light: TrafficLight,
+  )
+}
 
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
-  Ok(param)
+  Ok(InnerParam(param.0, param.1, param.2, param.3))
 }
 
 fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
@@ -50,13 +56,17 @@ fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
 
 fn nodemap(vxml: VXML, inner: InnerParam) -> #(VXML, TrafficLight) {
   case vxml {
-    V(_, tag, _, children) if tag == inner.0 -> {
+    V(_, tag, _, children) if tag == inner.parent_tag -> {
       #(
         V(
           ..vxml,
-          children: core.pour_before_first_in_list(children, inner.1, inner.2),
+          children: core.pour_before_first_in_list(
+            children,
+            inner.nodes,
+            inner.before_tag,
+          ),
         ),
-        inner.3,
+        inner.traffic_light,
       )
     }
     _ -> #(vxml, Continue)

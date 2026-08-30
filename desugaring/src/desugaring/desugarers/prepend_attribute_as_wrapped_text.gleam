@@ -35,11 +35,17 @@ type Param =
     VXML,
   )
 
-type InnerParam =
-  #(String, String, VXML, Int)
+type InnerParam {
+  InnerParam(
+    target_tag: String,
+    attribute_key: String,
+    wrapper: VXML,
+    attribute_key_length: Int,
+  )
+}
 
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
-  Ok(#(param.0, param.1, param.2, string.length(param.1)))
+  Ok(InnerParam(param.0, param.1, param.2, string.length(param.1)))
 }
 
 fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
@@ -50,11 +56,11 @@ fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
 
 fn nodemap(vxml: VXML, inner: InnerParam) -> VXML {
   case vxml {
-    V(_, tag, _, children) if tag == inner.0 -> {
-      case core.v_first_attr_with_key(vxml, inner.1) {
+    V(_, tag, _, children) if tag == inner.target_tag -> {
+      case core.v_first_attr_with_key(vxml, inner.attribute_key) {
         Some(Attr(blame, _, value)) if value != "" -> {
-          let assert V(b, t, a, c) = inner.2
-          let t_blame = bl.advance(blame, inner.3 + 1)
+          let assert V(b, t, a, c) = inner.wrapper
+          let t_blame = bl.advance(blame, inner.attribute_key_length + 1)
           let wrapped_text =
             V(b, t, a, [T(t_blame, [Line(t_blame, value)]), ..c])
           V(..vxml, children: [wrapped_text, ..children])

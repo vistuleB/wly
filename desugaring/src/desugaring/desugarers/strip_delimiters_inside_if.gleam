@@ -34,12 +34,18 @@ type Param =
     fn(VXML) -> Bool,
   )
 
-type InnerParam =
-  #(String, List(String), List(String), fn(VXML) -> Bool)
+type InnerParam {
+  InnerParam(
+    target_tag: String,
+    opening_delimiters: List(String),
+    closing_delimiters: List(String),
+    condition: fn(VXML) -> Bool,
+  )
+}
 
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
   let #(opening, closing) = core.opening_and_closing_delimiter_strings(param.1)
-  Ok(#(param.0, opening, closing, param.2))
+  Ok(InnerParam(param.0, opening, closing, param.2))
 }
 
 fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
@@ -49,8 +55,8 @@ fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
 
 fn nodemap(node: VXML, inner: InnerParam) -> Result(VXML, DesugaringError) {
   case node {
-    V(_, tag, _, children) if tag == inner.0 -> {
-      case inner.3(node) {
+    V(_, tag, _, children) if tag == inner.target_tag -> {
+      case inner.condition(node) {
         False -> Ok(node)
         True ->
           case children {
@@ -91,8 +97,9 @@ fn remove_first_suffix_found(c: String, suffixes: List(String)) -> String {
 
 fn strip(t: VXML, inner: InnerParam) -> VXML {
   let assert T(_, lines) = t
-  let lines = strip_opening_delimiter(lines, inner.1)
-  let lines = strip_closing_delimiter(lines |> list.reverse, inner.2)
+  let lines = strip_opening_delimiter(lines, inner.opening_delimiters)
+  let lines =
+    strip_closing_delimiter(lines |> list.reverse, inner.closing_delimiters)
   let lines = lines |> list.reverse
   T(..t, lines: lines)
 }

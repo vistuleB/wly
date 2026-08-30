@@ -37,12 +37,22 @@ type Param =
     TrafficLight,
   )
 
-type InnerParam =
-  #(String, fn(VXML) -> Bool, Attr, TrafficLight)
+type InnerParam {
+  InnerParam(
+    target_tag: String,
+    condition: fn(VXML) -> Bool,
+    attribute: Attr,
+    traffic_light: TrafficLight,
+  )
+}
 
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
-  #(param.0, param.1, Attr(desugarer_blame(44), param.2, param.3), param.4)
-  |> Ok
+  Ok(InnerParam(
+    param.0,
+    param.1,
+    Attr(desugarer_blame(44), param.2, param.3),
+    param.4,
+  ))
 }
 
 fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
@@ -53,9 +63,12 @@ fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
 
 fn nodemap(vxml: VXML, inner: InnerParam) -> #(VXML, TrafficLight) {
   case vxml {
-    V(_, tag, attrs, _) if tag == inner.0 -> {
-      case inner.1(vxml) {
-        True -> #(V(..vxml, attrs: [inner.2, ..attrs]), inner.3)
+    V(_, tag, attrs, _) if tag == inner.target_tag -> {
+      case inner.condition(vxml) {
+        True -> #(
+          V(..vxml, attrs: [inner.attribute, ..attrs]),
+          inner.traffic_light,
+        )
         False -> #(vxml, Continue)
       }
     }

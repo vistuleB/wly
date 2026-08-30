@@ -34,11 +34,17 @@ type Param =
     String,
   )
 
-type InnerParam =
-  Param
+type InnerParam {
+  InnerParam(
+    old_tag: String,
+    new_tag: String,
+    attribute_key: String,
+    attribute_value: String,
+  )
+}
 
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
-  Ok(param)
+  Ok(InnerParam(param.0, param.1, param.2, param.3))
 }
 
 fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
@@ -50,8 +56,10 @@ fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
 fn nodemap(vxml: VXML, inner: InnerParam) -> VXML {
   case vxml {
     V(_, tag, [singleton], _)
-      if tag == inner.0 && singleton.key == inner.2 && singleton.val == inner.3
-    -> V(..vxml, tag: inner.1, attrs: [])
+      if tag == inner.old_tag
+      && singleton.key == inner.attribute_key
+      && singleton.val == inner.attribute_value
+    -> V(..vxml, tag: inner.new_tag, attrs: [])
     _ -> vxml
   }
 }

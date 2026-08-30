@@ -8,11 +8,13 @@ import vxml.{type VXML, V}
 fn nodemap(vxml: VXML, inner: InnerParam) -> VXML {
   case vxml {
     V(_, tag, [one], _)
-      if tag == inner.0 && one.key == inner.1 && one.val == inner.2
+      if tag == inner.target_tag
+      && one.key == inner.attribute_key
+      && one.val == inner.attribute_value
     -> {
       vxml
-      |> core.v_start_insert_text(inner.3)
-      |> core.v_end_insert_text(inner.4)
+      |> core.v_start_insert_text(inner.start)
+      |> core.v_end_insert_text(inner.end)
     }
     _ -> vxml
   }
@@ -24,8 +26,7 @@ fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
 }
 
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
-  #(param.0, param.1, param.2, param.3.0, param.3.1)
-  |> Ok
+  Ok(InnerParam(param.0, param.1, param.2, param.3.0, param.3.1))
 }
 
 type Param =
@@ -40,8 +41,15 @@ type Param =
     #(String, String),
   )
 
-type InnerParam =
-  #(String, String, String, String, String)
+type InnerParam {
+  InnerParam(
+    target_tag: String,
+    attribute_key: String,
+    attribute_value: String,
+    start: String,
+    end: String,
+  )
+}
 
 pub const name = "insert_text_start_end_if_unique_attr"
 

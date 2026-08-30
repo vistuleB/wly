@@ -41,11 +41,18 @@ type Param =
     fn(VXML) -> Bool,
   )
 
-type InnerParam =
-  Param
+type InnerParam {
+  InnerParam(
+    zero_indent_tags: List(String),
+    maximum_length: Int,
+    minimum_length: Int,
+    nesting_width_reduction: Int,
+    will_fold_into_text: fn(VXML) -> Bool,
+  )
+}
 
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
-  Ok(param)
+  Ok(InnerParam(param.0, param.1, param.2, param.3, param.4))
 }
 
 fn inner_param_to_transform(
@@ -130,9 +137,9 @@ fn line_wrap_in_list(
 
 fn v_before(vxml: VXML, state: State, inner: InnerParam) -> #(VXML, State) {
   let assert V(_, tag, _, _) = vxml
-  case list.contains(inner.0, tag) {
+  case list.contains(inner.zero_indent_tags, tag) {
     True -> #(vxml, 0)
-    False -> #(vxml, state + inner.3)
+    False -> #(vxml, state + inner.nesting_width_reduction)
   }
 }
 
@@ -149,8 +156,8 @@ fn v_after(
       0,
       False,
       children,
-      int.max(inner.1 - state - 1, inner.2),
-      inner.4,
+      int.max(inner.maximum_length - state - 1, inner.minimum_length),
+      inner.will_fold_into_text,
     )
   #(V(..vxml, children: children), original_state)
 }
