@@ -193,6 +193,10 @@ import desugaring/desugarers/replace_with_arbitrary
 import desugaring/desugarers/set_handle_value
 import desugaring/desugarers/set_handle_value__outside
 import desugaring/desugarers/set_handle_value_if_has_ancestor_else
+import desugaring/desugarers/source_provenance_append_img_spans
+import desugaring/desugarers/source_provenance_append_span
+import desugaring/desugarers/source_provenance_wrap
+import desugaring/desugarers/source_provenance_wrap_lines__outside
 import desugaring/desugarers/split_first_line_after_prefix
 import desugaring/desugarers/split_last_line_before_suffix
 import desugaring/desugarers/strip_delimiters_inside
@@ -203,26 +207,6 @@ import desugaring/desugarers/supplement_class
 import desugaring/desugarers/surround_elements_by
 import desugaring/desugarers/table_marker
 import desugaring/desugarers/table_section_header
-import desugaring/desugarers/ti2_add_listing_bol_spans
-import desugaring/desugarers/ti2_add_prev_next_chapter_title_elements
-import desugaring/desugarers/ti2_add_should_be_numbers
-import desugaring/desugarers/ti2_adorn_img_with_3003_spans
-import desugaring/desugarers/ti2_adorn_with_3003_spans
-import desugaring/desugarers/ti2_backfill
-import desugaring/desugarers/ti2_create_index
-import desugaring/desugarers/ti2_create_menu
-import desugaring/desugarers/ti2_cut_paste_width_height_to_descendant_img
-import desugaring/desugarers/ti2_dominik_prompt_response
-import desugaring/desugarers/ti2_expand_carousels
-import desugaring/desugarers/ti2_expand_carousels_v2
-import desugaring/desugarers/ti2_parse_arbitrary_prompt_response_pre
-import desugaring/desugarers/ti2_parse_orange_comments_pre
-import desugaring/desugarers/ti2_parse_python_prompt_pre
-import desugaring/desugarers/ti2_parse_redyellow_pre
-import desugaring/desugarers/ti2_parse_xml_pre
-import desugaring/desugarers/ti2_process_pre_listing_classname
-import desugaring/desugarers/ti2_turn_lines_into_3003_spans__outside
-import desugaring/desugarers/ti2_wrap_with_3003_spans
 import desugaring/desugarers/timer
 import desugaring/desugarers/tokenize_href_surroundings
 import desugaring/desugarers/tokenize_text_children_if
@@ -460,6 +444,10 @@ pub const replace_with_arbitrary = replace_with_arbitrary.constructor
 pub const set_handle_value = set_handle_value.constructor
 pub const set_handle_value__outside = set_handle_value__outside.constructor
 pub const set_handle_value_if_has_ancestor_else = set_handle_value_if_has_ancestor_else.constructor
+pub const source_provenance_append_img_spans = source_provenance_append_img_spans.constructor
+pub const source_provenance_append_span = source_provenance_append_span.constructor
+pub const source_provenance_wrap = source_provenance_wrap.constructor
+pub const source_provenance_wrap_lines__outside = source_provenance_wrap_lines__outside.constructor
 pub const split_first_line_after_prefix = split_first_line_after_prefix.constructor
 pub const split_last_line_before_suffix = split_last_line_before_suffix.constructor
 pub const strip_delimiters_inside = strip_delimiters_inside.constructor
@@ -470,26 +458,6 @@ pub const supplement_class = supplement_class.constructor
 pub const surround_elements_by = surround_elements_by.constructor
 pub const table_marker = table_marker.constructor
 pub const table_section_header = table_section_header.constructor
-pub const ti2_add_listing_bol_spans = ti2_add_listing_bol_spans.constructor
-pub const ti2_add_prev_next_chapter_title_elements = ti2_add_prev_next_chapter_title_elements.constructor
-pub const ti2_add_should_be_numbers = ti2_add_should_be_numbers.constructor
-pub const ti2_adorn_img_with_3003_spans = ti2_adorn_img_with_3003_spans.constructor
-pub const ti2_adorn_with_3003_spans = ti2_adorn_with_3003_spans.constructor
-pub const ti2_backfill = ti2_backfill.constructor
-pub const ti2_create_index = ti2_create_index.constructor
-pub const ti2_create_menu = ti2_create_menu.constructor
-pub const ti2_cut_paste_width_height_to_descendant_img = ti2_cut_paste_width_height_to_descendant_img.constructor
-pub const ti2_dominik_prompt_response = ti2_dominik_prompt_response.constructor
-pub const ti2_expand_carousels = ti2_expand_carousels.constructor
-pub const ti2_expand_carousels_v2 = ti2_expand_carousels_v2.constructor
-pub const ti2_parse_arbitrary_prompt_response_pre = ti2_parse_arbitrary_prompt_response_pre.constructor
-pub const ti2_parse_orange_comments_pre = ti2_parse_orange_comments_pre.constructor
-pub const ti2_parse_python_prompt_pre = ti2_parse_python_prompt_pre.constructor
-pub const ti2_parse_redyellow_pre = ti2_parse_redyellow_pre.constructor
-pub const ti2_parse_xml_pre = ti2_parse_xml_pre.constructor
-pub const ti2_process_pre_listing_classname = ti2_process_pre_listing_classname.constructor
-pub const ti2_turn_lines_into_3003_spans__outside = ti2_turn_lines_into_3003_spans__outside.constructor
-pub const ti2_wrap_with_3003_spans = ti2_wrap_with_3003_spans.constructor
 pub const timer = timer.constructor
 pub const tokenize_href_surroundings = tokenize_href_surroundings.constructor
 pub const tokenize_text_children_if = tokenize_text_children_if.constructor
@@ -728,6 +696,10 @@ pub const assertive_tests : List(fn() -> core.AssertiveTestCollection) = [
   set_handle_value.assertive_tests,
   set_handle_value__outside.assertive_tests,
   set_handle_value_if_has_ancestor_else.assertive_tests,
+  source_provenance_append_img_spans.assertive_tests,
+  source_provenance_append_span.assertive_tests,
+  source_provenance_wrap.assertive_tests,
+  source_provenance_wrap_lines__outside.assertive_tests,
   split_first_line_after_prefix.assertive_tests,
   split_last_line_before_suffix.assertive_tests,
   strip_delimiters_inside.assertive_tests,
@@ -738,26 +710,6 @@ pub const assertive_tests : List(fn() -> core.AssertiveTestCollection) = [
   surround_elements_by.assertive_tests,
   table_marker.assertive_tests,
   table_section_header.assertive_tests,
-  ti2_add_listing_bol_spans.assertive_tests,
-  ti2_add_prev_next_chapter_title_elements.assertive_tests,
-  ti2_add_should_be_numbers.assertive_tests,
-  ti2_adorn_img_with_3003_spans.assertive_tests,
-  ti2_adorn_with_3003_spans.assertive_tests,
-  ti2_backfill.assertive_tests,
-  ti2_create_index.assertive_tests,
-  ti2_create_menu.assertive_tests,
-  ti2_cut_paste_width_height_to_descendant_img.assertive_tests,
-  ti2_dominik_prompt_response.assertive_tests,
-  ti2_expand_carousels.assertive_tests,
-  ti2_expand_carousels_v2.assertive_tests,
-  ti2_parse_arbitrary_prompt_response_pre.assertive_tests,
-  ti2_parse_orange_comments_pre.assertive_tests,
-  ti2_parse_python_prompt_pre.assertive_tests,
-  ti2_parse_redyellow_pre.assertive_tests,
-  ti2_parse_xml_pre.assertive_tests,
-  ti2_process_pre_listing_classname.assertive_tests,
-  ti2_turn_lines_into_3003_spans__outside.assertive_tests,
-  ti2_wrap_with_3003_spans.assertive_tests,
   timer.assertive_tests,
   tokenize_href_surroundings.assertive_tests,
   tokenize_text_children_if.assertive_tests,

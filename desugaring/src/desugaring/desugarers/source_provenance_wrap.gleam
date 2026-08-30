@@ -4,18 +4,17 @@ import desugaring/core.{
 }
 import desugaring/nodemaps_2_transform as n2t
 import gleam/list
-import vxml.{type Attr, type VXML, Attr, Line, T, V}
+import vxml.{type Attr, type VXML, Line, T, V}
 import vxml/blame as bl
 
-pub const name = "ti2_adorn_with_3003_spans"
+pub const name = "source_provenance_wrap"
 
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 // 🏖️🏖️ Desugarer 🏖️🏖️
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️️️️️🏖️
 
-/// Appends source-location tooltip spans to configured
-/// elements that retain source blame. Relative locations
-/// are resolved by the 3003 helper process, not the browser.
+/// Wraps selected source-backed elements alongside a span
+/// containing their source location.
 pub fn constructor(param: Param) -> Desugarer {
   authoring.desugarer(
     name: name,
@@ -28,33 +27,39 @@ pub fn constructor(param: Param) -> Desugarer {
 type Param =
   #(
     // Prefix prepended to the source-blame path. A relative
-    // prefix is relative to the working directory of the
-    // 3003 helper process, normally the project root.
+    // prefix is relative to the process that consumes the
+    // location, normally from the project root.
     String,
-    // Additional tooltip class, or an empty string.
+    // Tag of the wrapper element.
     String,
-    // Element names to adorn.
+    // Attributes for the wrapper element.
+    List(#(String, String)),
+    // Attributes for the source-location span.
+    List(#(String, String)),
+    // Element names to wrap.
     List(String),
   )
 
 type InnerParam {
   InnerParam(
     source_path_prefix: String,
-    additional_class: String,
-    target_tags: List(String),
+    wrapper_tag: String,
+    wrapper_attrs: List(Attr),
     span_attrs: List(Attr),
+    target_tags: List(String),
   )
 }
 
-const b = bl.Des([], name, 40)
+const b = bl.Des([], name, 53)
 
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
-  let span_class = case param.1 {
-    "" -> "t-3003"
-    _ -> "t-3003 " <> param.1
-  }
-  let attrs = [Attr(b, "class", span_class)]
-  Ok(InnerParam(param.0, param.1, param.2, attrs))
+  Ok(InnerParam(
+    source_path_prefix: param.0,
+    wrapper_tag: param.1,
+    wrapper_attrs: core.string_pairs_to_attrs(param.2, b),
+    span_attrs: core.string_pairs_to_attrs(param.3, b),
+    target_tags: param.4,
+  ))
 }
 
 fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
@@ -65,7 +70,7 @@ fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
 
 fn nodemap(vxml: VXML, inner: InnerParam) -> VXML {
   case vxml {
-    V(blame, tag, _, children) -> {
+    V(blame, tag, _, _) ->
       case list.contains(inner.target_tags, tag), blame {
         True, bl.Src(..) -> {
           let span =
@@ -74,11 +79,10 @@ fn nodemap(vxml: VXML, inner: InnerParam) -> VXML {
                 Line(b, inner.source_path_prefix <> bl.blame_digest(blame)),
               ]),
             ])
-          V(..vxml, children: list.append(children, [span]))
+          V(b, inner.wrapper_tag, inner.wrapper_attrs, [vxml, span])
         }
         _, _ -> vxml
       }
-    }
     _ -> vxml
   }
 }
@@ -86,27 +90,32 @@ fn nodemap(vxml: VXML, inner: InnerParam) -> VXML {
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
 // 🌊🌊🌊 tests 🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
+
 fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
   [
     core.AssertiveTestData(
-      param: #("./wly/", "sum_class", ["MathBlock"]),
+      param: #(
+        "./wly/",
+        "div",
+        [#("class", "source-location-container")],
+        [#("class", "source-location")],
+        ["Math"],
+      ),
       source: "
                 <> root
-                  <> MathBlock
+                  <> Math
                     <>
-                      '$$'
-                      'hello'
-                      '$$'
+                      'a+b'
                 ",
       expected: "
                 <> root
-                  <> MathBlock
-                    <>
-                      '$$'
-                      'hello'
-                      '$$'
+                  <> div
+                    class=source-location-container
+                    <> Math
+                      <>
+                        'a+b'
                     <> span
-                      class=t-3003 sum_class
+                      class=source-location
                       <>
                         './wly/tst.source:2:3 ->'
                 ",

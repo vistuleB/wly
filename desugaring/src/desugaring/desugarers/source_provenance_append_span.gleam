@@ -4,18 +4,17 @@ import desugaring/core.{
 }
 import desugaring/nodemaps_2_transform as n2t
 import gleam/list
-import vxml.{type Attr, type VXML, Attr, Line, T, V}
+import vxml.{type Attr, type VXML, Line, T, V}
 import vxml/blame as bl
 
-pub const name = "ti2_wrap_with_3003_spans"
+pub const name = "source_provenance_append_span"
 
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 // 🏖️🏖️ Desugarer 🏖️🏖️
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️️️️️🏖️
 
-/// Wraps configured source-backed elements in tooltip
-/// spans containing source locations resolved by the 3003
-/// helper process, not by the browser.
+/// Appends a configured span containing the source location
+/// to selected elements that retain source blame.
 pub fn constructor(param: Param) -> Desugarer {
   authoring.desugarer(
     name: name,
@@ -28,35 +27,31 @@ pub fn constructor(param: Param) -> Desugarer {
 type Param =
   #(
     // Prefix prepended to the source-blame path. A relative
-    // prefix is relative to the working directory of the
-    // 3003 helper process, normally the project root.
+    // prefix is relative to the process that consumes the
+    // location, normally from the project root.
     String,
-    // Additional tooltip class, or an empty string.
-    String,
-    // Element names to wrap.
+    // Attributes for the appended span.
+    List(#(String, String)),
+    // Element names to which the span is appended.
     List(String),
   )
 
 type InnerParam {
   InnerParam(
     source_path_prefix: String,
-    additional_class: String,
+    span_attrs: List(Attr),
     target_tags: List(String),
-    inner_span_attrs: List(Attr),
-    outer_span_attrs: List(Attr),
   )
 }
 
-const b = bl.Des([], name, 40)
+const b = bl.Des([], name, 47)
 
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
-  let inner_span_class = case param.1 {
-    "" -> "t-3003"
-    _ -> "t-3003 " <> param.1
-  }
-  let inner_span_attrs = [Attr(b, "class", inner_span_class)]
-  let outer_span_attrs = [Attr(b, "class", "t-3003-c")]
-  Ok(InnerParam(param.0, param.1, param.2, inner_span_attrs, outer_span_attrs))
+  Ok(InnerParam(
+    source_path_prefix: param.0,
+    span_attrs: core.string_pairs_to_attrs(param.1, b),
+    target_tags: param.2,
+  ))
 }
 
 fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
@@ -67,22 +62,19 @@ fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
 
 fn nodemap(vxml: VXML, inner: InnerParam) -> VXML {
   case vxml {
-    V(blame, tag, _, _) -> {
+    V(blame, tag, _, children) ->
       case list.contains(inner.target_tags, tag), blame {
         True, bl.Src(..) -> {
-          let inner_span =
-            V(b, "span", inner.inner_span_attrs, [
+          let span =
+            V(b, "span", inner.span_attrs, [
               T(b, [
                 Line(b, inner.source_path_prefix <> bl.blame_digest(blame)),
               ]),
             ])
-          let outer_span =
-            V(b, "span", inner.outer_span_attrs, [vxml, inner_span])
-          outer_span
+          V(..vxml, children: list.append(children, [span]))
         }
         _, _ -> vxml
       }
-    }
     _ -> vxml
   }
 }
@@ -90,25 +82,33 @@ fn nodemap(vxml: VXML, inner: InnerParam) -> VXML {
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
 // 🌊🌊🌊 tests 🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
+
 fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
   [
     core.AssertiveTestData(
-      param: #("./wly/", "sum_class", ["Math"]),
+      param: #(
+        "./wly/",
+        [#("class", "source-location"), #("title", "Open source")],
+        ["MathBlock"],
+      ),
       source: "
                 <> root
-                  <> Math
+                  <> MathBlock
                     <>
-                      'a+b'
+                      '$$'
+                      'hello'
+                      '$$'
                 ",
       expected: "
                 <> root
-                  <> span
-                    class=t-3003-c
-                    <> Math
-                      <>
-                        'a+b'
+                  <> MathBlock
+                    <>
+                      '$$'
+                      'hello'
+                      '$$'
                     <> span
-                      class=t-3003 sum_class
+                      class=source-location
+                      title=Open source
                       <>
                         './wly/tst.source:2:3 ->'
                 ",

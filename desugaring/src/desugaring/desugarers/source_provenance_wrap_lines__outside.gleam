@@ -5,18 +5,18 @@ import desugaring/core.{
 import desugaring/nodemaps_2_transform as n2t
 import gleam/list
 import gleam/string.{inspect as ins}
-import vxml.{type Line, type VXML, Attr, Line, T, V}
+import vxml.{type Attr, type Line, type VXML, Line, T, V}
 import vxml/blame as bl
 
-pub const name = "ti2_turn_lines_into_3003_spans__outside"
+pub const name = "source_provenance_wrap_lines__outside"
 
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 // 🏖️🏖️ Desugarer 🏖️🏖️
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️️️️️🏖️
 
-/// Replaces source lines with tooltip spans outside
-/// configured subtrees. Relative locations are resolved by
-/// the 3003 helper process, not the browser.
+/// Wraps source-backed lines in configured spans containing
+/// both the line and its source location, outside selected
+/// subtrees.
 pub fn constructor(param: Param, outside: List(String)) -> Desugarer {
   authoring.desugarer_with_outside(
     name: name,
@@ -28,26 +28,35 @@ pub fn constructor(param: Param, outside: List(String)) -> Desugarer {
 }
 
 type Param =
-  // Prefix prepended to each source-blame path. A relative
-  // prefix is relative to the working directory of the
-  // 3003 helper process, normally the project root.
-  String
+  #(
+    // Prefix prepended to each source-blame path. A relative
+    // prefix is relative to the process that consumes the
+    // location, normally from the project root.
+    String,
+    // Attributes for the span wrapping each source line.
+    List(#(String, String)),
+    // Attributes for the nested source-location span.
+    List(#(String, String)),
+  )
 
-type InnerParam =
-  Param
-
-// remember to replace these names in tests,
-// as well:
-const container_classname = "t-3003-c"
-
-const tooltip_classname = "t-3003"
+type InnerParam {
+  InnerParam(
+    source_path_prefix: String,
+    line_span_attrs: List(Attr),
+    location_span_attrs: List(Attr),
+  )
+}
 
 const b = bl.Des([], name, 42)
 
 const newline_t = T(b, [Line(b, ""), Line(b, "")])
 
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
-  Ok(param)
+  Ok(InnerParam(
+    source_path_prefix: param.0,
+    line_span_attrs: core.string_pairs_to_attrs(param.1, b),
+    location_span_attrs: core.string_pairs_to_attrs(param.2, b),
+  ))
 }
 
 fn inner_param_to_transform(
@@ -73,7 +82,7 @@ fn nodemap(vxml: VXML, inner: InnerParam) -> List(VXML) {
 
 fn line_to_tooltip_span(line: Line, inner: InnerParam) -> VXML {
   let location =
-    inner
+    inner.source_path_prefix
     <> case line.blame {
       bl.Src(..) -> {
         let assert bl.Src(_, path, line_no, char_no, _) = line.blame
@@ -82,12 +91,12 @@ fn line_to_tooltip_span(line: Line, inner: InnerParam) -> VXML {
       _ -> ""
     }
 
-  case location == inner {
+  case location == inner.source_path_prefix {
     True -> T(line.blame, [line])
     False ->
-      V(line.blame, "span", [Attr(line.blame, "class", container_classname)], [
+      V(line.blame, "span", inner.line_span_attrs, [
         T(line.blame, [Line(line.blame, line.content)]),
-        V(line.blame, "span", [Attr(line.blame, "class", tooltip_classname)], [
+        V(line.blame, "span", inner.location_span_attrs, [
           T(line.blame, [Line(line.blame, location)]),
         ]),
       ])
@@ -109,7 +118,9 @@ fn assertive_tests_data() -> List(core.AssertiveTestDataWithOutside(Param)) {
     // '../path/to/content/test' shows up in the expected
     // output
     core.AssertiveTestDataWithOutside(
-      param: "../path/to/content/",
+      param: #("../path/to/content/", [#("class", "t-3003-c")], [
+        #("class", "t-3003"),
+      ]),
       outside: ["Math", "MathBlock"],
       source: "
                 <> root

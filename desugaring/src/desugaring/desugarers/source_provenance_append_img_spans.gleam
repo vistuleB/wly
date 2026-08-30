@@ -8,18 +8,18 @@ import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/result
 import on
-import vxml.{type VXML, Attr, Line, T, V}
+import vxml.{type Attr, type VXML, Line, T, V}
 import vxml/blame.{type Blame} as bl
 
-pub const name = "ti2_adorn_img_with_3003_spans"
+pub const name = "source_provenance_append_img_spans"
 
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 // 🏖️🏖️ Desugarer 🏖️🏖️
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️️️️️🏖️
 
-/// Appends source-path tooltip spans after images while
-/// respecting inherited `original` image paths. The paths
-/// are opened by the 3003 helper process, not the browser.
+/// Appends configured sibling spans containing image source
+/// paths, including an optional path inherited from an
+/// ancestor attribute.
 pub fn constructor(param: Param) -> Desugarer {
   authoring.desugarer(
     name: name,
@@ -30,33 +30,46 @@ pub fn constructor(param: Param) -> Desugarer {
 }
 
 type Param =
-  // Prefix joined to image `src` and `original` paths. A
-  // relative prefix is relative to the working directory of
-  // the 3003 helper process, normally the project root.
-  String
+  #(
+    // Prefix joined to image source paths. A relative prefix
+    // is relative to the process that consumes the paths,
+    // normally from the project root.
+    String,
+    // Attribute containing an original image source path.
+    String,
+    // Tags from which the original-path attr is inherited.
+    List(String),
+    // Attributes for the outer sibling span.
+    List(#(String, String)),
+    // Attributes for each nested path span.
+    List(#(String, String)),
+  )
 
-type InnerParam =
-  Param
+type InnerParam {
+  InnerParam(
+    source_path_prefix: String,
+    original_path_key: String,
+    original_path_tags: List(String),
+    outer_span_attrs: List(Attr),
+    path_span_attrs: List(Attr),
+  )
+}
 
 type State =
   Option(String)
 
-const tooltip_classname = "t-3003 t-3003-i"
-
-const tags = ["img", "figure", "Carousel"]
-
-const original_key = "original"
-
 const b = bl.Des([], name, 47)
-
-const outer_span_attrs = [Attr(b, "class", tooltip_classname)]
-
-const inner_span_attrs = [Attr(b, "class", "t-3003-i-url")]
 
 const br = V(b, "br", [], [])
 
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
-  Ok(param)
+  Ok(InnerParam(
+    source_path_prefix: param.0,
+    original_path_key: param.1,
+    original_path_tags: param.2,
+    outer_span_attrs: core.string_pairs_to_attrs(param.3, b),
+    path_span_attrs: core.string_pairs_to_attrs(param.4, b),
+  ))
 }
 
 fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
@@ -78,8 +91,10 @@ fn v_before(
   inner: InnerParam,
 ) -> Result(#(VXML, State), DesugaringError) {
   let assert V(blame, tag, _, _) = vxml
-  use <- on.false_true(list.contains(tags, tag), fn() { Ok(#(vxml, state)) })
-  case core.v_first_attr_with_key(vxml, original_key), state {
+  use <- on.false_true(list.contains(inner.original_path_tags, tag), fn() {
+    Ok(#(vxml, state))
+  })
+  case core.v_first_attr_with_key(vxml, inner.original_path_key), state {
     None, _ -> Ok(#(vxml, state))
     Some(attr), None -> {
       use path <- on.ok(compose_and_simplify_path(attr.blame, attr.val, inner))
@@ -89,7 +104,7 @@ fn v_before(
       Error(DesugaringError(
         blame,
         "descendant attempting to overwrite ancestor '"
-          <> original_key
+          <> inner.original_path_key
           <> "' attribute",
       ))
     }
@@ -101,7 +116,7 @@ fn compose_and_simplify_path(
   path: String,
   inner: InnerParam,
 ) -> Result(String, DesugaringError) {
-  filepath.expand(inner <> path)
+  filepath.expand(inner.source_path_prefix <> path)
   |> result.map_error(fn(_) {
     DesugaringError(
       blame,
@@ -126,19 +141,19 @@ fn v_after(
   })
   use src <- on.ok(compose_and_simplify_path(attr.blame, attr.val, inner))
   let children = case latest_state {
-    None -> [inner_span(src)]
+    None -> [path_span(src, inner)]
     Some(original_src) -> [
-      inner_span(original_src),
+      path_span(original_src, inner),
       br,
-      inner_span(src),
+      path_span(src, inner),
     ]
   }
-  let outer_span = V(b, "span", outer_span_attrs, children)
+  let outer_span = V(b, "span", inner.outer_span_attrs, children)
   Ok(#([vxml, outer_span], original_state))
 }
 
-fn inner_span(path: String) -> VXML {
-  V(b, "span", inner_span_attrs, [T(b, [Line(b, path)])])
+fn path_span(path: String, inner: InnerParam) -> VXML {
+  V(b, "span", inner.path_span_attrs, [T(b, [Line(b, path)])])
 }
 
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
@@ -147,7 +162,13 @@ fn inner_span(path: String) -> VXML {
 fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
   [
     core.AssertiveTestData(
-      param: "./public/",
+      param: #(
+        "./public/",
+        "original",
+        ["img", "figure", "Carousel"],
+        [#("class", "t-3003 t-3003-i")],
+        [#("class", "t-3003-i-url")],
+      ),
       source: "
                           <> root
                             <> img
@@ -166,7 +187,13 @@ fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
                 ",
     ),
     core.AssertiveTestData(
-      param: "./assets/",
+      param: #(
+        "./assets/",
+        "original",
+        ["img", "figure", "Carousel"],
+        [#("class", "t-3003 t-3003-i")],
+        [#("class", "t-3003-i-url")],
+      ),
       source: "
                           <> root
                             <> img
@@ -192,7 +219,13 @@ fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
                 ",
     ),
     core.AssertiveTestData(
-      param: "/media/",
+      param: #(
+        "/media/",
+        "original",
+        ["img", "figure", "Carousel"],
+        [#("class", "t-3003 t-3003-i")],
+        [#("class", "t-3003-i-url")],
+      ),
       source: "
                           <> root
                             <> figure
@@ -220,7 +253,13 @@ fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
                 ",
     ),
     core.AssertiveTestData(
-      param: "./static/",
+      param: #(
+        "./static/",
+        "original",
+        ["img", "figure", "Carousel"],
+        [#("class", "t-3003 t-3003-i")],
+        [#("class", "t-3003-i-url")],
+      ),
       source: "
                           <> root
                             <> Carousel
@@ -248,7 +287,13 @@ fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
                 ",
     ),
     core.AssertiveTestData(
-      param: "./public/",
+      param: #(
+        "./public/",
+        "original",
+        ["img", "figure", "Carousel"],
+        [#("class", "t-3003 t-3003-i")],
+        [#("class", "t-3003-i-url")],
+      ),
       source: "
                           <> root
                             <> img
@@ -303,7 +348,13 @@ fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
                 ",
     ),
     core.AssertiveTestData(
-      param: "./public/",
+      param: #(
+        "./public/",
+        "original",
+        ["img", "figure", "Carousel"],
+        [#("class", "t-3003 t-3003-i")],
+        [#("class", "t-3003-i-url")],
+      ),
       source: "
                           <> root
                             <> figure
