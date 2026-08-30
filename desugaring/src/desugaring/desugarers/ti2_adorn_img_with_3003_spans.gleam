@@ -18,7 +18,8 @@ pub const name = "ti2_adorn_img_with_3003_spans"
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️️️️️🏖️
 
 /// Appends source-path tooltip spans after images while
-/// respecting inherited `original` image paths.
+/// respecting inherited `original` image paths. The paths
+/// are opened by the 3003 helper process, not the browser.
 pub fn constructor(param: Param) -> Desugarer {
   authoring.desugarer(
     name: name,
@@ -29,7 +30,9 @@ pub fn constructor(param: Param) -> Desugarer {
 }
 
 type Param =
-  // Path from the execution directory to public assets.
+  // Prefix joined to image `src` and `original` paths. A
+  // relative prefix is relative to the working directory of
+  // the 3003 helper process, normally the project root.
   String
 
 type InnerParam =

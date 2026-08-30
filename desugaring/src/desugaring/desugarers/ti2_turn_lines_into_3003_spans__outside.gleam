@@ -15,7 +15,8 @@ pub const name = "ti2_turn_lines_into_3003_spans__outside"
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️️️️️🏖️
 
 /// Replaces source lines with tooltip spans outside
-/// configured subtrees.
+/// configured subtrees. Relative locations are resolved by
+/// the 3003 helper process, not the browser.
 pub fn constructor(param: Param, outside: List(String)) -> Desugarer {
   authoring.desugarer_with_outside(
     name: name,
@@ -27,7 +28,9 @@ pub fn constructor(param: Param, outside: List(String)) -> Desugarer {
 }
 
 type Param =
-  // Local source path.
+  // Prefix prepended to each source-blame path. A relative
+  // prefix is relative to the working directory of the
+  // 3003 helper process, normally the project root.
   String
 
 type InnerParam =

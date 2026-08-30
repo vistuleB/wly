@@ -14,7 +14,8 @@ pub const name = "ti2_adorn_with_3003_spans"
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️️️️️🏖️
 
 /// Appends source-location tooltip spans to configured
-/// elements that retain source blame.
+/// elements that retain source blame. Relative locations
+/// are resolved by the 3003 helper process, not the browser.
 pub fn constructor(param: Param) -> Desugarer {
   authoring.desugarer(
     name: name,
@@ -26,7 +27,9 @@ pub fn constructor(param: Param) -> Desugarer {
 
 type Param =
   #(
-    // Local path of the source.
+    // Prefix prepended to the source-blame path. A relative
+    // prefix is relative to the working directory of the
+    // 3003 helper process, normally the project root.
     String,
     // Additional tooltip class, or an empty string.
     String,
@@ -36,7 +39,7 @@ type Param =
 
 type InnerParam {
   InnerParam(
-    source_path: String,
+    source_path_prefix: String,
     additional_class: String,
     target_tags: List(String),
     span_attrs: List(Attr),
@@ -52,7 +55,9 @@ fn nodemap(vxml: VXML, inner: InnerParam) -> VXML {
         True, bl.Src(..) -> {
           let span =
             V(b, "span", inner.span_attrs, [
-              T(b, [Line(b, inner.source_path <> bl.blame_digest(blame))]),
+              T(b, [
+                Line(b, inner.source_path_prefix <> bl.blame_digest(blame)),
+              ]),
             ])
           V(..vxml, children: list.append(children, [span]))
         }
