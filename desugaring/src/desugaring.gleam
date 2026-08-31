@@ -95,8 +95,8 @@ pub fn new_monitor(
 
 // Source path -> assembled input lines and feedback blocks.
 
-pub type Assembler(a) =
-  fn(String) -> Result(#(List(InputLine), Feedback), a)
+pub type Assembler(assembler_error) =
+  fn(String) -> Result(#(List(InputLine), Feedback), assembler_error)
 
 pub fn default_file_assembler(
   path: String,
@@ -107,8 +107,8 @@ pub fn default_file_assembler(
 
 // Assembled input lines -> VXML.
 
-pub type Parser(b) =
-  fn(List(InputLine)) -> Result(#(VXML, Feedback), #(Blame, b))
+pub type Parser(parser_error) =
+  fn(List(InputLine)) -> Result(#(VXML, Feedback), #(Blame, parser_error))
 
 pub fn default_xml_parser(
   lines: List(InputLine),
@@ -122,8 +122,8 @@ pub const default_html_parser = default_xml_parser
 
 // Parsed VXML -> filtered VXML.
 
-pub type Filterer(c) =
-  fn(VXML) -> Result(#(VXML, Feedback), c)
+pub type Filterer(filterer_error) =
+  fn(VXML) -> Result(#(VXML, Feedback), filterer_error)
 
 pub fn default_filterer(
   vxml: VXML,
@@ -150,13 +150,20 @@ pub fn default_filterer(
 
 // VXML -> classified output fragments.
 
-pub type OutputFragment(z, p) {
-  // 'z' is fragment classifier type, 'p' is payload type (VXML or List(OutputLine))
-  OutputFragment(classifier: z, path: String, payload: p)
+pub type OutputFragment(fragment_classifier, payload) {
+  OutputFragment(
+    classifier: fragment_classifier,
+    path: String,
+    payload: payload,
+  )
 }
 
-pub type Splitter(z, d) =
-  fn(VXML) -> Result(#(List(OutputFragment(z, VXML)), Feedback), d)
+pub type Splitter(fragment_classifier, splitter_error) =
+  fn(VXML) ->
+    Result(
+      #(List(OutputFragment(fragment_classifier, VXML)), Feedback),
+      splitter_error,
+    )
 
 /// emits 1 fragment whose 'path' is the tag
 /// of the VXML root concatenated with a provided
@@ -173,13 +180,19 @@ pub fn stub_splitter(suffix: String) -> Splitter(Nil, Nil) {
 
 // VXML fragments -> output-line fragments.
 
-pub type Emitter(z, e) =
-  fn(OutputFragment(z, VXML)) ->
-    Result(#(OutputFragment(z, List(OutputLine)), Feedback), e)
+pub type Emitter(fragment_classifier, emitter_error) =
+  fn(OutputFragment(fragment_classifier, VXML)) ->
+    Result(
+      #(OutputFragment(fragment_classifier, List(OutputLine)), Feedback),
+      emitter_error,
+    )
 
 pub fn stub_html_emitter(
-  fragment: OutputFragment(z, VXML),
-) -> Result(#(OutputFragment(z, List(OutputLine)), Feedback), b) {
+  fragment: OutputFragment(fragment_classifier, VXML),
+) -> Result(
+  #(OutputFragment(fragment_classifier, List(OutputLine)), Feedback),
+  emitter_error,
+) {
   let blame = Ext([], "stub_html_emitter")
   let lines =
     list.flatten([
@@ -224,8 +237,11 @@ pub fn stub_html_emitter(
 }
 
 pub fn stub_jsx_emitter(
-  fragment: OutputFragment(z, VXML),
-) -> Result(#(OutputFragment(z, List(OutputLine)), Feedback), b) {
+  fragment: OutputFragment(fragment_classifier, VXML),
+) -> Result(
+  #(OutputFragment(fragment_classifier, List(OutputLine)), Feedback),
+  emitter_error,
+) {
   let blame = Ext([], "panel_emitter")
   let lines =
     list.flatten([
@@ -254,9 +270,12 @@ pub fn stub_jsx_emitter(
 
 // Rendered string fragments -> records of written fragments.
 
-pub type Writer(z, f) =
-  fn(String, OutputFragment(z, String)) ->
-    Result(#(GhostOfOutputFragment(z), Feedback), f)
+pub type Writer(fragment_classifier, writer_error) =
+  fn(String, OutputFragment(fragment_classifier, String)) ->
+    Result(
+      #(GhostOfOutputFragment(fragment_classifier), Feedback),
+      writer_error,
+    )
 
 fn output_dir_local_path_printer(
   output_dir: String,
@@ -272,8 +291,8 @@ fn output_dir_local_path_printer(
 
 pub fn default_writer(
   output_dir: String,
-  fragment: OutputFragment(z, String),
-) -> Result(#(GhostOfOutputFragment(z), Feedback), String) {
+  fragment: OutputFragment(fragment_classifier, String),
+) -> Result(#(GhostOfOutputFragment(fragment_classifier), Feedback), String) {
   case
     output_dir_local_path_printer(output_dir, fragment.path, fragment.payload)
   {
@@ -291,16 +310,16 @@ pub fn default_writer(
   }
 }
 
-pub type GhostOfOutputFragment(z) {
-  GhostOfOutputFragment(classifier: z, path: String)
+pub type GhostOfOutputFragment(fragment_classifier) {
+  GhostOfOutputFragment(classifier: fragment_classifier, path: String)
 }
 
 pub type PrettifierFeedback {
   PrettifierFeedback(warnings: List(String), errors: List(String))
 }
 
-pub type Prettifier(z) =
-  fn(String, GhostOfOutputFragment(z), Option(String)) ->
+pub type Prettifier(fragment_classifier) =
+  fn(String, GhostOfOutputFragment(fragment_classifier), Option(String)) ->
     Option(PrettifierFeedback)
 
 pub fn run_prettier(
@@ -356,7 +375,7 @@ pub fn run_prettier(
 
 pub fn default_prettier_prettifier(
   output_dir: String,
-  ghost: GhostOfOutputFragment(z),
+  ghost: GhostOfOutputFragment(fragment_classifier),
   prettier_dir: Option(String),
 ) -> Option(PrettifierFeedback) {
   use <- on.eager_false_true(
@@ -415,7 +434,7 @@ pub fn default_prettier_prettifier(
 
 pub fn empty_prettifier(
   _: String,
-  _: GhostOfOutputFragment(z),
+  _: GhostOfOutputFragment(fragment_classifier),
   _: Option(String),
 ) -> Option(PrettifierFeedback) {
   Some(PrettifierFeedback(warnings: [], errors: []))
@@ -423,16 +442,24 @@ pub fn empty_prettifier(
 
 /// Wires source ingress, parsing, filtering, desugaring, splitting, emitting,
 /// writing, and optional prettification.
-pub type Renderer(a, b, c, d, e, f, z) {
+pub type Renderer(
+  assembler_error,
+  parser_error,
+  filterer_error,
+  splitter_error,
+  emitter_error,
+  writer_error,
+  fragment_classifier,
+) {
   Renderer(
-    assembler: Assembler(a),
-    parser: Parser(b),
-    filterer: Filterer(c),
+    assembler: Assembler(assembler_error),
+    parser: Parser(parser_error),
+    filterer: Filterer(filterer_error),
     pipeline: Pipeline,
-    splitter: Splitter(z, d),
-    emitter: Emitter(z, e),
-    writer: Writer(z, f),
-    prettifier: Prettifier(z),
+    splitter: Splitter(fragment_classifier, splitter_error),
+    emitter: Emitter(fragment_classifier, emitter_error),
+    writer: Writer(fragment_classifier, writer_error),
+    prettifier: Prettifier(fragment_classifier),
   )
 }
 
@@ -450,7 +477,7 @@ pub type RendererParameters {
   )
 }
 
-pub type RendererOptions(z) {
+pub type RendererOptions(fragment_classifier) {
   RendererOptions(
     verbose: Bool,
     artifacts: Bool,
@@ -469,12 +496,15 @@ pub type RendererOptions(z) {
     dump_assembled_lines: Bool,
     dump_parsed_vxml: Bool,
     dump_filtered_vxml: Bool,
-    dump_splitter_fragments: fn(OutputFragment(z, VXML)) -> Bool,
-    dump_emitter_fragments: fn(OutputFragment(z, List(OutputLine))) -> Bool,
+    dump_splitter_fragments: fn(OutputFragment(fragment_classifier, VXML)) ->
+      Bool,
+    dump_emitter_fragments: fn(
+      OutputFragment(fragment_classifier, List(OutputLine)),
+    ) -> Bool,
   )
 }
 
-pub fn vanilla_options() -> RendererOptions(z) {
+pub fn vanilla_options() -> RendererOptions(fragment_classifier) {
   RendererOptions(
     verbose: False,
     artifacts: False,
@@ -494,7 +524,11 @@ pub fn vanilla_options() -> RendererOptions(z) {
     dump_parsed_vxml: False,
     dump_filtered_vxml: False,
     dump_splitter_fragments: fn(_) { False },
-    dump_emitter_fragments: fn(_: OutputFragment(z, List(OutputLine))) { False },
+    dump_emitter_fragments: fn(
+      _: OutputFragment(fragment_classifier, List(OutputLine)),
+    ) {
+      False
+    },
   )
 }
 
@@ -2335,9 +2369,9 @@ fn append_optional_monitor_factory(
 }
 
 pub fn amend_renderer_options_by_command_line_amendments(
-  options: RendererOptions(z),
+  options: RendererOptions(fragment_classifier),
   amendments: CommandLineAmendments,
-) -> RendererOptions(z) {
+) -> RendererOptions(fragment_classifier) {
   RendererOptions(
     verbose: option.unwrap(amendments.verbose, options.verbose),
     artifacts: option.unwrap(amendments.artifacts, options.artifacts),
@@ -2364,14 +2398,16 @@ pub fn amend_renderer_options_by_command_line_amendments(
       || options.dump_assembled_lines,
     dump_parsed_vxml: amendments.dump_parsed || options.dump_parsed_vxml,
     dump_filtered_vxml: amendments.dump_filtered || options.dump_filtered_vxml,
-    dump_splitter_fragments: fn(fr: OutputFragment(z, VXML)) {
+    dump_splitter_fragments: fn(fr: OutputFragment(fragment_classifier, VXML)) {
       options.dump_splitter_fragments(fr)
       || exists_match(
         amendments.splitter_fragment_path_matches,
         string.contains(fr.path, _),
       )
     },
-    dump_emitter_fragments: fn(fr: OutputFragment(z, List(OutputLine))) {
+    dump_emitter_fragments: fn(
+      fr: OutputFragment(fragment_classifier, List(OutputLine)),
+    ) {
       options.dump_emitter_fragments(fr)
       || exists_match(amendments.emitter_fragment_path_matches, string.contains(
         fr.path,
@@ -2683,9 +2719,19 @@ fn make_dump_monitor(
 }
 
 fn make_monitors(
-  options: RendererOptions(z),
+  options: RendererOptions(fragment_classifier),
   pipeline: Pipeline,
-) -> Result(List(Monitor), RendererError(a, b, c, d, e, f)) {
+) -> Result(
+  List(Monitor),
+  RendererError(
+    assembler_error,
+    parser_error,
+    filterer_error,
+    splitter_error,
+    emitter_error,
+    writer_error,
+  ),
+) {
   use built <- on.error_ok(
     list.try_map(options.monitor_factories, fn(factory) {
       case factory {
@@ -3079,28 +3125,53 @@ fn create_dirs_on_path_to_file(
   |> result.map(fn(_) { Nil })
 }
 
-pub type TwoPossibilities(e, f) {
-  P1(e)
-  P2(f)
+pub type TwoPossibilities(first, second) {
+  P1(first)
+  P2(second)
 }
 
-pub type RendererError(a, b, c, d, e, f) {
-  AssemblerError(a)
-  ParserError(Blame, b)
-  FiltrationError(c)
+pub type RendererError(
+  assembler_error,
+  parser_error,
+  filterer_error,
+  splitter_error,
+  emitter_error,
+  writer_error,
+) {
+  AssemblerError(assembler_error)
+  ParserError(Blame, parser_error)
+  FiltrationError(filterer_error)
   DesugarerNameNotFoundError(String)
   PipelineError(InSituDesugaringError)
   MonitorError(MonitorFailure)
   UserExitError(Int)
-  SplitterError(d)
-  EmittingOrWritingErrors(List(TwoPossibilities(e, f)))
+  SplitterError(splitter_error)
+  EmittingOrWritingErrors(List(TwoPossibilities(emitter_error, writer_error)))
 }
 
 pub fn run_renderer(
-  renderer: Renderer(a, b, c, d, e, f, z),
+  renderer: Renderer(
+    assembler_error,
+    parser_error,
+    filterer_error,
+    splitter_error,
+    emitter_error,
+    writer_error,
+    fragment_classifier,
+  ),
   parameters: RendererParameters,
-  options: RendererOptions(z),
-) -> Result(List(String), RendererError(a, b, c, d, e, f)) {
+  options: RendererOptions(fragment_classifier),
+) -> Result(
+  List(String),
+  RendererError(
+    assembler_error,
+    parser_error,
+    filterer_error,
+    splitter_error,
+    emitter_error,
+    writer_error,
+  ),
+) {
   let parameters = sanitize_input_output_dirs(parameters)
 
   let input_dir = parameters.input_dir
@@ -3492,7 +3563,10 @@ pub fn run_renderer(
   // 🌸 prettifying 🌸
 
   let run_prettification = fn(result, dest_dir) {
-    use fr: GhostOfOutputFragment(z) <- on.eager_error_ok(result, Nil)
+    use fr: GhostOfOutputFragment(fragment_classifier) <- on.eager_error_ok(
+      result,
+      Nil,
+    )
     case dest_dir {
       None ->
         io.print(
