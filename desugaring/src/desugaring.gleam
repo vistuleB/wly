@@ -491,7 +491,7 @@ pub type RendererOptions(z) {
     artifacts: Bool,
     steps_table: Bool,
     profiling_table: Option(Int),
-    interactive_mode: Bool,
+    monitor_interactive_mode: Bool,
     warnings: Bool,
     report_long_running_desugarers: Bool,
     only_paths: List(String),
@@ -515,7 +515,7 @@ pub fn vanilla_options() -> RendererOptions(z) {
     artifacts: False,
     steps_table: False,
     profiling_table: None,
-    interactive_mode: False,
+    monitor_interactive_mode: False,
     warnings: False,
     report_long_running_desugarers: True,
     only_paths: [],
@@ -542,7 +542,7 @@ type Tracker {
     printing_selector: Option(tracking.Selector),
     change_selector: Option(tracking.Selector),
     step_specs: List(PipelineStepSpec),
-    interactive_mode: Bool,
+    monitor_interactive_mode: Bool,
     output: Option(VxmlMonitorOutput),
     include_selection_ellipses: Option(Bool),
   )
@@ -563,7 +563,7 @@ pub type CommandLineAmendments {
     prettier: Option(PrettifierMode),
     tracking_monitor_factory: Option(MonitorFactory),
     dump_monitor_factory: Option(MonitorFactory),
-    tracker_interactive_mode: Bool,
+    monitor_interactive_mode: Bool,
     table: Option(Bool),
     times: Option(Int),
     verbose: Option(Bool),
@@ -592,7 +592,7 @@ fn empty_command_line_amendments() -> CommandLineAmendments {
     prettier: None,
     tracking_monitor_factory: None,
     dump_monitor_factory: None,
-    tracker_interactive_mode: False,
+    monitor_interactive_mode: False,
     table: None,
     times: None,
     verbose: None,
@@ -1315,8 +1315,9 @@ pub fn process_command_line_arguments(
                 amendments.tracking_monitor_factory,
                 tracker,
               )),
-              tracker_interactive_mode: {
-                amendments.tracker_interactive_mode || tracker.interactive_mode
+              monitor_interactive_mode: {
+                amendments.monitor_interactive_mode
+                || tracker.monitor_interactive_mode
               },
             ),
           )
@@ -1331,15 +1332,22 @@ pub fn process_command_line_arguments(
                 amendments.tracking_monitor_factory,
                 tracker,
               )),
-              tracker_interactive_mode: {
-                amendments.tracker_interactive_mode || tracker.interactive_mode
+              monitor_interactive_mode: {
+                amendments.monitor_interactive_mode
+                || tracker.monitor_interactive_mode
               },
             ),
           )
         }
 
         "--dump" -> {
-          use #(specs, output) <- on.ok(parse_dump_args(values))
+          use #(specs, output, monitor_interactive_mode) <- on.ok(
+            parse_dump_args(values),
+          )
+          let amendments =
+            CommandLineAmendments(..amendments, monitor_interactive_mode: {
+              amendments.monitor_interactive_mode || monitor_interactive_mode
+            })
           case amendments.dump_monitor_factory {
             None ->
               Ok(
@@ -2201,7 +2209,7 @@ fn parse_track_args(values: List(String)) -> Result(Tracker, CommandLineError) {
     printing_selector: Some(printing_selector),
     change_selector: Some(change_selector),
     step_specs: step_specs,
-    interactive_mode: with_enter,
+    monitor_interactive_mode: with_enter,
     output: Some(output),
     include_selection_ellipses: Some(include_selection_ellipses),
   ))
@@ -2216,7 +2224,7 @@ fn parse_track_steps_args(
     printing_selector: None,
     change_selector: None,
     step_specs: step_specs,
-    interactive_mode: with_enter,
+    monitor_interactive_mode: with_enter,
     output: None,
     include_selection_ellipses: None,
   ))
@@ -2234,7 +2242,9 @@ fn join_trackers(pm1: Option(Tracker), pm2: Tracker) -> Tracker {
       _, _ -> option.or(pm1.change_selector, pm2.change_selector)
     },
     step_specs: list.append(pm1.step_specs, pm2.step_specs),
-    interactive_mode: { pm1.interactive_mode || pm2.interactive_mode },
+    monitor_interactive_mode: {
+      pm1.monitor_interactive_mode || pm2.monitor_interactive_mode
+    },
     output: case pm2.output {
       Some(_) -> pm2.output
       None -> pm1.output
@@ -2259,10 +2269,14 @@ fn join_tracking_monitor_factory(
 
 fn parse_dump_args(
   values: List(String),
-) -> Result(#(List(PipelineStepSpec), VxmlMonitorOutput), CommandLineError) {
+) -> Result(
+  #(List(PipelineStepSpec), VxmlMonitorOutput, Bool),
+  CommandLineError,
+) {
+  let #(monitor_interactive_mode, values) = core.delete(values, "-i")
   use #(output, values) <- on.ok(parse_vxml_monitor_output_arguments(values))
   use specs <- on.ok(parse_pipeline_step_specs(values))
-  Ok(#(specs, output))
+  Ok(#(specs, output, monitor_interactive_mode))
 }
 
 fn combine_optional_dump_column_counts(
@@ -2386,8 +2400,8 @@ pub fn amend_renderer_options_by_command_line_amendments(
     artifacts: option.unwrap(amendments.artifacts, options.artifacts),
     steps_table: option.unwrap(amendments.table, options.steps_table),
     profiling_table: option.or(amendments.times, options.profiling_table),
-    interactive_mode: {
-      options.interactive_mode || amendments.tracker_interactive_mode
+    monitor_interactive_mode: {
+      options.monitor_interactive_mode || amendments.monitor_interactive_mode
     },
     warnings: option.unwrap(amendments.warnings, options.warnings),
     report_long_running_desugarers: options.report_long_running_desugarers,
@@ -3044,7 +3058,7 @@ pub fn run_pipeline(
   vxml: VXML,
   pipeline: Pipeline,
   monitors: List(Monitor),
-  interactive_mode: Bool,
+  monitor_interactive_mode: Bool,
   report_long_running_desugarers: Bool,
 ) -> Result(
   #(VXML, List(InSituDesugaringWarning), List(Duration)),
@@ -3057,7 +3071,7 @@ pub fn run_pipeline(
 
   process.link(producer_pid)
 
-  let countdown = case interactive_mode {
+  let countdown = case monitor_interactive_mode {
     True -> 0
     False -> -1
   }
@@ -3260,7 +3274,7 @@ pub fn run_renderer(
       filtered,
       renderer.pipeline,
       monitors,
-      options.interactive_mode,
+      options.monitor_interactive_mode,
       options.report_long_running_desugarers,
     ),
     on_error: fn(e) {

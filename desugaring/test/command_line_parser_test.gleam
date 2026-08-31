@@ -37,6 +37,11 @@ pub fn main() {
   assert_parses(["--dump", "-5--1"])
   assert_parses(["--dump", "!120-130"])
   assert_parses(["--dump", "-verbatim", "120-"])
+  assert_parses(["--dump", "-i", "120-"])
+  assert_parses(["--dump", "120-", "-i"])
+  let assert Ok(interactive_dump) =
+    desugaring.process_command_line_arguments(["--dump", "-i", "120-"], [])
+  assert interactive_dump.monitor_interactive_mode
   assert_parses(["--dump", "-bc0", "-cc0", "!120-130"])
   assert_parses(["--dump", "10", "--dump", "20"])
   assert_parses(["--dump", "-cc10", "10", "--dump", "-bc20", "20"])
