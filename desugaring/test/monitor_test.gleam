@@ -28,8 +28,8 @@ pub fn main() {
 
   let input = vxml.V(blame.no_blame, "root", [], [])
   let result =
-    ds.run_pipeline(input, [dl.identity()], [stopping_monitor()], False)
-  let assert Error(Error(ds.PipelineMonitorError(failure))) = result
+    ds.run_pipeline(input, [dl.identity()], [stopping_monitor()], False, True)
+  let assert Error(ds.PipelineMonitorError(failure)) = result
   let ds.MonitorFailure(name, step_no, message) = failure
   assert name == "test-monitor"
   assert step_no == 1

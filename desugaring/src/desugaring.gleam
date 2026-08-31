@@ -37,6 +37,8 @@ const pipeline_runner_margin = 2
 const tracking_progress_interval = 10
 const tracking_progress_quiet_steps = 3
 
+const long_running_desugarer_report_interval_seconds = 10
+
 pub type MonitorOutputMargin {
   AtRunnerMargin
   Verbatim
@@ -488,6 +490,7 @@ pub type RendererOptions(z) {
     profiling_table: Option(Int),
     interactive_mode: Bool,
     warnings: Bool,
+    report_long_running_desugarers: Bool,
     only_paths: List(String),
     only_key_vals: List(#(String, String)),
     only_path_key_vals: List(#(String, String, String)),
@@ -511,6 +514,7 @@ pub fn vanilla_options() -> RendererOptions(z) {
     profiling_table: None,
     interactive_mode: False,
     warnings: False,
+    report_long_running_desugarers: True,
     only_paths: [],
     only_key_vals: [],
     only_path_key_vals: [],
@@ -915,7 +919,7 @@ pub fn advanced_cli_usage(header: String) {
   io.println(margin <> "--dump-splitter [<path-match1> <path-match2> ...]")
   io.println(
     margin
-    <> "  -> echo fragments whose paths contain one of the given subpaths",
+    <> "  -> dump fragments whose paths contain one of the given subpaths",
   )
   io.println(
     margin <> "     produced by the splitter; list none to match all",
@@ -924,7 +928,7 @@ pub fn advanced_cli_usage(header: String) {
   io.println(margin <> "--dump-emitter [<path-match1> <path-match2> ...]")
   io.println(
     margin
-    <> "  -> echo fragments whose paths contain one of the given subpaths",
+    <> "  -> dump fragments whose paths contain one of the given subpaths",
   )
   io.println(
     margin <> "     produced by the emitter; list none to match all",
@@ -1155,6 +1159,7 @@ pub type CommandLineError {
   MissingArgumentToOption(String)
   TooManyArgumentsToOption(String)
   SelectorValues(String)
+  OnlyValues(String)
   StepNoValues(String)
   TimesValues(String)
 }
@@ -1181,7 +1186,7 @@ pub fn process_command_line_arguments(
           basic_cli_usage("renderer common command line options:")
           case list.is_empty(values) {
             True -> Ok(amendments)
-            False -> Error(UnexpectedArgumentsToOption("option"))
+            False -> Error(UnexpectedArgumentsToOption("--help"))
           }
         }
 
@@ -1198,7 +1203,7 @@ pub fn process_command_line_arguments(
           advanced_cli_usage("renderer advanced command line options:")
           case list.is_empty(values) {
             True -> Ok(amendments)
-            False -> Error(UnexpectedArgumentsToOption("option"))
+            False -> Error(UnexpectedArgumentsToOption("--esoteric"))
           }
         }
 
@@ -1241,10 +1246,12 @@ pub fn process_command_line_arguments(
         }
 
         "--only" -> {
-          let args =
+          use args <- on.ok(
             values
             |> list.map(parse_attr_value_args_in_filename)
-            |> list.flatten()
+            |> result.all
+            |> result.map(list.flatten),
+          )
 
           CommandLineAmendments(
             ..amendments,
@@ -1526,25 +1533,28 @@ fn amend_only_args(
 
 fn parse_attr_value_args_in_filename(
   path: String,
-) -> List(#(String, String, String)) {
+) -> Result(List(#(String, String, String)), CommandLineError) {
   let assert [path, ..args] = string.split(path, "&")
   case args {
     // did not contain '&':
     [] -> {
       case string.split_once(path, "=") {
-        Ok(#(key, value)) -> [#("", key, value)]
-        Error(Nil) -> [#(path, "", "")]
+        Ok(#(key, value)) -> Ok([#("", key, value)])
+        Error(Nil) -> Ok([#(path, "", "")])
       }
     }
     // did contain '&'
     _ -> {
-      list.map(args, fn(arg) {
-        let assert [key, value] = string.split(arg, "=")
-        // <- this should be generating a CommandLineError instead of asserting
-        #(path, key, value)
+      args
+      |> list.map(fn(arg) {
+        case string.split(arg, "=") {
+          [key, value] -> Ok(#(path, key, value))
+          _ -> Error(OnlyValues(arg))
+        }
       })
-    }
+      |> result.all
   }
+}
 }
 
 // --track, --track-steps, and --dump parsing
@@ -2344,6 +2354,7 @@ pub fn amend_renderer_options_by_command_line_amendments(
       options.interactive_mode || amendments.tracker_interactive_mode
     },
     warnings: option.unwrap(amendments.warnings, options.warnings),
+    report_long_running_desugarers: options.report_long_running_desugarers,
     only_paths: list.append(options.only_paths, amendments.only_paths),
     only_key_vals: list.append(options.only_key_vals, amendments.only_key_vals),
     only_path_key_vals: list.append(
@@ -2738,6 +2749,7 @@ pub type MonitorFailure {
 }
 
 pub type PipelineExecutionError {
+  PipelineUserExit(UserExit)
   PipelineDesugaringError(InSituDesugaringError)
   PipelineMonitorError(MonitorFailure)
 }
@@ -2752,6 +2764,8 @@ type PipelineProducerState {
 }
 
 type Message {
+  ProducerStartedDesugarer(Desugarer, Int)
+  ProducerFinishedDesugarer
   MonitorProducedOutput(MonitorOutput, Int)
   ProducerFinished(
     Result(
@@ -2813,6 +2827,10 @@ fn producer(
         fn(state, indexed_desugarer) {
           let #(desugarer, index) = indexed_desugarer
           let step_no = index + 1
+          send(
+            main_process_subject,
+            ProducerStartedDesugarer(desugarer, step_no),
+          )
           let now = timestamp.system_time()
           use #(vxml, new_warnings) <- on.error_ok(
             desugarer.transform(state.vxml),
@@ -2828,6 +2846,7 @@ fn producer(
             },
           )
           let then = timestamp.system_time()
+          send(main_process_subject, ProducerFinishedDesugarer)
           let durations = [timestamp.difference(now, then), ..state.durations]
           let new_warnings =
             list.map(new_warnings, fn(warning) {
@@ -2881,17 +2900,41 @@ fn print_monitor_output(output: MonitorOutput, runner_margin: Int) -> Nil {
 fn loop(
   subject: Subject(Message),
   countdown: Int,
+  running_desugarer: Option(#(Desugarer, Int)),
+  running_seconds: Int,
+  report_long_running_desugarers: Bool,
   // pause for user only when countdown == 0
 ) -> Result(
   #(VXML, List(InSituDesugaringWarning), List(Duration)),
-  Result(UserExit, PipelineExecutionError),
+  PipelineExecutionError,
 ) {
-  case receive(subject, within: 100_000) {
+  case receive(
+    subject,
+    within: long_running_desugarer_report_interval_seconds * 1000,
+  ) {
+    Ok(ProducerStartedDesugarer(desugarer, step_no)) ->
+      loop(
+        subject,
+        countdown,
+        Some(#(desugarer, step_no)),
+        0,
+        report_long_running_desugarers,
+      )
+
+    Ok(ProducerFinishedDesugarer) ->
+      loop(subject, countdown, None, 0, report_long_running_desugarers)
+
     Ok(MonitorProducedOutput(output, step_no)) -> {
       print_monitor_output(output, pipeline_runner_margin)
       case countdown == 0 {
         False -> {
-          loop(subject, countdown - 1)
+          loop(
+            subject,
+            countdown - 1,
+            running_desugarer,
+            running_seconds,
+            report_long_running_desugarers,
+          )
         }
         True ->
           case input.input("(↵|<n>|e|c) ") {
@@ -2906,8 +2949,15 @@ fn loop(
                   }
               }
               case quit {
-                True -> Error(Ok(UserExit(step_no)))
-                False -> loop(subject, countdown - 1)
+                True -> Error(PipelineUserExit(UserExit(step_no)))
+                False ->
+                  loop(
+                    subject,
+                    countdown - 1,
+                    running_desugarer,
+                    running_seconds,
+                    report_long_running_desugarers,
+                  )
               }
             }
             Error(_) -> {
@@ -2920,13 +2970,34 @@ fn loop(
     Ok(ProducerFinished(result)) -> {
       case result {
         Ok(value) -> Ok(value)
-        Error(error) -> Error(Error(error))
+        Error(error) -> Error(error)
       }
     }
 
     Error(_) -> {
-      io.println("Timeout while waiting for messages. Is the producer stuck?")
-      panic
+      let running_seconds =
+        running_seconds + long_running_desugarer_report_interval_seconds
+      case running_desugarer, report_long_running_desugarers {
+        Some(#(desugarer, step_no)), True ->
+          io.println(
+            string.repeat(" ", pipeline_runner_margin)
+            <> "[desugarer "
+            <> ins(step_no)
+            <> ". "
+            <> desugarer.name
+            <> " still running after "
+            <> ins(running_seconds)
+            <> "s]",
+          )
+        _, _ -> Nil
+      }
+      loop(
+        subject,
+        countdown,
+        running_desugarer,
+        running_seconds,
+        report_long_running_desugarers,
+      )
     }
   }
 }
@@ -2936,9 +3007,10 @@ pub fn run_pipeline(
   pipeline: Pipeline,
   monitors: List(Monitor),
   interactive_mode: Bool,
+  report_long_running_desugarers: Bool,
 ) -> Result(
   #(VXML, List(InSituDesugaringWarning), List(Duration)),
-  Result(UserExit, PipelineExecutionError),
+  PipelineExecutionError,
 ) {
   let main_subject = process.new_subject()
 
@@ -2952,7 +3024,7 @@ pub fn run_pipeline(
     False -> -1
   }
 
-  loop(main_subject, countdown)
+  loop(main_subject, countdown, None, 0, report_long_running_desugarers)
 }
 
 // ************************************************************
@@ -3151,15 +3223,16 @@ pub fn run_renderer(
       renderer.pipeline,
       monitors,
       options.interactive_mode,
+      options.report_long_running_desugarers,
     ),
     on_error: fn(e) {
       case e {
-        Ok(UserExit(step_no)) -> {
+        PipelineUserExit(UserExit(step_no)) -> {
           io.println("")
           io.println("user exit at step_no " <> ins(step_no))
           Error(UserExitError(step_no))
         }
-        Error(PipelineDesugaringError(e)) -> {
+        PipelineDesugaringError(e) -> {
           io.println("  ...desugaring error:")
           io.println("")
           [
@@ -3172,7 +3245,7 @@ pub fn run_renderer(
           |> io.println
           Error(PipelineError(e))
         }
-        Error(PipelineMonitorError(failure)) -> {
+        PipelineMonitorError(failure) -> {
           let MonitorFailure(name, step_no, message) = failure
           io.println("  ...pipeline stopped by monitor:")
           io.println("")
@@ -3200,8 +3273,14 @@ pub fn run_renderer(
     Some(total_chars) -> {
       let all_seconds =
         durations |> list.map(duration.to_seconds) |> list.reverse
-      let assert Ok(max_secs) = list.max(all_seconds, float.compare)
-      let num_hundreth_seconds = float.ceiling(max_secs *. 100.0)
+      let max_secs = case list.max(all_seconds, float.compare) {
+        Ok(max_secs) -> max_secs
+        Error(_) -> 0.0
+      }
+      let num_hundreth_seconds = case float.ceiling(max_secs *. 100.0) {
+        measured_hundreths if measured_hundreths >. 0.0 -> measured_hundreths
+        _ -> 1.0
+      }
       let one_hundreth_seconds_num_bars =
         int.to_float(total_chars) /. num_hundreth_seconds
       let scale =
