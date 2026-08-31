@@ -97,16 +97,12 @@ import desugaring/desugarers/fold_into_text__batch
 import desugaring/desugarers/footnote_marker_to_sup_handle__outside
 import desugaring/desugarers/free_children
 import desugaring/desugarers/free_children__batch
-import desugaring/desugarers/grand_wrapper_append_attributes
-import desugaring/desugarers/grand_wrapper_move_nodes_to_wrapper
 import desugaring/desugarers/group_consecutive_children__outside
 import desugaring/desugarers/handles_add_ids
-import desugaring/desugarers/handles_generate_dictionary
-import desugaring/desugarers/handles_generate_dictionary_and_id_list
 import desugaring/desugarers/handles_generate_v_definitions_from_t_definitions
-import desugaring/desugarers/handles_setup_grand_wrapper
-import desugaring/desugarers/handles_substitute
-import desugaring/desugarers/handles_warn_unused
+import desugaring/desugarers/handles_grand_wrapper_generate_dictionary
+import desugaring/desugarers/handles_grand_wrapper_substitute
+import desugaring/desugarers/handles_grand_wrapper_warn_unused
 import desugaring/desugarers/identity
 import desugaring/desugarers/insert_attribute_as_text
 import desugaring/desugarers/insert_attribute_value_at_first_child_start
@@ -341,16 +337,12 @@ pub const fold_into_text__batch = fold_into_text__batch.constructor
 pub const footnote_marker_to_sup_handle__outside = footnote_marker_to_sup_handle__outside.constructor
 pub const free_children = free_children.constructor
 pub const free_children__batch = free_children__batch.constructor
-pub const grand_wrapper_append_attributes = grand_wrapper_append_attributes.constructor
-pub const grand_wrapper_move_nodes_to_wrapper = grand_wrapper_move_nodes_to_wrapper.constructor
 pub const group_consecutive_children__outside = group_consecutive_children__outside.constructor
 pub const handles_add_ids = handles_add_ids.constructor
-pub const handles_generate_dictionary = handles_generate_dictionary.constructor
-pub const handles_generate_dictionary_and_id_list = handles_generate_dictionary_and_id_list.constructor
 pub const handles_generate_v_definitions_from_t_definitions = handles_generate_v_definitions_from_t_definitions.constructor
-pub const handles_setup_grand_wrapper = handles_setup_grand_wrapper.constructor
-pub const handles_substitute = handles_substitute.constructor
-pub const handles_warn_unused = handles_warn_unused.constructor
+pub const handles_grand_wrapper_generate_dictionary = handles_grand_wrapper_generate_dictionary.constructor
+pub const handles_grand_wrapper_substitute = handles_grand_wrapper_substitute.constructor
+pub const handles_grand_wrapper_warn_unused = handles_grand_wrapper_warn_unused.constructor
 pub const identity = identity.constructor
 pub const insert_attribute_as_text = insert_attribute_as_text.constructor
 pub const insert_attribute_value_at_first_child_start = insert_attribute_value_at_first_child_start.constructor
@@ -586,16 +578,12 @@ pub const assertive_tests : List(fn() -> core.AssertiveTestCollection) = [
   footnote_marker_to_sup_handle__outside.assertive_tests,
   free_children.assertive_tests,
   free_children__batch.assertive_tests,
-  grand_wrapper_append_attributes.assertive_tests,
-  grand_wrapper_move_nodes_to_wrapper.assertive_tests,
   group_consecutive_children__outside.assertive_tests,
   handles_add_ids.assertive_tests,
-  handles_generate_dictionary.assertive_tests,
-  handles_generate_dictionary_and_id_list.assertive_tests,
   handles_generate_v_definitions_from_t_definitions.assertive_tests,
-  handles_setup_grand_wrapper.assertive_tests,
-  handles_substitute.assertive_tests,
-  handles_warn_unused.assertive_tests,
+  handles_grand_wrapper_generate_dictionary.assertive_tests,
+  handles_grand_wrapper_substitute.assertive_tests,
+  handles_grand_wrapper_warn_unused.assertive_tests,
   identity.assertive_tests,
   insert_attribute_as_text.assertive_tests,
   insert_attribute_value_at_first_child_start.assertive_tests,

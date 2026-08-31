@@ -51,12 +51,9 @@ whose private functions are not yet consistently caller-before-callee:
 - `fold_into_text`
 - `fold_into_text__batch`
 - `footnote_marker_to_sup_handle__outside`
-- `grand_wrapper_append_attributes`
-- `grand_wrapper_move_nodes_to_wrapper`
-- `handles_generate_dictionary`
-- `handles_generate_dictionary_and_id_list`
+- `handles_grand_wrapper_generate_dictionary`
 - `handles_generate_v_definitions_from_t_definitions`
-- `handles_substitute`
+- `handles_grand_wrapper_substitute`
 
 These files contain substantial multi-pass implementations and semantic section
 comments. Reorder each implementation as a dedicated pass so the comments move

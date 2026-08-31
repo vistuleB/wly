@@ -87,7 +87,7 @@ fn collect_unused_ids(
             Error(DesugaringError(
               attr.blame,
               "GrandWrapper handle entry has no 'used' column (run "
-                <> "handles_substitute first); found: “"
+                <> "handles_grand_wrapper_substitute first); found: “"
                 <> attr.val
                 <> "”",
             ))
@@ -166,14 +166,14 @@ type Param =
 type InnerParam =
   Param
 
-pub const name = "handles_warn_unused"
+pub const name = "handles_grand_wrapper_warn_unused"
 
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 // 🏖️🏖️ Desugarer 🏖️🏖️
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
 /// Expects a document whose root is a 'GrandWrapper'
 /// carrying a handle dictionary in the 6-column form
-/// left behind by handles_substitute:
+/// left behind by `handles_grand_wrapper_substitute`:
 ///
 /// handle=<name>|<page>|<value>|<id>|<path>|used
 /// handle=<name>|<page>|<value>|<id>|<path>|

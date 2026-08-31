@@ -217,7 +217,7 @@ type Param =
 type InnerParam =
   Param
 
-pub const name = "handles_generate_dictionary"
+pub const name = "handles_grand_wrapper_generate_dictionary"
 
 fn desugarer_blame(line_no: Int) {
   bl.Des([], name, line_no)

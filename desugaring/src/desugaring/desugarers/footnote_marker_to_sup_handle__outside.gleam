@@ -157,7 +157,8 @@ pub const name = "footnote_marker_to_sup_handle__outside"
 ///    counter incremented at that same `Footnote`
 ///    node) — so `(>>handle_name)` resolves to
 ///    `(<a href=...>N</a>)` via the ordinary
-///    `handles_substitute` text-reference mechanism.
+///    `handles_grand_wrapper_substitute` text-reference
+///    mechanism.
 ///    The `handle=handle_name-originator` attribute
 ///    makes the sup itself independently addressable,
 ///    for the reverse link (see below).
@@ -172,7 +173,8 @@ pub const name = "footnote_marker_to_sup_handle__outside"
 ///    markdown-link syntax whose URL is a handle
 ///    reference — once `markdown_link_splitting` (which
 ///    must run AFTER this desugarer) turns it into a
-///    real `<a>`, `handles_substitute`'s href-rewriting
+///    real `<a>`, `handles_grand_wrapper_substitute`'s
+///    href-rewriting
 ///    (the same mechanism that resolves
 ///    `href=>>handle_name` on any `<a>` tag) resolves it
 ///    to the sup's own id, giving a working backlink.
@@ -186,7 +188,7 @@ pub const name = "footnote_marker_to_sup_handle__outside"
 ///     value to the node's own bare `handle=` attribute)
 ///   - `rearrange_links__batch` with
 ///     `#("(<a href=0>_0_</a>)", "<a href=0>(_0_)</a>")`
-///     (run after `handles_substitute`) to make the
+///     (run after `handles_grand_wrapper_substitute`) to make the
 ///     parens around the sup's own `(N)` part of the
 ///     link, not just the bare number
 ///

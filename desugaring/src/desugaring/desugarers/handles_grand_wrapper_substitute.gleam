@@ -236,7 +236,8 @@ fn rebuild(
         core.pour(used, rest_used),
       )
     }
-    _, _ -> panic as "splits/matches length mismatch in handles_substitute"
+    _, _ ->
+      panic as "splits/matches length mismatch in handles_grand_wrapper_substitute"
   }
 }
 
@@ -657,7 +658,7 @@ type InnerParam {
   )
 }
 
-pub const name = "handles_substitute"
+pub const name = "handles_grand_wrapper_substitute"
 
 fn desugarer_blame(line_no: Int) {
   bl.Des([], name, line_no)
@@ -683,7 +684,8 @@ fn desugarer_blame(line_no: Int) {
 /// handle=handle_name|page_flag|value|id|path|used
 /// handle=handle_name|page_flag|value|id|path|
 ///
-/// (see handles_warn_unused, which consumes that column).
+/// (see `handles_grand_wrapper_warn_unused`, which consumes
+/// that column).
 ///
 /// Inside any descendant of a tag named in the last param entry
 /// (typically "Math" and "MathBlock") the substitution is made in place
