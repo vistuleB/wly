@@ -38,6 +38,34 @@ pub fn main() {
   assert_parses(["--dump", "!120-130"])
   assert_parses(["--dump", "-verbatim", "120-"])
   assert_parses(["--dump", "-bc0", "-cc0", "!120-130"])
+  assert_parses(["--dump", "10", "--dump", "20"])
+  assert_parses(["--dump", "-cc10", "10", "--dump", "-bc20", "20"])
+  assert_parses(["--dump", "-verbatim", "10", "--dump", "-verbatim", "20"])
+  let assert Error(desugaring.ConflictingOptionArguments("--dump")) =
+    desugaring.process_command_line_arguments(
+      ["--dump", "-cc10", "10", "--dump", "-cc20", "20"],
+      [],
+    )
+  let assert Error(desugaring.ConflictingOptionArguments("--dump")) =
+    desugaring.process_command_line_arguments(
+      ["--dump", "-verbatim", "10", "--dump", "20"],
+      [],
+    )
+  let assert Error(desugaring.DuplicateOption("--input-dir")) =
+    desugaring.process_command_line_arguments(
+      ["--input-dir", "one", "--input-dir", "two"],
+      [],
+    )
+  let assert Error(desugaring.DuplicateOption("--output-dir")) =
+    desugaring.process_command_line_arguments(
+      ["--output-dir", "one", "--output-dir", "two"],
+      [],
+    )
+  let assert Error(desugaring.DuplicateOption("--times")) =
+    desugaring.process_command_line_arguments(
+      ["--times", "80", "--times", "100"],
+      [],
+    )
   assert_parses(["--dump-assembled"])
   assert_parses(["--dump-parsed"])
   assert_parses(["--dump-filtered"])

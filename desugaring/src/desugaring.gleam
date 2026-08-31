@@ -1153,6 +1153,7 @@ pub type CommandLineError {
   UnknownOptionArgument(String)
   UnexpectedArgumentsToOption(String)
   DuplicateOption(String)
+  ConflictingOptionArguments(String)
   MissingArgumentToOption(String)
   TooManyArgumentsToOption(String)
   SelectorValues(String)
@@ -1180,6 +1181,10 @@ pub fn process_command_line_arguments(
       let #(option, values) = pair
       case option {
         "--times" -> {
+          use _ <- on.ok(case amendments.times {
+            None -> Ok(Nil)
+            Some(_) -> Error(DuplicateOption(option))
+          })
           use arg <- on.ok(parse_times_args(values))
           Ok(
             CommandLineAmendments(
@@ -1190,6 +1195,10 @@ pub fn process_command_line_arguments(
         }
 
         "--input-dir" -> {
+          use _ <- on.ok(case amendments.input_dir {
+            None -> Ok(Nil)
+            Some(_) -> Error(DuplicateOption(option))
+          })
           case values {
             [one] ->
               Ok(
@@ -1204,6 +1213,10 @@ pub fn process_command_line_arguments(
         }
 
         "--output-dir" -> {
+          use _ <- on.ok(case amendments.output_dir {
+            None -> Ok(Nil)
+            Some(_) -> Error(DuplicateOption(option))
+          })
           case values {
             [one] ->
               Ok(
@@ -1335,7 +1348,22 @@ pub fn process_command_line_arguments(
                   dump_monitor_factory: Some(DumpMonitorFactory(specs, output)),
                 ),
               )
-            _ -> Error(DuplicateOption(option))
+            Some(DumpMonitorFactory(existing_specs, existing_output)) -> {
+              use output <- on.ok(combine_vxml_monitor_outputs(
+                existing_output,
+                output,
+              ))
+              Ok(
+                CommandLineAmendments(
+                  ..amendments,
+                  dump_monitor_factory: Some(DumpMonitorFactory(
+                    list.append(existing_specs, specs),
+                    output,
+                  )),
+                ),
+              )
+            }
+            _ -> panic as "dump monitor factory had unexpected variant"
           }
         }
 
@@ -2235,6 +2263,42 @@ fn parse_dump_args(
   use #(output, values) <- on.ok(parse_vxml_monitor_output_arguments(values))
   use specs <- on.ok(parse_pipeline_step_specs(values))
   Ok(#(specs, output))
+}
+
+fn combine_optional_dump_column_counts(
+  first: Option(Int),
+  second: Option(Int),
+) -> Result(Option(Int), CommandLineError) {
+  case first, second {
+    Some(first), Some(second) if first != second ->
+      Error(ConflictingOptionArguments("--dump"))
+    Some(first), _ -> Ok(Some(first))
+    _, Some(second) -> Ok(Some(second))
+    None, None -> Ok(None)
+  }
+}
+
+fn combine_vxml_monitor_outputs(
+  first: VxmlMonitorOutput,
+  second: VxmlMonitorOutput,
+) -> Result(VxmlMonitorOutput, CommandLineError) {
+  case first, second {
+    TrackingVerbatim, TrackingVerbatim -> Ok(TrackingVerbatim)
+    TrackingTable(first_blame, first_comment),
+      TrackingTable(second_blame, second_comment)
+    -> {
+      use blame <- on.ok(combine_optional_dump_column_counts(
+        first_blame,
+        second_blame,
+      ))
+      use comment <- on.ok(combine_optional_dump_column_counts(
+        first_comment,
+        second_comment,
+      ))
+      Ok(TrackingTable(blame, comment))
+    }
+    _, _ -> Error(ConflictingOptionArguments("--dump"))
+  }
 }
 
 // --times parsing
