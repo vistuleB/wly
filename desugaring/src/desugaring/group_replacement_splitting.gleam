@@ -1,8 +1,8 @@
-import gleam/list
+import desugaring/core
 import gleam/io
+import gleam/list
 import gleam/regexp.{type Regexp}
 import gleam/string.{inspect as ins}
-import desugaring/core as core
 import vxml.{type Line, type VXML, Attr, Line, T, V}
 import vxml/blame.{type Blame} as bl
 
@@ -31,9 +31,7 @@ pub type RegexpReplacementerSplitter {
   )
 }
 
-pub fn rrs_param_stringifier(
-  rrs: RegexpReplacementerSplitter
-) -> String {
+pub fn rrs_param_stringifier(rrs: RegexpReplacementerSplitter) -> String {
   rrs.groups
   |> list.map(fn(g) { ins(g.source) <> " -> " <> ins(g.instruction) })
   |> core.list_string_stringifier
@@ -45,8 +43,7 @@ fn replacement_nodes(
   instruction: SplitReplacementInstruction,
 ) -> List(VXML) {
   case instruction {
-    Trash -> [
-    ]
+    Trash -> []
     Keep -> [
       T(b, [Line(b, split)]),
     ]
@@ -82,13 +79,17 @@ fn rrs_split_content(
   let splits = regexp.split(w.re, content)
   let num_groups = list.length(w.groups)
   let num_splits = list.length(splits)
-  assert num_splits % { num_groups + 1} == 1
+  assert num_splits % { num_groups + 1 } == 1
 
   let reversed =
     list.index_fold(
       splits,
       #(blame, [], []),
-      fn(acc: #(Blame, List(RegexpGroupSourceAndInstruction), List(VXML)), split, index) {
+      fn(
+        acc: #(Blame, List(RegexpGroupSourceAndInstruction), List(VXML)),
+        split,
+        index,
+      ) {
         let #(b, grps, reversed) = acc
         let mod_index = index % { num_groups + 1 } - 1
         let #(instruction, grps) = case mod_index == -1 {
@@ -102,7 +103,7 @@ fn rrs_split_content(
         let reversed = core.pour(vxmls, reversed)
         let b = bl.advance(b, string.length(split))
         #(b, grps, reversed)
-      }
+      },
     )
     |> core.triple_3rd
 
@@ -111,10 +112,7 @@ fn rrs_split_content(
   |> core.last_to_first_concatenation
 }
 
-fn rrs_split_line(
-  line: Line,
-  w: RegexpReplacementerSplitter,
-) -> List(VXML) {
+fn rrs_split_line(line: Line, w: RegexpReplacementerSplitter) -> List(VXML) {
   case line.content == "”  |_" {
     True -> {
       io.println("SEEING IT!")
@@ -176,11 +174,7 @@ pub fn rrs_split_node__batch(
   vxml: VXML,
   rules: List(RegexpReplacementerSplitter),
 ) -> List(VXML) {
-  list.fold(
-    rules,
-    [vxml],
-    rrs_split_nodes,
-  )
+  list.fold(rules, [vxml], rrs_split_nodes)
 }
 
 // *****************
@@ -208,13 +202,10 @@ pub fn unescaped_suffix_rr_splitter(
   let assert Ok(re) =
     { parenthesize(regex_prefix_to_make_unescaped) <> parenthesize(suffix) }
     |> regexp.from_string
-  RegexpReplacementerSplitter(
-    re: re,
-    groups: [
-      RegexpGroupSourceAndInstruction(regex_prefix_to_make_unescaped, Keep),
-      RegexpGroupSourceAndInstruction(suffix, instruction),
-    ],
-  )
+  RegexpReplacementerSplitter(re: re, groups: [
+    RegexpGroupSourceAndInstruction(regex_prefix_to_make_unescaped, Keep),
+    RegexpGroupSourceAndInstruction(suffix, instruction),
+  ])
 }
 
 pub fn rr_splitter(
@@ -229,9 +220,11 @@ pub fn rr_splitter(
 pub fn rr_splitter_for_groups(
   pairs: List(#(String, SplitReplacementInstruction)),
 ) -> RegexpReplacementerSplitter {
-  let re_string = list.map(pairs, fn(p) { parenthesize(p.0) }) |> string.join("")
+  let re_string =
+    list.map(pairs, fn(p) { parenthesize(p.0) }) |> string.join("")
   let assert Ok(re) = regexp.from_string(re_string)
-  let groups = list.map(pairs, fn(p) { RegexpGroupSourceAndInstruction(p.0, p.1) })
+  let groups =
+    list.map(pairs, fn(p) { RegexpGroupSourceAndInstruction(p.0, p.1) })
   RegexpReplacementerSplitter(re: re, groups: groups)
 }
 
@@ -258,10 +251,7 @@ pub fn remaining_unescaped_splits(
         False -> [first, ..remaining_unescaped_splits(rest, e)]
         True -> {
           let assert [second, ..rest] = remaining_unescaped_splits(rest, e)
-          [
-            { first |> string.drop_end(1) } <> e <> second,
-            ..rest
-          ]
+          [{ first |> string.drop_end(1) } <> e <> second, ..rest]
         }
       }
     }
@@ -281,21 +271,17 @@ fn naive_unescaped_split_content(
     |> list.intersperse(splitter)
 
   let reversed =
-    list.index_fold(
-      splits,
-      #(blame, []),
-      fn(acc, split, index) {
-        let #(b, reversed) = acc
-        let this_instruction = case index % 2 == 0 {
-          True -> Keep
-          False -> instruction
-        }
-        let vxmls = replacement_nodes(b, split, this_instruction)
-        let reversed = core.pour(vxmls, reversed)
-        let b = bl.advance(b, string.length(split))
-        #(b, reversed)
+    list.index_fold(splits, #(blame, []), fn(acc, split, index) {
+      let #(b, reversed) = acc
+      let this_instruction = case index % 2 == 0 {
+        True -> Keep
+        False -> instruction
       }
-    )
+      let vxmls = replacement_nodes(b, split, this_instruction)
+      let reversed = core.pour(vxmls, reversed)
+      let b = bl.advance(b, string.length(split))
+      #(b, reversed)
+    })
     |> core.pair_2nd
 
   reversed
@@ -311,9 +297,11 @@ fn naive_unescaped_split_line(
 ) -> List(VXML) {
   case string.contains(line.content, splitter) {
     False -> [T(line.blame, [line])]
-    True -> naive_unescaped_split_content(line.blame, line.content, splitter, e, r)
+    True ->
+      naive_unescaped_split_content(line.blame, line.content, splitter, e, r)
   }
 }
+
 // *****************
 // naive_unescaped Nodemap API
 // *****************

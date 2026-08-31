@@ -33,7 +33,8 @@ type Param =
     TrafficLight,
   )
 
-type InnerParam = Param
+type InnerParam =
+  Param
 
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
   case param.1 {

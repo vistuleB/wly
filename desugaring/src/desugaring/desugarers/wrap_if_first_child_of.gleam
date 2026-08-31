@@ -29,7 +29,8 @@ type Param =
     String,
   )
 
-type InnerParam = Param
+type InnerParam =
+  Param
 
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
   Ok(param)
@@ -130,4 +131,5 @@ pub fn assertive_tests() {
     constructor,
   )
 }
+
 import desugaring/authoring

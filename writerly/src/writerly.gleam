@@ -1,53 +1,46 @@
-import vxml/blame.{type Blame, prepend_comment as pc} as bl
-import vxml/io_lines.{type InputLine, InputLine, type OutputLine, OutputLine} as io_l
+import dirtree.{type DirTree} as dt
+import gleam/int
 import gleam/list
-import gleam/option.{None, Some}
+import gleam/option.{type Option, None, Some}
 import gleam/pair
-import gleam/result
 import gleam/regexp.{type Regexp}
+import gleam/result
 import gleam/string.{inspect as ins}
+import on
 import simplifile
 import vxml.{type Attr, type Line, type VXML, Attr, Line, T, V}
-import dirtree.{type DirTree} as dt
-import on
+import vxml/blame.{type Blame, prepend_comment as pc} as bl
+import vxml/io_lines.{type InputLine, type OutputLine, InputLine, OutputLine} as io_l
 
 // ************************************************************
 // public types
 // ************************************************************
 
 pub type Writerly {
-  BlankLine(
-    blame: Blame,
-  )
-  Paragraph(
-    blame: Blame,
-    lines: List(Line),
-  )
-  Comment(
-    blame: Blame,
-    lines: List(Line),
-  )
-  CodeBlock(
-    blame: Blame,
-    attrs: List(Attr),
-    lines: List(Line),
-  )
-  Tag(
-    blame: Blame,
-    name: String,
-    attrs: List(Attr),
-    children: List(Writerly),
-  )
+  BlankLine(blame: Blame)
+  Paragraph(blame: Blame, lines: List(Line))
+  Comment(blame: Blame, lines: List(Line))
+  CodeBlock(blame: Blame, attrs: List(Attr), lines: List(Line))
+  Tag(blame: Blame, name: String, attrs: List(Attr), children: List(Writerly))
 }
 
 pub type ParseError {
   BadTag(blame: Blame, bad_name: String)
   BadKey(blame: Blame, bad_key: String)
-  IndentationTooLarge(blame: Blame, expected: String, found: String, line: String)
+  IndentationTooLarge(
+    blame: Blame,
+    expected: String,
+    found: String,
+    line: String,
+  )
   IndentationNotMultipleOfFour(blame: Blame, line: String)
   CodeBlockInfoStartsWithSpace(blame: Blame, bad_info: String)
   CodeBlockNotClosed(blame: Blame)
-  CodeBlockUnwantedAnnotationAtClose(blame: Blame, opening_blame: Blame, annotation: String)
+  CodeBlockUnwantedAnnotationAtClose(
+    blame: Blame,
+    opening_blame: Blame,
+    annotation: String,
+  )
   DuplicateIdInCodeBlockLanguageAnnotation(blame: Blame)
   NonUniqueRoot(blame: Blame)
   MissingRoot(blame: Blame)
@@ -56,13 +49,71 @@ pub type ParseError {
 pub type AssemblyError {
   ReadFileError(String)
   ReadFileOrDirectoryError(String)
-  TwoFilesSameName(String) // because we accept both .emu and .wly extensions, but we want to avoid mixing error
+  // We accept both .emu and .wly extensions, but do not allow both versions
+  // of the same filename in one assembled document.
+  TwoFilesSameName(String)
   NoFilesFound(String)
 }
 
 pub type AssemblyOrParseError {
   ParseError(ParseError)
   AssemblyError(AssemblyError)
+}
+
+const commented_attribute_key_prefix = "WriterlyCommentedAttribute"
+
+const commented_attribute_key_suffix = "Spaces"
+
+const maximum_commented_attribute_spaces = 1000
+
+/// Returns the encoded number of spaces in a Writerly commented attribute.
+/// Only keys encoding between zero and 1000 spaces are recognized.
+pub fn commented_attribute_spaces(key: String) -> Option(Int) {
+  case
+    string.starts_with(key, commented_attribute_key_prefix) &&
+    string.ends_with(key, commented_attribute_key_suffix)
+  {
+    True -> {
+      let encoded =
+        key
+        |> string.drop_start(string.length(commented_attribute_key_prefix))
+        |> string.drop_end(string.length(commented_attribute_key_suffix))
+
+      case int.parse(encoded) {
+        Ok(spaces)
+          if spaces >= 0 && spaces <= maximum_commented_attribute_spaces
+        -> Some(spaces)
+        _ -> None
+      }
+    }
+    _ -> None
+  }
+}
+
+/// Returns whether a key is a valid Writerly commented-attribute encoding.
+pub fn is_commented_attribute_key(key: String) -> Bool {
+  commented_attribute_spaces(key) != None
+}
+
+/// Constructs a Writerly commented-attribute key for a bounded space count.
+pub fn commented_attribute_key(spaces: Int) -> Option(String) {
+  case spaces >= 0 && spaces <= maximum_commented_attribute_spaces {
+    True -> Some(make_commented_attribute_key(spaces))
+    False -> None
+  }
+}
+
+fn make_commented_attribute_key(spaces: Int) -> String {
+  commented_attribute_key_prefix
+  <> int.to_string(spaces)
+  <> commented_attribute_key_suffix
+}
+
+fn split_leading_spaces(value: String, spaces: Int) -> #(Int, String) {
+  case string.starts_with(value, " ") {
+    True -> split_leading_spaces(string.drop_start(value, 1), spaces + 1)
+    False -> #(spaces, value)
+  }
 }
 
 // The API covers five areas of responsibility:
@@ -92,13 +143,14 @@ fn file_is_selected_or_has_selected_descendant(
   path: String,
   all_paths: List(String),
 ) -> Bool {
-  path_selector(path) || {
-    string.ends_with(path, "__parent.wly") && {
+  path_selector(path)
+  || {
+    string.ends_with(path, "__parent.wly")
+    && {
       let prefix = path |> string.drop_end(12)
-      list.any(
-        all_paths,
-        fn (x) { string.starts_with(x, prefix) && path_selector(x) },
-      )
+      list.any(all_paths, fn(x) {
+        string.starts_with(x, prefix) && path_selector(x)
+      })
     }
   }
 }
@@ -181,13 +233,18 @@ fn get_dirname_and_relative_paths_of_uncommented_wly_in_dir(
         Ok(#(dirpath_or_filepath |> drop_slash, files, DirectoryInput))
       }
       Error(simplifile.Enotdir) -> {
-        let #(dirname, filepath) = dirpath_or_filepath |> path_2_dir_and_filename
+        let #(dirname, filepath) =
+          dirpath_or_filepath |> path_2_dir_and_filename
         Ok(#(dirname, [dir_and_filename_2_path(dirname, filepath)], FileInput))
       }
-      Error(error) -> Error(
-        ReadFileOrDirectoryError("error accessing dirpath_or_filepath:"  <> dirpath_or_filepath  <> ", " <> ins(error))
-      )
-    }
+      Error(error) ->
+        Error(ReadFileOrDirectoryError(
+          "error accessing dirpath_or_filepath:"
+          <> dirpath_or_filepath
+          <> ", "
+          <> ins(error),
+        ))
+    },
   )
 
   assert !string.ends_with(dirname, "/")
@@ -203,10 +260,14 @@ fn get_dirname_and_relative_paths_of_uncommented_wly_in_dir(
     })
 
   case input_kind {
-    DirectoryInput -> case list.any(relative_filepaths, is_direct_relative_path) {
-      True -> Ok(#(dirname, relative_filepaths))
-      False -> Error(NoFilesFound("no direct .wly files found in: " <> dirpath_or_filepath))
-    }
+    DirectoryInput ->
+      case list.any(relative_filepaths, is_direct_relative_path) {
+        True -> Ok(#(dirname, relative_filepaths))
+        False ->
+          Error(NoFilesFound(
+            "no direct .wly files found in: " <> dirpath_or_filepath,
+          ))
+      }
     FileInput -> Ok(#(dirname, relative_filepaths))
   }
 }
@@ -219,7 +280,9 @@ fn input_lines_for_dirtree_at_depth(
 ) -> Result(List(InputLine), AssemblyError) {
   let added_depth = fn(prefixes: List(String), path: String) {
     list.fold(prefixes, 0, fn(acc, prefix) {
-      case string.starts_with(path, prefix) && path != prefix <> "__parent.wly" {
+      case
+        string.starts_with(path, prefix) && path != prefix <> "__parent.wly"
+      {
         True -> acc + 1
         False -> acc
       }
@@ -253,18 +316,15 @@ fn input_lines_for_dirtree_at_depth(
     dt.Dirpath(path, contents) -> {
       let prefixes = parent_prefixes(contents)
       use list_of_lists <- on.ok(
-        list.try_map(
-          contents,
-          fn(subtree) {
-            let depth = depth + added_depth(prefixes, subtree.name)
-            input_lines_for_dirtree_at_depth(
-              original_dirname,
-              dir_and_filename_2_path(acc, path),
-              subtree,
-              depth,
-            )
-          }
-        )
+        list.try_map(contents, fn(subtree) {
+          let depth = depth + added_depth(prefixes, subtree.name)
+          input_lines_for_dirtree_at_depth(
+            original_dirname,
+            dir_and_filename_2_path(acc, path),
+            subtree,
+            depth,
+          )
+        }),
       )
       list_of_lists
       |> list.flatten
@@ -278,19 +338,22 @@ pub fn assemble_input_lines_with_path_selector(
   path_selector: fn(String) -> Bool,
 ) -> Result(#(DirTree, List(InputLine)), AssemblyError) {
   use #(dirname, paths) <- on.ok(
-    get_dirname_and_relative_paths_of_uncommented_wly_in_dir(dirpath_or_filepath)
+    get_dirname_and_relative_paths_of_uncommented_wly_in_dir(
+      dirpath_or_filepath,
+    ),
   )
 
-  use _, _ <- on.empty_nonempty(
-    paths,
-    fn() { Error(NoFilesFound("no files found in: " <> dirpath_or_filepath)) },
-  )
+  use _, _ <- on.empty_nonempty(paths, fn() {
+    Error(NoFilesFound("no files found in: " <> dirpath_or_filepath))
+  })
 
   let paths =
     paths
-    |> list.filter(
-      file_is_selected_or_has_selected_descendant(path_selector, _, paths),
-    )
+    |> list.filter(file_is_selected_or_has_selected_descendant(
+      path_selector,
+      _,
+      paths,
+    ))
 
   let drop_suffix = fn(name) {
     case string.ends_with(name, "__parent.wly") {
@@ -305,9 +368,7 @@ pub fn assemble_input_lines_with_path_selector(
       string.compare(t1.name |> drop_suffix, t2.name |> drop_suffix)
     })
 
-  use lines <- on.ok(
-    input_lines_for_dirtree_at_depth(dirname, "", tree, 0)
-  )
+  use lines <- on.ok(input_lines_for_dirtree_at_depth(dirname, "", tree, 0))
 
   Ok(#(tree, lines))
 }
@@ -323,11 +384,10 @@ pub fn path_selector_from_only_paths(
     [], [] -> fn(_) { True }
     [], _ -> fn(path) { list.any(included_paths, string.contains(path, _)) }
     _, [] -> fn(path) { !list.any(excluded_paths, string.contains(path, _)) }
-    _, _ ->
-      fn(path) {
-        list.any(included_paths, string.contains(path, _))
-        && !list.any(excluded_paths, string.contains(path, _))
-      }
+    _, _ -> fn(path) {
+      list.any(included_paths, string.contains(path, _))
+      && !list.any(excluded_paths, string.contains(path, _))
+    }
   }
 }
 
@@ -356,7 +416,13 @@ type Encounter {
   EncounteredFileEnd
   EncounteredBlankLine(blame: Blame, indent: Int)
   EncounteredNonMod4Indent(blame: Blame, indent: Int, suffix: String)
-  EncounteredHigherIndent(blame: Blame, indent: Int, suffix: String, original_indent: Int, higher_indent: Int)
+  EncounteredHigherIndent(
+    blame: Blame,
+    indent: Int,
+    suffix: String,
+    original_indent: Int,
+    higher_indent: Int,
+  )
   EncounteredLowerIndent(blame: Blame, indent: Int, suffix: String)
   EncounteredTextLine(blame: Blame, suffix: String)
   EncounteredTagLine(blame: Blame, suffix: String)
@@ -364,10 +430,7 @@ type Encounter {
   EncounteredCodeFence(blame: Blame, suffix: String)
 }
 
-fn nonempty_suffix_encounter(
-  blame: Blame,
-  suffix: String,
-) -> Encounter {
+fn nonempty_suffix_encounter(blame: Blame, suffix: String) -> Encounter {
   case suffix {
     "|>" <> _ -> EncounteredTagLine(blame |> bl.set_anchored, suffix)
     "!!" <> _ -> EncounteredCommentLine(blame, suffix)
@@ -376,36 +439,29 @@ fn nonempty_suffix_encounter(
   }
 }
 
-fn filehead_encounter(
-  indent: Int,
-  head: FileHead,
-) -> #(Encounter, FileHead) {
-  use first, rest <- on.empty_nonempty(
-    head,
-    fn() { #(EncounteredFileEnd, []) },
-  )
+fn filehead_encounter(indent: Int, head: FileHead) -> #(Encounter, FileHead) {
+  use first, rest <- on.empty_nonempty(head, fn() { #(EncounteredFileEnd, []) })
 
   let InputLine(blame, first_indent, suffix) = first
 
-  use <- on.true_false(
-    suffix == "",
-    fn() { #(EncounteredBlankLine(blame, first_indent), rest) },
-  )
+  use <- on.true_false(suffix == "", fn() {
+    #(EncounteredBlankLine(blame, first_indent), rest)
+  })
 
-  use <- on.true_false(
-    first_indent % 4 != 0,
-    fn() { #(EncounteredNonMod4Indent(blame, first_indent, suffix), rest) },
-  )
+  use <- on.true_false(first_indent % 4 != 0, fn() {
+    #(EncounteredNonMod4Indent(blame, first_indent, suffix), rest)
+  })
 
-  use <- on.true_false(
-    first_indent < indent,
-    fn() { #(EncounteredLowerIndent(blame, first_indent, suffix), rest) },
-  )
+  use <- on.true_false(first_indent < indent, fn() {
+    #(EncounteredLowerIndent(blame, first_indent, suffix), rest)
+  })
 
-  use <- on.true_false(
-    first_indent > indent,
-    fn() { #(EncounteredHigherIndent(blame, first_indent, suffix, indent, first_indent), rest) },
-  )
+  use <- on.true_false(first_indent > indent, fn() {
+    #(
+      EncounteredHigherIndent(blame, first_indent, suffix, indent, first_indent),
+      rest,
+    )
+  })
 
   let encounter = nonempty_suffix_encounter(blame, suffix)
 
@@ -433,7 +489,11 @@ fn parse_text_lines_at_indent(
   case encounter {
     EncounteredTextLine(blame, suffix) -> {
       let line = drop_text_line_escape(blame, suffix, rgxs)
-      use #(lines, encounter, rest) <- on.ok(parse_text_lines_at_indent(indent, rest, rgxs))
+      use #(lines, encounter, rest) <- on.ok(parse_text_lines_at_indent(
+        indent,
+        rest,
+        rgxs,
+      ))
       Ok(#([line, ..lines], encounter, rest))
     }
     _ -> Ok(#([], encounter, rest))
@@ -449,7 +509,10 @@ fn parse_comment_lines_at_indent(
   case encounter {
     EncounteredCommentLine(blame, suffix) -> {
       let line = Line(blame |> bl.advance(2), suffix |> string.drop_start(2))
-      use #(lines, encounter, rest) <- on.ok(parse_comment_lines_at_indent(indent, rest))
+      use #(lines, encounter, rest) <- on.ok(parse_comment_lines_at_indent(
+        indent,
+        rest,
+      ))
       Ok(#([line, ..lines], encounter, rest))
     }
     _ -> Ok(#([], encounter, rest))
@@ -463,41 +526,45 @@ fn parse_attrs_at_indent(
 ) -> Result(#(List(Attr), Encounter, FileHead), ParseError) {
   let #(encounter, rest) = filehead_encounter(indent, head)
 
-  use #(blame, suffix) <- on.stay(
-    case encounter {
-      EncounteredTextLine(blame, suffix) ->
-        on.Stay(#(blame, suffix))
+  use #(blame, suffix) <- on.stay(case encounter {
+    EncounteredTextLine(blame, suffix) -> on.Stay(#(blame, suffix))
 
-      EncounteredCommentLine(blame, suffix) -> {
-        let attr = Attr(blame, suffix, "")
-        use #(attrs, encounter, rest) <- on.error_ok(
-          parse_attrs_at_indent(indent, rest, rgxs),
-          fn(e) { on.Return(Error(e)) },
-        )
-        on.Return(Ok(#([attr, ..attrs], encounter, rest)))
-      }
-
-      _ -> on.Return(Ok(#([], encounter, rest)))
+    EncounteredCommentLine(blame, suffix) -> {
+      let #(spaces, val) =
+        suffix |> string.drop_start(2) |> split_leading_spaces(0)
+      let attr = Attr(blame, make_commented_attribute_key(spaces), val)
+      use #(attrs, encounter, rest) <- on.error_ok(
+        parse_attrs_at_indent(indent, rest, rgxs),
+        fn(e) { on.Return(Error(e)) },
+      )
+      on.Return(Ok(#([attr, ..attrs], encounter, rest)))
     }
-  )
+
+    _ -> on.Return(Ok(#([], encounter, rest)))
+  })
 
   assert suffix != ""
   assert !string.starts_with(suffix, "!!")
   assert !string.starts_with(suffix, "|>")
 
-  use #(key, val) <- on.error_ok(
-    suffix |> string.split_once("="),
-    fn(_) { Ok(#([], encounter, rest)) },
-  )
+  use #(key, val) <- on.error_ok(suffix |> string.split_once("="), fn(_) {
+    Ok(#([], encounter, rest))
+  })
 
   use <- on.true_false(
-    key == "" || string.contains(key, " ") || !regexp.check(rgxs.is_valid_key, key),
+    key == ""
+      || string.contains(key, " ")
+      || !regexp.check(rgxs.is_valid_key, key),
     fn() { Ok(#([], encounter, rest)) },
   )
 
   let val = string.trim(val)
   let attr = Attr(blame, key, val)
-  use #(attrs, encounter, rest) <- on.ok(parse_attrs_at_indent(indent, rest, rgxs))
+  use #(attrs, encounter, rest) <- on.ok(parse_attrs_at_indent(
+    indent,
+    rest,
+    rgxs,
+  ))
   Ok(#([attr, ..attrs], encounter, rest))
 }
 
@@ -525,8 +592,15 @@ fn parse_writerlys_at_indent_from_encounter(
 
     EncounteredBlankLine(blame, _) -> {
       let writerly = BlankLine(blame)
-      use #(s1, s2, encounter, rest) <- on.ok(parse_writerlys_at_indent(indent, rest, rgxs))
-      let #(s1, s2) = case s1 {[] -> #(s1, [writerly, ..s2]) _ -> #([writerly, ..s1], s2)}
+      use #(s1, s2, encounter, rest) <- on.ok(parse_writerlys_at_indent(
+        indent,
+        rest,
+        rgxs,
+      ))
+      let #(s1, s2) = case s1 {
+        [] -> #(s1, [writerly, ..s2])
+        _ -> #([writerly, ..s1], s2)
+      }
       Ok(#(s1, s2, encounter, rest))
     }
 
@@ -535,7 +609,12 @@ fn parse_writerlys_at_indent_from_encounter(
     }
 
     EncounteredHigherIndent(blame, _, suffix, indent, higher_indent) -> {
-      Error(IndentationTooLarge(blame, "expected: " <> ins(indent), "found: " <> ins(higher_indent), "line: '" <> suffix <> "'"))
+      Error(IndentationTooLarge(
+        blame,
+        "expected: " <> ins(indent),
+        "found: " <> ins(higher_indent),
+        "line: '" <> suffix <> "'",
+      ))
     }
 
     EncounteredLowerIndent(blame, suffix_indent, suffix) -> {
@@ -543,36 +622,66 @@ fn parse_writerlys_at_indent_from_encounter(
       assert suffix != ""
       case suffix_indent < indent {
         True -> Ok(#([], [], encounter, rest))
-        False -> parse_writerlys_at_indent_from_nonempty_suffix(indent, rest, rgxs, blame, suffix)
+        False ->
+          parse_writerlys_at_indent_from_nonempty_suffix(
+            indent,
+            rest,
+            rgxs,
+            blame,
+            suffix,
+          )
       }
     }
 
     EncounteredCommentLine(blame, suffix) -> {
       let line = Line(blame |> bl.advance(2), suffix |> string.drop_start(2))
-      use #(lines, encounter, rest) <- on.ok(parse_comment_lines_at_indent(indent, rest))
+      use #(lines, encounter, rest) <- on.ok(parse_comment_lines_at_indent(
+        indent,
+        rest,
+      ))
       let writerly = Comment(blame, [line, ..lines])
-      use #(s1, s2, encounter, rest) <- on.ok(parse_writerlys_at_indent_from_encounter(indent, rest, rgxs, encounter))
+      use #(s1, s2, encounter, rest) <- on.ok(
+        parse_writerlys_at_indent_from_encounter(indent, rest, rgxs, encounter),
+      )
       Ok(#([writerly, ..s1], s2, encounter, rest))
     }
 
     EncounteredTextLine(blame, suffix) -> {
       let line = drop_text_line_escape(blame, suffix, rgxs)
-      use #(lines, encounter, rest) <- on.ok(parse_text_lines_at_indent(indent, rest, rgxs))
+      use #(lines, encounter, rest) <- on.ok(parse_text_lines_at_indent(
+        indent,
+        rest,
+        rgxs,
+      ))
       let writerly = Paragraph(blame, [line, ..lines])
-      use #(s1, s2, encounter, rest) <- on.ok(parse_writerlys_at_indent_from_encounter(indent, rest, rgxs, encounter))
+      use #(s1, s2, encounter, rest) <- on.ok(
+        parse_writerlys_at_indent_from_encounter(indent, rest, rgxs, encounter),
+      )
       Ok(#([writerly, ..s1], s2, encounter, rest))
     }
 
     EncounteredTagLine(blame, suffix) -> {
       let tag = suffix |> string.drop_start(2) |> string.trim
-      use <- on.false_true(
-        regexp.check(rgxs.is_valid_tag, tag),
-        fn() { Error(BadTag(blame, tag)) }
+      use <- on.false_true(regexp.check(rgxs.is_valid_tag, tag), fn() {
+        Error(BadTag(blame, tag))
+      })
+      use #(attrs, encounter, rest) <- on.ok(parse_attrs_at_indent(
+        indent + 4,
+        rest,
+        rgxs,
+      ))
+      use #(s1, s2, encounter, rest) <- on.ok(
+        parse_writerlys_at_indent_from_encounter(
+          indent + 4,
+          rest,
+          rgxs,
+          encounter,
+        ),
       )
-      use #(attrs, encounter, rest) <- on.ok(parse_attrs_at_indent(indent + 4, rest, rgxs))
-      use #(s1, s2, encounter, rest) <- on.ok(parse_writerlys_at_indent_from_encounter(indent + 4, rest, rgxs, encounter))
       let writerly = Tag(blame, tag, attrs, s1)
-      use #(s3, s4, encounter, rest) <- on.ok(parse_writerlys_at_indent_from_encounter(indent, rest, rgxs, encounter))
+      use #(s3, s4, encounter, rest) <- on.ok(
+        parse_writerlys_at_indent_from_encounter(indent, rest, rgxs, encounter),
+      )
       let #(all_children, blanks) = case s3 {
         [] -> {
           assert s4 == []
@@ -586,10 +695,23 @@ fn parse_writerlys_at_indent_from_encounter(
     }
 
     EncounteredCodeFence(blame, suffix) -> {
-      use attrs <- on.ok(code_block_info_to_attrs(blame |> bl.advance(3), suffix |> string.drop_start(3), rgxs))
-      use #(lines, rest) <- on.ok(parse_code_block_at_indent(indent, rest, blame, rgxs))
+      use attrs <- on.ok(code_block_info_to_attrs(
+        blame |> bl.advance(3),
+        suffix |> string.drop_start(3),
+        rgxs,
+      ))
+      use #(lines, rest) <- on.ok(parse_code_block_at_indent(
+        indent,
+        rest,
+        blame,
+        rgxs,
+      ))
       let writerly = CodeBlock(blame, attrs, lines)
-      use #(s1, s2, encounter, rest) <- on.ok(parse_writerlys_at_indent(indent, rest, rgxs))
+      use #(s1, s2, encounter, rest) <- on.ok(parse_writerlys_at_indent(
+        indent,
+        rest,
+        rgxs,
+      ))
       Ok(#([writerly, ..s1], s2, encounter, rest))
     }
   }
@@ -601,72 +723,74 @@ fn parse_code_block_at_indent(
   initial_blame: Blame,
   rgxs: OurRegexes,
 ) -> Result(#(List(Line), FileHead), ParseError) {
-  use first, rest <- on.empty_nonempty(
-    head,
-    fn() { Error(CodeBlockNotClosed(initial_blame)) }
-  )
+  use first, rest <- on.empty_nonempty(head, fn() {
+    Error(CodeBlockNotClosed(initial_blame))
+  })
 
   let InputLine(blame, first_indent, suffix) = first
 
-  use <- on.true_false(
-    first_indent > indent,
-    fn() {
-      let spaces = string.repeat(" ", first_indent - indent)
-      let content = spaces <> suffix
-      let line = Line(blame |> bl.advance(indent - first_indent), content)
-      use #(lines, rest) <- on.ok(parse_code_block_at_indent(indent, rest, initial_blame, rgxs))
-      Ok(#([line, ..lines], rest))
+  use <- on.true_false(first_indent > indent, fn() {
+    let spaces = string.repeat(" ", first_indent - indent)
+    let content = spaces <> suffix
+    let line = Line(blame |> bl.advance(indent - first_indent), content)
+    use #(lines, rest) <- on.ok(parse_code_block_at_indent(
+      indent,
+      rest,
+      initial_blame,
+      rgxs,
+    ))
+    Ok(#([line, ..lines], rest))
+  })
+
+  use <- on.true_false(suffix == "", fn() {
+    let line = Line(blame, "")
+    use #(lines, rest) <- on.ok(parse_code_block_at_indent(
+      indent,
+      rest,
+      initial_blame,
+      rgxs,
+    ))
+    Ok(#([line, ..lines], rest))
+  })
+
+  use <- on.true_false(first_indent < indent, fn() {
+    Error(CodeBlockNotClosed(initial_blame))
+  })
+
+  use <- on.true_false(suffix |> string.starts_with("```"), fn() {
+    let suffix = suffix |> string.drop_start(3) |> string.trim_end()
+    case suffix {
+      "" -> Ok(#([], rest))
+      _ ->
+        Error(CodeBlockUnwantedAnnotationAtClose(blame, initial_blame, suffix))
     }
-  )
+  })
 
-  use <- on.true_false(
-    suffix == "",
-    fn() {
-      let line = Line(blame, "")
-      use #(lines, rest) <- on.ok(parse_code_block_at_indent(indent, rest, initial_blame, rgxs))
-      Ok(#([line, ..lines], rest))
-    },
-  )
-
-  use <- on.true_false(
-    first_indent < indent,
-    fn() { Error(CodeBlockNotClosed(initial_blame)) }
-  )
-
-  use <- on.true_false(
-    suffix |> string.starts_with("```"),
-    fn() {
-      let suffix = suffix |> string.drop_start(3) |> string.trim_end()
-      case suffix {
-        "" -> Ok(#([], rest))
-        _ -> Error(CodeBlockUnwantedAnnotationAtClose(blame, initial_blame, suffix))
-      }
-    }
-  )
-
-  let #(blame, suffix) = case regexp.check(rgxs.includes_bol_cb_escape, suffix) {
+  let #(blame, suffix) = case
+    regexp.check(rgxs.includes_bol_cb_escape, suffix)
+  {
     True -> #(blame |> bl.advance(1), suffix |> string.drop_start(1))
     False -> #(blame, suffix)
   }
 
   let line = Line(blame, suffix)
-  use #(lines, rest) <- on.ok(parse_code_block_at_indent(indent, rest, initial_blame, rgxs))
+  use #(lines, rest) <- on.ok(parse_code_block_at_indent(
+    indent,
+    rest,
+    initial_blame,
+    rgxs,
+  ))
   Ok(#([line, ..lines], rest))
 }
 
-fn attrs_to_code_block_info(
-  attrs: List(Attr),
-) -> String {
-  let #(info, attrs) = list.fold(
-    attrs,
-    #(None, []),
-    fn (acc, attr) {
+fn attrs_to_code_block_info(attrs: List(Attr)) -> String {
+  let #(info, attrs) =
+    list.fold(attrs, #(None, []), fn(acc, attr) {
       case attr.key == "info" && acc.0 == None {
         True -> #(Some(attr), acc.1)
         False -> #(acc.0, [attr, ..acc.1])
       }
-    }
-  )
+    })
   let escape = fn(s) {
     s
     |> string.replace("\\", "\\\\")
@@ -694,37 +818,28 @@ fn code_block_info_to_attrs(
 ) -> Result(List(Attr), ParseError) {
   let info = info |> string.trim_end()
 
-  use <- on.true_false(
-    info == "",
-    fn() { Ok([]) },
-  )
+  use <- on.true_false(info == "", fn() { Ok([]) })
 
-  use <- on.true_false(
-    info |> string.starts_with(" "),
-    fn() { Error(CodeBlockInfoStartsWithSpace(blame, info)) },
-  )
+  use <- on.true_false(info |> string.starts_with(" "), fn() {
+    Error(CodeBlockInfoStartsWithSpace(blame, info))
+  })
 
-  use <- on.false_true(
-    info |> string.contains("&"),
-    fn() { Ok([Attr(blame, "info", info)]) },
-  )
+  use <- on.false_true(info |> string.contains("&"), fn() {
+    Ok([Attr(blame, "info", info)])
+  })
 
   let pieces = regexp.split(rgxs.unescaped_ampersand, info)
 
-  let pieces = list.map_fold(
-    pieces,
-    #(blame, ""),
-    fn(acc, p) {
+  let pieces =
+    list.map_fold(pieces, #(blame, ""), fn(acc, p) {
       let #(blame, last_piece) = acc
       let acc = #(blame |> bl.advance(last_piece |> string.length), p)
       #(acc, acc)
-    }
-  )
-  |> pair.second
+    })
+    |> pair.second
 
-  let pieces = list.index_map(
-    pieces,
-    fn (p, i) {
+  let pieces =
+    list.index_map(pieces, fn(p, i) {
       let #(blame, p) = p
       let p = case i % 3 {
         0 -> p |> string.replace("\\&", "&") |> string.replace("\\\\", "\\")
@@ -733,13 +848,10 @@ fn code_block_info_to_attrs(
         _ -> panic
       }
       #(blame, p)
-    }
-  )
+    })
 
-  let keyvals = list.fold(
-    pieces,
-    #(None, 0, []),
-    fn(acc, p) {
+  let keyvals =
+    list.fold(pieces, #(None, 0, []), fn(acc, p) {
       let #(maybe, i, so_far) = acc
       case i % 3 {
         0 -> {
@@ -757,8 +869,7 @@ fn code_block_info_to_attrs(
         }
         _ -> panic
       }
-    }
-  )
+    })
 
   let keyvals = case keyvals.0 {
     None -> keyvals.2 |> list.reverse
@@ -768,11 +879,10 @@ fn code_block_info_to_attrs(
   let assert [info, ..keyvals] = keyvals
   let info = Attr(info.0, "writerly-code-block-info", info.1)
 
-  use keyvals <- on.ok(list.try_map(
-    keyvals,
-    fn(kv) {
+  use keyvals <- on.ok(
+    list.try_map(keyvals, fn(kv) {
       let #(blame, kv) = kv
-      let #(key, val) = 
+      let #(key, val) =
         string.split_once(kv, "=")
         |> result.unwrap(#(kv, ""))
       let key = string.trim(key)
@@ -781,8 +891,8 @@ fn code_block_info_to_attrs(
         False -> Error(BadKey(blame, key))
         True -> Ok(Attr(blame, key, val))
       }
-    }
-  ))
+    }),
+  )
 
   let attrs = case info.val {
     "" -> keyvals
@@ -805,22 +915,31 @@ type OurRegexes {
   OurRegexes(
     is_valid_tag: Regexp,
     is_valid_key: Regexp,
-    includes_bol_te_escape: Regexp,     // te = 'text',       'includes_' = (as we parse source)
-    includes_bol_cb_escape: Regexp,     // cb = 'code block', 'includes_' = (as we parse source)
-    requires_bol_te_escape: Regexp,     // te = 'text',       'requires_' = (as we output source)
-    requires_bol_cb_escape: Regexp,     // cb = 'code block', 'requires_' = (as we output source)
+    // te = 'text',       'includes_' = (as we parse source)
+    includes_bol_te_escape: Regexp,
+    // cb = 'code block', 'includes_' = (as we parse source)
+    includes_bol_cb_escape: Regexp,
+    // te = 'text',       'requires_' = (as we output source)
+    requires_bol_te_escape: Regexp,
+    // cb = 'code block', 'requires_' = (as we output source)
+    requires_bol_cb_escape: Regexp,
     unescaped_ampersand: Regexp,
   )
 }
 
 fn our_regexes() -> OurRegexes {
-  let assert Ok(is_valid_tag) = regexp.from_string("^[a-zA-Z_\\:][-a-zA-Z0-9\\._\\:]*$")
-  let assert Ok(is_valid_key) = regexp.from_string("^[a-zA-Z_][-a-zA-Z0-9\\._\\:]*$")
-  let assert Ok(includes_bol_te_escape) = regexp.from_string("^\\\\+(\\s|!!|```)")
+  let assert Ok(is_valid_tag) =
+    regexp.from_string("^[a-zA-Z_\\:][-a-zA-Z0-9\\._\\:]*$")
+  let assert Ok(is_valid_key) =
+    regexp.from_string("^[a-zA-Z_][-a-zA-Z0-9\\._\\:]*$")
+  let assert Ok(includes_bol_te_escape) =
+    regexp.from_string("^\\\\+(\\s|!!|```)")
   let assert Ok(includes_bol_cb_escape) = regexp.from_string("^\\\\+(```)")
-  let assert Ok(requires_bol_te_escape) = regexp.from_string("^\\\\*(\\s|!!|```)")
+  let assert Ok(requires_bol_te_escape) =
+    regexp.from_string("^\\\\*(\\s|!!|```)")
   let assert Ok(requires_bol_cb_escape) = regexp.from_string("^\\\\*(```)")
-  let assert Ok(unescaped_ampersand) = regexp.from_string("(?<!\\\\)(\\\\\\\\)*(&)")
+  let assert Ok(unescaped_ampersand) =
+    regexp.from_string("(?<!\\\\)(\\\\\\\\)*(&)")
 
   OurRegexes(
     is_valid_tag,
@@ -834,16 +953,14 @@ fn our_regexes() -> OurRegexes {
 }
 
 pub fn input_lines_to_writerlys(
-  lines: FileHead
+  lines: FileHead,
 ) -> Result(List(Writerly), ParseError) {
   let rgxs = our_regexes()
   use #(writerlys, _, _, _) <- on.ok(parse_writerlys_at_indent(0, lines, rgxs))
   Ok(writerlys)
 }
 
-fn is_not_blank_line(
-  w: Writerly
-) -> Bool {
+fn is_not_blank_line(w: Writerly) -> Bool {
   case w {
     BlankLine(..) -> False
     _ -> True
@@ -851,7 +968,7 @@ fn is_not_blank_line(
 }
 
 pub fn input_lines_to_writerly(
-  lines: FileHead
+  lines: FileHead,
 ) -> Result(Writerly, ParseError) {
   use writerlys <- on.ok(input_lines_to_writerlys(lines))
   case list.filter(writerlys, is_not_blank_line) {
@@ -889,7 +1006,9 @@ pub fn string_to_writerly(
 // ************************************************************
 
 const writerly_blank_line_vxml_tag = "WriterlyBlankLine"
+
 const writerly_code_block_vxml_tag = "WriterlyCodeBlock"
+
 const writerly_comment_vxml_tag = "WriterlyComment"
 
 pub fn writerly_to_vxml(t: Writerly) -> VXML {
@@ -903,14 +1022,11 @@ pub fn writerly_to_vxml(t: Writerly) -> VXML {
       )
 
     Paragraph(blame, lines) -> T(blame: blame, lines: lines)
-    
-    Comment(blame, lines) -> 
-      V(
-        blame: blame,
-        tag: writerly_comment_vxml_tag,
-        attrs: [],
-        children: [T(blame: blame, lines: lines)],
-      )
+
+    Comment(blame, lines) ->
+      V(blame: blame, tag: writerly_comment_vxml_tag, attrs: [], children: [
+        T(blame: blame, lines: lines),
+      ])
 
     CodeBlock(blame, attrs, lines) ->
       V(
@@ -934,15 +1050,11 @@ pub fn writerly_to_vxml(t: Writerly) -> VXML {
   }
 }
 
-pub fn writerlys_to_vxmls(
-  writerlys: List(Writerly)
-) -> List(VXML) {
+pub fn writerlys_to_vxmls(writerlys: List(Writerly)) -> List(VXML) {
   writerlys |> list.map(writerly_to_vxml)
 }
 
-pub fn input_lines_to_vxml(
-  lines: FileHead
-) -> Result(VXML, ParseError) {
+pub fn input_lines_to_vxml(lines: FileHead) -> Result(VXML, ParseError) {
   input_lines_to_writerly(lines)
   |> result.map(writerly_to_vxml)
 }
@@ -968,15 +1080,9 @@ fn add_escape_in_string(s: String, re: Regexp) -> String {
   }
 }
 
-fn add_escapes_in_lines(
-  contents: List(Line),
-  re: Regexp,
-) -> List(Line) {
+fn add_escapes_in_lines(contents: List(Line), re: Regexp) -> List(Line) {
   list.map(contents, fn(line) {
-    Line(
-      line.blame,
-      line.content |> add_escape_in_string(re),
-    )
+    Line(line.blame, line.content |> add_escape_in_string(re))
   })
 }
 
@@ -1006,7 +1112,9 @@ fn is_t(vxml: VXML) -> Bool {
   }
 }
 
-pub fn vxml_to_writerlys(vxml: VXML) -> List(Writerly) { // it would be 'Writerly' not 'List(Writerly)' if for the fact that someone could give an empty text node
+pub fn vxml_to_writerlys(vxml: VXML) -> List(Writerly) {
+  // This would return Writerly rather than List(Writerly), except that an
+  // empty text node produces no Writerly value.
   case vxml {
     V(blame, tag, attrs, children) -> {
       case tag {
@@ -1019,12 +1127,10 @@ pub fn vxml_to_writerlys(vxml: VXML) -> List(Writerly) { // it would be 'Writerl
           assert list.all(children, is_t)
           let lines =
             children
-            |> list.flat_map(
-              fn(t) {
-                let assert T(_, lines) = t
-                lines
-              }
-            )
+            |> list.flat_map(fn(t) {
+              let assert T(_, lines) = t
+              lines
+            })
           [CodeBlock(blame, attrs, lines)]
         }
         _ if tag == writerly_comment_vxml_tag -> {
@@ -1137,10 +1243,7 @@ pub fn writerly_annotate_blames(writerly: Writerly) -> Writerly {
 // pub fn writerly_table
 // ************************************************************
 
-fn line_to_output_line(
-  line: Line,
-  indentation: Int,
-) -> OutputLine {
+fn line_to_output_line(line: Line, indentation: Int) -> OutputLine {
   OutputLine(line.blame, indentation, line.content)
 }
 
@@ -1152,21 +1255,12 @@ fn lines_to_output_lines(
   |> list.map(line_to_output_line(_, indentation))
 }
 
-fn attr_to_output_line(
-  attr: Attr,
-  indentation: Int,
-) -> OutputLine {
-  OutputLine(
-    attr.blame,
-    indentation,
-    case string.starts_with(attr.key, "!!") {
-      True -> {
-        assert attr.val == ""
-        attr.key
-      }
-      False -> attr.key <> "=" <> attr.val
-    }
-  )
+fn attr_to_output_line(attr: Attr, indentation: Int) -> OutputLine {
+  let content = case commented_attribute_spaces(attr.key) {
+    Some(spaces) -> "!!" <> string.repeat(" ", spaces) <> attr.val
+    None -> attr.key <> "=" <> attr.val
+  }
+  OutputLine(attr.blame, indentation, content)
 }
 
 fn attrs_to_output_lines(
@@ -1176,7 +1270,9 @@ fn attrs_to_output_lines(
   attrs |> list.map(attr_to_output_line(_, indentation))
 }
 
-fn first_child_is_blurb_and_first_line_of_blurb_could_be_read_as_attr_value_pair(nodes: List(Writerly)) -> Bool {
+fn first_child_is_blurb_and_first_line_of_blurb_could_be_read_as_attr_value_pair(
+  nodes: List(Writerly),
+) -> Bool {
   case nodes {
     [Paragraph(_, lines), ..] -> {
       let assert [first, ..] = lines
@@ -1208,17 +1304,21 @@ fn writerly_to_output_lines_internal(
 
     Comment(_, lines) ->
       lines
-      |> list.map(fn(l) {Line(..l, content: "!!" <> l.content)})
+      |> list.map(fn(l) { Line(..l, content: "!!" <> l.content) })
       |> lines_to_output_lines(indentation)
 
     CodeBlock(blame, attrs, lines) -> {
       list.flatten([
         [
-          OutputLine(blame, indentation, "```" <> attrs_to_code_block_info(attrs)),
+          OutputLine(
+            blame,
+            indentation,
+            "```" <> attrs_to_code_block_info(attrs),
+          ),
         ],
         lines
-        |> add_escapes_in_lines(rgxs.requires_bol_cb_escape)
-        |> lines_to_output_lines(indentation),
+          |> add_escapes_in_lines(rgxs.requires_bol_cb_escape)
+          |> lines_to_output_lines(indentation),
         [
           OutputLine(
             case annotate_blames {
@@ -1234,13 +1334,21 @@ fn writerly_to_output_lines_internal(
 
     Tag(blame, tag, attrs, children) -> {
       let tag_line = OutputLine(blame, indentation, "|> " <> tag)
-      let attr_lines =
-        attrs_to_output_lines(attrs, indentation + 4)
+      let attr_lines = attrs_to_output_lines(attrs, indentation + 4)
       let children_lines =
         children
-        |> list.map(writerly_to_output_lines_internal(_, indentation + 4, annotate_blames, rgxs))
+        |> list.map(writerly_to_output_lines_internal(
+          _,
+          indentation + 4,
+          annotate_blames,
+          rgxs,
+        ))
         |> list.flatten
-      let buffer_lines = case first_child_is_blurb_and_first_line_of_blurb_could_be_read_as_attr_value_pair(children) {
+      let buffer_lines = case
+        first_child_is_blurb_and_first_line_of_blurb_could_be_read_as_attr_value_pair(
+          children,
+        )
+      {
         True -> {
           let blame = case annotate_blames {
             False -> blame |> bl.clear_comments
@@ -1255,9 +1363,7 @@ fn writerly_to_output_lines_internal(
   }
 }
 
-pub fn writerly_to_output_lines(
-  writerly: Writerly,
-) -> List(OutputLine) {
+pub fn writerly_to_output_lines(writerly: Writerly) -> List(OutputLine) {
   let rgxs = our_regexes()
   writerly
   |> writerly_to_output_lines_internal(0, False, rgxs)
@@ -1277,15 +1383,17 @@ pub fn writerly_to_string(writerly: Writerly) -> String {
   |> io_l.output_lines_to_string
 }
 
-pub fn writerlys_to_string(
-  writerlys: List(Writerly),
-) -> String {
+pub fn writerlys_to_string(writerlys: List(Writerly)) -> String {
   writerlys
   |> writerlys_to_output_lines()
   |> io_l.output_lines_to_string
 }
 
-pub fn writerly_table(writerly: Writerly, banner: String, indent: Int) -> String {
+pub fn writerly_table(
+  writerly: Writerly,
+  banner: String,
+  indent: Int,
+) -> String {
   let rgxs = our_regexes()
   writerly
   |> writerly_annotate_blames

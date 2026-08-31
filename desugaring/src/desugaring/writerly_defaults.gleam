@@ -57,8 +57,7 @@ pub fn default_writerly_emitter(
   let lines =
     fragment.payload
     |> wl.vxml_to_writerlys
-    |> list.map(wl.writerly_to_output_lines)
-    |> list.flatten
+    |> wl.writerlys_to_output_lines
 
   Ok(#(OutputFragment(..fragment, payload: lines), NoFeedback))
 }

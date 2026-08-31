@@ -1,13 +1,14 @@
+import dirtree.{Dirpath, Filepath} as _dt
+import gleam/list
+import gleam/option
+import gleam/string
 import gleeunit
 import gleeunit/should
-import gleam/string
-import gleam/list
-import writerly.{type Writerly, Paragraph} as wl
-import dirtree.{Dirpath, Filepath} as _dt
-import vxml/blame.{Anchored, Movable, Src} as _bl
-import vxml/io_lines.{InputLine} as io_l
 import simplifile
 import vxml.{Attr, Line}
+import vxml/blame.{Anchored, Movable, Src} as _bl
+import vxml/io_lines.{InputLine} as io_l
+import writerly.{type Writerly, Paragraph} as wl
 
 pub fn main() -> Nil {
   gleeunit.main()
@@ -16,10 +17,11 @@ pub fn main() -> Nil {
 fn trim_end_spaces_and_one_newline(q: String) -> String {
   case string.ends_with(q, " ") {
     True -> q |> string.drop_end(1) |> trim_end_spaces_and_one_newline
-    False -> case string.ends_with(q, "\n") {
-      True -> q |> string.drop_end(1)
-      False -> q
-    }
+    False ->
+      case string.ends_with(q, "\n") {
+        True -> q |> string.drop_end(1)
+        False -> q
+      }
   }
 }
 
@@ -59,27 +61,32 @@ fn parse_ergonomic_wly(source: String, name: String) -> Writerly {
 pub fn part_1_test() {
   wl.assemble_input_lines("test/test1.wly")
   |> should.equal(
-    Ok(#(
-      Dirpath("test", [Filepath("test1.wly")]),
-      [
+    Ok(
+      #(Dirpath("test", [Filepath("test1.wly")]), [
         InputLine(Src([], "test1.wly", 1, 1, Movable), 0, "|> Book"),
         InputLine(Src([], "test1.wly", 2, 5, Movable), 4, "bob=2"),
         InputLine(Src([], "test1.wly", 3, 5, Movable), 4, "cuchua"),
         InputLine(Src([], "test1.wly", 4, 1, Movable), 0, ""),
-      ],
-    )),
+      ]),
+    ),
   )
 
   wl.assemble_input_lines("test/testA")
   |> should.equal(
-    Ok(#(
-      Dirpath("test/testA", [Filepath("__parent.wly"), Filepath("childA.wly")]),
-      [
-        InputLine(Src([], "__parent.wly", 1, 1, Movable), 0, "|> Book"), 
-        InputLine(Src([], "__parent.wly", 2, 5, Movable), 4, "a=b"), 
-        InputLine(Src([], "childA.wly", 1, 1, Movable), 4, "It was a dark and stormy night."),
-      ],
-    )),
+    Ok(
+      #(
+        Dirpath("test/testA", [Filepath("__parent.wly"), Filepath("childA.wly")]),
+        [
+          InputLine(Src([], "__parent.wly", 1, 1, Movable), 0, "|> Book"),
+          InputLine(Src([], "__parent.wly", 2, 5, Movable), 4, "a=b"),
+          InputLine(
+            Src([], "childA.wly", 1, 1, Movable),
+            4,
+            "It was a dark and stormy night.",
+          ),
+        ],
+      ),
+    ),
   )
 }
 
@@ -108,7 +115,8 @@ pub fn path_selector_from_only_paths_test() {
 
 pub fn sample_wly_parses_and_roundtrips_test() {
   let assert Ok(contents) = simplifile.read("samples/sample.wly")
-  let assert Ok(writerlys) = wl.string_to_writerlys(contents, "samples/sample.wly")
+  let assert Ok(writerlys) =
+    wl.string_to_writerlys(contents, "samples/sample.wly")
 
   writerlys
   |> list.length
@@ -162,21 +170,25 @@ pub fn sample_xml_converts_to_writerly_test() {
 }
 
 pub fn part_2_test() {
-  let wly_doc = "
+  let wly_doc =
+    "
 |> Book
     a=b
-  " |> string.trim()
+  "
+    |> string.trim()
   wl.string_to_writerlys(wly_doc, "doc")
-  |> should.equal(Ok([
-    wl.Tag(
-      Src([], "doc", 1, 1, Anchored),
-      "Book",
-      [
-        Attr(Src([], "doc", 2, 5, Movable), "a", "b"),
-      ],
-      [],
-    ),
-  ]))
+  |> should.equal(
+    Ok([
+      wl.Tag(
+        Src([], "doc", 1, 1, Anchored),
+        "Book",
+        [
+          Attr(Src([], "doc", 2, 5, Movable), "a", "b"),
+        ],
+        [],
+      ),
+    ]),
+  )
 
   let assert Ok(#(_tree, lines)) = wl.assemble_input_lines("test/test1.wly")
 
@@ -191,15 +203,12 @@ pub fn part_2_test() {
           Attr(Src([], "test1.wly", 2, 5, Movable), "bob", "2"),
         ],
         [
-          Paragraph(
-            Src([], "test1.wly", 3, 5, Movable),
-            [
-              Line(Src([], "test1.wly", 3, 5, Movable), "cuchua")
-            ],
-          ),
-        ]
-      )]
-    )
+          Paragraph(Src([], "test1.wly", 3, 5, Movable), [
+            Line(Src([], "test1.wly", 3, 5, Movable), "cuchua"),
+          ]),
+        ],
+      ),
+    ]),
   )
 
   let assert Ok(#(_tree, lines)) = wl.assemble_input_lines("test/testA")
@@ -208,28 +217,31 @@ pub fn part_2_test() {
   |> should.equal(
     Ok([
       wl.Tag(
-        Src([], "__parent.wly", 1, 1, Anchored), "Book",
+        Src([], "__parent.wly", 1, 1, Anchored),
+        "Book",
         [
           Attr(Src([], "__parent.wly", 2, 5, Movable), "a", "b"),
         ],
         [
-          Paragraph(
-            Src([], "childA.wly", 1, 1, Movable),
-            [
-              Line(Src([], "childA.wly", 1, 1, Movable), "It was a dark and stormy night."),
-            ],
-          ),
+          Paragraph(Src([], "childA.wly", 1, 1, Movable), [
+            Line(
+              Src([], "childA.wly", 1, 1, Movable),
+              "It was a dark and stormy night.",
+            ),
+          ]),
         ],
       ),
-    ])
+    ]),
   )
 }
 
 pub fn part_3_test() {
-  let wly_doc = "
+  let wly_doc =
+    "
 |> Book
     a=b
-  " |> string.trim()
+  "
+    |> string.trim()
 
   let assert Ok(wly_parsed) = wl.string_to_writerly(wly_doc, "doc")
 
@@ -246,13 +258,15 @@ pub fn part_3_test() {
 }
 
 pub fn part_4_test() {
-  let vxml_doc = "
+  let vxml_doc =
+    "
 <> Book
   a=b
   <>
     'first'
     'second'
-  " |> string.trim
+  "
+    |> string.trim
 
   let assert Ok([vxml_parsed]) = vxml.parse_string(vxml_doc, "doc", True)
 
@@ -265,36 +279,33 @@ pub fn part_4_test() {
         "Book",
         [Attr(Src([], "doc", 2, 3, Movable), "a", "b")],
         [
-          Paragraph(
-            Src([], "doc", 4, 5, Movable),
-            [
-              Line(Src([], "doc", 4, 5, Movable), "first"),
-              Line(Src([], "doc", 5, 5, Movable), "second"),
-            ]
-          ),
+          Paragraph(Src([], "doc", 4, 5, Movable), [
+            Line(Src([], "doc", 4, 5, Movable), "first"),
+            Line(Src([], "doc", 5, 5, Movable), "second"),
+          ]),
         ],
-      )
-    )
+      ),
+    ),
   )
 }
 
-fn parse_and_serialize_verification_for_ergonomic_source(
-  source: String,
-) {
+fn parse_and_serialize_verification_for_ergonomic_source(source: String) {
   source
   |> parse_ergonomic_wly("doc")
   |> wl.writerly_to_string
   |> should.equal(
     source
-    |> ergonomic_source_to_standard_source
+    |> ergonomic_source_to_standard_source,
   )
 }
 
 pub fn part_5_test() {
-  let wly_doc = "
+  let wly_doc =
+    "
 |> Book
     a=b
-  " |> string.trim()
+  "
+    |> string.trim()
 
   let assert Ok(wly_parsed) = wl.string_to_writerly(wly_doc, "doc")
 
@@ -341,6 +352,33 @@ pub fn part_5_test() {
     at the beginning of the second line   
   "
   |> parse_and_serialize_verification_for_ergonomic_source
+}
+
+pub fn commented_attribute_encoding_test() {
+  let source = "|> Book\n    !!   someguy=aa"
+  let assert Ok(writerly) = wl.string_to_writerly(source, "doc")
+  let assert wl.Tag(_, "Book", [Attr(_, key, val)], []) = writerly
+
+  key |> should.equal("WriterlyCommentedAttribute3Spaces")
+  val |> should.equal("someguy=aa")
+  writerly |> wl.writerly_to_string |> should.equal(source)
+
+  let empty_source = "|> Book\n    !!"
+  let assert Ok(empty_writerly) = wl.string_to_writerly(empty_source, "doc")
+  let assert wl.Tag(_, "Book", [Attr(_, empty_key, "")], []) = empty_writerly
+  empty_key |> should.equal("WriterlyCommentedAttribute0Spaces")
+  empty_writerly |> wl.writerly_to_string |> should.equal(empty_source)
+}
+
+pub fn commented_attribute_key_helpers_test() {
+  wl.commented_attribute_spaces("WriterlyCommentedAttribute0Spaces")
+  |> should.equal(option.Some(0))
+  wl.commented_attribute_spaces("WriterlyCommentedAttribute1000Spaces")
+  |> should.equal(option.Some(1000))
+  wl.is_commented_attribute_key("WriterlyCommentedAttribute1001Spaces")
+  |> should.be_false
+  wl.commented_attribute_spaces("WriterlyCommentedAttribute01Spaces")
+  |> should.equal(option.Some(1))
 }
 
 pub fn parse_ergonomic_wly_test() {

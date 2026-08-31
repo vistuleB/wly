@@ -1,27 +1,46 @@
-import gleam/io
+import desugaring/core.{type Desugarer}
+import either_or.{type EitherOr, Either, Or} as eo
 import gleam/int
+import gleam/io
 import gleam/list
 import gleam/option.{None, Some}
 import gleam/string.{inspect as ins}
-import desugaring/core.{type Desugarer}
-import vxml/blame.{type Blame} as bl
-import either_or.{type EitherOr, Either, Or} as eo
 import on
+import vxml/blame.{type Blame} as bl
 
-pub fn dashes(num: Int) -> String { string.repeat("-", num) }
-pub fn solid_dashes(num: Int) -> String { string.repeat("─", num) }
-pub fn spaces(num: Int) -> String { string.repeat(" ", num) }
-pub fn dots(num: Int) -> String { string.repeat(".", num) }
-pub fn threedots(num: Int) -> String { string.repeat("…", num) }
-pub fn twodots(num: Int) -> String { string.repeat("‥", num) }
-pub fn underscores(num: Int) -> String { string.repeat("_", num) }
-pub fn blocks(num: Int) -> String { string.repeat("█", num) }
+pub fn dashes(num: Int) -> String {
+  string.repeat("-", num)
+}
 
-pub fn how_many(
-  singular: String,
-  plural: String,
-  count: Int,
-) -> String {
+pub fn solid_dashes(num: Int) -> String {
+  string.repeat("─", num)
+}
+
+pub fn spaces(num: Int) -> String {
+  string.repeat(" ", num)
+}
+
+pub fn dots(num: Int) -> String {
+  string.repeat(".", num)
+}
+
+pub fn threedots(num: Int) -> String {
+  string.repeat("…", num)
+}
+
+pub fn twodots(num: Int) -> String {
+  string.repeat("‥", num)
+}
+
+pub fn underscores(num: Int) -> String {
+  string.repeat("_", num)
+}
+
+pub fn blocks(num: Int) -> String {
+  string.repeat("█", num)
+}
+
+pub fn how_many(singular: String, plural: String, count: Int) -> String {
   case count {
     1 -> "1 " <> singular
     _ -> ins(count) <> " " <> plural
@@ -32,30 +51,26 @@ pub fn how_many(
 // 2-column table printer
 // **********************
 
-pub fn two_column_maxes(
-  lines: List(#(String, String))
-) -> #(Int, Int) {
-  list.fold(
-    lines,
-    #(0, 0),
-    fn(acc, pair) {
-      #(
-        int.max(acc.0, string.length(pair.0)),
-        int.max(acc.1, string.length(pair.1)),
-      )
-    }
-  )
+pub fn two_column_maxes(lines: List(#(String, String))) -> #(Int, Int) {
+  list.fold(lines, #(0, 0), fn(acc, pair) {
+    #(
+      int.max(acc.0, string.length(pair.0)),
+      int.max(acc.1, string.length(pair.1)),
+    )
+  })
 }
 
-pub fn two_column_table(
-  lines: List(#(String, String)),
-) -> List(String) {
+pub fn two_column_table(lines: List(#(String, String))) -> List(String) {
   let maxes = two_column_maxes(lines)
   let padding = #(2, 2)
   let one_line = fn(cols: #(String, String)) -> String {
-    "│ " <> cols.0 <> spaces(maxes.0 - string.length(cols.0) + padding.0) <>
-    "│ " <> cols.1 <> spaces(maxes.1 - string.length(cols.1) + padding.1) <>
-    "│"
+    "│ "
+    <> cols.0
+    <> spaces(maxes.0 - string.length(cols.0) + padding.0)
+    <> "│ "
+    <> cols.1
+    <> spaces(maxes.1 - string.length(cols.1) + padding.1)
+    <> "│"
   }
   let sds = #(
     solid_dashes(maxes.0 + padding.0),
@@ -66,12 +81,10 @@ pub fn two_column_table(
     [
       "┌─" <> sds.0 <> "┬─" <> sds.1 <> "┐",
       one_line(first),
-      "├─" <> sds.0 <> "┼─" <> sds.1 <> "┤"
+      "├─" <> sds.0 <> "┼─" <> sds.1 <> "┤",
     ],
     list.map(rest, one_line),
-    [
-      "└─" <> sds.0 <> "┴─" <> sds.1 <> "┘"
-    ],
+    ["└─" <> sds.0 <> "┴─" <> sds.1 <> "┘"],
   ]
   |> list.flatten
 }
@@ -81,19 +94,15 @@ pub fn two_column_table(
 // **********************
 
 pub fn three_column_maxes(
-  lines: List(EitherOr(#(String, String, String), String))
+  lines: List(EitherOr(#(String, String, String), String)),
 ) -> #(Int, Int, Int) {
-  list.fold(
-    lines |> eo.keep_eithers,
-    #(0, 0, 0),
-    fn(acc, triple) {
-      #(
-        int.max(acc.0, string.length(triple.0)),
-        int.max(acc.1, string.length(triple.1)),
-        int.max(acc.2, string.length(triple.2)),
-      )
-    }
-  )
+  list.fold(lines |> eo.keep_eithers, #(0, 0, 0), fn(acc, triple) {
+    #(
+      int.max(acc.0, string.length(triple.0)),
+      int.max(acc.1, string.length(triple.1)),
+      int.max(acc.2, string.length(triple.2)),
+    )
+  })
 }
 
 pub fn three_column_table(
@@ -101,14 +110,21 @@ pub fn three_column_table(
 ) -> List(String) {
   let maxes = three_column_maxes(lines)
   let padding = #(1, 2, 1)
-  let total_width = maxes.0 + maxes.1 + maxes.2 + padding.0 + padding.1 + padding.2 + 7
+  let total_width =
+    maxes.0 + maxes.1 + maxes.2 + padding.0 + padding.1 + padding.2 + 7
   let one_line = fn(item: EitherOr(#(String, String, String), String)) -> String {
     case item {
       Either(cols) -> {
-        "│ " <> cols.0 <> spaces(maxes.0 - string.length(cols.0) + padding.0) <>
-        "│ " <> cols.1 <> spaces(maxes.1 - string.length(cols.1) + padding.1) <>
-        "│ " <> cols.2 <> spaces(maxes.2 - string.length(cols.2) + padding.2) <>
-        "│"
+        "│ "
+        <> cols.0
+        <> spaces(maxes.0 - string.length(cols.0) + padding.0)
+        <> "│ "
+        <> cols.1
+        <> spaces(maxes.1 - string.length(cols.1) + padding.1)
+        <> "│ "
+        <> cols.2
+        <> spaces(maxes.2 - string.length(cols.2) + padding.2)
+        <> "│"
       }
       Or(x) -> {
         let len = string.length(x)
@@ -130,12 +146,10 @@ pub fn three_column_table(
     [
       "┌─" <> sds.0 <> "┬─" <> sds.1 <> "┬─" <> sds.2 <> "┐",
       one_line(first),
-      "├─" <> sds.0 <> "┼─" <> sds.1 <> "┼─" <> sds.2 <> "┤"
+      "├─" <> sds.0 <> "┼─" <> sds.1 <> "┼─" <> sds.2 <> "┤",
     ],
     list.map(rest, one_line),
-    [
-      "└─" <> sds.0 <> "┴─" <> sds.1 <> "┴─" <> sds.2 <> "┘"
-    ],
+    ["└─" <> sds.0 <> "┴─" <> sds.1 <> "┴─" <> sds.2 <> "┘"],
   ]
   |> list.flatten
 }
@@ -145,20 +159,16 @@ pub fn three_column_table(
 // **********************
 
 pub fn four_column_maxes(
-  lines: List(EitherOr(#(String, String, String, String), String))
+  lines: List(EitherOr(#(String, String, String, String), String)),
 ) -> #(Int, Int, Int, Int) {
-  list.fold(
-    lines |> eo.keep_eithers,
-    #(0, 0, 0, 0),
-    fn(acc, pair) {
-      #(
-        int.max(acc.0, string.length(pair.0)),
-        int.max(acc.1, string.length(pair.1)),
-        int.max(acc.2, string.length(pair.2)),
-        int.max(acc.3, string.length(pair.3)),
-      )
-    }
-  )
+  list.fold(lines |> eo.keep_eithers, #(0, 0, 0, 0), fn(acc, pair) {
+    #(
+      int.max(acc.0, string.length(pair.0)),
+      int.max(acc.1, string.length(pair.1)),
+      int.max(acc.2, string.length(pair.2)),
+      int.max(acc.3, string.length(pair.3)),
+    )
+  })
 }
 
 pub fn four_column_table(
@@ -166,19 +176,40 @@ pub fn four_column_table(
 ) -> List(String) {
   let maxes = four_column_maxes(lines)
   let padding = #(1, 2, 1, 1)
-  let total_width = 9 + maxes.0 + padding.0 + maxes.1 + padding.1 + maxes.2 + padding.2 + maxes.3 + padding.3
-  let one_line = fn(item: EitherOr(#(String, String, String, String), String), index: Int) -> String {
+  let total_width =
+    9
+    + maxes.0
+    + padding.0
+    + maxes.1
+    + padding.1
+    + maxes.2
+    + padding.2
+    + maxes.3
+    + padding.3
+  let one_line = fn(
+    item: EitherOr(#(String, String, String, String), String),
+    index: Int,
+  ) -> String {
     case item {
       Either(tuple) -> {
-        "│ " <> tuple.0 <> spaces(maxes.0 - string.length(tuple.0) + padding.0) <>
-        "│ " <> tuple.1 <> case index % 2 {
+        "│ "
+        <> tuple.0
+        <> spaces(maxes.0 - string.length(tuple.0) + padding.0)
+        <> "│ "
+        <> tuple.1
+        <> case index % 2 {
           1 -> dots(maxes.1 - string.length(tuple.1) + padding.1)
-          _ if index >= 0 -> underscores(maxes.1 - string.length(tuple.1) + padding.1)
+          _ if index >= 0 ->
+            underscores(maxes.1 - string.length(tuple.1) + padding.1)
           _ -> spaces(maxes.1 - string.length(tuple.1) + padding.1)
-        } <>
-        "│ " <> tuple.2 <> spaces(maxes.2 - string.length(tuple.2) + padding.2) <>
-        "│ " <> tuple.3 <> spaces(maxes.3 - string.length(tuple.3) + padding.3) <>
-        "│"
+        }
+        <> "│ "
+        <> tuple.2
+        <> spaces(maxes.2 - string.length(tuple.2) + padding.2)
+        <> "│ "
+        <> tuple.3
+        <> spaces(maxes.3 - string.length(tuple.3) + padding.3)
+        <> "│"
       }
       Or(x) -> {
         let len = string.length(x)
@@ -201,22 +232,17 @@ pub fn four_column_table(
     [
       "┌─" <> sds.0 <> "┬─" <> sds.1 <> "┬─" <> sds.2 <> "┬─" <> sds.3 <> "┐",
       one_line(first, -1),
-      "├─" <> sds.0 <> "┼─" <> sds.1 <> "┼─" <> sds.2 <> "┼─" <> sds.3 <> "┤"
+      "├─" <> sds.0 <> "┼─" <> sds.1 <> "┼─" <> sds.2 <> "┼─" <> sds.3 <> "┤",
     ],
     list.index_map(rest, one_line),
-    [
-      "└─" <> sds.0 <> "┴─" <> sds.1 <> "┴─" <> sds.2 <> "┴─" <> sds.3 <> "┘"
-    ],
+    ["└─" <> sds.0 <> "┴─" <> sds.1 <> "┴─" <> sds.2 <> "┴─" <> sds.3 <> "┘"],
   ]
   |> list.flatten
 }
 
-pub fn print_lines_at_indent(
-  lines: List(String),
-  indent: Int,
-) -> Nil {
+pub fn print_lines_at_indent(lines: List(String), indent: Int) -> Nil {
   let margin = spaces(indent)
-  list.each(lines, fn(l) {io.println(margin <> l)})
+  list.each(lines, fn(l) { io.println(margin <> l) })
 }
 
 // ************************
@@ -229,10 +255,7 @@ pub fn name_and_param_string_lines(
   margin: Int,
 ) -> List(String) {
   let #(first_line, batch_params) = {
-    let start =
-      ins(step_no)
-      <> ". "
-      <> desugarer.name
+    let start = ins(step_no) <> ". " <> desugarer.name
     let #(end, more) = {
       case desugarer.stringified_param {
         None -> #(
@@ -242,59 +265,70 @@ pub fn name_and_param_string_lines(
           },
           [],
         )
-        Some(desc) -> case string.split(desc, "\n") {
-          [desc] -> {
-            let end =
-              " " <> {
-                ins(desc)
-                |> string.drop_start(1)
-                |> string.drop_end(1)
-                |> string.replace("\\\"", "\"")
-              }
-            #(end, [])
-          }
-          [first, ..rest] -> {
-            // assert string.starts_with(first, "[ ")
-            let first = string.drop_start(first, 2)
-            let assert [last, ..rest] = [first, ..rest] |> list.reverse
-            case string.ends_with(last, "]") {
-              True -> Nil
-              False -> {
-                io.println("bad stringified param at step_no: " <> ins(step_no))
-                io.println(desugarer.stringified_param |> option.unwrap("None") <> "[end]")
-                io.println(desugarer.stringified_outside |> option.unwrap("None") <> "[end]")
-                panic
-              }
+        Some(desc) ->
+          case string.split(desc, "\n") {
+            [desc] -> {
+              let end =
+                " "
+                <> {
+                  ins(desc)
+                  |> string.drop_start(1)
+                  |> string.drop_end(1)
+                  |> string.replace("\\\"", "\"")
+                }
+              #(end, [])
             }
-            let last = string.drop_end(last, 2)
-            let more = [last, ..rest] |> list.reverse
-            #(" [", more)
+            [first, ..rest] -> {
+              // assert string.starts_with(first, "[ ")
+              let first = string.drop_start(first, 2)
+              let assert [last, ..rest] = [first, ..rest] |> list.reverse
+              case string.ends_with(last, "]") {
+                True -> Nil
+                False -> {
+                  io.println(
+                    "bad stringified param at step_no: " <> ins(step_no),
+                  )
+                  io.println(
+                    desugarer.stringified_param |> option.unwrap("None")
+                    <> "[end]",
+                  )
+                  io.println(
+                    desugarer.stringified_outside |> option.unwrap("None")
+                    <> "[end]",
+                  )
+                  panic
+                }
+              }
+              let last = string.drop_end(last, 2)
+              let more = [last, ..rest] |> list.reverse
+              #(" [", more)
+            }
+            _ ->
+              panic as "not expecting the non-None stringified_param to be the empty string"
           }
-          _ -> panic as "not expecting the non-None stringified_param to be the empty string"
-        }
       }
     }
     #(start <> end, more)
   }
 
-  let so_far =
-    case batch_params {
-      [] -> [first_line]
-      _ -> {
-        [
-          [first_line],
-          list.index_map(
-            batch_params,
-            fn (b, i) { "  " <> string.drop_start(b, case i > 0 {
-              True -> 2
-              False -> 0
-            }) <> "," },
-          ),
-          ["]"]
-        ]
-        |> list.flatten
-      }
+  let so_far = case batch_params {
+    [] -> [first_line]
+    _ -> {
+      [
+        [first_line],
+        list.index_map(batch_params, fn(b, i) {
+          "  "
+          <> string.drop_start(b, case i > 0 {
+            True -> 2
+            False -> 0
+          })
+          <> ","
+        }),
+        ["]"],
+      ]
+      |> list.flatten
     }
+  }
 
   let spaces = spaces(margin)
 
@@ -313,10 +347,7 @@ pub fn turn_into_paragraph(
   max_line_length: Int,
 ) -> List(String) {
   let len = string.length(message)
-  use <- on.true_false(
-    len < max_line_length,
-    on_true: fn() { [message] },
-  )
+  use <- on.true_false(len < max_line_length, on_true: fn() { [message] })
   let shortest = max_line_length * 3 / 5
   let #(current_start, current_end, remaining) = #(
     string.slice(message, 0, shortest),
@@ -328,7 +359,7 @@ pub fn turn_into_paragraph(
       current_start <> { after |> string.reverse },
       ..turn_into_paragraph(
         { before |> string.reverse } <> remaining,
-        max_line_length
+        max_line_length,
       )
     ]
     _ -> [
@@ -338,14 +369,14 @@ pub fn turn_into_paragraph(
   }
 }
 
-pub fn strip_quotes(
-  string: String,
-) -> String {
-  case {
-    string.starts_with(string, "") &&
-    string.ends_with(string, "") &&
-    string != ""
-  } {
+pub fn strip_quotes(string: String) -> String {
+  case
+    {
+      string.starts_with(string, "")
+      && string.ends_with(string, "")
+      && string != ""
+    }
+  {
     True -> string |> string.drop_start(1) |> string.drop_end(1)
     False -> string
   }
@@ -430,10 +461,7 @@ pub fn our_blame_digest(blame: Blame) -> String {
   }
 }
 
-fn dash_banner(
-  title: String,
-  width: Int,
-) -> String {
+fn dash_banner(title: String, width: Int) -> String {
   let side = { width - string.length(title) } / 2
   let s1 = string.repeat("-", side)
   let s2 = string.repeat("-", width - string.length(title) - side)
@@ -450,19 +478,15 @@ pub fn two_column_error_announcer(
 ) -> String {
   let #(col1_max, _col2_max) = two_column_maxes(announces)
   let col1 = int.max(col1_min, col1_max + 1)
-  let firsts = list.map(
-    announces,
-    fn (pair) { string.pad_end(pair.0, col1, " ") },
-  )
-  let #(max, seconds) = list.map_fold(
-    announces,
-    0,
-    fn (acc, pair) {
+  let firsts =
+    list.map(announces, fn(pair) { string.pad_end(pair.0, col1, " ") })
+  let #(max, seconds) =
+    list.map_fold(announces, 0, fn(acc, pair) {
       let lines = turn_into_paragraph(pair.1, col2_min)
-      let assert Ok(max) = list.map(lines, string.length) |> list.max(int.compare)
+      let assert Ok(max) =
+        list.map(lines, string.length) |> list.max(int.compare)
       #(int.max(max, acc), lines)
-    }
-  )
+    })
   let col2 = int.max(max + 1, col2_min + 1)
   let spaces = string.repeat(" ", margin)
   let emojis = string.repeat(emoji, 2)
@@ -473,23 +497,22 @@ pub fn two_column_error_announcer(
   let closing_line = spaces <> emojis <> " " <> dashes2 <> " " <> emojis
   let other_spaces = string.repeat(" ", col1)
   let q =
-    list.map2(
-      firsts,
-      seconds,
-      fn(f, s) {
-        let assert [s0, ..rest] = s
-        let l0 = string.pad_end(spaces <> emojis <> f <> s0, t, " ") <> emojis
-        let rest = list.map(
-          rest,
-          fn(r) {
-            spaces <> emojis <> other_spaces <> string.pad_end(r, col2, " ") <> emojis
-          }
-        )
-        [l0, ..rest]
-      }
-    )
+    list.map2(firsts, seconds, fn(f, s) {
+      let assert [s0, ..rest] = s
+      let l0 = string.pad_end(spaces <> emojis <> f <> s0, t, " ") <> emojis
+      let rest =
+        list.map(rest, fn(r) {
+          spaces
+          <> emojis
+          <> other_spaces
+          <> string.pad_end(r, col2, " ")
+          <> emojis
+        })
+      [l0, ..rest]
+    })
     |> list.flatten
-  [opening_line, ..q] |> list.append([closing_line])
+  [opening_line, ..q]
+  |> list.append([closing_line])
   |> string.join("\n")
 }
 

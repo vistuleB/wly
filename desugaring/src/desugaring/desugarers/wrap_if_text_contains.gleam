@@ -33,16 +33,15 @@ type Param =
     String,
   )
 
-type InnerParam = Param
+type InnerParam =
+  Param
 
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
   Ok(param)
 }
 
 fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
-  let nodemap: n2t.OneToOneNoErrorNodemap = fn(vxml) {
-    nodemap(vxml, inner)
-  }
+  let nodemap: n2t.OneToOneNoErrorNodemap = fn(vxml) { nodemap(vxml, inner) }
   nodemap |> n2t.one_to_one_no_error_nodemap_2_desugarer_transform
 }
 

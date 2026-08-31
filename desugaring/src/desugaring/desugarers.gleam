@@ -1,4 +1,4 @@
-import desugaring/core as core
+import desugaring/core
 import desugaring/desugarers/absorb_backward_one
 import desugaring/desugarers/absorb_forward_one
 import desugaring/desugarers/absorb_into_previous_sibling
@@ -93,6 +93,7 @@ import desugaring/desugarers/fold_contents_into_text_if
 import desugaring/desugarers/fold_custom_into_text
 import desugaring/desugarers/fold_into_text
 import desugaring/desugarers/fold_into_text__batch
+import desugaring/desugarers/format_writerly_commented_attributes
 import desugaring/desugarers/free_children
 import desugaring/desugarers/free_children__batch
 import desugaring/desugarers/group_consecutive_children__outside
@@ -237,243 +238,480 @@ import desugaring/desugarers/wrap_with_custom_if_child_of
 import desugaring/desugarers/wrap_with_custom_if_not_child_of
 
 pub const absorb_backward_one = absorb_backward_one.constructor
+
 pub const absorb_forward_one = absorb_forward_one.constructor
+
 pub const absorb_into_previous_sibling = absorb_into_previous_sibling.constructor
+
 pub const add_after_but_not_after_last_child__batch = add_after_but_not_after_last_child__batch.constructor
+
 pub const add_before = add_before.constructor
+
 pub const add_before_but_not_before_first_child = add_before_but_not_before_first_child.constructor
+
 pub const add_before_but_not_before_first_child__batch = add_before_but_not_before_first_child__batch.constructor
+
 pub const add_before_but_not_before_first_of_kind = add_before_but_not_before_first_of_kind.constructor
+
 pub const add_before_but_not_before_first_of_kind__batch = add_before_but_not_before_first_of_kind__batch.constructor
+
 pub const add_between = add_between.constructor
+
 pub const add_between_all_pairs_2 = add_between_all_pairs_2.constructor
+
 pub const add_between_tag_and_text_node = add_between_tag_and_text_node.constructor
+
 pub const add_between_tag_and_text_node__batch = add_between_tag_and_text_node__batch.constructor
+
 pub const add_between_tags__batch = add_between_tags__batch.constructor
+
 pub const add_class_to_next_sibling = add_class_to_next_sibling.constructor
+
 pub const add_if_missing_before_but_not_before_first_child = add_if_missing_before_but_not_before_first_child.constructor
+
 pub const append = append.constructor
+
 pub const append_attribute = append_attribute.constructor
+
 pub const append_attribute__batch = append_attribute__batch.constructor
+
 pub const append_attribute__outside = append_attribute__outside.constructor
+
 pub const append_attribute_if = append_attribute_if.constructor
+
 pub const append_attribute_if_child_of = append_attribute_if_child_of.constructor
+
 pub const append_attribute_if_child_of__batch = append_attribute_if_child_of__batch.constructor
+
 pub const append_attribute_if_fancy = append_attribute_if_fancy.constructor
+
 pub const append_attribute_if_preceded_by_same = append_attribute_if_preceded_by_same.constructor
+
 pub const append_attribute_if_preceded_by_same__outside = append_attribute_if_preceded_by_same__outside.constructor
+
 pub const append_class = append_class.constructor
+
 pub const append_class__batch = append_class__batch.constructor
+
 pub const append_class_to_child_if = append_class_to_child_if.constructor
+
 pub const append_class_to_child_if__batch = append_class_to_child_if__batch.constructor
+
 pub const append_class_to_child_if_has_class = append_class_to_child_if_has_class.constructor
+
 pub const append_class_to_child_if_is_not_one_of = append_class_to_child_if_is_not_one_of.constructor
+
 pub const append_class_to_child_if_is_one_of = append_class_to_child_if_is_one_of.constructor
+
 pub const append_class_to_children_with_class = append_class_to_children_with_class.constructor
+
 pub const append_class_to_children_with_tag = append_class_to_children_with_tag.constructor
+
 pub const append_custom = append_custom.constructor
+
 pub const attribute_drop_prefixes = attribute_drop_prefixes.constructor
+
 pub const auto_generate_child_if_missing_from_attribute = auto_generate_child_if_missing_from_attribute.constructor
+
 pub const auto_generate_child_if_missing_from_attribute__outside = auto_generate_child_if_missing_from_attribute__outside.constructor
+
 pub const auto_generate_child_if_missing_from_first_descendant_of_type = auto_generate_child_if_missing_from_first_descendant_of_type.constructor
+
 pub const bridge_whitespace = bridge_whitespace.constructor
+
 pub const bridge_whitespace_single_space = bridge_whitespace_single_space.constructor
+
 pub const check_proper_detokenization = check_proper_detokenization.constructor
+
 pub const check_proper_href_detokenization = check_proper_href_detokenization.constructor
+
 pub const check_proper_href_tokenization = check_proper_href_tokenization.constructor
+
 pub const check_proper_tokenization = check_proper_tokenization.constructor
+
 pub const check_tags = check_tags.constructor
+
 pub const concatenate_consecutive_lines_if = concatenate_consecutive_lines_if.constructor
+
 pub const concatenate_text_nodes = concatenate_text_nodes.constructor
+
 pub const convert_int_attributes_to_float = convert_int_attributes_to_float.constructor
+
 pub const counters_substitute_and_assign_handles = counters_substitute_and_assign_handles.constructor
+
 pub const cut_paste_attribute_from_first_child_to_self = cut_paste_attribute_from_first_child_to_self.constructor
+
 pub const cut_paste_attribute_from_self_to_child = cut_paste_attribute_from_self_to_child.constructor
+
 pub const cut_paste_attribute_from_self_to_child__outside = cut_paste_attribute_from_self_to_child__outside.constructor
+
 pub const delete = delete.constructor
+
 pub const delete__batch = delete__batch.constructor
+
 pub const delete_attribute = delete_attribute.constructor
+
 pub const delete_attribute__batch = delete_attribute__batch.constructor
+
 pub const delete_attribute__outside = delete_attribute__outside.constructor
+
 pub const delete_attribute_if = delete_attribute_if.constructor
+
 pub const delete_attribute_of__batch = delete_attribute_of__batch.constructor
+
 pub const delete_class = delete_class.constructor
+
 pub const delete_empty_lines = delete_empty_lines.constructor
+
 pub const delete_empty_lines_before_after = delete_empty_lines_before_after.constructor
+
 pub const delete_first_child_occurrences_of_and_recurse = delete_first_child_occurrences_of_and_recurse.constructor
+
 pub const delete_if_empty = delete_if_empty.constructor
+
 pub const delete_if_empty__batch = delete_if_empty__batch.constructor
+
 pub const delete_outside_subtrees = delete_outside_subtrees.constructor
+
 pub const delete_text_nodes_with_singleton_empty_line = delete_text_nodes_with_singleton_empty_line.constructor
+
 pub const detokenize_all = detokenize_all.constructor
+
 pub const detokenize_href_surroundings = detokenize_href_surroundings.constructor
+
 pub const echo_v_if_see_text = echo_v_if_see_text.constructor
+
 pub const ensure_attribute_value_starts_with = ensure_attribute_value_starts_with.constructor
+
 pub const ensure_attribute_value_starts_with_prefix = ensure_attribute_value_starts_with_prefix.constructor
+
 pub const expand_info_attribute = expand_info_attribute.constructor
+
 pub const expel_initial_last_backward_forward = expel_initial_last_backward_forward.constructor
+
 pub const extract_starting_and_ending_spaces = extract_starting_and_ending_spaces.constructor
+
 pub const filter_nodes_by_key_values = filter_nodes_by_key_values.constructor
+
 pub const filter_nodes_by_key_values_while_saving = filter_nodes_by_key_values_while_saving.constructor
+
 pub const filter_nodes_by_path_key_values = filter_nodes_by_path_key_values.constructor
+
 pub const filter_nodes_by_path_key_values_while_saving = filter_nodes_by_path_key_values_while_saving.constructor
+
 pub const find_replace = find_replace.constructor
+
 pub const find_replace__batch = find_replace__batch.constructor
+
 pub const find_replace__batch__outside = find_replace__batch__outside.constructor
+
 pub const find_replace__outside = find_replace__outside.constructor
+
 pub const find_replace_if_has_ancestor_else = find_replace_if_has_ancestor_else.constructor
+
 pub const find_replace_in_descendants_of__batch = find_replace_in_descendants_of__batch.constructor
+
 pub const fold_children_into_text_if = fold_children_into_text_if.constructor
+
 pub const fold_contents_into_text = fold_contents_into_text.constructor
+
 pub const fold_contents_into_text__batch = fold_contents_into_text__batch.constructor
+
 pub const fold_contents_into_text_if = fold_contents_into_text_if.constructor
+
 pub const fold_custom_into_text = fold_custom_into_text.constructor
+
 pub const fold_into_text = fold_into_text.constructor
+
 pub const fold_into_text__batch = fold_into_text__batch.constructor
+
+pub const format_writerly_commented_attributes = format_writerly_commented_attributes.constructor
+
 pub const free_children = free_children.constructor
+
 pub const free_children__batch = free_children__batch.constructor
+
 pub const group_consecutive_children__outside = group_consecutive_children__outside.constructor
+
 pub const handles_add_ids = handles_add_ids.constructor
+
 pub const handles_generate_v_definitions_from_t_definitions = handles_generate_v_definitions_from_t_definitions.constructor
+
 pub const handles_grand_wrapper_generate_dictionary = handles_grand_wrapper_generate_dictionary.constructor
+
 pub const handles_grand_wrapper_substitute = handles_grand_wrapper_substitute.constructor
+
 pub const handles_grand_wrapper_warn_unused = handles_grand_wrapper_warn_unused.constructor
+
 pub const identity = identity.constructor
+
 pub const insert_attribute_as_text = insert_attribute_as_text.constructor
+
 pub const insert_attribute_value_at_first_child_start = insert_attribute_value_at_first_child_start.constructor
+
 pub const insert_attribute_value_at_start = insert_attribute_value_at_start.constructor
+
 pub const insert_bookend_tags = insert_bookend_tags.constructor
+
 pub const insert_bookend_text_if_no_attributes = insert_bookend_text_if_no_attributes.constructor
+
 pub const insert_custom_before_first = insert_custom_before_first.constructor
+
 pub const insert_line_start_end = insert_line_start_end.constructor
+
 pub const insert_on_own_line_start_end = insert_on_own_line_start_end.constructor
+
 pub const insert_text_start_end = insert_text_start_end.constructor
+
 pub const insert_text_start_end_if_else = insert_text_start_end_if_else.constructor
+
 pub const insert_text_start_end_if_unique_attr = insert_text_start_end_if_unique_attr.constructor
+
 pub const insert_word_joiner_into_adjacent_text_nodes = insert_word_joiner_into_adjacent_text_nodes.constructor
+
 pub const last_to_first_concatenate_text_nodes = last_to_first_concatenate_text_nodes.constructor
+
 pub const line_rewrap_no1__outside = line_rewrap_no1__outside.constructor
+
 pub const line_rewrap_no2__outside = line_rewrap_no2__outside.constructor
+
 pub const markdown_link_closing_handrolled_splitter__outside = markdown_link_closing_handrolled_splitter__outside.constructor
+
 pub const math_label_with_handle_to_mathjax_tag = math_label_with_handle_to_mathjax_tag.constructor
+
 pub const merge_parent_attributes_into_child = merge_parent_attributes_into_child.constructor
+
 pub const naive_unescaped_split_and_replace__outside = naive_unescaped_split_and_replace__outside.constructor
+
 pub const normalize_br_in_pre = normalize_br_in_pre.constructor
+
 pub const normalize_math_delimiters_inside = normalize_math_delimiters_inside.constructor
+
 pub const normalize_spaces__outside = normalize_spaces__outside.constructor
+
 pub const nuke_ancestors = nuke_ancestors.constructor
+
 pub const pair = pair.constructor
+
 pub const pair_list_list = pair_list_list.constructor
+
 pub const pour_custom_before_first = pour_custom_before_first.constructor
+
 pub const prepend = prepend.constructor
+
 pub const prepend_append_to_text_children_of = prepend_append_to_text_children_of.constructor
+
 pub const prepend_attribute = prepend_attribute.constructor
+
 pub const prepend_attribute__outside = prepend_attribute__outside.constructor
+
 pub const prepend_attribute_as_first_line = prepend_attribute_as_first_line.constructor
+
 pub const prepend_attribute_as_text = prepend_attribute_as_text.constructor
+
 pub const prepend_attribute_as_wrapped_text = prepend_attribute_as_wrapped_text.constructor
+
 pub const prepend_attribute_as_wrapped_text_else_custom = prepend_attribute_as_wrapped_text_else_custom.constructor
+
 pub const prepend_attribute_if = prepend_attribute_if.constructor
+
 pub const prepend_counter_incrementing_attribute = prepend_counter_incrementing_attribute.constructor
+
 pub const prepend_counter_incrementing_attribute__outside = prepend_counter_incrementing_attribute__outside.constructor
+
 pub const prepend_counter_incrementing_attribute_if_fancy = prepend_counter_incrementing_attribute_if_fancy.constructor
+
 pub const prepend_custom = prepend_custom.constructor
+
 pub const prepend_text_node = prepend_text_node.constructor
+
 pub const prepend_text_node__batch = prepend_text_node__batch.constructor
+
 pub const prepend_text_node__outside = prepend_text_node__outside.constructor
+
 pub const prepend_text_node_if_fancy = prepend_text_node_if_fancy.constructor
+
 pub const prepend_text_node_if_has_ancestor_else__batch = prepend_text_node_if_has_ancestor_else__batch.constructor
+
 pub const rearrange_links = rearrange_links.constructor
+
 pub const rearrange_links_4_pre_tokenized_src = rearrange_links_4_pre_tokenized_src.constructor
+
 pub const rearrange_links_4_pre_tokenized_src__batch = rearrange_links_4_pre_tokenized_src__batch.constructor
+
 pub const rearrange_links__batch = rearrange_links__batch.constructor
+
 pub const reassign_text_node_blame_to_blame_of_first_nonempty_line_in_text_node = reassign_text_node_blame_to_blame_of_first_nonempty_line_in_text_node.constructor
+
 pub const regex_replace = regex_replace.constructor
+
 pub const regex_replace__batch = regex_replace__batch.constructor
+
 pub const regex_replace__batch__outside = regex_replace__batch__outside.constructor
+
 pub const regex_replace__outside = regex_replace__outside.constructor
+
 pub const regex_split_and_replace__batch__outside = regex_split_and_replace__batch__outside.constructor
+
 pub const regex_split_and_replace__outside = regex_split_and_replace__outside.constructor
+
 pub const rename = rename.constructor
+
 pub const rename__batch = rename__batch.constructor
+
 pub const rename_and_delete_children_if_has_singleton_class_attribute = rename_and_delete_children_if_has_singleton_class_attribute.constructor
+
 pub const rename_attributes = rename_attributes.constructor
+
 pub const rename_attributes_by_function = rename_attributes_by_function.constructor
+
 pub const rename_if_child_of = rename_if_child_of.constructor
+
 pub const rename_if_child_of__batch = rename_if_child_of__batch.constructor
+
 pub const rename_if_child_of_one_of = rename_if_child_of_one_of.constructor
+
 pub const rename_if_has_key_value = rename_if_has_key_value.constructor
+
 pub const rename_if_has_singleton_class_attribute = rename_if_has_singleton_class_attribute.constructor
+
 pub const rename_if_has_singleton_key_value = rename_if_has_singleton_key_value.constructor
+
 pub const rename_with_appended_attributes_and_prepended_text = rename_with_appended_attributes_and_prepended_text.constructor
+
 pub const rename_with_attributes = rename_with_attributes.constructor
+
 pub const rename_with_attributes__batch = rename_with_attributes__batch.constructor
+
 pub const rename_with_class = rename_with_class.constructor
+
 pub const rename_with_class_and_attributes = rename_with_class_and_attributes.constructor
+
 pub const replace_in_attribute_values = replace_in_attribute_values.constructor
+
 pub const replace_multiple_spaces_by_one = replace_multiple_spaces_by_one.constructor
+
 pub const replace_with_arbitrary = replace_with_arbitrary.constructor
+
 pub const set_handle_value = set_handle_value.constructor
+
 pub const set_handle_value__outside = set_handle_value__outside.constructor
+
 pub const set_handle_value_if_has_ancestor_else = set_handle_value_if_has_ancestor_else.constructor
+
 pub const source_provenance_append_img_spans = source_provenance_append_img_spans.constructor
+
 pub const source_provenance_append_span = source_provenance_append_span.constructor
+
 pub const source_provenance_wrap = source_provenance_wrap.constructor
+
 pub const source_provenance_wrap_lines__outside = source_provenance_wrap_lines__outside.constructor
+
 pub const split_first_line_after_prefix = split_first_line_after_prefix.constructor
+
 pub const split_last_line_before_suffix = split_last_line_before_suffix.constructor
+
 pub const strip_delimiters_inside = strip_delimiters_inside.constructor
+
 pub const strip_delimiters_inside_if = strip_delimiters_inside_if.constructor
+
 pub const substitute_class = substitute_class.constructor
+
 pub const substitute_counters = substitute_counters.constructor
+
 pub const supplement_class = supplement_class.constructor
+
 pub const surround_elements_by = surround_elements_by.constructor
+
 pub const table_marker = table_marker.constructor
+
 pub const table_section_header = table_section_header.constructor
+
 pub const timer = timer.constructor
+
 pub const tokenize_href_surroundings = tokenize_href_surroundings.constructor
+
 pub const tokenize_text_children_if = tokenize_text_children_if.constructor
+
 pub const trim = trim.constructor
+
 pub const trim__batch = trim__batch.constructor
+
 pub const trim_empty_lines = trim_empty_lines.constructor
+
 pub const trim_empty_lines__batch = trim_empty_lines__batch.constructor
+
 pub const trim_ending_spaces_except_last_line = trim_ending_spaces_except_last_line.constructor
+
 pub const trim_spaces_around_newlines__outside = trim_spaces_around_newlines__outside.constructor
+
 pub const unescape_delimiters__outside = unescape_delimiters__outside.constructor
+
 pub const unwrap = unwrap.constructor
+
 pub const unwrap__batch = unwrap__batch.constructor
+
 pub const unwrap__outside = unwrap__outside.constructor
+
 pub const unwrap_if_child_of__batch = unwrap_if_child_of__batch.constructor
+
 pub const unwrap_if_descendant_of = unwrap_if_descendant_of.constructor
+
 pub const unwrap_if_descendant_of__batch = unwrap_if_descendant_of__batch.constructor
+
 pub const unwrap_if_first_child = unwrap_if_first_child.constructor
+
 pub const unwrap_if_no_child_meets_condition = unwrap_if_no_child_meets_condition.constructor
+
 pub const unwrap_if_no_child_meets_condition__batch = unwrap_if_no_child_meets_condition__batch.constructor
+
 pub const unwrap_if_unique_child_is = unwrap_if_unique_child_is.constructor
+
 pub const unwrap_tags_if_attributes_match = unwrap_tags_if_attributes_match.constructor
+
 pub const unwrap_tags_if_no_attributes = unwrap_tags_if_no_attributes.constructor
+
 pub const unwrap_tags_with_no_text_child = unwrap_tags_with_no_text_child.constructor
+
 pub const unwrap_tags_with_no_text_descendant = unwrap_tags_with_no_text_descendant.constructor
+
 pub const unwrap_when_zero_or_one_children = unwrap_when_zero_or_one_children.constructor
+
 pub const wrap = wrap.constructor
+
 pub const wrap_adjacent_non_whitespace_text_with = wrap_adjacent_non_whitespace_text_with.constructor
+
 pub const wrap_and_custom_steal = wrap_and_custom_steal.constructor
+
 pub const wrap_and_steal = wrap_and_steal.constructor
+
 pub const wrap_children = wrap_children.constructor
+
 pub const wrap_children_avoiding = wrap_children_avoiding.constructor
+
 pub const wrap_children_custom = wrap_children_custom.constructor
+
 pub const wrap_children_up_to = wrap_children_up_to.constructor
+
 pub const wrap_children_up_to_custom = wrap_children_up_to_custom.constructor
+
 pub const wrap_custom = wrap_custom.constructor
+
 pub const wrap_each_child = wrap_each_child.constructor
+
 pub const wrap_if_child_of = wrap_if_child_of.constructor
+
 pub const wrap_if_first_child_of = wrap_if_first_child_of.constructor
+
 pub const wrap_if_not_child_of = wrap_if_not_child_of.constructor
+
 pub const wrap_if_text_contains = wrap_if_text_contains.constructor
+
 pub const wrap_with_custom_if_child_of = wrap_with_custom_if_child_of.constructor
+
 pub const wrap_with_custom_if_not_child_of = wrap_with_custom_if_not_child_of.constructor
 
-pub const assertive_tests : List(fn() -> core.AssertiveTestCollection) = [
+pub const assertive_tests: List(fn() -> core.AssertiveTestCollection) = [
   absorb_backward_one.assertive_tests,
   absorb_forward_one.assertive_tests,
   absorb_into_previous_sibling.assertive_tests,
@@ -568,6 +806,7 @@ pub const assertive_tests : List(fn() -> core.AssertiveTestCollection) = [
   fold_custom_into_text.assertive_tests,
   fold_into_text.assertive_tests,
   fold_into_text__batch.assertive_tests,
+  format_writerly_commented_attributes.assertive_tests,
   free_children.assertive_tests,
   free_children__batch.assertive_tests,
   group_consecutive_children__outside.assertive_tests,

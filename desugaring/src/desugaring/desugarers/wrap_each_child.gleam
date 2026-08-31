@@ -30,7 +30,8 @@ type Param =
     String,
   )
 
-type InnerParam = Param
+type InnerParam =
+  Param
 
 fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
   Ok(param)
@@ -47,9 +48,8 @@ fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
 fn nodemap(vxml: VXML, inner: InnerParam) -> #(VXML, TrafficLight) {
   case vxml {
     V(blame, tag, attrs, children) if tag == inner.0 -> {
-      let children = list.map(children, fn(child) {
-        V(blame, inner.1, [], [child])
-      })
+      let children =
+        list.map(children, fn(child) { V(blame, inner.1, [], [child]) })
       #(V(blame, tag, attrs, children), GoBack)
     }
     _ -> #(vxml, Continue)
@@ -70,4 +70,5 @@ pub fn assertive_tests() {
     constructor,
   )
 }
+
 import desugaring/authoring

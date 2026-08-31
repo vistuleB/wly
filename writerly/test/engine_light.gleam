@@ -1,50 +1,43 @@
+import dirtree as dt
 import gleam/io
-import gleam/string.{inspect as ins}
 import gleam/list
 import gleam/result
+import gleam/string.{inspect as ins}
+import on
 import simplifile
 import vxml
 import writerly as wl
-import on
-import dirtree as dt
 
 fn contents_test() -> Result(Nil, String) {
   io.println("\n### CONTENTS_TEST ###")
 
   let dirname = "samples/contents/ch5_ch.wly"
 
-  use #(tree, lines) <- on.error_ok(
-    wl.assemble_input_lines(dirname),
-    fn(e) { Error("CONTENTS_TEST ERROR: AssemblyError: " <> ins(e)) }
-  )
+  use #(tree, lines) <- on.error_ok(wl.assemble_input_lines(dirname), fn(e) {
+    Error("CONTENTS_TEST ERROR: AssemblyError: " <> ins(e))
+  })
 
   io.println("\nassembled:\n")
   tree |> dt.pretty_print(2) |> string.join("\n") |> io.println()
   io.println("")
 
-  use writerlys <- on.error_ok(
-    wl.input_lines_to_writerlys(lines),
-    fn(e) { Error("CONTENTS_TEST ERROR: " <> ins(e)) },
-  )
+  use writerlys <- on.error_ok(wl.input_lines_to_writerlys(lines), fn(e) {
+    Error("CONTENTS_TEST ERROR: " <> ins(e))
+  })
 
   let vxmls =
     writerlys
     |> list.map(wl.writerly_to_vxml)
 
-  list.index_map(
-    writerlys,
-    fn (writerly, i) {
-      wl.writerly_table(writerly, "#" <> ins(i + 1), 0) |> io.println
-    }
-  )
+  list.index_map(writerlys, fn(writerly, i) {
+    let table = wl.writerly_table(writerly, "#" <> ins(i + 1), 0)
+    table |> io.println
+  })
 
-  list.index_map(
-    vxmls,
-    fn (vxml, i) {
-      let assert Ok(table) = vxml.vxml_table(vxml, "#" <> ins(i + 1), 0)
-      io.println(table)
-    }
-  )
+  list.index_map(vxmls, fn(vxml, i) {
+    let assert Ok(table) = vxml.vxml_table(vxml, "#" <> ins(i + 1), 0)
+    io.println(table)
+  })
 
   io.println("[end]")
 
@@ -56,10 +49,9 @@ fn sample_test() -> Result(Nil, String) {
 
   let filename = "samples/sample.wly"
 
-  use contents <- on.error_ok(
-    simplifile.read(filename),
-    fn(_) { Error("SAMPLE_TEST error: i/o error while reading " <> filename) }
-  )
+  use contents <- on.error_ok(simplifile.read(filename), fn(_) {
+    Error("SAMPLE_TEST error: i/o error while reading " <> filename)
+  })
 
   use writerlys <- on.error_ok(
     wl.string_to_writerlys(contents, filename),
@@ -71,11 +63,11 @@ fn sample_test() -> Result(Nil, String) {
   io.println("")
 
   writerlys
-  |> list.index_map(
-    fn (writerly, i) {
-      wl.writerly_table(writerly, "sample_test writerly " <> ins(i + 1), 0) |> io.println
-    }
-  )
+  |> list.index_map(fn(writerly, i) {
+    let table =
+      wl.writerly_table(writerly, "sample_test writerly " <> ins(i + 1), 0)
+    table |> io.println
+  })
 
   let vxmls = writerlys |> list.map(wl.writerly_to_vxml)
 
@@ -83,23 +75,20 @@ fn sample_test() -> Result(Nil, String) {
   io.println("")
 
   vxmls
-  |> list.index_map(
-    fn (wxml, i) {
-      let assert Ok(table) =
-        vxml.vxml_table(wxml, "sample_test vxml" <> ins(i + 1), 0)
-      io.println(table)
-    }
-  )
+  |> list.index_map(fn(wxml, i) {
+    let assert Ok(table) =
+      vxml.vxml_table(wxml, "sample_test vxml" <> ins(i + 1), 0)
+    io.println(table)
+  })
 
-  let writerlys = list.map(vxmls, wl.vxml_to_writerly) |> list.filter(result.is_ok)
+  let writerlys =
+    list.map(vxmls, wl.vxml_to_writerly) |> list.filter(result.is_ok)
 
-  list.each(
-    writerlys,
-    fn(w) {
-      let assert Ok(w) = w
-      wl.writerly_table(w, "back to writerly!", 0) |> io.println
-    }
-  )
+  list.each(writerlys, fn(w) {
+    let assert Ok(w) = w
+    let table = wl.writerly_table(w, "back to writerly!", 0)
+    table |> io.println
+  })
 
   io.println("[end]")
 
@@ -111,15 +100,14 @@ fn html_test() -> Result(Nil, String) {
 
   let path = "samples/ch5_ch.xml"
 
-  use content <- on.error_ok(
-    simplifile.read(path),
-    fn(_) { Error("HTML_TEST ERROR: problem reading " <> path) }
-  )
+  use content <- on.error_ok(simplifile.read(path), fn(_) {
+    Error("HTML_TEST ERROR: problem reading " <> path)
+  })
 
   use vxml <- on.error_ok(
     content
-    |> vxml.html_repair
-    |> vxml.parse_xml(path),
+      |> vxml.html_repair
+      |> vxml.parse_xml(path),
     fn(e) { Error("HTML_TEST ERROR: parse_xml error: " <> ins(e)) },
   )
 
@@ -130,22 +118,18 @@ fn html_test() -> Result(Nil, String) {
   io.println("")
 
   writerlys
-  |> list.index_map(
-    fn (writerly, i) {
-      wl.writerly_table(
-        writerly,
-        "html_test " <> ins(i + 1),
-        0,
-      ) |> io.println
-    }
-  )
+  |> list.index_map(fn(writerly, i) {
+    let table = wl.writerly_table(writerly, "html_test " <> ins(i + 1), 0)
+    table |> io.println
+  })
 
-  let _ = simplifile.write(
-    "samples/ch5_ch.wly",
-    writerlys
-    |> list.map(wl.writerly_to_string)
-    |> string.concat
-  )
+  let _ =
+    simplifile.write(
+      "samples/ch5_ch.wly",
+      writerlys
+        |> list.map(wl.writerly_to_string)
+        |> string.concat,
+    )
 
   io.println("[end]")
 
@@ -159,14 +143,16 @@ pub fn other() {
 }
 
 pub fn main() {
-  let errors = [
-    sample_test(),
-    contents_test(),
-    html_test(),
-  ] |> list.filter(result.is_error)
-  
+  let errors =
+    [
+      sample_test(),
+      contents_test(),
+      html_test(),
+    ]
+    |> list.filter(result.is_error)
+
   io.println("\n[end all]\n")
-  
+
   case errors {
     [] -> Nil
     [_one] -> {
@@ -177,8 +163,5 @@ pub fn main() {
     }
   }
 
-  list.each(
-    errors,
-    fn(error) { io.println(ins(error)) }
-  )
+  list.each(errors, fn(error) { io.println(ins(error)) })
 }
