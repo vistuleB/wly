@@ -6,7 +6,6 @@ import desugaring/selectors as sl
 import desugaring/tables as pr
 import desugaring/testing
 import desugaring/tracking.{type Selector}
-import dirtree.{type DirTree} as dt
 import either_or.{Either, Or}
 import gleam/dict.{type Dict}
 import gleam/erlang/process.{type Subject, receive, send, spawn}
@@ -31,10 +30,9 @@ import vxml/io_lines.{type InputLine, type OutputLine, OutputLine} as io_l
 
 pub const help_message_margin = 3
 
-// MacBook 16' can take 140:
 const default_times_table_char_width = 90
 
-const pipeline_runner_margin = 2
+const renderer_runner_margin = 2
 
 const tracking_progress_interval = 10
 
@@ -42,13 +40,18 @@ const tracking_progress_quiet_steps = 3
 
 const long_running_desugarer_report_interval_seconds = 10
 
-pub type MonitorOutputMargin {
+pub type FeedbackMargin {
   AtRunnerMargin
   Verbatim
 }
 
-pub type MonitorOutput {
-  MonitorOutput(lines: List(String), margin: MonitorOutputMargin)
+pub type FeedbackBlock {
+  FeedbackBlock(lines: List(String), margin: FeedbackMargin)
+}
+
+pub type Feedback {
+  NoFeedback
+  SomeFeedback(List(FeedbackBlock))
 }
 
 pub type PipelineStepContext {
@@ -60,7 +63,7 @@ pub type PipelineStepContext {
 }
 
 type MonitorUpdate {
-  MonitorUpdate(next: Monitor, outputs: List(MonitorOutput))
+  MonitorUpdate(next: Monitor, feedback: Feedback)
 }
 
 pub opaque type Monitor {
@@ -79,64 +82,54 @@ pub fn new_monitor(
   name: String,
   state: state,
   update: fn(VXML, state, PipelineStepContext) ->
-    Result(#(state, List(MonitorOutput)), String),
+    Result(#(state, Feedback), String),
 ) -> Monitor {
   Monitor(name: name, update: fn(vxml, context) {
-    use #(next_state, outputs) <- on.ok(update(vxml, state, context))
+    use #(next_state, feedback) <- on.ok(update(vxml, state, context))
     Ok(MonitorUpdate(
       next: new_monitor(name, next_state, update),
-      outputs: outputs,
+      feedback: feedback,
     ))
   })
 }
 
-// ************************************************************
-// Assembler(a)                                                // 'a' is assembler error type; "assembler" = "source assembler"
-// file/directory -> List(InputLine)
-// ************************************************************
+// Source path -> assembled input lines and feedback blocks.
 
 pub type Assembler(a) =
-  fn(String) -> Result(#(List(InputLine), Option(DirTree)), a)
-
-// the 'List(String)' is a feedback/success message on assembly
+  fn(String) -> Result(#(List(InputLine), Feedback), a)
 
 pub fn default_file_assembler(
   path: String,
-) -> Result(#(List(InputLine), Option(DirTree)), simplifile.FileError) {
+) -> Result(#(List(InputLine), Feedback), simplifile.FileError) {
   io_l.read(path, 0)
-  |> result.map(fn(lines) { #(lines, None) })
+  |> result.map(fn(lines) { #(lines, NoFeedback) })
 }
 
-// ************************************************************
-// Parser(b)                                                   // 'b' is parser error type
-// List(InputLine) -> VXML
-// ************************************************************
+// Assembled input lines -> VXML.
 
 pub type Parser(b) =
-  fn(List(InputLine)) -> Result(VXML, #(Blame, b))
+  fn(List(InputLine)) -> Result(#(VXML, Feedback), #(Blame, b))
 
 pub fn default_xml_parser(
   lines: List(InputLine),
-) -> Result(VXML, #(Blame, String)) {
+) -> Result(#(VXML, Feedback), #(Blame, String)) {
   vp.parse_xml_input_lines(lines)
+  |> result.map(fn(vxml) { #(vxml, NoFeedback) })
   |> result.map_error(fn(e) { #(bl.no_blame, "xml parse error: " <> ins(e)) })
 }
 
 pub const default_html_parser = default_xml_parser
 
-// ************************************************************
-// Filterer(c)                                                 // 'c' is filterer error type
-// VXML -> VXML
-// ************************************************************
+// Parsed VXML -> filtered VXML.
 
 pub type Filterer(c) =
-  fn(VXML) -> Result(VXML, c)
+  fn(VXML) -> Result(#(VXML, Feedback), c)
 
 pub fn default_filterer(
   vxml: VXML,
   options: RendererOptions(_),
   saving: List(String),
-) -> Result(VXML, String) {
+) -> Result(#(VXML, Feedback), String) {
   use #(vxml, warnings) <- on.error_ok(
     dl.filter_nodes_by_path_key_values_while_saving(#(
       options.only_path_key_vals,
@@ -152,13 +145,10 @@ pub fn default_filterer(
     fn(e) { Error(e.message) },
   )
   assert warnings == []
-  Ok(vxml)
+  Ok(#(vxml, NoFeedback))
 }
 
-// ************************************************************
-// Splitter(z, d)                                              // 'z' is fragment classifier type, 'd' is splitter error type
-// VXML -> List(OutputFragment)
-// ************************************************************
+// VXML -> classified output fragments.
 
 pub type OutputFragment(z, p) {
   // 'z' is fragment classifier type, 'p' is payload type (VXML or List(OutputLine))
@@ -166,7 +156,7 @@ pub type OutputFragment(z, p) {
 }
 
 pub type Splitter(z, d) =
-  fn(VXML) -> Result(List(OutputFragment(z, VXML)), d)
+  fn(VXML) -> Result(#(List(OutputFragment(z, VXML)), Feedback), d)
 
 /// emits 1 fragment whose 'path' is the tag
 /// of the VXML root concatenated with a provided
@@ -174,21 +164,22 @@ pub type Splitter(z, d) =
 pub fn stub_splitter(suffix: String) -> Splitter(Nil, Nil) {
   fn(root) {
     let assert V(_, tag, _, _) = root
-    Ok([OutputFragment(classifier: Nil, path: tag <> suffix, payload: root)])
+    Ok(#(
+      [OutputFragment(classifier: Nil, path: tag <> suffix, payload: root)],
+      NoFeedback,
+    ))
   }
 }
 
-// ************************************************************
-// Emitter(z, e)                                               // where 'z' is fragment type & 'e' is emitter error type
-// OutputFragment(z, VXML) -> OutputFragment(z, List(OutputLine))
-// ************************************************************
+// VXML fragments -> output-line fragments.
 
 pub type Emitter(z, e) =
-  fn(OutputFragment(z, VXML)) -> Result(OutputFragment(z, List(OutputLine)), e)
+  fn(OutputFragment(z, VXML)) ->
+    Result(#(OutputFragment(z, List(OutputLine)), Feedback), e)
 
 pub fn stub_html_emitter(
   fragment: OutputFragment(z, VXML),
-) -> Result(OutputFragment(z, List(OutputLine)), b) {
+) -> Result(#(OutputFragment(z, List(OutputLine)), Feedback), b) {
   let blame = Ext([], "stub_html_emitter")
   let lines =
     list.flatten([
@@ -229,12 +220,12 @@ pub fn stub_html_emitter(
         OutputLine(blame, 0, ""),
       ],
     ])
-  Ok(OutputFragment(..fragment, payload: lines))
+  Ok(#(OutputFragment(..fragment, payload: lines), NoFeedback))
 }
 
 pub fn stub_jsx_emitter(
   fragment: OutputFragment(z, VXML),
-) -> Result(OutputFragment(z, List(OutputLine)), b) {
+) -> Result(#(OutputFragment(z, List(OutputLine)), Feedback), b) {
   let blame = Ext([], "panel_emitter")
   let lines =
     list.flatten([
@@ -258,16 +249,14 @@ pub fn stub_jsx_emitter(
         OutputLine(blame, 0, "export default OurSuperComponent;"),
       ],
     ])
-  Ok(OutputFragment(..fragment, payload: lines))
+  Ok(#(OutputFragment(..fragment, payload: lines), NoFeedback))
 }
 
-// ************************************************************
-// Writer(z, f)                                                // 'z' is fragment classifier type, 'f' is writer error type
-// String, OutputFragment(z, String) -> GhostOfOutputFragment(z)
-// ************************************************************
+// Rendered string fragments -> records of written fragments.
 
 pub type Writer(z, f) =
-  fn(String, OutputFragment(z, String)) -> Result(GhostOfOutputFragment(z), f)
+  fn(String, OutputFragment(z, String)) ->
+    Result(#(GhostOfOutputFragment(z), Feedback), f)
 
 fn output_dir_local_path_printer(
   output_dir: String,
@@ -284,12 +273,15 @@ fn output_dir_local_path_printer(
 pub fn default_writer(
   output_dir: String,
   fragment: OutputFragment(z, String),
-) -> Result(GhostOfOutputFragment(z), String) {
+) -> Result(#(GhostOfOutputFragment(z), Feedback), String) {
   case
     output_dir_local_path_printer(output_dir, fragment.path, fragment.payload)
   {
     Ok(Nil) -> {
-      Ok(GhostOfOutputFragment(fragment.classifier, fragment.path))
+      Ok(#(
+        GhostOfOutputFragment(fragment.classifier, fragment.path),
+        NoFeedback,
+      ))
     }
     Error(file_error) -> {
       Error(
@@ -298,10 +290,6 @@ pub fn default_writer(
     }
   }
 }
-
-// ************************************************************
-// PrettifierFeedback, Prettifier(z)
-// ************************************************************
 
 pub type GhostOfOutputFragment(z) {
   GhostOfOutputFragment(classifier: z, path: String)
@@ -433,28 +421,9 @@ pub fn empty_prettifier(
   Some(PrettifierFeedback(warnings: [], errors: []))
 }
 
-// ************************************************************
-// Renderer(a, b, c, d, e, f, z)
-// ************************************************************
-
 /// Wires source ingress, parsing, filtering, desugaring, splitting, emitting,
 /// writing, and optional prettification.
-pub type Renderer(
-  a,
-  b,
-  c,
-  d,
-  e,
-  f,
-  z,
-  // Assembler error
-  // Parser error
-  // Filterer error
-  // Splitter error
-  // Emitter error
-  // Writer error
-  // VXML Fragment enum
-) {
+pub type Renderer(a, b, c, d, e, f, z) {
   Renderer(
     assembler: Assembler(a),
     parser: Parser(b),
@@ -466,10 +435,6 @@ pub type Renderer(
     prettifier: Prettifier(z),
   )
 }
-
-// ************************************************************
-// RendererParameters
-// ************************************************************
 
 pub type PrettifierMode {
   PrettifierOff
@@ -533,10 +498,6 @@ pub fn vanilla_options() -> RendererOptions(z) {
   )
 }
 
-// ************************************************************
-// CommandLineAmendments
-// ************************************************************
-
 type Tracker {
   Tracker(
     printing_selector: Option(tracking.Selector),
@@ -578,10 +539,6 @@ pub type CommandLineAmendments {
   )
 }
 
-// ************************************************************
-// empty (default) CommandLineAmendments
-// ************************************************************
-
 fn empty_command_line_amendments() -> CommandLineAmendments {
   CommandLineAmendments(
     input_dir: None,
@@ -607,9 +564,7 @@ fn empty_command_line_amendments() -> CommandLineAmendments {
   )
 }
 
-// ************************************************************
-// cli_usage
-// ************************************************************
+// Command-line help
 
 pub fn basic_cli_usage(header: String) {
   case header {
@@ -1143,10 +1098,6 @@ fn is_desugarer_test_option(arg: String) -> Bool {
     _ -> False
   }
 }
-
-// ************************************************************
-// process_command_line_arguments
-// ************************************************************
 
 pub type CommandLineError {
   ExpectedDoubleDashString(String)
@@ -2335,10 +2286,6 @@ fn parse_times_args(
   }
 }
 
-// ************************************************************
-// RendererParameters + CommandLineAmendments -> RendererParameters
-// ************************************************************
-
 pub fn amend_renderer_parameters_by_command_line_amendments(
   parameters: RendererParameters,
   amendments: CommandLineAmendments,
@@ -2352,10 +2299,6 @@ pub fn amend_renderer_parameters_by_command_line_amendments(
     ),
   )
 }
-
-// ************************************************************
-// RendererOptions + CommandLineAmendments -> RendererOptions
-// ************************************************************
 
 fn exists_match(
   z: Option(List(a)),
@@ -2446,9 +2389,7 @@ fn resolve_absolute_step(step: Int, pipeline: Pipeline) -> Int {
   }
 }
 
-// ************************************************************
-// Pipeline + Tracker -> Pipeline (used by above)
-// ************************************************************
+// Monitor construction and pipeline-step resolution
 
 fn list_int_cleaner(ze_list: List(Int)) -> List(Int) {
   ze_list |> list.unique |> list.sort(int.compare)
@@ -2585,9 +2526,7 @@ fn selected_comparison_string(vxml: VXML, selector: Selector) -> String {
   |> tracking.s_lines_table("", True, 0)
 }
 
-fn vxml_monitor_output_margin(
-  output: VxmlMonitorOutput,
-) -> MonitorOutputMargin {
+fn vxml_monitor_output_margin(output: VxmlMonitorOutput) -> FeedbackMargin {
   case output {
     TrackingTable(_, _) -> AtRunnerMargin
     TrackingVerbatim -> Verbatim
@@ -2602,8 +2541,8 @@ fn tracking_monitor_output(
   include_ellipses: Bool,
   default_blame_columns: Int,
   default_comment_columns: Int,
-) -> MonitorOutput {
-  MonitorOutput(
+) -> FeedbackBlock {
+  FeedbackBlock(
     lines: [
       "💠",
       ..list.append(monitor_output_heading(context), [
@@ -2645,7 +2584,7 @@ fn make_tracking_monitor(
     let #(previous, last_output_step) = state
     let forced = list.contains(forced_steps, context.step_no)
     let on_change = track_all || list.contains(on_change_steps, context.step_no)
-    let #(previous, outputs) = case forced || on_change {
+    let #(previous, feedback_blocks) = case forced || on_change {
       False -> #(previous, [])
       True -> {
         let comparison = selected_comparison_string(vxml, change_selector)
@@ -2665,7 +2604,7 @@ fn make_tracking_monitor(
         }
       }
     }
-    let outputs = case outputs, context.previous_desugarer {
+    let feedback_blocks = case feedback_blocks, context.previous_desugarer {
       [], Some(desugarer)
         if context.step_no > 0
         && context.step_no % tracking_progress_interval == 0
@@ -2677,7 +2616,7 @@ fn make_tracking_monitor(
         }
         case enough_steps_since_last_output {
           True -> [
-            MonitorOutput(
+            FeedbackBlock(
               lines: ["..." <> ins(context.step_no) <> ". " <> desugarer.name],
               margin: output_margin,
             ),
@@ -2685,13 +2624,17 @@ fn make_tracking_monitor(
           False -> []
         }
       }
-      _, _ -> outputs
+      _, _ -> feedback_blocks
     }
-    let last_output_step = case outputs {
+    let last_output_step = case feedback_blocks {
       [] -> last_output_step
       _ -> Some(context.step_no)
     }
-    Ok(#(#(previous, last_output_step), outputs))
+    let feedback = case feedback_blocks {
+      [] -> NoFeedback
+      blocks -> SomeFeedback(blocks)
+    }
+    Ok(#(#(previous, last_output_step), feedback))
   })
   |> Ok
 }
@@ -2711,10 +2654,10 @@ fn make_dump_monitor(
   let dump_all = specs == []
   new_monitor("dump", Nil, fn(vxml, state, context) {
     case dump_all || list.contains(selected_steps, context.step_no) {
-      False -> Ok(#(state, []))
+      False -> Ok(#(state, NoFeedback))
       True -> {
         let monitor_output =
-          MonitorOutput(
+          FeedbackBlock(
             lines: [
               "💠",
               ..list.append(monitor_output_heading(context), [
@@ -2732,7 +2675,7 @@ fn make_dump_monitor(
             ],
             margin: vxml_monitor_output_margin(output),
           )
-        Ok(#(state, [monitor_output]))
+        Ok(#(state, SomeFeedback([monitor_output])))
       }
     }
   })
@@ -2767,10 +2710,6 @@ fn make_monitors(
   )
   Ok(list.append(options.monitors, built))
 }
-
-// ************************************************************
-// run_pipeline
-// ************************************************************
 
 pub type UserExit {
   UserExit(step_no: Int)
@@ -2816,7 +2755,7 @@ type PipelineProducerState {
 type Message {
   ProducerStartedDesugarer(Desugarer, Int)
   ProducerFinishedDesugarer
-  MonitorProducedOutput(MonitorOutput, Int)
+  MonitorProducedOutput(FeedbackBlock, Int)
   ProducerFinished(
     Result(
       #(VXML, List(InSituDesugaringWarning), List(Duration)),
@@ -2840,10 +2779,17 @@ fn update_monitors(
         message: message,
       ))
     })
-    let MonitorUpdate(next, outputs) = update
-    list.each(outputs, fn(output) {
-      send(main_process_subject, MonitorProducedOutput(output, context.step_no))
-    })
+    let MonitorUpdate(next, feedback) = update
+    case feedback {
+      NoFeedback -> Nil
+      SomeFeedback(blocks) ->
+        list.each(blocks, fn(block) {
+          send(
+            main_process_subject,
+            MonitorProducedOutput(block, context.step_no),
+          )
+        })
+    }
     Ok([next, ..next_monitors])
   })
   |> result.map(list.reverse)
@@ -2935,8 +2881,8 @@ fn producer(
   send(main_process_subject, ProducerFinished(final))
 }
 
-fn print_monitor_output(output: MonitorOutput, runner_margin: Int) -> Nil {
-  let MonitorOutput(lines, margin) = output
+fn print_feedback_block(feedback: FeedbackBlock, runner_margin: Int) -> Nil {
+  let FeedbackBlock(lines, margin) = feedback
   let margin = case margin {
     AtRunnerMargin -> string.repeat(" ", runner_margin)
     Verbatim -> ""
@@ -2945,6 +2891,21 @@ fn print_monitor_output(output: MonitorOutput, runner_margin: Int) -> Nil {
   |> list.map(fn(line) { margin <> line })
   |> string.join("\n")
   |> io.println
+}
+
+fn print_feedback(feedback: Feedback, runner_margin: Int) -> Nil {
+  case feedback {
+    NoFeedback -> Nil
+    SomeFeedback(blocks) ->
+      list.each(blocks, print_feedback_block(_, runner_margin))
+  }
+}
+
+fn print_verbose_feedback(feedback: Feedback, verbose: Bool) -> Nil {
+  case verbose {
+    True -> print_feedback(feedback, renderer_runner_margin)
+    False -> Nil
+  }
 }
 
 fn loop(
@@ -2977,7 +2938,7 @@ fn loop(
       loop(subject, countdown, None, 0, report_long_running_desugarers)
 
     Ok(MonitorProducedOutput(output, step_no)) -> {
-      print_monitor_output(output, pipeline_runner_margin)
+      print_feedback_block(output, renderer_runner_margin)
       case countdown == 0 {
         False -> {
           loop(
@@ -3032,7 +2993,7 @@ fn loop(
       case running_desugarer, report_long_running_desugarers {
         Some(#(desugarer, step_no)), True ->
           io.println(
-            string.repeat(" ", pipeline_runner_margin)
+            string.repeat(" ", renderer_runner_margin)
             <> "[desugarer "
             <> ins(step_no)
             <> ". "
@@ -3079,9 +3040,7 @@ pub fn run_pipeline(
   loop(main_subject, countdown, None, 0, report_long_running_desugarers)
 }
 
-// ************************************************************
-// other run_renderer helpers
-// ************************************************************
+// Renderer helpers
 
 fn sanitize_input_output_dirs(
   parameters: RendererParameters,
@@ -3120,10 +3079,6 @@ fn create_dirs_on_path_to_file(
   |> result.map(fn(_) { Nil })
 }
 
-// ************************************************************
-// run_renderer return type(s)
-// ************************************************************
-
 pub type TwoPossibilities(e, f) {
   P1(e)
   P2(f)
@@ -3140,10 +3095,6 @@ pub type RendererError(a, b, c, d, e, f) {
   SplitterError(d)
   EmittingOrWritingErrors(List(TwoPossibilities(e, f)))
 }
-
-// ************************************************************
-// run_renderer
-// ************************************************************
 
 pub fn run_renderer(
   renderer: Renderer(a, b, c, d, e, f, z),
@@ -3165,7 +3116,7 @@ pub fn run_renderer(
 
   io.println("• assembling...")
 
-  use #(assembled, tree) <- on.error_ok(
+  use #(assembled, assembler_feedback) <- on.error_ok(
     renderer.assembler(input_dir),
     fn(error_a) {
       io.println("  ...assembler error on input_dir " <> input_dir <> ":")
@@ -3179,22 +3130,7 @@ pub fn run_renderer(
     },
   )
 
-  case options.verbose, tree {
-    True, Some(tree) -> {
-      let spaces = string.repeat(" ", string.length("  -> assembled "))
-
-      list.index_map(tree |> dt.pretty_print(1), fn(line, i) {
-        case i == 0 {
-          True -> "  -> assembled "
-          False -> spaces
-        }
-        <> line
-      })
-      |> string.join("\n")
-      |> io.println
-    }
-    _, _ -> Nil
-  }
+  print_verbose_feedback(assembler_feedback, options.verbose)
 
   case options.dump_assembled_lines {
     False -> Nil
@@ -3209,7 +3145,7 @@ pub fn run_renderer(
 
   io.println("• parsing input lines to VXML...")
 
-  use parsed: VXML <- on.error_ok(
+  use #(parsed, parser_feedback) <- on.error_ok(
     renderer.parser(assembled),
     on_error: fn(error) {
       let #(blame, c) = error
@@ -3225,21 +3161,28 @@ pub fn run_renderer(
     },
   )
 
+  print_verbose_feedback(parser_feedback, options.verbose)
+
   case options.dump_parsed_vxml {
     False -> Nil
     True -> dump_vxml(parsed, "parsed:", 2)
   }
 
-  use filtered <- on.error_ok(renderer.filterer(parsed), fn(c) {
-    io.println("  ...filtration error:")
-    io.println("")
-    [
-      #("", ins(c) |> pr.strip_quotes),
-    ]
-    |> pr.two_column_error_announcer(0, 70, "💥", 2, "/ filtration error /")
-    |> io.println
-    Error(FiltrationError(c))
-  })
+  use #(filtered, filterer_feedback) <- on.error_ok(
+    renderer.filterer(parsed),
+    fn(c) {
+      io.println("  ...filtration error:")
+      io.println("")
+      [
+        #("", ins(c) |> pr.strip_quotes),
+      ]
+      |> pr.two_column_error_announcer(0, 70, "💥", 2, "/ filtration error /")
+      |> io.println
+      Error(FiltrationError(c))
+    },
+  )
+
+  print_verbose_feedback(filterer_feedback, options.verbose)
 
   case options.dump_filtered_vxml {
     False -> Nil
@@ -3381,7 +3324,7 @@ pub fn run_renderer(
 
   io.println("• splitting...")
 
-  use fragments <- on.error_ok(
+  use #(fragments, splitter_feedback) <- on.error_ok(
     renderer.splitter(desugared),
     on_error: fn(error) {
       io.println("  ...splitter error:")
@@ -3394,6 +3337,8 @@ pub fn run_renderer(
       Error(SplitterError(error))
     },
   )
+
+  print_verbose_feedback(splitter_feedback, options.verbose)
 
   let prefix = "[" <> output_dir <> "/]"
   let fragments_types_and_paths_4_table =
@@ -3440,7 +3385,8 @@ pub fn run_renderer(
   |> list.each(fn(result) {
     case result {
       Error(_) -> Nil
-      Ok(fr) -> {
+      Ok(#(fr, feedback)) -> {
+        print_verbose_feedback(feedback, options.verbose)
         case options.dump_emitter_fragments(fr) {
           False -> Nil
           True -> {
@@ -3482,7 +3428,8 @@ pub fn run_renderer(
   let fragments = {
     fragments
     |> list.map(
-      on.error_ok(_, fn(error) { Error(P1(error)) }, fn(fr) {
+      on.error_ok(_, fn(error) { Error(P1(error)) }, fn(result) {
+        let #(fr, _) = result
         Ok(
           OutputFragment(..fr, payload: io_l.output_lines_to_string(fr.payload)),
         )
@@ -3505,7 +3452,8 @@ pub fn run_renderer(
       use fr <- on.error_ok(result, fn(e) { #(acc, Error(e)) })
       case renderer.writer(output_dir, fr) {
         Error(e) -> #(acc, Error(P2(e)))
-        Ok(z) -> {
+        Ok(#(z, feedback)) -> {
+          print_verbose_feedback(feedback, options.verbose)
           case singleton_fragment {
             True -> io.println("  -> wrote [" <> output_dir <> "/]" <> fr.path)
             False ->

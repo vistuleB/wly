@@ -10,7 +10,7 @@ fn stopping_monitor() -> ds.Monitor {
     case state, context {
       0, ds.PipelineStepContext(0, None, Some(next)) -> {
         assert next.name == "identity"
-        Ok(#(1, []))
+        Ok(#(1, ds.NoFeedback))
       }
       1, ds.PipelineStepContext(1, Some(previous), None) -> {
         assert previous.name == "identity"
