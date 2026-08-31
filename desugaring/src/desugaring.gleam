@@ -29,17 +29,13 @@ import vxml.{type VXML, V} as vp
 import vxml/blame.{type Blame, Ext} as bl
 import vxml/io_lines.{type InputLine, type OutputLine, OutputLine} as io_l
 
-const default_times_table_char_width = 90
-
 pub const help_message_margin = 3
 
+// MacBook 16' can take 140:
+const default_times_table_char_width = 90
 const pipeline_runner_margin = 2
-
 const tracking_progress_interval = 10
-
 const tracking_progress_quiet_steps = 3
-
-// MacBook 16' can take 140
 
 pub type MonitorOutputMargin {
   AtRunnerMargin
@@ -499,13 +495,11 @@ pub type RendererOptions(z) {
     monitor_factories: List(MonitorFactory),
     output_lines_table_default_comment_columns: Int,
     output_lines_table_default_blame_columns: Int,
-    echo_assembled_lines: Bool,
-    echo_parsed_vxml: Bool,
-    echo_filtered_vxml: Bool,
-    echo_vxml_fragments: fn(OutputFragment(z, VXML)) -> Bool,
-    echo_output_lines_fragments: fn(OutputFragment(z, List(OutputLine))) -> Bool,
-    echo_string_fragments: fn(OutputFragment(z, String)) -> Bool,
-    echo_prettified_fragments: fn(GhostOfOutputFragment(z)) -> Bool,
+    dump_assembled_lines: Bool,
+    dump_parsed_vxml: Bool,
+    dump_filtered_vxml: Bool,
+    dump_splitter_fragments: fn(OutputFragment(z, VXML)) -> Bool,
+    dump_emitter_fragments: fn(OutputFragment(z, List(OutputLine))) -> Bool,
   )
 }
 
@@ -524,15 +518,13 @@ pub fn vanilla_options() -> RendererOptions(z) {
     monitor_factories: [],
     output_lines_table_default_comment_columns: 30,
     output_lines_table_default_blame_columns: 48,
-    echo_assembled_lines: False,
-    echo_parsed_vxml: False,
-    echo_filtered_vxml: False,
-    echo_vxml_fragments: fn(_) { False },
-    echo_output_lines_fragments: fn(_: OutputFragment(z, List(OutputLine))) {
+    dump_assembled_lines: False,
+    dump_parsed_vxml: False,
+    dump_filtered_vxml: False,
+    dump_splitter_fragments: fn(_) { False },
+    dump_emitter_fragments: fn(_: OutputFragment(z, List(OutputLine))) {
       False
     },
-    echo_string_fragments: fn(_: OutputFragment(z, String)) { False },
-    echo_prettified_fragments: fn(_: GhostOfOutputFragment(z)) { False },
   )
 }
 
@@ -558,7 +550,6 @@ type VxmlMonitorOutput {
 
 pub type CommandLineAmendments {
   CommandLineAmendments(
-    help: Bool,
     input_dir: Option(String),
     output_dir: Option(String),
     only_paths: List(String),
@@ -573,14 +564,11 @@ pub type CommandLineAmendments {
     verbose: Option(Bool),
     artifacts: Option(Bool),
     warnings: Option(Bool),
-    timing: Option(Bool),
-    echo_assembled: Bool,
-    echo_parsed: Bool,
-    echo_filtered: Bool,
-    vxml_fragments_local_paths_to_echo: Option(List(String)),
-    output_lines_fragments_local_paths_to_echo: Option(List(String)),
-    string_fragments_local_paths_to_echo: Option(List(String)),
-    prettified_fragments_local_paths_to_echo: Option(List(String)),
+    dump_assembled: Bool,
+    dump_parsed: Bool,
+    dump_filtered: Bool,
+    splitter_fragment_path_matches: Option(List(String)),
+    emitter_fragment_path_matches: Option(List(String)),
     user_args: Dict(String, List(String)),
   )
 }
@@ -591,7 +579,6 @@ pub type CommandLineAmendments {
 
 fn empty_command_line_amendments() -> CommandLineAmendments {
   CommandLineAmendments(
-    help: False,
     input_dir: None,
     output_dir: None,
     only_paths: [],
@@ -606,14 +593,11 @@ fn empty_command_line_amendments() -> CommandLineAmendments {
     verbose: None,
     artifacts: None,
     warnings: None,
-    timing: None,
-    echo_assembled: False,
-    echo_parsed: False,
-    echo_filtered: False,
-    vxml_fragments_local_paths_to_echo: None,
-    output_lines_fragments_local_paths_to_echo: None,
-    string_fragments_local_paths_to_echo: None,
-    prettified_fragments_local_paths_to_echo: None,
+    dump_assembled: False,
+    dump_parsed: False,
+    dump_filtered: False,
+    splitter_fragment_path_matches: None,
+    emitter_fragment_path_matches: None,
     user_args: dict.from_list([]),
   )
 }
@@ -917,33 +901,33 @@ pub fn advanced_cli_usage(header: String) {
   io.println(margin <> "--warnings/--no-warnings")
   io.println(margin <> "  -> force/suppress long-form printout of warnings")
   io.println("")
-  io.println(margin <> "--echo-assembled")
+  io.println(margin <> "--dump-assembled")
   io.println(margin <> "  -> print the assembled input lines of source")
   io.println("")
-  io.println(margin <> "--echo-parsed")
+  io.println(margin <> "--dump-parsed")
   io.println(margin <> "  -> print the parsed VXML")
   io.println("")
-  io.println(margin <> "--echo-filtered")
+  io.println(margin <> "--dump-filtered")
   io.println(
     margin <> "  -> print the parsed VXML filtered for key-value pairs",
   )
   io.println("")
-  io.println(margin <> "--echo-vxml-fragments <subpath1> <subpath2> ...")
+  io.println(margin <> "--dump-splitter [<path-match1> <path-match2> ...]")
   io.println(
     margin
     <> "  -> echo fragments whose paths contain one of the given subpaths",
   )
   io.println(
-    margin <> "     before conversion to output lines, list none to match all",
+    margin <> "     produced by the splitter; list none to match all",
   )
   io.println("")
-  io.println(margin <> "--echo-ol-fragments <subpath1> <subpath2> ...")
+  io.println(margin <> "--dump-emitter [<path-match1> <path-match2> ...]")
   io.println(
     margin
     <> "  -> echo fragments whose paths contain one of the given subpaths",
   )
   io.println(
-    margin <> "     after conversion to output lines, list none to match all",
+    margin <> "     produced by the emitter; list none to match all",
   )
   io.println("")
   io.println(margin <> "--track-steps")
@@ -1196,7 +1180,7 @@ pub fn process_command_line_arguments(
         "--help" -> {
           basic_cli_usage("renderer common command line options:")
           case list.is_empty(values) {
-            True -> Ok(CommandLineAmendments(..amendments, help: True))
+            True -> Ok(amendments)
             False -> Error(UnexpectedArgumentsToOption("option"))
           }
         }
@@ -1205,7 +1189,7 @@ pub fn process_command_line_arguments(
           case list.is_empty(values) {
             True -> {
               track_cli_usage("renderer '--track' command line instructions:")
-              Ok(CommandLineAmendments(..amendments, help: True))
+              Ok(amendments)
             }
             False -> Error(UnexpectedArgumentsToOption("--track-help"))
           }
@@ -1213,7 +1197,7 @@ pub fn process_command_line_arguments(
         "--esoteric" -> {
           advanced_cli_usage("renderer advanced command line options:")
           case list.is_empty(values) {
-            True -> Ok(CommandLineAmendments(..amendments, help: True))
+            True -> Ok(amendments)
             False -> Error(UnexpectedArgumentsToOption("option"))
           }
         }
@@ -1376,48 +1360,46 @@ pub fn process_command_line_arguments(
           }
         }
 
-        "--echo-assembled" ->
+        "--dump-assembled" ->
           case list.is_empty(values) {
             True ->
-              Ok(CommandLineAmendments(..amendments, echo_assembled: True))
+              Ok(CommandLineAmendments(..amendments, dump_assembled: True))
             False -> Error(UnexpectedArgumentsToOption(option))
           }
 
-        "--echo-parsed" ->
+        "--dump-parsed" ->
           case list.is_empty(values) {
-            True -> Ok(CommandLineAmendments(..amendments, echo_parsed: True))
+            True -> Ok(CommandLineAmendments(..amendments, dump_parsed: True))
             False -> Error(UnexpectedArgumentsToOption(option))
           }
 
-        "--echo-filtered" ->
+        "--dump-filtered" ->
           case list.is_empty(values) {
-            True -> Ok(CommandLineAmendments(..amendments, echo_filtered: True))
+            True -> Ok(CommandLineAmendments(..amendments, dump_filtered: True))
             False -> Error(UnexpectedArgumentsToOption(option))
           }
 
-        "--echo-vxml-fragments" ->
-          case list.is_empty(values) {
-            True ->
-              Ok(
-                CommandLineAmendments(
-                  ..amendments,
-                  vxml_fragments_local_paths_to_echo: Some(values),
-                ),
-              )
-            False -> Error(UnexpectedArgumentsToOption(option))
-          }
+        "--dump-splitter" ->
+          Ok(
+            CommandLineAmendments(
+              ..amendments,
+              splitter_fragment_path_matches: combine_fragment_path_matches(
+                amendments.splitter_fragment_path_matches,
+                values,
+              ),
+            ),
+          )
 
-        "--echo-ol-fragments" ->
-          case list.is_empty(values) {
-            True ->
-              Ok(
-                CommandLineAmendments(
-                  ..amendments,
-                  output_lines_fragments_local_paths_to_echo: Some(values),
-                ),
-              )
-            False -> Error(UnexpectedArgumentsToOption(option))
-          }
+        "--dump-emitter" ->
+          Ok(
+            CommandLineAmendments(
+              ..amendments,
+              emitter_fragment_path_matches: combine_fragment_path_matches(
+                amendments.emitter_fragment_path_matches,
+                values,
+              ),
+            ),
+          )
 
         "--succinct" ->
           case list.is_empty(values) {
@@ -2328,11 +2310,15 @@ fn exists_match(
   }
 }
 
-pub fn amend_renderer_by_command_line_amendments(
-  renderer: Renderer(a, b, c, d, e, f, z),
-  _amendments: CommandLineAmendments,
-) -> Renderer(a, b, c, d, e, f, z) {
-  renderer
+fn combine_fragment_path_matches(
+  existing: Option(List(String)),
+  additional: List(String),
+) -> Option(List(String)) {
+  case existing, additional {
+    None, additional -> Some(additional)
+    Some([]), _ | Some(_), [] -> Some([])
+    Some(existing), additional -> Some(list.append(existing, additional))
+  }
 }
 
 fn append_optional_monitor_factory(
@@ -2370,35 +2356,21 @@ pub fn amend_renderer_options_by_command_line_amendments(
       |> append_optional_monitor_factory(amendments.dump_monitor_factory),
     output_lines_table_default_comment_columns: options.output_lines_table_default_comment_columns,
     output_lines_table_default_blame_columns: options.output_lines_table_default_blame_columns,
-    echo_assembled_lines: amendments.echo_assembled
-      || options.echo_assembled_lines,
-    echo_parsed_vxml: amendments.echo_parsed || options.echo_parsed_vxml,
-    echo_filtered_vxml: amendments.echo_filtered || options.echo_filtered_vxml,
-    echo_vxml_fragments: fn(fr: OutputFragment(z, VXML)) {
-      options.echo_vxml_fragments(fr)
+    dump_assembled_lines: amendments.dump_assembled
+      || options.dump_assembled_lines,
+    dump_parsed_vxml: amendments.dump_parsed || options.dump_parsed_vxml,
+    dump_filtered_vxml: amendments.dump_filtered || options.dump_filtered_vxml,
+    dump_splitter_fragments: fn(fr: OutputFragment(z, VXML)) {
+      options.dump_splitter_fragments(fr)
       || exists_match(
-        amendments.vxml_fragments_local_paths_to_echo,
+        amendments.splitter_fragment_path_matches,
         string.contains(fr.path, _),
       )
     },
-    echo_output_lines_fragments: fn(fr: OutputFragment(z, List(OutputLine))) {
-      options.echo_output_lines_fragments(fr)
+    dump_emitter_fragments: fn(fr: OutputFragment(z, List(OutputLine))) {
+      options.dump_emitter_fragments(fr)
       || exists_match(
-        amendments.output_lines_fragments_local_paths_to_echo,
-        string.contains(fr.path, _),
-      )
-    },
-    echo_string_fragments: fn(fr: OutputFragment(z, String)) {
-      options.echo_string_fragments(fr)
-      || exists_match(
-        amendments.string_fragments_local_paths_to_echo,
-        string.contains(fr.path, _),
-      )
-    },
-    echo_prettified_fragments: fn(fr: GhostOfOutputFragment(z)) {
-      options.echo_prettified_fragments(fr)
-      || exists_match(
-        amendments.prettified_fragments_local_paths_to_echo,
+        amendments.emitter_fragment_path_matches,
         string.contains(fr.path, _),
       )
     },
@@ -2997,7 +2969,7 @@ fn sanitize_input_output_dirs(
   )
 }
 
-fn echo_vxml(vxml: VXML, banner: String, indent: Int) -> Nil {
+fn dump_vxml(vxml: VXML, banner: String, indent: Int) -> Nil {
   case vp.vxml_to_output_lines(vxml) {
     Ok(lines) -> lines |> io_l.output_lines_table(banner, indent) |> io.println
     Error(error) -> {
@@ -3034,8 +3006,8 @@ pub type TwoPossibilities(e, f) {
 }
 
 pub type RendererError(a, b, c, d, e, f) {
-  FileOrParseError(a)
-  SourceParserError(Blame, b)
+  AssemblerError(a)
+  ParserError(Blame, b)
   FiltrationError(c)
   DesugarerNameNotFoundError(String)
   PipelineError(InSituDesugaringError)
@@ -3079,7 +3051,7 @@ pub fn run_renderer(
       ]
       |> pr.two_column_error_announcer(0, 60, "💥", 2, "/ assembler error /")
       |> io.println
-      Error(FileOrParseError(error_a))
+      Error(AssemblerError(error_a))
     },
   )
 
@@ -3100,7 +3072,7 @@ pub fn run_renderer(
     _, _ -> Nil
   }
 
-  case options.echo_assembled_lines {
+  case options.dump_assembled_lines {
     False -> Nil
     True -> {
       assembled
@@ -3125,13 +3097,13 @@ pub fn run_renderer(
       ]
       |> pr.two_column_error_announcer(0, 70, "💥", 2, "/ parser error /")
       |> io.println
-      Error(SourceParserError(blame, c))
+      Error(ParserError(blame, c))
     },
   )
 
-  case options.echo_parsed_vxml {
+  case options.dump_parsed_vxml {
     False -> Nil
-    True -> echo_vxml(parsed, "parsed:", 2)
+    True -> dump_vxml(parsed, "parsed:", 2)
   }
 
   use filtered <- on.error_ok(renderer.filterer(parsed), fn(c) {
@@ -3145,9 +3117,9 @@ pub fn run_renderer(
     Error(FiltrationError(c))
   })
 
-  case options.echo_filtered_vxml {
+  case options.dump_filtered_vxml {
     False -> Nil
-    True -> echo_vxml(filtered, "filtered:", 2)
+    True -> dump_vxml(filtered, "filtered:", 2)
   }
 
   // 🌸 pipeline 🌸
@@ -3317,9 +3289,9 @@ pub fn run_renderer(
 
   fragments
   |> list.each(fn(fr) {
-    case options.echo_vxml_fragments(fr) {
+    case options.dump_splitter_fragments(fr) {
       False -> Nil
-      True -> echo_vxml(fr.payload, "fr:" <> fr.path, 2)
+      True -> dump_vxml(fr.payload, "splitter: " <> fr.path, 2)
     }
   })
 
@@ -3338,11 +3310,11 @@ pub fn run_renderer(
     case result {
       Error(_) -> Nil
       Ok(fr) -> {
-        case options.echo_output_lines_fragments(fr) {
+        case options.dump_emitter_fragments(fr) {
           False -> Nil
           True -> {
             fr.payload
-            |> io_l.output_lines_table("fr-ol:" <> fr.path, 2)
+            |> io_l.output_lines_table("emitter: " <> fr.path, 2)
             |> io.println
           }
         }
@@ -3390,28 +3362,6 @@ pub fn run_renderer(
   // 🌸 writing 🌸
 
   io.println("• writing String fragments to files...")
-
-  fragments
-  |> list.each(fn(result) {
-    case result {
-      Error(_) -> Nil
-      Ok(fr) -> {
-        case options.echo_string_fragments(fr) {
-          False -> Nil
-          True -> {
-            let header =
-              "────────────────── writer echo: "
-              <> fr.path
-              <> " ──────────────────"
-            io.println(header)
-            io.println(fr.payload)
-            io.println(pr.dashes(string.length(header)))
-            io.println("")
-          }
-        }
-      }
-    }
-  })
 
   let singleton_fragment = case fragments {
     [_] -> True
@@ -3531,30 +3481,6 @@ pub fn run_renderer(
       list.each(fragments, run_prettification(_, dest_dir))
     }
   }
-
-  fragments
-  |> list.each(fn(result) {
-    use fr <- on.error_ok(result, fn(_) { Nil })
-    case options.echo_prettified_fragments(fr) {
-      False -> Nil
-      True -> {
-        let path = output_dir <> "/" <> fr.path
-        use file_contents <- on.error_ok(simplifile.read(path), fn(error) {
-          io.println("")
-          io.println(
-            "could not read back printed file " <> path <> ":" <> ins(error),
-          )
-        })
-        io.println("")
-        let header =
-          "───────────── prettifier echo: " <> fr.path <> " ──────────────────"
-        io.println(header)
-        io.println(file_contents)
-        io.println(pr.dashes(string.length(header)))
-        io.println("")
-      }
-    }
-  })
 
   // 👾 warnings 👾
 

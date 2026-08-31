@@ -38,6 +38,25 @@ pub fn main() {
   assert_parses(["--dump", "!120-130"])
   assert_parses(["--dump", "-verbatim", "120-"])
   assert_parses(["--dump", "-bc0", "-cc0", "!120-130"])
+  assert_parses(["--dump-assembled"])
+  assert_parses(["--dump-parsed"])
+  assert_parses(["--dump-filtered"])
+  assert_parses(["--dump-splitter"])
+  assert_parses(["--dump-splitter", "chapter", "appendix"])
+  assert_parses(["--dump-emitter"])
+  assert_parses(["--dump-emitter", "lecture-notes/05"])
+  assert_parses([
+    "--dump-splitter",
+    "chapter",
+    "--dump-splitter",
+    "appendix",
+    "--dump-emitter",
+  ])
+  assert_does_not_parse(["--dump-assembled", "unexpected"])
+  assert_does_not_parse(["--dump-parsed", "unexpected"])
+  assert_does_not_parse(["--dump-filtered", "unexpected"])
+  assert_does_not_parse(["--echo-assembled"])
+  assert_does_not_parse(["--echo-vxml-fragments"])
   assert_does_not_parse([
     "--track",
     "needle",

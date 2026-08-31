@@ -63,7 +63,6 @@ import desugaring/desugarers/delete_attribute_of__batch
 import desugaring/desugarers/delete_class
 import desugaring/desugarers/delete_empty_lines
 import desugaring/desugarers/delete_empty_lines_before_after
-import desugaring/desugarers/delete_files_not_used_as_src
 import desugaring/desugarers/delete_first_child_occurrences_of_and_recurse
 import desugaring/desugarers/delete_if_empty
 import desugaring/desugarers/delete_if_empty__batch
@@ -158,7 +157,6 @@ import desugaring/desugarers/regex_replace__batch__outside
 import desugaring/desugarers/regex_replace__outside
 import desugaring/desugarers/regex_split_and_replace__batch__outside
 import desugaring/desugarers/regex_split_and_replace__outside
-import desugaring/desugarers/reinsert_math_dollar
 import desugaring/desugarers/rename
 import desugaring/desugarers/rename__batch
 import desugaring/desugarers/rename_and_delete_children_if_has_singleton_class_attribute
@@ -302,7 +300,6 @@ pub const delete_attribute_of__batch = delete_attribute_of__batch.constructor
 pub const delete_class = delete_class.constructor
 pub const delete_empty_lines = delete_empty_lines.constructor
 pub const delete_empty_lines_before_after = delete_empty_lines_before_after.constructor
-pub const delete_files_not_used_as_src = delete_files_not_used_as_src.constructor
 pub const delete_first_child_occurrences_of_and_recurse = delete_first_child_occurrences_of_and_recurse.constructor
 pub const delete_if_empty = delete_if_empty.constructor
 pub const delete_if_empty__batch = delete_if_empty__batch.constructor
@@ -397,7 +394,6 @@ pub const regex_replace__batch__outside = regex_replace__batch__outside.construc
 pub const regex_replace__outside = regex_replace__outside.constructor
 pub const regex_split_and_replace__batch__outside = regex_split_and_replace__batch__outside.constructor
 pub const regex_split_and_replace__outside = regex_split_and_replace__outside.constructor
-pub const reinsert_math_dollar = reinsert_math_dollar.constructor
 pub const rename = rename.constructor
 pub const rename__batch = rename__batch.constructor
 pub const rename_and_delete_children_if_has_singleton_class_attribute = rename_and_delete_children_if_has_singleton_class_attribute.constructor
@@ -542,7 +538,6 @@ pub const assertive_tests : List(fn() -> core.AssertiveTestCollection) = [
   delete_class.assertive_tests,
   delete_empty_lines.assertive_tests,
   delete_empty_lines_before_after.assertive_tests,
-  delete_files_not_used_as_src.assertive_tests,
   delete_first_child_occurrences_of_and_recurse.assertive_tests,
   delete_if_empty.assertive_tests,
   delete_if_empty__batch.assertive_tests,
@@ -637,7 +632,6 @@ pub const assertive_tests : List(fn() -> core.AssertiveTestCollection) = [
   regex_replace__outside.assertive_tests,
   regex_split_and_replace__batch__outside.assertive_tests,
   regex_split_and_replace__outside.assertive_tests,
-  reinsert_math_dollar.assertive_tests,
   rename.assertive_tests,
   rename__batch.assertive_tests,
   rename_and_delete_children_if_has_singleton_class_attribute.assertive_tests,
