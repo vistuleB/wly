@@ -106,6 +106,7 @@ fn line_to_tooltip_span(line: Line, inner: InnerParam) -> VXML {
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
 // 🌊🌊🌊 tests 🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
+
 fn assertive_tests_data() -> List(core.AssertiveTestDataWithOutside(Param)) {
   [
     // note 1: not sure if following test is correct

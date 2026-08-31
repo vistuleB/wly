@@ -660,6 +660,10 @@ type InnerParam {
 
 pub const name = "handles_grand_wrapper_substitute"
 
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
+// 🏖️🏖️ Desugarer 🏖️🏖️
+// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️️️️🏖️
+
 fn desugarer_blame(line_no: Int) {
   bl.Des([], name, line_no)
 }
@@ -992,6 +996,3 @@ pub fn assertive_tests() {
     constructor,
   )
 }
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️
-// 🏖️🏖️ Desugarer 🏖️🏖️
-// 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️️️️🏖️
