@@ -50,7 +50,6 @@ whose private functions are not yet consistently caller-before-callee:
 - `fold_custom_into_text`
 - `fold_into_text`
 - `fold_into_text__batch`
-- `footnote_marker_to_sup_handle__outside`
 - `handles_grand_wrapper_generate_dictionary`
 - `handles_generate_v_definitions_from_t_definitions`
 - `handles_grand_wrapper_substitute`

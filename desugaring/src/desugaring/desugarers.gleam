@@ -94,7 +94,6 @@ import desugaring/desugarers/fold_contents_into_text_if
 import desugaring/desugarers/fold_custom_into_text
 import desugaring/desugarers/fold_into_text
 import desugaring/desugarers/fold_into_text__batch
-import desugaring/desugarers/footnote_marker_to_sup_handle__outside
 import desugaring/desugarers/free_children
 import desugaring/desugarers/free_children__batch
 import desugaring/desugarers/group_consecutive_children__outside
@@ -334,7 +333,6 @@ pub const fold_contents_into_text_if = fold_contents_into_text_if.constructor
 pub const fold_custom_into_text = fold_custom_into_text.constructor
 pub const fold_into_text = fold_into_text.constructor
 pub const fold_into_text__batch = fold_into_text__batch.constructor
-pub const footnote_marker_to_sup_handle__outside = footnote_marker_to_sup_handle__outside.constructor
 pub const free_children = free_children.constructor
 pub const free_children__batch = free_children__batch.constructor
 pub const group_consecutive_children__outside = group_consecutive_children__outside.constructor
@@ -575,7 +573,6 @@ pub const assertive_tests : List(fn() -> core.AssertiveTestCollection) = [
   fold_custom_into_text.assertive_tests,
   fold_into_text.assertive_tests,
   fold_into_text__batch.assertive_tests,
-  footnote_marker_to_sup_handle__outside.assertive_tests,
   free_children.assertive_tests,
   free_children__batch.assertive_tests,
   group_consecutive_children__outside.assertive_tests,
