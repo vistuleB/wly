@@ -33,8 +33,11 @@ pub const help_message_margin = 3
 
 // MacBook 16' can take 140:
 const default_times_table_char_width = 90
+
 const pipeline_runner_margin = 2
+
 const tracking_progress_interval = 10
+
 const tracking_progress_quiet_steps = 3
 
 const long_running_desugarer_report_interval_seconds = 10
@@ -526,9 +529,7 @@ pub fn vanilla_options() -> RendererOptions(z) {
     dump_parsed_vxml: False,
     dump_filtered_vxml: False,
     dump_splitter_fragments: fn(_) { False },
-    dump_emitter_fragments: fn(_: OutputFragment(z, List(OutputLine))) {
-      False
-    },
+    dump_emitter_fragments: fn(_: OutputFragment(z, List(OutputLine))) { False },
   )
 }
 
@@ -921,18 +922,14 @@ pub fn advanced_cli_usage(header: String) {
     margin
     <> "  -> dump fragments whose paths contain one of the given subpaths",
   )
-  io.println(
-    margin <> "     produced by the splitter; list none to match all",
-  )
+  io.println(margin <> "     produced by the splitter; list none to match all")
   io.println("")
   io.println(margin <> "--dump-emitter [<path-match1> <path-match2> ...]")
   io.println(
     margin
     <> "  -> dump fragments whose paths contain one of the given subpaths",
   )
-  io.println(
-    margin <> "     produced by the emitter; list none to match all",
-  )
+  io.println(margin <> "     produced by the emitter; list none to match all")
   io.println("")
   io.println(margin <> "--track-steps")
   io.println(
@@ -1182,31 +1179,6 @@ pub fn process_command_line_arguments(
       use amendments <- on.ok(result)
       let #(option, values) = pair
       case option {
-        "--help" -> {
-          basic_cli_usage("renderer common command line options:")
-          case list.is_empty(values) {
-            True -> Ok(amendments)
-            False -> Error(UnexpectedArgumentsToOption("--help"))
-          }
-        }
-
-        "--track-help" ->
-          case list.is_empty(values) {
-            True -> {
-              track_cli_usage("renderer '--track' command line instructions:")
-              Ok(amendments)
-            }
-            False -> Error(UnexpectedArgumentsToOption("--track-help"))
-          }
-
-        "--esoteric" -> {
-          advanced_cli_usage("renderer advanced command line options:")
-          case list.is_empty(values) {
-            True -> Ok(amendments)
-            False -> Error(UnexpectedArgumentsToOption("--esoteric"))
-          }
-        }
-
         "--times" -> {
           use arg <- on.ok(parse_times_args(values))
           Ok(
@@ -1553,8 +1525,8 @@ fn parse_attr_value_args_in_filename(
         }
       })
       |> result.all
+    }
   }
-}
 }
 
 // --track, --track-steps, and --dump parsing
@@ -2380,10 +2352,10 @@ pub fn amend_renderer_options_by_command_line_amendments(
     },
     dump_emitter_fragments: fn(fr: OutputFragment(z, List(OutputLine))) {
       options.dump_emitter_fragments(fr)
-      || exists_match(
-        amendments.emitter_fragment_path_matches,
-        string.contains(fr.path, _),
-      )
+      || exists_match(amendments.emitter_fragment_path_matches, string.contains(
+        fr.path,
+        _,
+      ))
     },
   )
 }
@@ -2908,10 +2880,12 @@ fn loop(
   #(VXML, List(InSituDesugaringWarning), List(Duration)),
   PipelineExecutionError,
 ) {
-  case receive(
-    subject,
-    within: long_running_desugarer_report_interval_seconds * 1000,
-  ) {
+  case
+    receive(
+      subject,
+      within: long_running_desugarer_report_interval_seconds * 1000,
+    )
+  {
     Ok(ProducerStartedDesugarer(desugarer, step_no)) ->
       loop(
         subject,

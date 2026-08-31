@@ -60,13 +60,12 @@ pub fn main() {
   assert_parses(["--only", "chapter&language=en"])
   assert_does_not_parse(["--only", "chapter&language"])
   assert_does_not_parse(["--only", "chapter&language=en=extra"])
-  let assert Error(desugaring.UnexpectedArgumentsToOption("--help")) =
-    desugaring.process_command_line_arguments(["--help", "unexpected"], [])
-  let assert Error(desugaring.UnexpectedArgumentsToOption("--esoteric")) =
-    desugaring.process_command_line_arguments(
-      ["--esoteric", "unexpected"],
-      [],
-    )
+  let assert Error(desugaring.UnknownOptionArgument("--help")) =
+    desugaring.process_command_line_arguments(["--help"], [])
+  let assert Error(desugaring.UnknownOptionArgument("--esoteric")) =
+    desugaring.process_command_line_arguments(["--esoteric"], [])
+  let assert Error(desugaring.UnknownOptionArgument("--track-help")) =
+    desugaring.process_command_line_arguments(["--track-help"], [])
   assert_does_not_parse([
     "--track",
     "needle",
