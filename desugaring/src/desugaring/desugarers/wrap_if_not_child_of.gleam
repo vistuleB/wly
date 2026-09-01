@@ -3,6 +3,7 @@ import desugaring/core.{
   type Desugarer, type DesugarerTransform, type DesugaringError,
 }
 import desugaring/nodemaps_2_transform as n2t
+import desugaring/testing
 import gleam/list
 import vxml.{type VXML, V}
 import vxml/blame as bl
@@ -71,9 +72,9 @@ const blame = bl.Des([], name, 65)
 // 🌊🌊🌊 tests 🌊🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
 
-fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
+fn assertive_tests_data() -> List(testing.AssertiveTestData(Param)) {
   [
-    core.AssertiveTestData(
+    testing.data(
       param: #("p", "wrapper", ["div"]),
       source: "
                 <> root
@@ -99,7 +100,7 @@ fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
                           'inside allowed'
                 ",
     ),
-    core.AssertiveTestData(
+    testing.data(
       param: #("span", "box", ["article", "aside"]),
       source: "
                 <> root
@@ -137,9 +138,5 @@ fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
 }
 
 pub fn assertive_tests() {
-  core.assertive_test_collection_from_data(
-    name,
-    assertive_tests_data(),
-    constructor,
-  )
+  testing.collection(name, assertive_tests_data(), constructor)
 }

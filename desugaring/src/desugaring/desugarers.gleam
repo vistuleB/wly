@@ -1,4 +1,3 @@
-import desugaring/core
 import desugaring/desugarers/absorb_backward_one
 import desugaring/desugarers/absorb_forward_one
 import desugaring/desugarers/absorb_into_previous_sibling
@@ -236,6 +235,7 @@ import desugaring/desugarers/wrap_if_not_child_of
 import desugaring/desugarers/wrap_if_text_contains
 import desugaring/desugarers/wrap_with_custom_if_child_of
 import desugaring/desugarers/wrap_with_custom_if_not_child_of
+import desugaring/testing
 
 pub const absorb_backward_one = absorb_backward_one.constructor
 
@@ -711,7 +711,7 @@ pub const wrap_with_custom_if_child_of = wrap_with_custom_if_child_of.constructo
 
 pub const wrap_with_custom_if_not_child_of = wrap_with_custom_if_not_child_of.constructor
 
-pub const assertive_tests: List(fn() -> core.AssertiveTestCollection) = [
+pub const assertive_tests: List(fn() -> testing.AssertiveTestCollection) = [
   absorb_backward_one.assertive_tests,
   absorb_forward_one.assertive_tests,
   absorb_into_previous_sibling.assertive_tests,

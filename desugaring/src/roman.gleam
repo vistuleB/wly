@@ -4,6 +4,7 @@ import gleam/option.{type Option, None, Some}
 import gleam/order
 import gleam/string
 
+@internal
 pub type Numeral {
   I
   V
@@ -51,6 +52,7 @@ fn numeral_from_str(str: String) -> Option(Numeral) {
   }
 }
 
+@internal
 pub type Roman =
   List(Numeral)
 
@@ -66,6 +68,7 @@ fn string_to_roman_recursive(chars: List(String)) -> Option(Roman) {
   }
 }
 
+@internal
 pub fn string_to_roman(input: String) -> Option(Roman) {
   let chars = string.split(input, "")
   string_to_roman_recursive(chars)
@@ -92,6 +95,7 @@ fn roman_to_int_recursive(
 }
 
 /// Converts roman ( list of numerals ) to int value
+@internal
 pub fn roman_to_int(roman: Roman) -> Int {
   roman
   |> list.map(fn(x) { numeral_value(x) })
@@ -146,6 +150,7 @@ fn dec_until_zero(val: Int, numerals: List(Numeral)) -> #(Int, List(Numeral)) {
 }
 
 /// Converts int to roman ( list of numerals )
+@internal
 pub fn int_to_roman(val: Int) -> Option(Roman) {
   case int.compare(val, 0) {
     order.Gt -> {
@@ -160,6 +165,7 @@ pub fn int_to_roman(val: Int) -> Option(Roman) {
   }
 }
 
+@internal
 pub fn roman_to_string(numerals: Roman) -> String {
   case numerals {
     [] -> ""

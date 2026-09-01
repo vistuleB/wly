@@ -79,7 +79,7 @@ fn generate_contents(
 ) -> String {
   let imports =
     [
-      "desugaring/core",
+      "desugaring/testing",
       ..list.map(module_names, fn(name) { module_prefix <> "/" <> name })
     ]
     |> list.sort(string.compare)
@@ -102,7 +102,7 @@ fn generate_contents(
   <> "\n\n"
   <> constructors
   <> "\n\n"
-  <> "pub const assertive_tests: List(fn() -> core.AssertiveTestCollection) = [\n"
+  <> "pub const assertive_tests: List(fn() -> testing.AssertiveTestCollection) = [\n"
   <> tests
   <> "\n]\n"
 }

@@ -1,6 +1,7 @@
 import desugaring/authoring
 import desugaring/core.{type Desugarer, type DesugarerTransform}
 import desugaring/nodemaps_2_transform as n2t
+import desugaring/testing
 import vxml.{type VXML, T}
 
 pub const name = "normalize_spaces__outside"
@@ -39,12 +40,12 @@ fn nodemap(vxml: VXML) -> VXML {
 // 🌊🌊🌊 tests 🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
 
-fn assertive_tests_data() -> List(core.AssertiveTestDataNoParamWithOutside) {
+fn assertive_tests_data() -> List(testing.AssertiveTestDataNoParamWithOutside) {
   []
 }
 
 pub fn assertive_tests() {
-  core.assertive_test_collection_from_data_no_param_with_outside(
+  testing.collection_no_param_with_outside(
     name,
     assertive_tests_data(),
     constructor,

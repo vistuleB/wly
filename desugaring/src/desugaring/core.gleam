@@ -2229,6 +2229,7 @@ pub fn t_map(vxmls: List(VXML), f: fn(VXML) -> VXML) -> List(VXML) {
 // AssertiveTest zone
 // ************************************************************
 
+@internal
 pub type AssertiveTest {
   AssertiveTest(
     constructor: fn() -> Desugarer,
@@ -2239,6 +2240,7 @@ pub type AssertiveTest {
   )
 }
 
+@internal
 pub type AssertiveTestCollection {
   AssertiveTestCollection(
     desugarer_name: String,
@@ -2246,14 +2248,17 @@ pub type AssertiveTestCollection {
   )
 }
 
+@internal
 pub type AssertiveTestDataNoParam {
   AssertiveTestDataNoParam(source: String, expected: String)
 }
 
+@internal
 pub type AssertiveTestData(a) {
   AssertiveTestData(param: a, source: String, expected: String)
 }
 
+@internal
 pub type AssertiveTestDataNoParamWithOutside {
   AssertiveTestDataNoParamWithOutside(
     outside: List(String),
@@ -2262,6 +2267,7 @@ pub type AssertiveTestDataNoParamWithOutside {
   )
 }
 
+@internal
 pub type AssertiveTestDataWithOutside(a) {
   AssertiveTestDataWithOutside(
     param: a,
@@ -2271,9 +2277,11 @@ pub type AssertiveTestDataWithOutside(a) {
   )
 }
 
+@internal
 pub type FirstDifferentLine =
   Int
 
+@internal
 pub type AssertiveTestError {
   VXMLParseError(vxml.VXMLParseError)
   VXMLSerializationError(vxml.VXMLSerializationError)
@@ -2305,6 +2313,7 @@ fn remove_minimum_indent(s: String) -> String {
   |> string.join("\n")
 }
 
+@internal
 pub fn assertive_test_collection_from_data_no_param(
   name: String,
   datas: List(AssertiveTestDataNoParam),
@@ -2323,6 +2332,7 @@ pub fn assertive_test_collection_from_data_no_param(
   })
 }
 
+@internal
 pub fn assertive_test_collection_from_data(
   name: String,
   datas: List(AssertiveTestData(a)),
@@ -2341,6 +2351,7 @@ pub fn assertive_test_collection_from_data(
   })
 }
 
+@internal
 pub fn assertive_test_collection_from_data_no_param_with_outside(
   name: String,
   datas: List(AssertiveTestDataNoParamWithOutside),
@@ -2359,6 +2370,7 @@ pub fn assertive_test_collection_from_data_no_param_with_outside(
   })
 }
 
+@internal
 pub fn assertive_test_collection_from_data_with_outside(
   name: String,
   datas: List(AssertiveTestDataWithOutside(a)),

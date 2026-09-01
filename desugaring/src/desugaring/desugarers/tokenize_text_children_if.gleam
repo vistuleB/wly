@@ -3,6 +3,7 @@ import desugaring/core.{
   type Desugarer, type DesugarerTransform, type DesugaringError,
 }
 import desugaring/nodemaps_2_transform as n2t
+import desugaring/testing
 import gleam/list
 import gleam/string
 import splitter.{type Splitter}
@@ -172,13 +173,13 @@ type InnerParam =
 // 🌊🌊🌊 tests 🌊🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
 
-fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
+fn assertive_tests_data() -> List(testing.AssertiveTestData(Param)) {
   let test_param = fn(vxml) {
     let assert V(_, t, _, _) = vxml
     t == "a"
   }
   [
-    core.AssertiveTestData(
+    testing.data(
       param: test_param,
       source: "
                 <> testing
@@ -220,7 +221,7 @@ fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
                         'some text'
                 ",
     ),
-    core.AssertiveTestData(
+    testing.data(
       param: test_param,
       source: "
             <> testing
@@ -254,7 +255,7 @@ fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
                 <> __EndTokenizedT
       ",
     ),
-    core.AssertiveTestData(
+    testing.data(
       param: test_param,
       source: "
             <> testing
@@ -275,9 +276,5 @@ fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
 }
 
 pub fn assertive_tests() {
-  core.assertive_test_collection_from_data(
-    name,
-    assertive_tests_data(),
-    constructor,
-  )
+  testing.collection(name, assertive_tests_data(), constructor)
 }

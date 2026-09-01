@@ -3,6 +3,7 @@ import desugaring/core.{
   type Desugarer, type DesugarerTransform, type DesugaringError,
 }
 import desugaring/nodemaps_2_transform as n2t
+import desugaring/testing
 import either_or as eo
 import gleam/list
 import vxml.{type VXML, T, V}
@@ -68,14 +69,10 @@ fn child_must_escape(child: VXML, parent: String, inner: InnerParam) -> Bool {
 // 🌊🌊🌊 tests 🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
 
-fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
+fn assertive_tests_data() -> List(testing.AssertiveTestData(Param)) {
   []
 }
 
 pub fn assertive_tests() {
-  core.assertive_test_collection_from_data(
-    name,
-    assertive_tests_data(),
-    constructor,
-  )
+  testing.collection(name, assertive_tests_data(), constructor)
 }

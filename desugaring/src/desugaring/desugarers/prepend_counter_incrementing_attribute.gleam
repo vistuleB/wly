@@ -4,6 +4,7 @@ import desugaring/core.{
   type TrafficLight, Continue, GoBack,
 }
 import desugaring/nodemaps_2_transform as n2t
+import desugaring/testing
 import vxml.{type Attr, type VXML, Attr, V}
 
 pub const name = "prepend_counter_incrementing_attribute"
@@ -69,9 +70,9 @@ fn desugarer_blame(line_no: Int) {
 // 🌊🌊🌊 tests 🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
 
-fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
+fn assertive_tests_data() -> List(testing.AssertiveTestData(Param)) {
   [
-    core.AssertiveTestData(
+    testing.data(
       param: #("Chapter", "ChapterCounter", GoBack),
       source: "
                   <> root
@@ -112,7 +113,7 @@ fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
                         'Should not change'
                 ",
     ),
-    core.AssertiveTestData(
+    testing.data(
       param: #("Sub", "SubCounter", Continue),
       source: "
                   <> root
@@ -147,7 +148,7 @@ fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
                         'Chapter content'
                 ",
     ),
-    core.AssertiveTestData(
+    testing.data(
       param: #("Exercise", "ExerciseCounter", Continue),
       source: "
                   <> root
@@ -184,9 +185,5 @@ fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
 }
 
 pub fn assertive_tests() {
-  core.assertive_test_collection_from_data(
-    name,
-    assertive_tests_data(),
-    constructor,
-  )
+  testing.collection(name, assertive_tests_data(), constructor)
 }

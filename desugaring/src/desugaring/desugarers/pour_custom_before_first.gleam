@@ -4,6 +4,7 @@ import desugaring/core.{
   type TrafficLight, Continue,
 }
 import desugaring/nodemaps_2_transform as n2t
+import desugaring/testing
 import vxml.{type VXML, V}
 
 pub const name = "pour_custom_before_first"
@@ -77,12 +78,12 @@ fn nodemap(vxml: VXML, inner: InnerParam) -> #(VXML, TrafficLight) {
 // 🌊🌊🌊 tests 🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
 
-fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
+fn assertive_tests_data() -> List(testing.AssertiveTestData(Param)) {
   let first = V(authoring.blame(name, 71), "first", [], [])
   let second = V(authoring.blame(name, 72), "second", [], [])
 
   [
-    core.AssertiveTestData(
+    testing.data(
       param: #("section", [first, second], "marker", Continue),
       source: "
                 <> root
@@ -101,7 +102,7 @@ fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
                     <> after
                 ",
     ),
-    core.AssertiveTestData(
+    testing.data(
       param: #("section", [first, second], "marker", Continue),
       source: "
                 <> root
@@ -120,9 +121,5 @@ fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
 }
 
 pub fn assertive_tests() {
-  core.assertive_test_collection_from_data(
-    name,
-    assertive_tests_data(),
-    constructor,
-  )
+  testing.collection(name, assertive_tests_data(), constructor)
 }

@@ -3,6 +3,7 @@ import desugaring/core.{
   type Desugarer, type DesugarerTransform, type DesugaringError,
 }
 import desugaring/nodemaps_2_transform as n2t
+import desugaring/testing
 import gleam/list
 import vxml.{type Line, type VXML, Line, T, V}
 
@@ -111,14 +112,10 @@ fn remove_last_line_while_empty(lines: List(Line)) -> List(Line) {
 // 🌊🌊🌊 tests 🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
 
-fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
+fn assertive_tests_data() -> List(testing.AssertiveTestData(Param)) {
   []
 }
 
 pub fn assertive_tests() {
-  core.assertive_test_collection_from_data(
-    name,
-    assertive_tests_data(),
-    constructor,
-  )
+  testing.collection(name, assertive_tests_data(), constructor)
 }

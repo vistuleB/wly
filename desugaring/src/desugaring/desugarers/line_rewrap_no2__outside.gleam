@@ -4,6 +4,7 @@ import desugaring/core.{
 }
 import desugaring/line_wrapping
 import desugaring/nodemaps_2_transform as n2t
+import desugaring/testing
 import gleam/int
 import gleam/list
 import vxml.{type VXML, Line, T, V}
@@ -166,14 +167,10 @@ fn v_after(
 // 🌊🌊🌊 tests 🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
 
-fn assertive_tests_data() -> List(core.AssertiveTestDataWithOutside(Param)) {
+fn assertive_tests_data() -> List(testing.AssertiveTestDataWithOutside(Param)) {
   []
 }
 
 pub fn assertive_tests() {
-  core.assertive_test_collection_from_data_with_outside(
-    name,
-    assertive_tests_data(),
-    constructor,
-  )
+  testing.collection_with_outside(name, assertive_tests_data(), constructor)
 }

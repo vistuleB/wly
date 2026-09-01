@@ -3,6 +3,7 @@ import desugaring/core.{
   type Desugarer, type DesugarerTransform, type DesugaringError,
 }
 import desugaring/nodemaps_2_transform as n2t
+import desugaring/testing
 import gleam/list
 import gleam/option.{Some}
 import vxml.{type VXML, Attr, Line, T, V}
@@ -80,9 +81,9 @@ fn desugarer_blame(line_no: Int) {
 // 🌊🌊🌊 tests 🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
 
-fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
+fn assertive_tests_data() -> List(testing.AssertiveTestData(Param)) {
   [
-    core.AssertiveTestData(
+    testing.data(
       param: #("div", "title"),
       source: "
                 <> div
@@ -101,7 +102,7 @@ fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
                       'Content'
                 ",
     ),
-    core.AssertiveTestData(
+    testing.data(
       param: #("div", "title"),
       source: "
                 <> div
@@ -117,7 +118,7 @@ fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
                     'Existing'
                 ",
     ),
-    core.AssertiveTestData(
+    testing.data(
       param: #("div", "title"),
       source: "
                 <> div
@@ -139,7 +140,7 @@ fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
                     'Outer'
                 ",
     ),
-    core.AssertiveTestData(
+    testing.data(
       param: #("div", "missing"),
       source: "
                 <> div
@@ -156,7 +157,7 @@ fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
                       'Content'
                 ",
     ),
-    core.AssertiveTestData(
+    testing.data(
       param: #("section", "title"),
       source: "
                 <> div
@@ -183,7 +184,7 @@ fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
                           'Content'
                 ",
     ),
-    core.AssertiveTestData(
+    testing.data(
       param: #("item", "value"),
       source: "
                 <> container
@@ -220,9 +221,5 @@ fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
 }
 
 pub fn assertive_tests() {
-  core.assertive_test_collection_from_data(
-    name,
-    assertive_tests_data(),
-    constructor,
-  )
+  testing.collection(name, assertive_tests_data(), constructor)
 }

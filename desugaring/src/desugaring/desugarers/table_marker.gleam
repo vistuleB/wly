@@ -1,6 +1,7 @@
 import desugaring/authoring
 import desugaring/core.{type Desugarer}
 import desugaring/nodemaps_2_transform as n2t
+import desugaring/testing
 
 pub const name = "table_marker"
 
@@ -17,14 +18,10 @@ pub fn constructor() -> Desugarer {
 // 🌊🌊🌊 tests 🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
 
-fn assertive_tests_data() -> List(core.AssertiveTestDataNoParam) {
+fn assertive_tests_data() -> List(testing.AssertiveTestDataNoParam) {
   []
 }
 
 pub fn assertive_tests() {
-  core.assertive_test_collection_from_data_no_param(
-    name,
-    assertive_tests_data(),
-    constructor,
-  )
+  testing.collection_no_param(name, assertive_tests_data(), constructor)
 }

@@ -3,6 +3,7 @@ import desugaring/core.{
   type Desugarer, type DesugarerTransform, type DesugaringError,
 }
 import desugaring/nodemaps_2_transform as n2t
+import desugaring/testing
 import gleam/list
 import gleam/string.{inspect as ins}
 import vxml.{type Attr, type Line, type VXML, Line, T, V}
@@ -107,7 +108,7 @@ fn line_to_tooltip_span(line: Line, inner: InnerParam) -> VXML {
 // 🌊🌊🌊 tests 🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
 
-fn assertive_tests_data() -> List(core.AssertiveTestDataWithOutside(Param)) {
+fn assertive_tests_data() -> List(testing.AssertiveTestDataWithOutside(Param)) {
   [
     // note 1: not sure if following test is correct
     // it was reverse-engineered from the desugarer's
@@ -118,7 +119,7 @@ fn assertive_tests_data() -> List(core.AssertiveTestDataWithOutside(Param)) {
     // assertive test runner, which is why
     // '../path/to/content/test' shows up in the expected
     // output
-    core.AssertiveTestDataWithOutside(
+    testing.data_with_outside(
       param: #("../path/to/content/", [#("class", "t-3003-c")], [
         #("class", "t-3003"),
       ]),
@@ -144,9 +145,5 @@ fn assertive_tests_data() -> List(core.AssertiveTestDataWithOutside(Param)) {
 }
 
 pub fn assertive_tests() {
-  core.assertive_test_collection_from_data_with_outside(
-    name,
-    assertive_tests_data(),
-    constructor,
-  )
+  testing.collection_with_outside(name, assertive_tests_data(), constructor)
 }

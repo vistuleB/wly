@@ -4,6 +4,7 @@ import desugaring/core.{
   type DesugaringWarning, DesugaringError, DesugaringWarning,
 }
 import desugaring/nodemaps_2_transform as n2t
+import desugaring/testing
 import gleam/dict.{type Dict}
 import gleam/list
 import gleam/option.{type Option, Some}
@@ -203,11 +204,11 @@ pub fn constructor(param: Param) -> Desugarer {
 // 🌊🌊🌊 tests 🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
 
-fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
+fn assertive_tests_data() -> List(testing.AssertiveTestData(Param)) {
   [
     // Test 1: unused handle on a MathBlock -> tree unchanged (the
     // warning itself is not observable through assertive tests)
-    core.AssertiveTestData(
+    testing.data(
       param: ["MathBlock"],
       source: "
         <> GrandWrapper
@@ -234,7 +235,7 @@ fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
     ),
 
     // Test 2: used handle on a MathBlock -> tree unchanged
-    core.AssertiveTestData(
+    testing.data(
       param: ["MathBlock"],
       source: "
         <> GrandWrapper
@@ -261,7 +262,7 @@ fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
     ),
 
     // Test 3: unused handle on a non-listed tag -> tree unchanged
-    core.AssertiveTestData(
+    testing.data(
       param: ["MathBlock"],
       source: "
         <> GrandWrapper
@@ -290,9 +291,5 @@ fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
 }
 
 pub fn assertive_tests() {
-  core.assertive_test_collection_from_data(
-    name,
-    assertive_tests_data(),
-    constructor,
-  )
+  testing.collection(name, assertive_tests_data(), constructor)
 }

@@ -3,6 +3,7 @@ import desugaring/core.{
   type Desugarer, type DesugarerTransform, type DesugaringError,
 }
 import desugaring/nodemaps_2_transform as n2t
+import desugaring/testing
 import gleam/list
 import gleam/option.{type Option}
 import gleam/string.{inspect as ins}
@@ -369,9 +370,9 @@ fn pairing_msg(local: Blame, remote: Blame) -> String {
 // 🌊🌊🌊 tests 🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
 
-fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
+fn assertive_tests_data() -> List(testing.AssertiveTestData(Param)) {
   [
-    core.AssertiveTestData(
+    testing.data(
       param: #("MDLinkOpening", "MDLinkClosing", "MDLink", ["UnbridgeableTag"]),
       source: "
         <> root
@@ -388,7 +389,7 @@ fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
           <> UnbridgeableTag
       ",
     ),
-    core.AssertiveTestData(
+    testing.data(
       param: #("MDLinkOpening", "MDLinkClosing", "MDLink", ["UnbridgeableTag"]),
       source: "
         <> root
@@ -407,7 +408,7 @@ fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
           <> MDLinkClosing
       ",
     ),
-    core.AssertiveTestData(
+    testing.data(
       param: #("MDLinkOpening", "MDLinkClosing", "MDLink", ["UnbridgeableTag"]),
       source: "
         <> root
@@ -429,9 +430,5 @@ fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
 }
 
 pub fn assertive_tests() {
-  core.assertive_test_collection_from_data(
-    name,
-    assertive_tests_data(),
-    constructor,
-  )
+  testing.collection(name, assertive_tests_data(), constructor)
 }

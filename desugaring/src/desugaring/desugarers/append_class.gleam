@@ -4,6 +4,7 @@ import desugaring/core.{
   type TrafficLight, Continue,
 }
 import desugaring/nodemaps_2_transform as n2t
+import desugaring/testing
 import vxml.{type VXML, V}
 import vxml/blame.{type Blame}
 
@@ -68,14 +69,10 @@ fn nodemap(vxml: VXML, inner: InnerParam) -> #(VXML, TrafficLight) {
 // 🌊🌊🌊 tests 🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
 
-fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
+fn assertive_tests_data() -> List(testing.AssertiveTestData(Param)) {
   []
 }
 
 pub fn assertive_tests() {
-  core.assertive_test_collection_from_data(
-    name,
-    assertive_tests_data(),
-    constructor,
-  )
+  testing.collection(name, assertive_tests_data(), constructor)
 }

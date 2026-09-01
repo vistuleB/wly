@@ -1,9 +1,13 @@
 import argv
-import desugaring/assertive_testing
+import desugaring/desugarers
+import desugaring/testing
 import gleam/io
 
 pub fn main() {
   io.println("")
   let args = argv.load().arguments
-  assertive_testing.run_assertive_desugarer_tests_on(args)
+  case testing.test_desugarers(desugarers.assertive_tests, args) {
+    Ok(Nil) -> Nil
+    Error(message) -> panic as message
+  }
 }

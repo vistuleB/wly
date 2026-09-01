@@ -4,9 +4,11 @@ import gleam/regexp.{type Regexp}
 import vxml.{type VXML, Line, T}
 import vxml/blame as bl
 
+@internal
 pub type Rule =
   #(Regexp, String)
 
+@internal
 pub fn prepare(param: #(String, String)) -> Result(Rule, DesugaringError) {
   let #(pattern, replacement) = param
   case regexp.from_string(pattern) {
@@ -16,16 +18,19 @@ pub fn prepare(param: #(String, String)) -> Result(Rule, DesugaringError) {
   }
 }
 
+@internal
 pub fn prepare_batch(
   param: List(#(String, String)),
 ) -> Result(List(Rule), DesugaringError) {
   list.try_map(param, prepare)
 }
 
+@internal
 pub fn nodemap(vxml: VXML, rule: Rule) -> VXML {
   nodemap_batch(vxml, [rule])
 }
 
+@internal
 pub fn nodemap_batch(vxml: VXML, rules: List(Rule)) -> VXML {
   case vxml {
     T(_, lines) ->

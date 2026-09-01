@@ -32,59 +32,59 @@ pub type AssertiveTestResults {
   )
 }
 
-pub fn data(param: a, source: String, expected: String) {
+pub fn data(param param: a, source source: String, expected expected: String) {
   core.AssertiveTestData(param, source, expected)
 }
 
-pub fn data_no_param(source: String, expected: String) {
+pub fn data_no_param(source source: String, expected expected: String) {
   core.AssertiveTestDataNoParam(source, expected)
 }
 
 pub fn data_with_outside(
-  param: a,
-  outside: List(String),
-  source: String,
-  expected: String,
+  param param: a,
+  outside outside: List(String),
+  source source: String,
+  expected expected: String,
 ) {
   core.AssertiveTestDataWithOutside(param, outside, source, expected)
 }
 
 pub fn data_no_param_with_outside(
-  outside: List(String),
-  source: String,
-  expected: String,
+  outside outside: List(String),
+  source source: String,
+  expected expected: String,
 ) {
   core.AssertiveTestDataNoParamWithOutside(outside, source, expected)
 }
 
 pub fn collection(
-  name: String,
-  data: List(AssertiveTestData(a)),
-  constructor: fn(a) -> core.Desugarer,
+  name name: String,
+  data data: List(AssertiveTestData(a)),
+  constructor constructor: fn(a) -> core.Desugarer,
 ) {
   core.assertive_test_collection_from_data(name, data, constructor)
 }
 
 pub fn collection_no_param(
-  name: String,
-  data: List(AssertiveTestDataNoParam),
-  constructor: fn() -> core.Desugarer,
+  name name: String,
+  data data: List(AssertiveTestDataNoParam),
+  constructor constructor: fn() -> core.Desugarer,
 ) {
   core.assertive_test_collection_from_data_no_param(name, data, constructor)
 }
 
 pub fn collection_with_outside(
-  name: String,
-  data: List(AssertiveTestDataWithOutside(a)),
-  constructor: fn(a, List(String)) -> core.Desugarer,
+  name name: String,
+  data data: List(AssertiveTestDataWithOutside(a)),
+  constructor constructor: fn(a, List(String)) -> core.Desugarer,
 ) {
   core.assertive_test_collection_from_data_with_outside(name, data, constructor)
 }
 
 pub fn collection_no_param_with_outside(
-  name: String,
-  data: List(AssertiveTestDataNoParamWithOutside),
-  constructor: fn(List(String)) -> core.Desugarer,
+  name name: String,
+  data data: List(AssertiveTestDataNoParamWithOutside),
+  constructor constructor: fn(List(String)) -> core.Desugarer,
 ) {
   core.assertive_test_collection_from_data_no_param_with_outside(
     name,

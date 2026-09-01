@@ -312,10 +312,12 @@ type SelectionOutputState {
   )
 }
 
+@internal
 pub fn s_line_to_output_line(line: SLine) -> OutputLine {
   OutputLine(line.blame, line.indent, line.content)
 }
 
+@internal
 pub fn s_lines_to_output_lines(
   lines: List(SLine),
   dry_run: Bool,
@@ -323,6 +325,7 @@ pub fn s_lines_to_output_lines(
   s_lines_to_output_lines_with(lines, dry_run, True)
 }
 
+@internal
 pub fn s_lines_to_output_lines_with(
   lines: List(SLine),
   dry_run: Bool,
@@ -392,6 +395,7 @@ pub fn s_lines_to_output_lines_with(
   |> list.reverse
 }
 
+@internal
 pub fn s_lines_table_lines(
   lines: List(SLine),
   banner: String,
@@ -403,6 +407,7 @@ pub fn s_lines_table_lines(
   |> io_l.output_lines_table_lines(banner, indent)
 }
 
+@internal
 pub fn s_lines_table_lines_with(
   lines: List(SLine),
   banner: String,
@@ -421,6 +426,7 @@ pub fn s_lines_table_lines_with(
   )
 }
 
+@internal
 pub fn s_lines_table_lines_with_options(
   lines: List(SLine),
   banner: String,
@@ -440,6 +446,7 @@ pub fn s_lines_table_lines_with_options(
   )
 }
 
+@internal
 pub fn s_lines_verbatim_lines(
   lines: List(SLine),
   dry_run: Bool,
@@ -449,6 +456,7 @@ pub fn s_lines_verbatim_lines(
   |> list.map(io_l.output_line_to_string)
 }
 
+@internal
 pub fn s_lines_verbatim_lines_with_options(
   lines: List(SLine),
   dry_run: Bool,
@@ -459,6 +467,7 @@ pub fn s_lines_verbatim_lines_with_options(
   |> list.map(io_l.output_line_to_string)
 }
 
+@internal
 pub fn s_lines_table(
   lines: List(SLine),
   banner: String,

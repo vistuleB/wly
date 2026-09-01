@@ -3,6 +3,7 @@ import desugaring/core.{
   type Desugarer, type DesugarerTransform, type DesugaringError,
 }
 import desugaring/nodemaps_2_transform as n2t
+import desugaring/testing
 import gleam/list
 import gleam/option
 import gleam/regexp.{type Regexp}
@@ -150,10 +151,10 @@ type State =
 // 🌊🌊🌊 tests 🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
 
-fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
+fn assertive_tests_data() -> List(testing.AssertiveTestData(Param)) {
   [
     // Test 1: \label{name##<<} inside MathBlock → fills counter
-    core.AssertiveTestData(
+    testing.data(
       param: #("MathBlock", "::øøSectionCounter.::++EquationCounter"),
       source: "
         <> root
@@ -170,7 +171,7 @@ fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
     ),
 
     // Test 2: \label{name##<<} outside ancestor tag → no change
-    core.AssertiveTestData(
+    testing.data(
       param: #("MathBlock", "::øøSectionCounter.::++EquationCounter"),
       source: "
         <> root
@@ -185,7 +186,7 @@ fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
     ),
 
     // Test 3: multiple \label{name##<<} on separate lines
-    core.AssertiveTestData(
+    testing.data(
       param: #("MathBlock", "::øøSectionCounter.::++EquationCounter"),
       source: "
         <> root
@@ -204,7 +205,7 @@ fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
     ),
 
     // Test 4: label name with colons and hyphens
-    core.AssertiveTestData(
+    testing.data(
       param: #("MathBlock", "::øøSectionCounter.::++EquationCounter"),
       source: "
         <> root
@@ -221,7 +222,7 @@ fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
     ),
 
     // Test 5: \tag{name##<<value} with value already set → no change
-    core.AssertiveTestData(
+    testing.data(
       param: #("MathBlock", "::øøSectionCounter.::++EquationCounter"),
       source: "
         <> root
@@ -238,7 +239,7 @@ fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
     ),
 
     // Test 6: empty ancestor_tag applies to all T nodes
-    core.AssertiveTestData(
+    testing.data(
       param: #("", "::++EqCounter"),
       source: "
         <> root
@@ -253,7 +254,7 @@ fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
     ),
 
     // Test 7: two \label{##<<} on the same line
-    core.AssertiveTestData(
+    testing.data(
       param: #("MathBlock", "::++EqCounter"),
       source: "
         <> root
@@ -270,7 +271,7 @@ fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
     ),
 
     // Test 8: \tag{name##<<} (tag form, empty value) → fills counter
-    core.AssertiveTestData(
+    testing.data(
       param: #("MathBlock", "::++EqCounter"),
       source: "
         <> root
@@ -287,7 +288,7 @@ fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
     ),
 
     // Test 9: \label{name##<<value} → changes \label to \tag, preserves value
-    core.AssertiveTestData(
+    testing.data(
       param: #("MathBlock", "::++EqCounter"),
       source: "
         <> root
@@ -304,7 +305,7 @@ fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
     ),
 
     // Test 10: \label{name} without ##<< → not matched, left unchanged
-    core.AssertiveTestData(
+    testing.data(
       param: #("MathBlock", "::++EqCounter"),
       source: "
         <> root
@@ -321,7 +322,7 @@ fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
     ),
 
     // Test 11: bare name##<< inside MathBlock → fills counter
-    core.AssertiveTestData(
+    testing.data(
       param: #("MathBlock", "::++EqCounter"),
       source: "
         <> root
@@ -338,7 +339,7 @@ fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
     ),
 
     // Test 12: bare name##<< outside ancestor tag → no change
-    core.AssertiveTestData(
+    testing.data(
       param: #("MathBlock", "::++EqCounter"),
       source: "
         <> root
@@ -353,7 +354,7 @@ fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
     ),
 
     // Test 13: bare name##<< with empty ancestor_tag applies to all T nodes
-    core.AssertiveTestData(
+    testing.data(
       param: #("", "::++EqCounter"),
       source: "
         <> root
@@ -368,7 +369,7 @@ fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
     ),
 
     // Test 15: bare name#decorator##<< inside MathBlock → fills counter, decorator preserved
-    core.AssertiveTestData(
+    testing.data(
       param: #("MathBlock", "::++EqCounter"),
       source: "
         <> root
@@ -385,7 +386,7 @@ fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
     ),
 
     // Test 16: \label{name#decorator##<<} → converts to \tag, decorator preserved
-    core.AssertiveTestData(
+    testing.data(
       param: #("MathBlock", "::++EqCounter"),
       source: "
         <> root
@@ -402,7 +403,7 @@ fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
     ),
 
     // Test 17: multiple decorators on bare form
-    core.AssertiveTestData(
+    testing.data(
       param: #("MathBlock", "::++EqCounter"),
       source: "
         <> root
@@ -419,7 +420,7 @@ fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
     ),
 
     // Test 18: \tag{name#decorator##<<} with existing value → unchanged
-    core.AssertiveTestData(
+    testing.data(
       param: #("MathBlock", "::++EqCounter"),
       source: "
         <> root
@@ -436,7 +437,7 @@ fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
     ),
 
     // Test 19: \label{name#decorator##<<value} → changes to \tag, preserves value and decorator
-    core.AssertiveTestData(
+    testing.data(
       param: #("MathBlock", "::++EqCounter"),
       source: "
         <> root
@@ -453,7 +454,7 @@ fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
     ),
 
     // Test 20: bare name#decorator##<< outside MathBlock → no change
-    core.AssertiveTestData(
+    testing.data(
       param: #("MathBlock", "::++EqCounter"),
       source: "
         <> root
@@ -468,7 +469,7 @@ fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
     ),
 
     // Test 21: bare name with prime char (e.g. left-reduction-w')
-    core.AssertiveTestData(
+    testing.data(
       param: #("MathBlock", "::++EqCounter"),
       source: "
         <> root
@@ -485,7 +486,7 @@ fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
     ),
 
     // Test 22: \\label with prime in handle name
-    core.AssertiveTestData(
+    testing.data(
       param: #("MathBlock", "::++EqCounter"),
       source: "
         <> root
@@ -502,7 +503,7 @@ fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
     ),
 
     // Test 14: bare name##<< alongside \label{...} on separate lines
-    core.AssertiveTestData(
+    testing.data(
       param: #("MathBlock", "::++EqCounter"),
       source: "
         <> root
@@ -523,9 +524,5 @@ fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
 }
 
 pub fn assertive_tests() {
-  core.assertive_test_collection_from_data(
-    name,
-    assertive_tests_data(),
-    constructor,
-  )
+  testing.collection(name, assertive_tests_data(), constructor)
 }

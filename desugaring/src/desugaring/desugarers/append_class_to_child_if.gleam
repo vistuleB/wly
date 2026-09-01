@@ -3,6 +3,7 @@ import desugaring/core.{
   type Desugarer, type DesugarerTransform, type DesugaringError,
 }
 import desugaring/nodemaps_2_transform as n2t
+import desugaring/testing
 import vxml.{type VXML, V}
 
 pub const name = "append_class_to_child_if"
@@ -69,9 +70,9 @@ fn nodemap(vxml: VXML, inner: InnerParam) -> VXML {
 // 🌊🌊🌊 tests 🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
 
-fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
+fn assertive_tests_data() -> List(testing.AssertiveTestData(Param)) {
   [
-    core.AssertiveTestData(
+    testing.data(
       param: #("Chapter", "main-column", core.is_v_and_tag_equals(_, "p")),
       source: "
                 <> root
@@ -100,7 +101,7 @@ fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
                       class=should-not-change
                 ",
     ),
-    core.AssertiveTestData(
+    testing.data(
       param: #("container", "active", core.is_v_and_has_class(_, "highlight")),
       source: "
                 <> root
@@ -123,7 +124,7 @@ fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
                       class=highlight bold active
                 ",
     ),
-    core.AssertiveTestData(
+    testing.data(
       param: #("parent", "new", core.is_v_and_tag_equals(_, "child")),
       source: "
                 <> root
@@ -152,9 +153,5 @@ fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
 }
 
 pub fn assertive_tests() {
-  core.assertive_test_collection_from_data(
-    name,
-    assertive_tests_data(),
-    constructor,
-  )
+  testing.collection(name, assertive_tests_data(), constructor)
 }

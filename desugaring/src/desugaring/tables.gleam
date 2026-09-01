@@ -1,11 +1,10 @@
 import desugaring/core.{type Desugarer}
-import either_or.{type EitherOr, Either, Or} as eo
+import either_or.{type EitherOr, Either, Or}
 import gleam/int
 import gleam/io
 import gleam/list
 import gleam/option.{None, Some}
 import gleam/string.{inspect as ins}
-import on
 import vxml/blame.{type Blame} as bl
 
 pub fn dashes(num: Int) -> String {
@@ -47,9 +46,108 @@ pub fn how_many(singular: String, plural: String, count: Int) -> String {
   }
 }
 
-// **********************
-// 2-column table printer
-// **********************
+pub type TableCell {
+  TableCell(content: String, fill: String)
+}
+
+pub type TableRow {
+  Cells(List(TableCell))
+  SpanningRow(content: String, fill: String)
+}
+
+pub type ColumnStyle {
+  ColumnStyle(padding_right: Int)
+}
+
+fn table_column_widths(
+  rows: List(TableRow),
+  columns: List(ColumnStyle),
+) -> List(Int) {
+  list.fold(rows, list.map(columns, fn(_) { 0 }), fn(widths, row) {
+    case row {
+      SpanningRow(..) -> widths
+      Cells(cells) -> {
+        assert list.length(cells) == list.length(columns)
+        list.map2(widths, cells, fn(width, cell) {
+          int.max(width, string.length(cell.content))
+        })
+      }
+    }
+  })
+}
+
+fn table_border(
+  left: String,
+  join: String,
+  right: String,
+  widths: List(Int),
+  columns: List(ColumnStyle),
+) -> String {
+  let segments =
+    list.map2(widths, columns, fn(width, column) {
+      solid_dashes(width + column.padding_right)
+    })
+  left <> string.join(segments, join) <> right
+}
+
+fn render_table_row(
+  row: TableRow,
+  widths: List(Int),
+  columns: List(ColumnStyle),
+  total_width: Int,
+) -> String {
+  case row {
+    Cells(cells) -> {
+      let cells =
+        list.map2(list.zip(cells, widths), columns, fn(pair, column) {
+          let #(cell, width) = pair
+          "│ "
+          <> cell.content
+          <> string.repeat(
+            cell.fill,
+            width - string.length(cell.content) + column.padding_right,
+          )
+        })
+      string.concat(cells) <> "│"
+    }
+    SpanningRow(content, fill) -> {
+      let remaining = int.max(0, total_width - string.length(content))
+      let left_width = remaining / 2
+      let right_width = remaining - left_width
+      string.repeat(fill, left_width)
+      <> content
+      <> string.repeat(fill, right_width)
+    }
+  }
+}
+
+/// Render a boxed table whose first row is its header.
+pub fn table(rows: List(TableRow), columns: List(ColumnStyle)) -> List(String) {
+  case rows {
+    [] -> []
+    [first, ..rest] -> {
+      let widths = table_column_widths(rows, columns)
+      let total_width =
+        list.map2(widths, columns, fn(width, column) {
+          width + column.padding_right + 2
+        })
+        |> list.fold(1, int.add)
+      let render = render_table_row(_, widths, columns, total_width)
+      [
+        table_border("┌─", "┬─", "┐", widths, columns),
+        render(first),
+        table_border("├─", "┼─", "┤", widths, columns),
+        ..list.append(list.map(rest, render), [
+          table_border("└─", "┴─", "┘", widths, columns),
+        ])
+      ]
+    }
+  }
+}
+
+fn cell(content: String) -> TableCell {
+  TableCell(content, " ")
+}
 
 pub fn two_column_maxes(lines: List(#(String, String))) -> #(Int, Int) {
   list.fold(lines, #(0, 0), fn(acc, pair) {
@@ -61,183 +159,45 @@ pub fn two_column_maxes(lines: List(#(String, String))) -> #(Int, Int) {
 }
 
 pub fn two_column_table(lines: List(#(String, String))) -> List(String) {
-  let maxes = two_column_maxes(lines)
-  let padding = #(2, 2)
-  let one_line = fn(cols: #(String, String)) -> String {
-    "│ "
-    <> cols.0
-    <> spaces(maxes.0 - string.length(cols.0) + padding.0)
-    <> "│ "
-    <> cols.1
-    <> spaces(maxes.1 - string.length(cols.1) + padding.1)
-    <> "│"
-  }
-  let sds = #(
-    solid_dashes(maxes.0 + padding.0),
-    solid_dashes(maxes.1 + padding.1),
-  )
-  let assert [first, ..rest] = lines
-  [
-    [
-      "┌─" <> sds.0 <> "┬─" <> sds.1 <> "┐",
-      one_line(first),
-      "├─" <> sds.0 <> "┼─" <> sds.1 <> "┤",
-    ],
-    list.map(rest, one_line),
-    ["└─" <> sds.0 <> "┴─" <> sds.1 <> "┘"],
-  ]
-  |> list.flatten
-}
-
-// **********************
-// 3-column table printer
-// **********************
-
-pub fn three_column_maxes(
-  lines: List(EitherOr(#(String, String, String), String)),
-) -> #(Int, Int, Int) {
-  list.fold(lines |> eo.keep_eithers, #(0, 0, 0), fn(acc, triple) {
-    #(
-      int.max(acc.0, string.length(triple.0)),
-      int.max(acc.1, string.length(triple.1)),
-      int.max(acc.2, string.length(triple.2)),
-    )
-  })
+  lines
+  |> list.map(fn(row) { Cells([cell(row.0), cell(row.1)]) })
+  |> table([ColumnStyle(2), ColumnStyle(2)])
 }
 
 pub fn three_column_table(
   lines: List(EitherOr(#(String, String, String), String)),
 ) -> List(String) {
-  let maxes = three_column_maxes(lines)
-  let padding = #(1, 2, 1)
-  let total_width =
-    maxes.0 + maxes.1 + maxes.2 + padding.0 + padding.1 + padding.2 + 7
-  let one_line = fn(item: EitherOr(#(String, String, String), String)) -> String {
-    case item {
-      Either(cols) -> {
-        "│ "
-        <> cols.0
-        <> spaces(maxes.0 - string.length(cols.0) + padding.0)
-        <> "│ "
-        <> cols.1
-        <> spaces(maxes.1 - string.length(cols.1) + padding.1)
-        <> "│ "
-        <> cols.2
-        <> spaces(maxes.2 - string.length(cols.2) + padding.2)
-        <> "│"
-      }
-      Or(x) -> {
-        let len = string.length(x)
-        let left_width = { total_width - len } / 2
-        let right_width = { total_width + 1 - len } / 2
-        string.repeat(string.slice(x, 0, 1), left_width)
-        <> x
-        <> string.repeat(string.slice(x, len - 1, 1), right_width)
-      }
+  lines
+  |> list.map(fn(row) {
+    case row {
+      Either(row) -> Cells([cell(row.0), cell(row.1), cell(row.2)])
+      Or(content) -> SpanningRow(content, string.slice(content, 0, 1))
     }
-  }
-  let sds = #(
-    solid_dashes(maxes.0 + padding.0),
-    solid_dashes(maxes.1 + padding.1),
-    solid_dashes(maxes.2 + padding.2),
-  )
-  let assert [first, ..rest] = lines
-  [
-    [
-      "┌─" <> sds.0 <> "┬─" <> sds.1 <> "┬─" <> sds.2 <> "┐",
-      one_line(first),
-      "├─" <> sds.0 <> "┼─" <> sds.1 <> "┼─" <> sds.2 <> "┤",
-    ],
-    list.map(rest, one_line),
-    ["└─" <> sds.0 <> "┴─" <> sds.1 <> "┴─" <> sds.2 <> "┘"],
-  ]
-  |> list.flatten
-}
-
-// **********************
-// 4-column table printer
-// **********************
-
-pub fn four_column_maxes(
-  lines: List(EitherOr(#(String, String, String, String), String)),
-) -> #(Int, Int, Int, Int) {
-  list.fold(lines |> eo.keep_eithers, #(0, 0, 0, 0), fn(acc, pair) {
-    #(
-      int.max(acc.0, string.length(pair.0)),
-      int.max(acc.1, string.length(pair.1)),
-      int.max(acc.2, string.length(pair.2)),
-      int.max(acc.3, string.length(pair.3)),
-    )
   })
+  |> table([ColumnStyle(1), ColumnStyle(2), ColumnStyle(1)])
 }
 
 pub fn four_column_table(
   lines: List(EitherOr(#(String, String, String, String), String)),
 ) -> List(String) {
-  let maxes = four_column_maxes(lines)
-  let padding = #(1, 2, 1, 1)
-  let total_width =
-    9
-    + maxes.0
-    + padding.0
-    + maxes.1
-    + padding.1
-    + maxes.2
-    + padding.2
-    + maxes.3
-    + padding.3
-  let one_line = fn(
-    item: EitherOr(#(String, String, String, String), String),
-    index: Int,
-  ) -> String {
-    case item {
-      Either(tuple) -> {
-        "│ "
-        <> tuple.0
-        <> spaces(maxes.0 - string.length(tuple.0) + padding.0)
-        <> "│ "
-        <> tuple.1
-        <> case index % 2 {
-          1 -> dots(maxes.1 - string.length(tuple.1) + padding.1)
-          _ if index >= 0 ->
-            underscores(maxes.1 - string.length(tuple.1) + padding.1)
-          _ -> spaces(maxes.1 - string.length(tuple.1) + padding.1)
-        }
-        <> "│ "
-        <> tuple.2
-        <> spaces(maxes.2 - string.length(tuple.2) + padding.2)
-        <> "│ "
-        <> tuple.3
-        <> spaces(maxes.3 - string.length(tuple.3) + padding.3)
-        <> "│"
-      }
-      Or(x) -> {
-        let len = string.length(x)
-        let left_width = { total_width - len } / 2
-        let right_width = { total_width + 1 - len } / 2
-        string.repeat(string.slice(x, 0, 1), left_width)
-        <> x
-        <> string.repeat(string.slice(x, len - 1, 1), right_width)
-      }
+  lines
+  |> list.index_map(fn(row, index) {
+    case row {
+      Either(row) ->
+        Cells([
+          cell(row.0),
+          TableCell(row.1, case index {
+            0 -> " "
+            n if n % 2 == 0 -> "."
+            _ -> "_"
+          }),
+          cell(row.2),
+          cell(row.3),
+        ])
+      Or(content) -> SpanningRow(content, string.slice(content, 0, 1))
     }
-  }
-  let sds = #(
-    solid_dashes(maxes.0 + padding.0),
-    solid_dashes(maxes.1 + padding.1),
-    solid_dashes(maxes.2 + padding.2),
-    solid_dashes(maxes.3 + padding.3),
-  )
-  let assert [first, ..rest] = lines
-  [
-    [
-      "┌─" <> sds.0 <> "┬─" <> sds.1 <> "┬─" <> sds.2 <> "┬─" <> sds.3 <> "┐",
-      one_line(first, -1),
-      "├─" <> sds.0 <> "┼─" <> sds.1 <> "┼─" <> sds.2 <> "┼─" <> sds.3 <> "┤",
-    ],
-    list.index_map(rest, one_line),
-    ["└─" <> sds.0 <> "┴─" <> sds.1 <> "┴─" <> sds.2 <> "┴─" <> sds.3 <> "┘"],
-  ]
-  |> list.flatten
+  })
+  |> table([ColumnStyle(1), ColumnStyle(2), ColumnStyle(1), ColumnStyle(1)])
 }
 
 pub fn print_lines_at_indent(lines: List(String), indent: Int) -> Nil {
@@ -342,33 +302,6 @@ pub fn name_and_param_string_lines(
   |> list.map(fn(l) { spaces <> l })
 }
 
-pub fn turn_into_paragraph(
-  message: String,
-  max_line_length: Int,
-) -> List(String) {
-  let len = string.length(message)
-  use <- on.true_false(len < max_line_length, on_true: fn() { [message] })
-  let shortest = max_line_length * 3 / 5
-  let #(current_start, current_end, remaining) = #(
-    string.slice(message, 0, shortest),
-    string.slice(message, shortest, max_line_length - shortest),
-    string.slice(message, max_line_length, len),
-  )
-  case string.split_once(current_end |> string.reverse, " ") {
-    Ok(#(before, after)) -> [
-      current_start <> { after |> string.reverse },
-      ..turn_into_paragraph(
-        { before |> string.reverse } <> remaining,
-        max_line_length,
-      )
-    ]
-    _ -> [
-      current_start <> current_end,
-      ..turn_into_paragraph(remaining, max_line_length)
-    ]
-  }
-}
-
 pub fn strip_quotes(string: String) -> String {
   case
     {
@@ -392,6 +325,23 @@ fn ddd_truncate(str: String, max_cols) -> String {
   }
 }
 
+type PipelineEntryKind {
+  OrdinaryPipelineEntry
+  PipelineMarker
+  PipelineSectionHeader(String)
+}
+
+fn pipeline_entry_kind(desugarer: Desugarer) -> PipelineEntryKind {
+  case desugarer.name {
+    "table_marker" -> PipelineMarker
+    "table_section_header" -> {
+      let assert Some(header) = desugarer.stringified_param
+      PipelineSectionHeader(header)
+    }
+    _ -> OrdinaryPipelineEntry
+  }
+}
+
 fn desugarer_to_list_lines(
   desugarer: Desugarer,
   index: Int,
@@ -399,13 +349,12 @@ fn desugarer_to_list_lines(
   max_outside_cols: Int,
   none_string: String,
 ) -> List(EitherOr(#(String, String, String, String), String)) {
-  case desugarer.name {
-    "table_marker" -> [" ", "% table_marker %", " "] |> list.map(Or)
-    "table_section_header" -> {
-      let assert Some(header) = desugarer.stringified_param
+  case pipeline_entry_kind(desugarer) {
+    PipelineMarker -> [" ", "% table_marker %", " "] |> list.map(Or)
+    PipelineSectionHeader(header) -> {
       ["/", "/ " <> header <> " /", "/"] |> list.map(Or)
     }
-    _ -> {
+    OrdinaryPipelineEntry -> {
       let number = ins(index + 1) <> "."
       let name = desugarer.name
       let param_lines = case desugarer.stringified_param {
@@ -428,6 +377,29 @@ fn desugarer_to_list_lines(
       })
     }
   }
+}
+
+@internal
+pub fn pipeline_timing_table(
+  desugarers: List(Desugarer),
+  bars: List(String),
+  scale: String,
+) -> List(String) {
+  assert list.length(desugarers) == list.length(bars)
+  let rows =
+    list.index_map(list.zip(desugarers, bars), fn(pair, index) {
+      let #(desugarer, bar) = pair
+      case pipeline_entry_kind(desugarer) {
+        PipelineMarker -> [" ", "% table_marker %", " "] |> list.map(Or)
+        PipelineSectionHeader(header) ->
+          ["/", "/ " <> header <> " /", "/"] |> list.map(Or)
+        OrdinaryPipelineEntry -> [
+          Either(#(ins(index + 1) <> ".", desugarer.name, bar)),
+        ]
+      }
+    })
+    |> list.flatten
+  three_column_table([Either(#("#.", "name", scale)), ..rows])
 }
 
 pub fn print_pipeline(desugarers: List(Desugarer)) {
@@ -459,66 +431,4 @@ pub fn our_blame_digest(blame: Blame) -> String {
     "" -> "--"
     s -> s
   }
-}
-
-fn dash_banner(title: String, width: Int) -> String {
-  let side = { width - string.length(title) } / 2
-  let s1 = string.repeat("-", side)
-  let s2 = string.repeat("-", width - string.length(title) - side)
-  s1 <> title <> s2
-}
-
-pub fn two_column_error_announcer(
-  announces: List(#(String, String)),
-  col1_min: Int,
-  col2_min: Int,
-  emoji: String,
-  margin: Int,
-  banner: String,
-) -> String {
-  let #(col1_max, _col2_max) = two_column_maxes(announces)
-  let col1 = int.max(col1_min, col1_max + 1)
-  let firsts =
-    list.map(announces, fn(pair) { string.pad_end(pair.0, col1, " ") })
-  let #(max, seconds) =
-    list.map_fold(announces, 0, fn(acc, pair) {
-      let lines = turn_into_paragraph(pair.1, col2_min)
-      let assert Ok(max) =
-        list.map(lines, string.length) |> list.max(int.compare)
-      #(int.max(max, acc), lines)
-    })
-  let col2 = int.max(max + 1, col2_min + 1)
-  let spaces = string.repeat(" ", margin)
-  let emojis = string.repeat(emoji, 2)
-  let t = margin + 2 + col1 + col2
-  let dashes1 = dash_banner(banner, col1 + col2 - 2)
-  let dashes2 = string.repeat("-", col1 + col2 - 2)
-  let opening_line = spaces <> emojis <> " " <> dashes1 <> " " <> emojis
-  let closing_line = spaces <> emojis <> " " <> dashes2 <> " " <> emojis
-  let other_spaces = string.repeat(" ", col1)
-  let q =
-    list.map2(firsts, seconds, fn(f, s) {
-      let assert [s0, ..rest] = s
-      let l0 = string.pad_end(spaces <> emojis <> f <> s0, t, " ") <> emojis
-      let rest =
-        list.map(rest, fn(r) {
-          spaces
-          <> emojis
-          <> other_spaces
-          <> string.pad_end(r, col2, " ")
-          <> emojis
-        })
-      [l0, ..rest]
-    })
-    |> list.flatten
-  [opening_line, ..q]
-  |> list.append([closing_line])
-  |> string.join("\n")
-}
-
-pub fn mushroom_error_announcement(
-  title: String,
-  fields: List(#(String, String)),
-) -> String {
-  two_column_error_announcer(fields, 0, 68, "🍄", 2, "/ " <> title <> " /")
 }

@@ -12,7 +12,7 @@ MODULES=$(find "$SRC_DIR" -maxdepth 1 -type f -name '*.gleam' ! -name '__*' \
 # Write the file
 {
   # imports
-  echo "import desugaring/core as core"
+  echo "import desugaring/testing"
   printf '%s\n' "$MODULES" | while IFS= read -r m; do
     echo "import desugaring/desugarers/${m}"
   done
@@ -25,7 +25,7 @@ MODULES=$(find "$SRC_DIR" -maxdepth 1 -type f -name '*.gleam' ! -name '__*' \
   echo
 
   # assertive_tests
-  echo "pub const assertive_tests : List(fn() -> core.AssertiveTestCollection) = ["
+  echo "pub const assertive_tests : List(fn() -> testing.AssertiveTestCollection) = ["
   printf '%s\n' "$MODULES" | while IFS= read -r m; do
     echo "  ${m}.assertive_tests,"
   done

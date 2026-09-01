@@ -1,6 +1,7 @@
 import desugaring/authoring
 import desugaring/core.{type Desugarer, type DesugarerTransform}
 import desugaring/nodemaps_2_transform as n2t
+import desugaring/testing
 import gleam/list
 import vxml.{type Line, type VXML, Attr, Line, T, V}
 import vxml/blame.{type Blame}
@@ -106,9 +107,9 @@ fn detokenize_in_list(
 // 🌊🌊🌊 tests 🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
 
-fn assertive_tests_data() -> List(core.AssertiveTestDataNoParam) {
+fn assertive_tests_data() -> List(testing.AssertiveTestDataNoParam) {
   [
-    core.AssertiveTestDataNoParam(
+    testing.data_no_param(
       source: "
                 <> testing
                   <> bb
@@ -141,7 +142,7 @@ fn assertive_tests_data() -> List(core.AssertiveTestDataNoParam) {
                         'some text'
       ",
     ),
-    core.AssertiveTestDataNoParam(
+    testing.data_no_param(
       source: "
                 <> testing
                   <> bb
@@ -161,7 +162,7 @@ fn assertive_tests_data() -> List(core.AssertiveTestDataNoParam) {
                       'first  line'
       ",
     ),
-    core.AssertiveTestDataNoParam(
+    testing.data_no_param(
       source: "
                 <> testing
                   <> bb
@@ -183,7 +184,7 @@ fn assertive_tests_data() -> List(core.AssertiveTestDataNoParam) {
                       ' line'
       ",
     ),
-    core.AssertiveTestDataNoParam(
+    testing.data_no_param(
       source: "
                 <> testing
                   <> bb
@@ -207,9 +208,5 @@ fn assertive_tests_data() -> List(core.AssertiveTestDataNoParam) {
 }
 
 pub fn assertive_tests() {
-  core.assertive_test_collection_from_data_no_param(
-    name,
-    assertive_tests_data(),
-    constructor,
-  )
+  testing.collection_no_param(name, assertive_tests_data(), constructor)
 }

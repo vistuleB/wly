@@ -4,6 +4,7 @@ import desugaring/core.{
 }
 import desugaring/nodemaps_2_transform as n2t
 import desugaring/split_replacement as sr
+import desugaring/testing
 
 pub const name = "regex_split_and_replace__outside"
 
@@ -51,9 +52,9 @@ fn inner_param_to_transform(
 // 🌊🌊🌊 tests 🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
 
-fn assertive_tests_data() -> List(core.AssertiveTestDataWithOutside(Param)) {
+fn assertive_tests_data() -> List(testing.AssertiveTestDataWithOutside(Param)) {
   [
-    core.AssertiveTestDataWithOutside(
+    testing.data_with_outside(
       param: sr.regexp_split_rule("_", sr.Tag("Marker")),
       outside: ["Protected"],
       source: "
@@ -80,9 +81,5 @@ fn assertive_tests_data() -> List(core.AssertiveTestDataWithOutside(Param)) {
 }
 
 pub fn assertive_tests() {
-  core.assertive_test_collection_from_data_with_outside(
-    name,
-    assertive_tests_data(),
-    constructor,
-  )
+  testing.collection_with_outside(name, assertive_tests_data(), constructor)
 }

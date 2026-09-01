@@ -1,12 +1,12 @@
 import desugaring/core.{type Desugarer, type Pipeline}
 import desugaring/desugarers as dl
+import desugaring/feedback_boxes as fb
 import desugaring/generate_local_desugarers_dot_gleam as local_desugarer_generator
 import desugaring/renumber_local_desugarer_blames as local_desugarer_blame_renumberer
 import desugaring/selectors as sl
 import desugaring/tables as pr
 import desugaring/testing
 import desugaring/tracking.{type Selector}
-import either_or.{Either, Or}
 import gleam/dict.{type Dict}
 import gleam/erlang/process.{type Subject, receive, send, spawn}
 import gleam/float
@@ -897,7 +897,7 @@ pub fn handle_help_requests(
 /// renumbering, local-library generation, and all local desugarer tests.
 pub fn handle_maintenance_requests(
   arguments: ParsedCLIArguments,
-  local_desugarer_tests: List(fn() -> core.AssertiveTestCollection),
+  local_desugarer_tests: List(fn() -> testing.AssertiveTestCollection),
 ) -> Result(Bool, CLIError) {
   let renumber = arguments.renumber || arguments.desugarers
   let generate = arguments.generate || arguments.desugarers
@@ -931,7 +931,7 @@ fn perform_requested_maintenance(
   renumber: Bool,
   generate: Bool,
   requested_test_names: Option(List(String)),
-  local_desugarer_tests: List(fn() -> core.AssertiveTestCollection),
+  local_desugarer_tests: List(fn() -> testing.AssertiveTestCollection),
   content_printed: Bool,
 ) -> #(Result(Nil, String), Bool) {
   case renumber {
@@ -3096,9 +3096,9 @@ fn create_dirs_on_path_to_file(
   |> result.map(fn(_) { Nil })
 }
 
-pub type TwoPossibilities(first, second) {
-  P1(first)
-  P2(second)
+pub type EmitterOrWriterError(emitter_error, writer_error) {
+  EmitterError(emitter_error)
+  WriterError(writer_error)
 }
 
 pub type RendererError(
@@ -3111,13 +3111,15 @@ pub type RendererError(
 ) {
   AssemblerError(assembler_error)
   ParserError(Blame, parser_error)
-  FiltrationError(filterer_error)
+  FiltererError(filterer_error)
   DesugarerNameNotFoundError(String)
   PipelineError(InSituDesugaringError)
   MonitorError(MonitorFailure)
   UserExitError(Int)
   SplitterError(splitter_error)
-  EmittingOrWritingErrors(List(TwoPossibilities(emitter_error, writer_error)))
+  EmittingOrWritingErrors(
+    List(EmitterOrWriterError(emitter_error, writer_error)),
+  )
 }
 
 pub fn run_renderer(
@@ -3194,7 +3196,7 @@ fn run_renderer_(
       [
         #(" ", ins(error_a)),
       ]
-      |> pr.two_column_error_announcer(0, 60, "💥", 2, "/ assembler error /")
+      |> fb.error_announcement(0, 60, "💥", 2, "/ assembler error /")
       |> io.println
       Error(AssemblerError(error_a))
     },
@@ -3225,7 +3227,7 @@ fn run_renderer_(
         #(" blame:", pr.our_blame_digest(blame)),
         #(" error: ", ins(c) |> pr.strip_quotes),
       ]
-      |> pr.two_column_error_announcer(0, 70, "💥", 2, "/ parser error /")
+      |> fb.error_announcement(0, 70, "💥", 2, "/ parser error /")
       |> io.println
       Error(ParserError(blame, c))
     },
@@ -3246,9 +3248,9 @@ fn run_renderer_(
       [
         #("", ins(c) |> pr.strip_quotes),
       ]
-      |> pr.two_column_error_announcer(0, 70, "💥", 2, "/ filtration error /")
+      |> fb.error_announcement(0, 70, "💥", 2, "/ filtration error /")
       |> io.println
-      Error(FiltrationError(c))
+      Error(FiltererError(c))
     },
   )
 
@@ -3270,13 +3272,7 @@ fn run_renderer_(
       io.println("  ...error:")
       io.println("")
       [#("", ins(error))]
-      |> pr.two_column_error_announcer(
-        0,
-        70,
-        "💥",
-        2,
-        "/ monitor option error /",
-      )
+      |> fb.error_announcement(0, 70, "💥", 2, "/ monitor option error /")
       |> io.println
       Error(error)
     },
@@ -3306,7 +3302,7 @@ fn run_renderer_(
             #(" blame:", pr.our_blame_digest(e.blame)),
             #(" message:", e.message),
           ]
-          |> pr.mushroom_error_announcement("DesugaringError", _)
+          |> fb.mushroom_error_announcement("DesugaringError", _)
           |> io.println
           Error(PipelineError(e))
         }
@@ -3318,7 +3314,7 @@ fn run_renderer_(
             #(" step:", ins(step_no)),
             #(" message:", message),
           ]
-          |> pr.mushroom_error_announcement("'" <> name <> "' monitor error", _)
+          |> fb.mushroom_error_announcement("'" <> name <> "' monitor error", _)
           |> io.println
           Error(MonitorError(failure))
         }
@@ -3366,25 +3362,12 @@ fn run_renderer_(
         })
       assert list.length(all_seconds) == list.length(renderer.pipeline)
       let bars =
-        list.index_map(list.zip(renderer.pipeline, all_seconds), fn(pair, i) {
-          let #(desugarer, seconds) = pair
-          case desugarer.name {
-            "table_marker" -> [" ", "% table_marker %", " "] |> list.map(Or)
-            "table_section_header" -> {
-              let assert Some(header) = desugarer.stringified_param
-              ["/", "/ " <> header <> " /", "/"] |> list.map(Or)
-            }
-            _ -> {
-              let num_bars =
-                float.round(seconds *. 100.0 *. one_hundreth_seconds_num_bars)
-              [
-                Either(#(ins(i + 1) <> ".", desugarer.name, pr.blocks(num_bars))),
-              ]
-            }
-          }
+        list.map(all_seconds, fn(seconds) {
+          seconds *. 100.0 *. one_hundreth_seconds_num_bars
+          |> float.round
+          |> pr.blocks
         })
-        |> list.flatten
-      pr.three_column_table([Either(#("#.", "name", scale)), ..bars])
+      pr.pipeline_timing_table(renderer.pipeline, bars, scale)
       |> pr.print_lines_at_indent(2)
       io.println("  ...ended pipeline in " <> ins(seconds) <> "s")
     }
@@ -3402,7 +3385,7 @@ fn run_renderer_(
       [
         #("", ins(error)),
       ]
-      |> pr.mushroom_error_announcement("splitter error", _)
+      |> fb.mushroom_error_announcement("splitter error", _)
       |> io.println
       Error(SplitterError(error))
     },
@@ -3484,7 +3467,7 @@ fn run_renderer_(
     [
       #("", ins(error)),
     ]
-    |> pr.mushroom_error_announcement("emitter error", _)
+    |> fb.mushroom_error_announcement("emitter error", _)
     |> io.println
   })
 
@@ -3498,7 +3481,7 @@ fn run_renderer_(
   let fragments = {
     fragments
     |> list.map(
-      on.error_ok(_, fn(error) { Error(P1(error)) }, fn(result) {
+      on.error_ok(_, fn(error) { Error(EmitterError(error)) }, fn(result) {
         let #(fr, _) = result
         Ok(
           OutputFragment(..fr, payload: io_l.output_lines_to_string(fr.payload)),
@@ -3521,7 +3504,7 @@ fn run_renderer_(
     |> list.map_fold(0, fn(acc, result) {
       use fr <- on.error_ok(result, fn(e) { #(acc, Error(e)) })
       case renderer.writer(output_dir, fr) {
-        Error(e) -> #(acc, Error(P2(e)))
+        Error(e) -> #(acc, Error(WriterError(e)))
         Ok(#(z, feedback)) -> {
           print_verbose_feedback(feedback, options.verbose)
           case singleton_fragment {
@@ -3670,7 +3653,7 @@ fn run_renderer_(
           #(" blame:", bl.blame_digest(w.blame)),
           #(" message:", w.message),
         ]
-        |> pr.two_column_error_announcer(0, 60, "👾", 2, "")
+        |> fb.error_announcement(0, 60, "👾", 2, "")
         |> io.println
       })
     False -> Nil

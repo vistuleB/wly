@@ -3,6 +3,7 @@ import desugaring/core.{
   type Desugarer, type DesugarerTransform, type DesugaringError,
 }
 import desugaring/nodemaps_2_transform as n2t
+import desugaring/testing
 import gleam/list
 import gleam/string
 import vxml.{type VXML, T, V}
@@ -121,14 +122,10 @@ fn is_v_and_has_tag_starting_with(vxml: VXML, prefix: String) -> Bool {
 // 🌊🌊🌊 tests 🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
 
-fn assertive_tests_data() -> List(core.AssertiveTestDataNoParam) {
+fn assertive_tests_data() -> List(testing.AssertiveTestDataNoParam) {
   []
 }
 
 pub fn assertive_tests() {
-  core.assertive_test_collection_from_data_no_param(
-    name,
-    assertive_tests_data(),
-    constructor,
-  )
+  testing.collection_no_param(name, assertive_tests_data(), constructor)
 }

@@ -3,6 +3,7 @@ import desugaring/core.{
   type Desugarer, type DesugarerTransform, type DesugaringError,
 }
 import desugaring/nodemaps_2_transform as n2t
+import desugaring/testing
 import gleam/option.{Some}
 import vxml.{type VXML, Attr, Line, T, V}
 import vxml/blame as bl
@@ -84,7 +85,7 @@ fn desugarer_blame(line_no: Int) {
 // 🌊🌊🌊 tests 🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
 
-fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
+fn assertive_tests_data() -> List(testing.AssertiveTestData(Param)) {
   let wrapper =
     vxml.V(bl.no_blame, "span", [vxml.Attr(bl.no_blame, "class", "label")], [])
   let else_node =
@@ -92,7 +93,7 @@ fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
       vxml.T(bl.no_blame, [vxml.Line(bl.no_blame, "Default")]),
     ])
   [
-    core.AssertiveTestData(
+    testing.data(
       param: #("div", "title", wrapper, else_node),
       source: "
                 <> div
@@ -113,7 +114,7 @@ fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
                       'Content'
                 ",
     ),
-    core.AssertiveTestData(
+    testing.data(
       param: #("div", "missing", wrapper, else_node),
       source: "
                 <> div
@@ -138,9 +139,5 @@ fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
 }
 
 pub fn assertive_tests() {
-  core.assertive_test_collection_from_data(
-    name,
-    assertive_tests_data(),
-    constructor,
-  )
+  testing.collection(name, assertive_tests_data(), constructor)
 }

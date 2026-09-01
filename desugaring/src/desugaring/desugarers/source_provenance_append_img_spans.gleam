@@ -3,6 +3,7 @@ import desugaring/core.{
   type Desugarer, type DesugarerTransform, type DesugaringError, DesugaringError,
 }
 import desugaring/nodemaps_2_transform as n2t
+import desugaring/testing
 import filepath
 import gleam/list
 import gleam/option.{type Option, None, Some}
@@ -160,9 +161,9 @@ fn path_span(path: String, inner: InnerParam) -> VXML {
 // 🌊🌊🌊 tests 🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
 
-fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
+fn assertive_tests_data() -> List(testing.AssertiveTestData(Param)) {
   [
-    core.AssertiveTestData(
+    testing.data(
       param: #(
         "./public/",
         "original",
@@ -187,7 +188,7 @@ fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
                                   'public/img/hello.svg'
                 ",
     ),
-    core.AssertiveTestData(
+    testing.data(
       param: #(
         "./assets/",
         "original",
@@ -219,7 +220,7 @@ fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
                                   'assets/img/compressed.jpg'
                 ",
     ),
-    core.AssertiveTestData(
+    testing.data(
       param: #(
         "/media/",
         "original",
@@ -253,7 +254,7 @@ fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
                                     '/media/photos/thumb.png'
                 ",
     ),
-    core.AssertiveTestData(
+    testing.data(
       param: #(
         "./static/",
         "original",
@@ -287,7 +288,7 @@ fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
                                     'static/carousel/slide.webp'
                 ",
     ),
-    core.AssertiveTestData(
+    testing.data(
       param: #(
         "./public/",
         "original",
@@ -348,7 +349,7 @@ fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
                                     'public/img/photo.png'
                 ",
     ),
-    core.AssertiveTestData(
+    testing.data(
       param: #(
         "./public/",
         "original",
@@ -405,9 +406,5 @@ fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
 }
 
 pub fn assertive_tests() {
-  core.assertive_test_collection_from_data(
-    name,
-    assertive_tests_data(),
-    constructor,
-  )
+  testing.collection(name, assertive_tests_data(), constructor)
 }

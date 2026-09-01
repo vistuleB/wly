@@ -3,6 +3,7 @@ import desugaring/core.{
   type Desugarer, type DesugarerTransform, type DesugaringError, DesugaringError,
 }
 import desugaring/nodemaps_2_transform as n2t
+import desugaring/testing
 import gleam/dict.{type Dict}
 import gleam/int
 import gleam/list
@@ -626,9 +627,9 @@ fn our_two_regexes() -> #(Regexp, Regexp) {
 // 🌊🌊🌊 tests 🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
 
-fn assertive_tests_data() -> List(core.AssertiveTestDataNoParam) {
+fn assertive_tests_data() -> List(testing.AssertiveTestDataNoParam) {
   [
-    core.AssertiveTestDataNoParam(
+    testing.data_no_param(
       source: "
                 <> root
                   counter=QCounter -3
@@ -642,7 +643,7 @@ fn assertive_tests_data() -> List(core.AssertiveTestDataNoParam) {
                     '-4;-5'
                 ",
     ),
-    core.AssertiveTestDataNoParam(
+    testing.data_no_param(
       source: "
                 <> root
                   counter=QCounter -3
@@ -662,7 +663,7 @@ fn assertive_tests_data() -> List(core.AssertiveTestDataNoParam) {
                     'GooseMan-9.-12@hoverboard'
                 ",
     ),
-    core.AssertiveTestDataNoParam(
+    testing.data_no_param(
       source: "
                 <> root
                   counter=QCounter -3
@@ -687,7 +688,7 @@ fn assertive_tests_data() -> List(core.AssertiveTestDataNoParam) {
                     '-2.-1 '
                 ",
     ),
-    core.AssertiveTestDataNoParam(
+    testing.data_no_param(
       source: "
                 <> root
                   counter=my_counter 5
@@ -708,7 +709,7 @@ fn assertive_tests_data() -> List(core.AssertiveTestDataNoParam) {
                     '6.7'
                 ",
     ),
-    core.AssertiveTestDataNoParam(
+    testing.data_no_param(
       source: "
                 <> root
                   counter=TestCounter 1
@@ -730,9 +731,5 @@ fn assertive_tests_data() -> List(core.AssertiveTestDataNoParam) {
 }
 
 pub fn assertive_tests() {
-  core.assertive_test_collection_from_data_no_param(
-    name,
-    assertive_tests_data(),
-    constructor,
-  )
+  testing.collection_no_param(name, assertive_tests_data(), constructor)
 }

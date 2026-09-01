@@ -1100,11 +1100,13 @@ fn param_to_inner_param(
   Ok(InnerParam(pairs, opening_punctuation_splitter, input_mode, desugarer_name))
 }
 
+@internal
 pub type InputMode {
   RawInput
   PreTokenizedInput
 }
 
+@internal
 pub type Param =
   List(#(String, String))
 
@@ -1120,6 +1122,7 @@ type InnerParam {
   )
 }
 
+@internal
 pub const name = "rearrange_links__batch"
 
 fn desugarer_blame(desugarer_name: String, line_no: Int) {
@@ -1134,6 +1137,7 @@ fn desugarer_blame(desugarer_name: String, line_no: Int) {
 /// considering (x) as a variable and replaces it
 /// with the second String (x) can be used in second
 /// String to use the variable from first String
+@internal
 pub fn constructor_for(
   desugarer_name: String,
   param: Param,
@@ -1151,6 +1155,7 @@ pub fn constructor_for(
   )
 }
 
+@internal
 pub fn constructor(param: Param) -> Desugarer {
   constructor_for(name, param, RawInput, ins(param))
 }
@@ -1289,6 +1294,7 @@ fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
   ]
 }
 
+@internal
 pub fn assertive_tests() {
   core.assertive_test_collection_from_data(
     name,
@@ -1297,6 +1303,7 @@ pub fn assertive_tests() {
   )
 }
 
+@internal
 pub fn single_assertive_tests(
   desugarer_name: String,
   single_constructor: fn(#(String, String)) -> Desugarer,

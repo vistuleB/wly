@@ -3,6 +3,7 @@ import desugaring/core.{
   type Desugarer, type DesugarerTransform, type DesugaringError,
 }
 import desugaring/nodemaps_2_transform as n2t
+import desugaring/testing
 import gleam/list
 import gleam/option.{Some}
 import gleam/regexp.{type Regexp}
@@ -216,10 +217,10 @@ pub fn constructor() -> Desugarer {
 // 🌊🌊🌊 tests 🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
 
-fn assertive_tests_data() -> List(core.AssertiveTestDataNoParam) {
+fn assertive_tests_data() -> List(testing.AssertiveTestDataNoParam) {
   [
     // Test 1: basic single handle definition (space as preceding char)
-    core.AssertiveTestDataNoParam(
+    testing.data_no_param(
       source: "
         <> root
           <>
@@ -234,7 +235,7 @@ fn assertive_tests_data() -> List(core.AssertiveTestDataNoParam) {
     ),
 
     // Test 2: handle preceded by '('
-    core.AssertiveTestDataNoParam(
+    testing.data_no_param(
       source: "
         <> root
           <>
@@ -249,7 +250,7 @@ fn assertive_tests_data() -> List(core.AssertiveTestDataNoParam) {
     ),
 
     // Test 3: handle preceded by '['
-    core.AssertiveTestDataNoParam(
+    testing.data_no_param(
       source: "
         <> root
           <>
@@ -264,7 +265,7 @@ fn assertive_tests_data() -> List(core.AssertiveTestDataNoParam) {
     ),
 
     // Test 4: no match because '##<<' has no valid preceding character
-    core.AssertiveTestDataNoParam(
+    testing.data_no_param(
       source: "
         <> root
           <>
@@ -278,7 +279,7 @@ fn assertive_tests_data() -> List(core.AssertiveTestDataNoParam) {
     ),
 
     // Test 5: value extraction stops at unmatched closing bracket
-    core.AssertiveTestDataNoParam(
+    testing.data_no_param(
       source: "
         <> root
           <>
@@ -293,7 +294,7 @@ fn assertive_tests_data() -> List(core.AssertiveTestDataNoParam) {
     ),
 
     // Test 6: value with balanced parentheses (space inside parens is not a stop)
-    core.AssertiveTestDataNoParam(
+    testing.data_no_param(
       source: "
         <> root
           <>
@@ -308,7 +309,7 @@ fn assertive_tests_data() -> List(core.AssertiveTestDataNoParam) {
     ),
 
     // Test 7: value extends to end of line (no terminating space)
-    core.AssertiveTestDataNoParam(
+    testing.data_no_param(
       source: "
         <> root
           <>
@@ -323,7 +324,7 @@ fn assertive_tests_data() -> List(core.AssertiveTestDataNoParam) {
     ),
 
     // Test 8: empty value (##<< at end of line)
-    core.AssertiveTestDataNoParam(
+    testing.data_no_param(
       source: "
         <> root
           <>
@@ -338,7 +339,7 @@ fn assertive_tests_data() -> List(core.AssertiveTestDataNoParam) {
     ),
 
     // Test 9: handle with a single decorator
-    core.AssertiveTestDataNoParam(
+    testing.data_no_param(
       source: "
         <> root
           <>
@@ -353,7 +354,7 @@ fn assertive_tests_data() -> List(core.AssertiveTestDataNoParam) {
     ),
 
     // Test 10: handle with multiple decorators
-    core.AssertiveTestDataNoParam(
+    testing.data_no_param(
       source: "
         <> root
           <>
@@ -368,7 +369,7 @@ fn assertive_tests_data() -> List(core.AssertiveTestDataNoParam) {
     ),
 
     // Test 11: two definitions on the same line
-    core.AssertiveTestDataNoParam(
+    testing.data_no_param(
       source: "
         <> root
           <>
@@ -384,7 +385,7 @@ fn assertive_tests_data() -> List(core.AssertiveTestDataNoParam) {
     ),
 
     // Test 12: definitions on different lines of the same T node
-    core.AssertiveTestDataNoParam(
+    testing.data_no_param(
       source: "
         <> root
           <>
@@ -402,7 +403,7 @@ fn assertive_tests_data() -> List(core.AssertiveTestDataNoParam) {
     ),
 
     // Test 13: handle in inner V goes to inner V; handle in outer V goes to outer V
-    core.AssertiveTestDataNoParam(
+    testing.data_no_param(
       source: "
         <> root
           <> Outer
@@ -426,7 +427,7 @@ fn assertive_tests_data() -> List(core.AssertiveTestDataNoParam) {
     ),
 
     // Test 14: no ##<< in content at all — no change
-    core.AssertiveTestDataNoParam(
+    testing.data_no_param(
       source: "
         <> root
           <>
@@ -440,7 +441,7 @@ fn assertive_tests_data() -> List(core.AssertiveTestDataNoParam) {
     ),
 
     // Test 15: handle preceded by '(' with nested balanced brackets in value
-    core.AssertiveTestDataNoParam(
+    testing.data_no_param(
       source: "
         <> root
           <>
@@ -455,7 +456,7 @@ fn assertive_tests_data() -> List(core.AssertiveTestDataNoParam) {
     ),
 
     // Test 16: existing V attrs are preserved, handle attrs prepended
-    core.AssertiveTestDataNoParam(
+    testing.data_no_param(
       source: "
         <> root
           <> Para
@@ -474,7 +475,7 @@ fn assertive_tests_data() -> List(core.AssertiveTestDataNoParam) {
     ),
 
     // Test 17: two separate T nodes in the same V, each contributing a handle
-    core.AssertiveTestDataNoParam(
+    testing.data_no_param(
       source: "
         <> root
           <> Para
@@ -496,7 +497,7 @@ fn assertive_tests_data() -> List(core.AssertiveTestDataNoParam) {
     ),
 
     // Test 18: handle name with dots and colons (valid handle chars)
-    core.AssertiveTestDataNoParam(
+    testing.data_no_param(
       source: "
         <> root
           <>
@@ -511,7 +512,7 @@ fn assertive_tests_data() -> List(core.AssertiveTestDataNoParam) {
     ),
 
     // Test 19: value with balanced square brackets
-    core.AssertiveTestDataNoParam(
+    testing.data_no_param(
       source: "
         <> root
           <>
@@ -526,7 +527,7 @@ fn assertive_tests_data() -> List(core.AssertiveTestDataNoParam) {
     ),
 
     // Test 20: handle definition at line start
-    core.AssertiveTestDataNoParam(
+    testing.data_no_param(
       source: "
         <> root
           <>
@@ -541,7 +542,7 @@ fn assertive_tests_data() -> List(core.AssertiveTestDataNoParam) {
     ),
 
     // Test 21: handle preceded by '{' (LaTeX \tag{handle##<<value} pattern)
-    core.AssertiveTestDataNoParam(
+    testing.data_no_param(
       source: "
         <> root
           <>
@@ -556,7 +557,7 @@ fn assertive_tests_data() -> List(core.AssertiveTestDataNoParam) {
     ),
 
     // Test 22: handle name with prime char (e.g. left-reduction-w')
-    core.AssertiveTestDataNoParam(
+    testing.data_no_param(
       source: "
         <> root
           <>
@@ -571,7 +572,7 @@ fn assertive_tests_data() -> List(core.AssertiveTestDataNoParam) {
     ),
 
     // Test 23: prime at end of handle in LaTeX \tag context
-    core.AssertiveTestDataNoParam(
+    testing.data_no_param(
       source: "
         <> root
           <>
@@ -586,7 +587,7 @@ fn assertive_tests_data() -> List(core.AssertiveTestDataNoParam) {
     ),
 
     // Test 24: handle preceded by '#' drops the prefix marker
-    core.AssertiveTestDataNoParam(
+    testing.data_no_param(
       source: "
         <> root
           <>
@@ -601,7 +602,7 @@ fn assertive_tests_data() -> List(core.AssertiveTestDataNoParam) {
     ),
 
     // Test 25: line-start '#' prefix marker is dropped
-    core.AssertiveTestDataNoParam(
+    testing.data_no_param(
       source: "
         <> root
           <>
@@ -616,7 +617,7 @@ fn assertive_tests_data() -> List(core.AssertiveTestDataNoParam) {
     ),
 
     // Test 26: value extraction stops at unbracketed pipe
-    core.AssertiveTestDataNoParam(
+    testing.data_no_param(
       source: "
         <> root
           <>
@@ -631,7 +632,7 @@ fn assertive_tests_data() -> List(core.AssertiveTestDataNoParam) {
     ),
 
     // Test 27: value extraction keeps pipe inside brackets
-    core.AssertiveTestDataNoParam(
+    testing.data_no_param(
       source: "
         <> root
           <>
@@ -648,9 +649,5 @@ fn assertive_tests_data() -> List(core.AssertiveTestDataNoParam) {
 }
 
 pub fn assertive_tests() {
-  core.assertive_test_collection_from_data_no_param(
-    name,
-    assertive_tests_data(),
-    constructor,
-  )
+  testing.collection_no_param(name, assertive_tests_data(), constructor)
 }

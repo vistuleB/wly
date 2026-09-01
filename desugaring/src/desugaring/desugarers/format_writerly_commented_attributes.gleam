@@ -1,6 +1,7 @@
 import desugaring/authoring
 import desugaring/core.{type Desugarer, type DesugarerTransform}
 import desugaring/nodemaps_2_transform as n2t
+import desugaring/testing
 import gleam/list
 import gleam/option
 import vxml.{type Attr, type VXML, Attr, T, V}
@@ -51,9 +52,9 @@ fn format_attr(attr: Attr) -> Attr {
 // 🌊🌊🌊 tests 🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
 
-fn assertive_tests_data() -> List(core.AssertiveTestDataNoParam) {
+fn assertive_tests_data() -> List(testing.AssertiveTestDataNoParam) {
   [
-    core.AssertiveTestDataNoParam(
+    testing.data_no_param(
       source: "
                 <> root
                   WriterlyCommentedAttribute0Spaces=foo
@@ -73,9 +74,5 @@ fn assertive_tests_data() -> List(core.AssertiveTestDataNoParam) {
 }
 
 pub fn assertive_tests() {
-  core.assertive_test_collection_from_data_no_param(
-    name,
-    assertive_tests_data(),
-    constructor,
-  )
+  testing.collection_no_param(name, assertive_tests_data(), constructor)
 }

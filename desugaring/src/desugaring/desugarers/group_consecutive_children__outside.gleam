@@ -3,6 +3,7 @@ import desugaring/core.{
   type Desugarer, type DesugarerTransform, type DesugaringError, DesugaringError,
 }
 import desugaring/nodemaps_2_transform as n2t
+import desugaring/testing
 import either_or as eo
 import gleam/list
 import vxml.{type VXML, T, V}
@@ -100,9 +101,9 @@ pub fn constructor(param: Param, outside: List(String)) -> Desugarer {
 // 🌊🌊🌊 tests 🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
 
-fn assertive_tests_data() -> List(core.AssertiveTestDataWithOutside(Param)) {
+fn assertive_tests_data() -> List(testing.AssertiveTestDataWithOutside(Param)) {
   [
-    core.AssertiveTestDataWithOutside(
+    testing.data_with_outside(
       param: #("wrapper", ["A", "B"]),
       outside: ["B", "C", "wrapper"],
       source: "
@@ -138,9 +139,5 @@ fn assertive_tests_data() -> List(core.AssertiveTestDataWithOutside(Param)) {
 }
 
 pub fn assertive_tests() {
-  core.assertive_test_collection_from_data_with_outside(
-    name,
-    assertive_tests_data(),
-    constructor,
-  )
+  testing.collection_with_outside(name, assertive_tests_data(), constructor)
 }

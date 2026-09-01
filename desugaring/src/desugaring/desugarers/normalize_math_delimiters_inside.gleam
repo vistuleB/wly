@@ -4,6 +4,7 @@ import desugaring/core.{
   type LatexDelimiterPair, DesugaringError,
 }
 import desugaring/nodemaps_2_transform as n2t
+import desugaring/testing
 import gleam/list
 import gleam/string
 import vxml.{type VXML, Line, T, V}
@@ -141,9 +142,9 @@ fn remove_first_suffix_found(c: String, suffixes: List(String)) -> String {
 // 🌊🌊🌊 tests 🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
 
-fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
+fn assertive_tests_data() -> List(testing.AssertiveTestData(Param)) {
   [
-    core.AssertiveTestData(
+    testing.data(
       param: #("MathBlock", core.DoubleDollar),
       source: "
                 <> MathBlock
@@ -156,7 +157,7 @@ fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
                     '$$x$$'
                 ",
     ),
-    core.AssertiveTestData(
+    testing.data(
       param: #("MathBlock", core.DoubleDollar),
       source: "
                 <> MathBlock
@@ -173,9 +174,5 @@ fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
 }
 
 pub fn assertive_tests() {
-  core.assertive_test_collection_from_data(
-    name,
-    assertive_tests_data(),
-    constructor,
-  )
+  testing.collection(name, assertive_tests_data(), constructor)
 }

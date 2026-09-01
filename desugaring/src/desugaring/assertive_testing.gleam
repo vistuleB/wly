@@ -4,7 +4,6 @@ import desugaring/core.{
   InequalityError, NonMatchingDesugarerName, TestDesugaringError, VXMLParseError,
   VXMLSerializationError,
 }
-import desugaring/desugarers as dl
 import gleam/io
 import gleam/list
 import gleam/result
@@ -26,6 +25,7 @@ fn first_different_line(c: Int, l1: List(a), l2: List(a)) -> Int {
   }
 }
 
+@internal
 pub fn run_assertive_test(
   name: String,
   tst: AssertiveTest,
@@ -72,6 +72,7 @@ pub fn run_assertive_test(
   }
 }
 
+@internal
 pub fn highlight_and_echo(vxml: VXML, above: Int, banner: String) -> Nil {
   case vxml.vxml_to_output_lines(vxml) {
     Error(error) -> io.println(ins(error))
@@ -88,6 +89,7 @@ pub fn highlight_and_echo(vxml: VXML, above: Int, banner: String) -> Nil {
   }
 }
 
+@internal
 pub fn run_and_announce_results(
   last_was_failure: Bool,
   test_group: AssertiveTestCollection,
@@ -152,16 +154,10 @@ fn run_assertive_test_collection(test_group: AssertiveTestCollection) -> Bool {
   num_failures > 0
 }
 
-pub fn run_assertive_desugarer_tests_on(names: List(String)) {
-  case run_assertive_desugarer_tests(dl.assertive_tests, names) {
-    Ok(Nil) -> Nil
-    Error(message) -> panic as message
-  }
-}
-
 /// Run selected tests from the supplied desugarer collection registry.
 ///
 /// An empty list of names selects every collection.
+@internal
 pub fn run_assertive_desugarer_tests(
   collection_builders: List(fn() -> AssertiveTestCollection),
   names: List(String),
@@ -172,6 +168,7 @@ pub fn run_assertive_desugarer_tests(
 }
 
 /// Run selected tests without closing the surrounding output block.
+@internal
 pub fn run_assertive_desugarer_tests_content(
   collection_builders: List(fn() -> AssertiveTestCollection),
   names: List(String),

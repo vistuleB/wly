@@ -6,6 +6,7 @@ import line_wrap_test
 import monitor_test
 import public_facades_test
 import renderer_integration_test
+import tables_test
 import tracking_display_test
 
 pub fn main() {
@@ -17,5 +18,6 @@ pub fn main() {
   monitor_test.main()
   public_facades_test.main()
   renderer_integration_test.main()
+  tables_test.main()
   tracking_display_test.main()
 }

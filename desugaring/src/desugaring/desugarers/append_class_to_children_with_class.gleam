@@ -3,6 +3,7 @@ import desugaring/core.{
   type Desugarer, type DesugarerTransform, type DesugaringError,
 }
 import desugaring/nodemaps_2_transform as n2t
+import desugaring/testing
 import gleam/dict.{type Dict}
 import gleam/list
 import vxml.{type VXML, T, V}
@@ -90,9 +91,9 @@ fn update_child(
 // 🌊🌊🌊 tests 🌊🌊🌊🌊
 // 🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊
 
-fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
+fn assertive_tests_data() -> List(testing.AssertiveTestData(Param)) {
   [
-    core.AssertiveTestData(
+    testing.data(
       param: [#("Chapter", [#("well", "out")])],
       source: "
                 <> root
@@ -121,7 +122,7 @@ fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
                       class=well
                 ",
     ),
-    core.AssertiveTestData(
+    testing.data(
       param: [#("container", [#("highlight", "active")])],
       source: "
                 <> root
@@ -144,7 +145,7 @@ fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
                       class=normal
                 ",
     ),
-    core.AssertiveTestData(
+    testing.data(
       param: [
         #("parent", [#("target", "new")]),
         #("other", [#("different", "added")]),
@@ -168,7 +169,7 @@ fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
                       class=different added
                 ",
     ),
-    core.AssertiveTestData(
+    testing.data(
       param: [#("Chapter", [#("well", "out"), #("highlight", "active")])],
       source: "
                 <> root
@@ -195,9 +196,5 @@ fn assertive_tests_data() -> List(core.AssertiveTestData(Param)) {
 }
 
 pub fn assertive_tests() {
-  core.assertive_test_collection_from_data(
-    name,
-    assertive_tests_data(),
-    constructor,
-  )
+  testing.collection(name, assertive_tests_data(), constructor)
 }
