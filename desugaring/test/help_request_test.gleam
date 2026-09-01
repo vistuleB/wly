@@ -9,7 +9,7 @@ pub fn main() {
   assert desugaring.handle_help_requests(arguments, fn() {
       panic as "local usage must not be evaluated without --help"
     })
-    == False
+    == Ok(False)
 
   let assert Ok(arguments) =
     desugaring.process_command_line_arguments(
@@ -20,7 +20,7 @@ pub fn main() {
       ["--which"],
     )
   assert desugaring.handle_help_requests(arguments, fn() { "local usage" })
-    == True
+    == Ok(True)
 
   let assert Ok(arguments) =
     desugaring.process_command_line_arguments(
@@ -28,5 +28,5 @@ pub fn main() {
       ["--which"],
     )
   assert desugaring.handle_help_requests(arguments, fn() { "local usage" })
-    == True
+    == Ok(True)
 }

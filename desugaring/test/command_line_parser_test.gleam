@@ -47,27 +47,37 @@ pub fn main() {
   assert_parses(["--dump", "10", "--dump", "20"])
   assert_parses(["--dump", "-cc10", "10", "--dump", "-bc20", "20"])
   assert_parses(["--dump", "-verbatim", "10", "--dump", "-verbatim", "20"])
-  let assert Error(desugaring.ConflictingOptionArguments("--dump")) =
+  let assert Error(desugaring.CommandLineArgumentError(desugaring.ConflictingOptionArguments(
+    "--dump",
+  ))) =
     desugaring.process_command_line_arguments(
       ["--dump", "-cc10", "10", "--dump", "-cc20", "20"],
       [],
     )
-  let assert Error(desugaring.ConflictingOptionArguments("--dump")) =
+  let assert Error(desugaring.CommandLineArgumentError(desugaring.ConflictingOptionArguments(
+    "--dump",
+  ))) =
     desugaring.process_command_line_arguments(
       ["--dump", "-verbatim", "10", "--dump", "20"],
       [],
     )
-  let assert Error(desugaring.DuplicateOption("--input-dir")) =
+  let assert Error(desugaring.CommandLineArgumentError(desugaring.DuplicateOption(
+    "--input-dir",
+  ))) =
     desugaring.process_command_line_arguments(
       ["--input-dir", "one", "--input-dir", "two"],
       [],
     )
-  let assert Error(desugaring.DuplicateOption("--output-dir")) =
+  let assert Error(desugaring.CommandLineArgumentError(desugaring.DuplicateOption(
+    "--output-dir",
+  ))) =
     desugaring.process_command_line_arguments(
       ["--output-dir", "one", "--output-dir", "two"],
       [],
     )
-  let assert Error(desugaring.DuplicateOption("--times")) =
+  let assert Error(desugaring.CommandLineArgumentError(desugaring.DuplicateOption(
+    "--times",
+  ))) =
     desugaring.process_command_line_arguments(
       ["--times", "80", "--times", "100"],
       [],
@@ -106,6 +116,9 @@ pub fn main() {
   assert_parses(["--desugarer-tests"])
   assert_parses(["--desugarer-tests", "one", "two"])
   assert_parses(["--test-desugarers", "one"])
+  assert_does_not_parse(["--last-command"])
+  assert_does_not_parse(["--last-command", "--help"])
+  assert_does_not_parse(["--last-command", "unexpected"])
   let assert Ok(requests) =
     desugaring.process_command_line_arguments(
       [

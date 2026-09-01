@@ -580,6 +580,26 @@ pub type ParsedCLIArguments {
   )
 }
 
+pub type CLIError {
+  CommandLineArgumentError(CommandLineError)
+  DotLastCommandReadError(String)
+  DotLastCommandDecodeError(String)
+  DotLastCommandWriteError(String)
+  MaintenanceError(String)
+  ClientSideError(String)
+}
+
+pub fn cli_error_message(error: CLIError) -> String {
+  case error {
+    CommandLineArgumentError(error) -> ins(error)
+    DotLastCommandReadError(error) -> "unable to read .last-command: " <> error
+    DotLastCommandDecodeError(error) -> "malformed .last-command: " <> error
+    DotLastCommandWriteError(error) ->
+      "unable to write .last-command: " <> error
+    MaintenanceError(error) | ClientSideError(error) -> error
+  }
+}
+
 fn empty_parsed_cli_arguments() -> ParsedCLIArguments {
   ParsedCLIArguments(
     help: False,
@@ -661,6 +681,10 @@ pub fn basic_cli_usage(header: String) {
     "",
     "--track-help",
     "  -> print detailed '--track' instructions and examples",
+    "",
+    "--last-command",
+    "  -> repeat the command-line arguments saved in .last-command;",
+    "     this option must appear alone",
     "",
     "--verbose",
     "  -> verbose renderer output",
@@ -845,7 +869,7 @@ fn print_with_terminal_blank_line(message: String) {
 pub fn handle_help_requests(
   arguments: ParsedCLIArguments,
   local_cli_usage: fn() -> String,
-) -> Bool {
+) -> Result(Bool, CLIError) {
   case arguments.help {
     True -> {
       basic_cli_usage("'gleam run' command line options (basic):")
@@ -864,7 +888,7 @@ pub fn handle_help_requests(
     True -> track_cli_usage("'gleam run -- --track' command line options:")
     False -> Nil
   }
-  arguments.help || arguments.esoteric || arguments.track_help
+  Ok(arguments.help || arguments.esoteric || arguments.track_help)
 }
 
 /// Run requested local-desugarer maintenance.
@@ -874,7 +898,7 @@ pub fn handle_help_requests(
 pub fn handle_maintenance_requests(
   arguments: ParsedCLIArguments,
   local_desugarer_tests: List(fn() -> core.AssertiveTestCollection),
-) -> Result(Bool, String) {
+) -> Result(Bool, CLIError) {
   let renumber = arguments.renumber || arguments.desugarers
   let generate = arguments.generate || arguments.desugarers
   let requested_test_names = case
@@ -898,7 +922,7 @@ pub fn handle_maintenance_requests(
     True -> io.println("")
     False -> Nil
   }
-  use _ <- result.try(maintenance_result)
+  use _ <- result.try(maintenance_result |> result.map_error(MaintenanceError))
 
   Ok(renumber || generate || tests_requested)
 }
@@ -969,7 +993,87 @@ pub type CommandLineError {
   TimesValues(String)
 }
 
+const dot_last_command_path = ".last-command"
+
+/// Replace the lone `--last-command` option with the arguments saved in
+/// `.last-command`. All other argument lists are returned unchanged.
+pub fn read_from_dot_last_command(
+  arguments: List(String),
+) -> Result(List(String), CLIError) {
+  case arguments {
+    ["--last-command"] -> {
+      use contents <- result.try(
+        simplifile.read(dot_last_command_path)
+        |> result.map_error(fn(error) { DotLastCommandReadError(ins(error)) }),
+      )
+      decode_dot_last_command(contents)
+    }
+    _ -> Ok(arguments)
+  }
+}
+
+/// Overwrite `.last-command` with an unambiguous encoding of `arguments`.
+pub fn write_to_dot_last_command(
+  arguments: List(String),
+) -> Result(Nil, CLIError) {
+  arguments
+  |> encode_dot_last_command
+  |> simplifile.write(dot_last_command_path, _)
+  |> result.map_error(fn(error) { DotLastCommandWriteError(ins(error)) })
+}
+
+fn encode_dot_last_command(arguments: List(String)) -> String {
+  arguments
+  |> list.map(fn(argument) {
+    int.to_string(string.length(argument)) <> ":" <> argument
+  })
+  |> string.concat
+}
+
+fn decode_dot_last_command(contents: String) -> Result(List(String), CLIError) {
+  case contents, string.starts_with(contents, "--") {
+    "", _ -> Ok([])
+    _, True ->
+      contents
+      |> string.split(" ")
+      |> list.map(string.trim)
+      |> list.filter(fn(argument) { !string.is_empty(argument) })
+      |> Ok
+    _, False -> {
+      use #(length_string, after_colon) <- result.try(
+        string.split_once(contents, ":")
+        |> result.map_error(fn(_) {
+          DotLastCommandDecodeError("missing argument-length separator")
+        }),
+      )
+      use length <- result.try(
+        int.parse(length_string)
+        |> result.map_error(fn(_) {
+          DotLastCommandDecodeError("invalid argument length")
+        }),
+      )
+      use _ <- on.ok(case length >= 0 && string.length(after_colon) >= length {
+        True -> Ok(Nil)
+        False -> Error(DotLastCommandDecodeError("invalid argument payload"))
+      })
+      let argument = string.slice(after_colon, 0, length)
+      let remainder =
+        string.slice(after_colon, length, string.length(after_colon) - length)
+      use arguments <- on.ok(decode_dot_last_command(remainder))
+      Ok([argument, ..arguments])
+    }
+  }
+}
+
 pub fn process_command_line_arguments(
+  arguments: List(String),
+  user_keys: List(String),
+) -> Result(ParsedCLIArguments, CLIError) {
+  process_command_line_arguments_(arguments, user_keys)
+  |> result.map_error(CommandLineArgumentError)
+}
+
+fn process_command_line_arguments_(
   arguments: List(String),
   user_keys: List(String),
 ) -> Result(ParsedCLIArguments, CommandLineError) {
@@ -988,6 +1092,8 @@ pub fn process_command_line_arguments(
       use arguments <- on.ok(result)
       let #(option, values) = pair
       case option {
+        "--last-command" -> Error(UnexpectedArgumentsToOption(option))
+
         "--help" ->
           case values {
             [] -> Ok(ParsedCLIArguments(..arguments, help: True))
@@ -3015,6 +3121,34 @@ pub type RendererError(
 }
 
 pub fn run_renderer(
+  renderer: Renderer(
+    assembler_error,
+    parser_error,
+    filterer_error,
+    splitter_error,
+    emitter_error,
+    writer_error,
+    fragment_classifier,
+  ),
+  parameters: RendererParameters,
+  options: RendererOptions(fragment_classifier),
+) -> Result(
+  List(String),
+  RendererError(
+    assembler_error,
+    parser_error,
+    filterer_error,
+    splitter_error,
+    emitter_error,
+    writer_error,
+  ),
+) {
+  let result = run_renderer_(renderer, parameters, options)
+  io.println("")
+  result
+}
+
+fn run_renderer_(
   renderer: Renderer(
     assembler_error,
     parser_error,
