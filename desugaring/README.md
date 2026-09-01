@@ -125,8 +125,8 @@ The function requires:
 - the initial VXML tree;
 - the pipeline;
 - a list of monitors, which may be empty;
-- whether monitor output is interactive;
-- whether to report desugarers that remain running for a long time.
+- pipeline UX options controlling monitor interaction, long-running notices,
+  and the margin of pipeline-owned feedback.
 
 ```gleam
 import desugaring as vp
@@ -142,16 +142,19 @@ let result =
     vxml,
     pipeline,
     [],    // monitors
-    False, // monitor interactive mode
-    True,  // report long-running desugarers
+    vp.PipelineUXOptions(
+      monitor_interactive_mode: False,
+      report_long_running_desugarers: True,
+      feedback_margin: 0,
+    ),
   )
 ```
 
 On success, `run_pipeline` returns the transformed VXML, accumulated warnings,
-and one duration per desugaring step. It returns a `PipelineExecutionError`
-when a desugarer fails, a monitor stops execution, or the user exits an
-interactive run. Timing is part of pipeline execution; monitors do not measure
-desugarer durations.
+and one duration per desugaring step, in pipeline order. It returns a
+`PipelineExecutionError` when a desugarer fails, a monitor stops execution, or
+the user exits an interactive run. Timing is part of pipeline execution;
+monitors do not measure desugarer durations.
 
 No renderer or command-line setup is required for standalone execution. A
 Gleam program can construct or parse a VXML value, build a pipeline, call

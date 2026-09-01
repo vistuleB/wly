@@ -7,6 +7,10 @@ import desugaring/split_replacement as sr
 import vxml.{Attr, Line, T, V}
 import vxml/blame
 
+fn pipeline_ux_options() -> ds.PipelineUXOptions {
+  ds.PipelineUXOptions(False, False, 0)
+}
+
 pub fn main() {
   markdown_link_pipeline_test()
   inline_math_splitting_test()
@@ -24,7 +28,7 @@ fn markdown_link_pipeline_test() {
     ])
   let pipeline = delimited_syntax.markdown_link_pipeline([], [])
   let assert Ok(#(output, _, _)) =
-    ds.run_pipeline(input, pipeline, [], False, False)
+    ds.run_pipeline(input, pipeline, [], pipeline_ux_options())
   let assert V(
     _,
     "root",
@@ -48,7 +52,7 @@ fn inline_math_splitting_test() {
       [],
     )
   let assert Ok(#(output, _, _)) =
-    ds.run_pipeline(input, pipeline, [], False, False)
+    ds.run_pipeline(input, pipeline, [], pipeline_ux_options())
   let assert V(
     _,
     "root",
@@ -69,7 +73,7 @@ fn display_math_splitting_test() {
   let pipeline =
     delimited_syntax.create_mathblock_elements([DoubleDollar], DoubleDollar, [])
   let assert Ok(#(output, _, _)) =
-    ds.run_pipeline(input, pipeline, [], False, False)
+    ds.run_pipeline(input, pipeline, [], pipeline_ux_options())
   let assert V(
     _,
     "root",
@@ -100,7 +104,7 @@ fn asymmetric_inline_math_splitting_test() {
       [],
     )
   let assert Ok(#(output, _, _)) =
-    ds.run_pipeline(input, pipeline, [], False, False)
+    ds.run_pipeline(input, pipeline, [], pipeline_ux_options())
   let assert V(
     _,
     "root",
@@ -127,7 +131,7 @@ fn asymmetric_display_math_splitting_test() {
       [],
     )
   let assert Ok(#(output, _, _)) =
-    ds.run_pipeline(input, pipeline, [], False, False)
+    ds.run_pipeline(input, pipeline, [], pipeline_ux_options())
   let assert V(
     _,
     "root",
@@ -162,7 +166,7 @@ fn symmetric_delimiter_splitting_test() {
   let pipeline =
     delimited_syntax.symmetric_delimiter_pipeline("_", "_", "i", [])
   let assert Ok(#(output, _, _)) =
-    ds.run_pipeline(input, pipeline, [], False, False)
+    ds.run_pipeline(input, pipeline, [], pipeline_ux_options())
   let assert V(
     _,
     "root",

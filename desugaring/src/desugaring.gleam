@@ -690,11 +690,6 @@ pub fn basic_cli_usage(header: String) {
     "--track-help",
     "  -> print detailed '--track' instructions and examples",
     "",
-    "--validate-vxml [-warn-attribute-whitespace | -lines-only]",
-    "  -> validate VXML before and after every pipeline step; optionally",
-    "     warn about attribute boundary whitespace, or only reject empty",
-    "     text nodes",
-    "",
     "--last-command",
     "  -> repeat the command-line arguments saved in .last-command;",
     "     this option must appear alone",
@@ -838,6 +833,11 @@ pub fn advanced_cli_usage(header: String) {
     "",
     "--warnings/--no-warnings",
     "  -> force/suppress long-form printout of warnings",
+    "",
+    "--validate-vxml [-warn-attribute-whitespace | -lines-only]",
+    "  -> validate VXML before and after every pipeline step; optionally",
+    "     warn about attribute boundary whitespace, or only reject empty",
+    "     text nodes",
     "",
     "--dump-assembled",
     "  -> print the assembled input lines of source",
@@ -2926,6 +2926,15 @@ pub type PipelineExecutionError {
   PipelineMonitorError(MonitorFailure)
 }
 
+/// Terminal presentation and interaction settings for `run_pipeline`.
+pub type PipelineUXOptions {
+  PipelineUXOptions(
+    monitor_interactive_mode: Bool,
+    report_long_running_desugarers: Bool,
+    feedback_margin: Int,
+  )
+}
+
 type PipelineProducerState {
   PipelineProducerState(
     vxml: VXML,
@@ -3058,7 +3067,9 @@ fn producer(
           ))
         },
       )
-      |> result.map(fn(state) { #(state.vxml, state.warnings, state.durations) })
+      |> result.map(fn(state) {
+        #(state.vxml, state.warnings, list.reverse(state.durations))
+      })
   }
 
   send(main_process_subject, ProducerFinished(final))
@@ -3096,7 +3107,7 @@ fn loop(
   countdown: Int,
   running_desugarer: Option(#(Desugarer, Int)),
   running_seconds: Int,
-  report_long_running_desugarers: Bool,
+  ux_options: PipelineUXOptions,
   // pause for user only when countdown == 0
 ) -> Result(
   #(VXML, List(InSituDesugaringWarning), List(Duration)),
@@ -3109,19 +3120,13 @@ fn loop(
     )
   {
     Ok(ProducerStartedDesugarer(desugarer, step_no)) ->
-      loop(
-        subject,
-        countdown,
-        Some(#(desugarer, step_no)),
-        0,
-        report_long_running_desugarers,
-      )
+      loop(subject, countdown, Some(#(desugarer, step_no)), 0, ux_options)
 
     Ok(ProducerFinishedDesugarer) ->
-      loop(subject, countdown, None, 0, report_long_running_desugarers)
+      loop(subject, countdown, None, 0, ux_options)
 
     Ok(MonitorProducedOutput(output, step_no)) -> {
-      print_feedback_block(output, renderer_runner_margin)
+      print_feedback_block(output, ux_options.feedback_margin)
       case countdown == 0 {
         False -> {
           loop(
@@ -3129,7 +3134,7 @@ fn loop(
             countdown - 1,
             running_desugarer,
             running_seconds,
-            report_long_running_desugarers,
+            ux_options,
           )
         }
         True ->
@@ -3152,7 +3157,7 @@ fn loop(
                     countdown - 1,
                     running_desugarer,
                     running_seconds,
-                    report_long_running_desugarers,
+                    ux_options,
                   )
               }
             }
@@ -3173,10 +3178,10 @@ fn loop(
     Error(_) -> {
       let running_seconds =
         running_seconds + long_running_desugarer_report_interval_seconds
-      case running_desugarer, report_long_running_desugarers {
+      case running_desugarer, ux_options.report_long_running_desugarers {
         Some(#(desugarer, step_no)), True ->
           io.println(
-            string.repeat(" ", renderer_runner_margin)
+            string.repeat(" ", ux_options.feedback_margin)
             <> "[desugarer "
             <> ins(step_no)
             <> ". "
@@ -3187,13 +3192,7 @@ fn loop(
           )
         _, _ -> Nil
       }
-      loop(
-        subject,
-        countdown,
-        running_desugarer,
-        running_seconds,
-        report_long_running_desugarers,
-      )
+      loop(subject, countdown, running_desugarer, running_seconds, ux_options)
     }
   }
 }
@@ -3202,8 +3201,7 @@ pub fn run_pipeline(
   vxml: VXML,
   pipeline: Pipeline,
   monitors: List(Monitor),
-  monitor_interactive_mode: Bool,
-  report_long_running_desugarers: Bool,
+  ux_options: PipelineUXOptions,
 ) -> Result(
   #(VXML, List(InSituDesugaringWarning), List(Duration)),
   PipelineExecutionError,
@@ -3215,12 +3213,12 @@ pub fn run_pipeline(
 
   process.link(producer_pid)
 
-  let countdown = case monitor_interactive_mode {
+  let countdown = case ux_options.monitor_interactive_mode {
     True -> 0
     False -> -1
   }
 
-  loop(main_subject, countdown, None, 0, report_long_running_desugarers)
+  loop(main_subject, countdown, None, 0, ux_options)
 }
 
 // Renderer helpers
@@ -3449,8 +3447,11 @@ fn run_renderer_(
       filtered,
       renderer.pipeline,
       monitors,
-      options.monitor_interactive_mode,
-      options.report_long_running_desugarers,
+      PipelineUXOptions(
+        monitor_interactive_mode: options.monitor_interactive_mode,
+        report_long_running_desugarers: options.report_long_running_desugarers,
+        feedback_margin: renderer_runner_margin,
+      ),
     ),
     on_error: fn(e) {
       case e {
@@ -3498,8 +3499,7 @@ fn run_renderer_(
     }
 
     Some(total_chars) -> {
-      let all_seconds =
-        durations |> list.map(duration.to_seconds) |> list.reverse
+      let all_seconds = durations |> list.map(duration.to_seconds)
       let max_secs = case list.max(all_seconds, float.compare) {
         Ok(max_secs) -> max_secs
         Error(_) -> 0.0

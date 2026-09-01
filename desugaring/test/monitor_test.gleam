@@ -1,10 +1,18 @@
 import desugaring as ds
+import desugaring/core.{Desugarer}
 import desugaring/desugarers as dl
+import gleam/erlang/process
 import gleam/list
 import gleam/option.{None, Some}
+import gleam/order
 import gleam/string
+import gleam/time/duration
 import vxml
 import vxml/blame
+
+fn pipeline_ux_options() -> ds.PipelineUXOptions {
+  ds.PipelineUXOptions(False, False, 0)
+}
 
 fn stopping_monitor() -> ds.Monitor {
   ds.new_monitor("test-monitor", 0, fn(_vxml, state, context) {
@@ -29,7 +37,12 @@ pub fn main() {
 
   let input = vxml.V(blame.no_blame, "root", [], [])
   let result =
-    ds.run_pipeline(input, [dl.identity()], [stopping_monitor()], False, True)
+    ds.run_pipeline(
+      input,
+      [dl.identity()],
+      [stopping_monitor()],
+      pipeline_ux_options(),
+    )
   let assert Error(ds.PipelineMonitorError(failure)) = result
   let ds.MonitorFailure(name, step_no, message) = failure
   assert name == "test-monitor"
@@ -42,8 +55,7 @@ pub fn main() {
       invalid,
       [],
       [ds.vxml_validation_monitor(False)],
-      False,
-      True,
+      pipeline_ux_options(),
     )
   let assert Error(ds.PipelineMonitorError(failure)) = result
   let ds.MonitorFailure(name, step_no, message) = failure
@@ -54,7 +66,12 @@ pub fn main() {
 
   let empty_text = vxml.T(blame.no_blame, [])
   let result =
-    ds.run_pipeline(empty_text, [], [ds.empty_text_node_monitor()], False, True)
+    ds.run_pipeline(
+      empty_text,
+      [],
+      [ds.empty_text_node_monitor()],
+      pipeline_ux_options(),
+    )
   let assert Error(ds.PipelineMonitorError(failure)) = result
   let ds.MonitorFailure(name, step_no, message) = failure
   assert name == "validate-vxml-lines"
@@ -70,8 +87,7 @@ pub fn main() {
       invalid_tag_with_nonempty_lines,
       [],
       [ds.empty_text_node_monitor()],
-      False,
-      True,
+      pipeline_ux_options(),
     )
 
   let whitespace_is_valid =
@@ -88,7 +104,23 @@ pub fn main() {
       whitespace_is_valid,
       [],
       [ds.vxml_validation_monitor(True)],
-      False,
-      True,
+      pipeline_ux_options(),
     )
+
+  pipeline_durations_follow_pipeline_order()
+}
+
+fn pipeline_durations_follow_pipeline_order() {
+  let slow =
+    Desugarer("slow", None, None, fn(vxml) {
+      process.sleep(30)
+      Ok(#(vxml, []))
+    })
+  let fast = Desugarer("fast", None, None, fn(vxml) { Ok(#(vxml, [])) })
+  let input = vxml.V(blame.no_blame, "root", [], [])
+
+  let assert Ok(#(_, _, [slow_duration, fast_duration])) =
+    ds.run_pipeline(input, [slow, fast], [], pipeline_ux_options())
+
+  assert duration.compare(slow_duration, fast_duration) == order.Gt
 }
