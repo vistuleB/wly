@@ -1,90 +1,275 @@
-# writerly
+# Writerly
 
-## Introduction
+Writerly is a lightweight, indentation-based markup language for authoring
+tree-structured documents. Its syntax is descended from
+[Elm-Markup](https://github.com/mdgriffith/elm-markup), while its data model is
+a semantic superset of XML: elements and attributes are joined by first-class
+paragraphs, blank lines, comments, and fenced code blocks.
 
-'Writerly' is a syntax-only derivative of [Elm-Markup](https://github.com/mdgriffith/elm-markup). It encodes a superset of XML in human-readable and -writeable form.
+Writerly is suited to long-form, structured documents whose source should
+remain comfortable to edit by hand, while still producing an explicit tree
+that applications can transform into HTML, LaTeX, JSX, or other output
+formats.
 
-The following is a sample Writerly file:
+This Gleam package can:
 
-```
-|> SomeTag
-    attr1=value1
-    attr2=value2
+- parse Writerly source into a typed Writerly tree;
+- serialize a Writerly tree back to Writerly source;
+- convert between Writerly and
+  [VXML](https://hexdocs.pm/vxml/), an XML-like intermediate representation;
+- assemble a document distributed across a directory of `.wly` files.
 
-    A paragraph with one line.
+## Example
 
-    A second paragraph.
+````writerly
+|> Chapter
+    id=introduction
 
-    |> AnotherTag
-        attr3=val3
+    This is a paragraph. Consecutive text lines belong
+    to the same paragraph.
 
-    |> ol
-        |> li
-            style=background:red
+    |> Section
+        class=example
 
-            Hello world. The 'li'
-            to which I, this paragraph, belongs, is
-            the granchild of 'SomeTag'.
+        A blank line separates this paragraph from the next.
 
-        |> li
-            The first line of this paragraph does not parse as a
-            key-value pair, though it directly follows
-            a tag; so it will be interpreted as a text, and these
-            four lines of text become one paragraph.
+        ```gleam&id=hello
+        pub fn main() {
+          io.println("Hello, world!")
+        }
+        ```
 
-    !! lines starting with "!!"
-    !! are comments
+    !! This comment remains part of the Writerly tree.
+````
 
-    !! here is a code block:
+`|> Chapter` introduces an element. Its attributes and children are indented
+by four spaces. Blank lines are represented explicitly rather than discarded.
 
-    ```python
-    def fn(x):
-        return x + 1
-    ```
+## Use from Gleam
 
-    Writerly considers whitespace at the end of a
-    text line to have semantic value, and will not trim
-    that whitespace. To insert spaces at the beginning
-    of a line, start the line with a backslash:
-    \        followed
-    by the number of spaces you want.
+Add the package to a Gleam project:
 
-|> ASecondTag
-
-    Writerly files can have multiple top-level nodes.
-    This document contains three top-level nodes: 'SomeTag',
-    'ASecondTag', as well as...
-
-...this last paragraph, which is
-a sibling of 'SomeTag' and 'ASecondTag'.
+```sh
+gleam add writerly
 ```
 
-In particular:
+Parse a source string containing any number of top-level nodes:
 
-- Writerly uses `|> tag` to encode an XML `<tag ...>...</tag>`.
-- Writerly parent-child relationships are indentation-based using 4 spaces of indentation.
-- Writerly separates paragraphs by blank lines. But note that XML does not have a primitive concept of a "paragraph"—this is why Writerly is a semantic _superset_ of XML!
-- Writerly tag attributes (the equivalent of HTML and XML tag attributes) are listed directly below the `|> tag` as lines of the form `key=val` with 4 spaces of indentation. A line that does not parse as an attribute key-value pair is either interpreted as text or as a new node, depending on whether the line starts with `|>` or not. A blank line can also be used to separate the last key-value pair from the first text child, allowing the first text child to start with text of the form `key=val`, that would otherwise be parsed as a tag attribute.
-- Attribute values are trimmed when parsed. More than 100 leading spaces before an attribute value are rejected. The same limit applies to commented attributes written with `!!` in an attribute position.
-- A code-fence info string may contain structured `&key=value` annotations, such as `` ```python&id=example ``. In VXML, the leading info string is stored in the synthetic `WriterlyCodeBlockInfoString` attribute, followed by the structured attributes in source order. Literal ampersands and backslashes are escaped with a backslash in the fence annotation.
-- Blank lines are _bona fide_ semantic elements of the document. Introducing a blank line between two adjacent tags or not may produce different results depending on the desugaring process that is used to process the Writerly document into a target document of a different format.
+```gleam
+import writerly
 
-Writerly documents take extension `.wly`.
+pub fn parse(source: String) {
+  writerly.string_to_writerlys(source, "example.wly")
+}
+```
+
+Use `string_to_writerly` instead when exactly one non-blank top-level node is
+required. The corresponding `input_lines_to_writerlys` and
+`input_lines_to_writerly` functions accept VXML `InputLine` values, preserving
+source provenance through their `Blame` fields.
+
+Writerly trees can be converted to VXML and serialized again:
+
+```gleam
+pub fn convert(source: String) {
+  let assert Ok(document) =
+    writerly.string_to_writerly(source, "example.wly")
+
+  let vxml = writerly.writerly_to_vxml(document)
+  let serialized = writerly.writerly_to_string(document)
+
+  #(vxml, serialized)
+}
+```
+
+The central syntax tree is:
+
+```gleam
+pub type Writerly {
+  BlankLine(blame: Blame)
+  Paragraph(blame: Blame, lines: List(Line))
+  Comment(blame: Blame, lines: List(Line))
+  CodeBlock(blame: Blame, attrs: List(Attr), lines: List(Line))
+  Tag(blame: Blame, name: String, attrs: List(Attr), children: List(Writerly))
+}
+```
 
 ## Multi-file documents
 
-Writerly documents are designed to be broken across multiple files for large projects. Consider the following directory contents:
+`assemble_input_lines` accepts either a `.wly` file or a directory. A directory
+may use `__parent.wly` as its root file:
 
+```text
+book/
+├── __parent.wly
+├── 01-introduction.wly
+├── 02-examples.wly
+└── appendix/
+    ├── __parent.wly
+    └── 01-tables.wly
 ```
-./some_dir
-  ├─ __parent.wly
-  ├─ chapter1.wly
-  ├─ chapter2.wly
-  └─ chapter3.wly
+
+Sibling files are processed in lexicographic path order. Their contents are
+indented beneath `__parent.wly`; nested directories are assembled recursively.
+Files and directories whose names start with `#` are ignored.
+
+Use `assemble_input_lines_with_path_selector` to select source paths, or
+`path_selector_from_only_paths` to construct a selector from a list of paths.
+Assembly returns `InputLine` values so that filenames and line numbers remain
+available to later parsing and VXML processing.
+
+## VXML representation
+
+The conversion to VXML uses ordinary VXML element and text nodes, with three
+reserved element names:
+
+- `WriterlyBlankLine` represents a semantic blank line;
+- `WriterlyCodeBlock` represents a fenced code block;
+- `WriterlyComment` represents a comment block.
+
+The synthetic attribute `WriterlyCodeBlockInfoString` stores the leading info
+string from a code fence. Structured fence annotations become ordinary VXML
+attributes. Commented-out element attributes use keys of the form
+`WriterlyCommentedAttribute<N>Spaces`, where `N` records their original spacing.
+Applications should use the public helper functions for recognizing and
+constructing these keys rather than assembling them by hand.
+
+## Syntax specification
+
+### Source and indentation
+
+A Writerly document is a sequence of lines. Its structural indentation is made
+of spaces and must be a multiple of four. A child is indented exactly four
+spaces farther than its parent. Unexpected deeper indentation is an error.
+
+Writerly documents conventionally use the `.wly` filename extension.
+
+### Elements
+
+An element begins with `|>` followed by a tag name:
+
+```writerly
+|> article
 ```
 
-The loader will indent the contents of `chapter1.wly`, `chapter2.wly` and `chapter3.wly` 
-by 4 spaces and then append the concatenated contents of those files, according to the lexicographic order
-of the filenames, to the contents of `__parent.wly`. This process is pursued recursively through subdirectories.
+Whitespace surrounding the name after `|>` is trimmed. A tag name must match:
 
-Writerly files or directories starting with `#` are "commented out" and ignored by the loader.
+```text
+[A-Za-z_:][-A-Za-z0-9._:]*
+```
+
+Attributes and children occur on subsequent lines, indented four more spaces.
+An element ends when the indentation returns to that element's level or lower.
+Closing tags are not written.
+
+### Attributes
+
+Immediately after an element line, lines of the following form are parsed as
+attributes:
+
+```writerly
+|> figure
+    id=overview
+    class=wide diagram
+```
+
+The first `=` separates the key and value. An attribute key must match:
+
+```text
+[A-Za-z_][-A-Za-z0-9._:]*
+```
+
+Attribute values are trimmed at both ends. More than 100 leading spaces after
+the `=` are rejected. Empty values are allowed.
+
+Attribute parsing stops at the first line that is not a valid attribute. If an
+element's first text line resembles an attribute, insert a blank line before
+it:
+
+```writerly
+|> Example
+
+    equation=a+b
+```
+
+### Paragraphs and text lines
+
+Consecutive ordinary lines at the same indentation form one `Paragraph`.
+Writerly preserves their contents, including trailing whitespace.
+
+A text line whose content would otherwise begin with structural syntax can be
+escaped with a backslash. The initial backslash is removed:
+
+```writerly
+\    text beginning with spaces
+\!! text, not a comment
+\``` text, not a code fence
+```
+
+The serializer inserts this escape when required.
+
+### Blank lines
+
+Every empty source line becomes a `BlankLine`. Blank lines are semantic nodes:
+adding or removing one changes the Writerly tree. Their meaning, if any, is
+assigned by later processing.
+
+### Comments
+
+At ordinary child position, consecutive lines beginning with `!!` form one
+`Comment` node. The `!!` marker is removed from the stored line content:
+
+```writerly
+!! first comment line
+!! second comment line
+```
+
+In the attribute region immediately following an element, an `!!` line is
+instead stored as a commented-out attribute. The number of spaces after `!!`
+is preserved, up to a maximum of 100:
+
+```writerly
+|> figure
+    !! class=temporarily-disabled
+    src=figure.svg
+```
+
+### Fenced code blocks
+
+A line beginning with three backticks opens a code block. A line containing
+three backticks at the same indentation closes it:
+
+````writerly
+```gleam
+pub fn answer() {
+  42
+}
+```
+````
+
+The closing fence may have trailing whitespace but no annotation. Lines inside
+the block retain their relative indentation. A content line that would look
+like a closing fence is escaped with a leading backslash.
+
+The text immediately following the opening backticks is the info string. It
+must not begin with a space. An info string may be followed by structured
+annotations written as `&key=value`:
+
+````writerly
+```gleam&id=answer&class=example
+```
+````
+
+Annotation keys follow the attribute-key grammar. Values are trimmed and obey
+the same 100-leading-space limit as element attributes. An ampersand or
+backslash that belongs to the info string or an annotation is escaped with a
+backslash. Parsing and serialization preserve the distinction between the
+leading info string and structured annotations.
+
+### Top-level cardinality
+
+A document may contain any number of top-level nodes.
+`string_to_writerlys` and `input_lines_to_writerlys` return all of them.
+`string_to_writerly` and `input_lines_to_writerly` require exactly one
+non-blank top-level node; otherwise they return `MissingRoot` or
+`NonUniqueRoot`.
