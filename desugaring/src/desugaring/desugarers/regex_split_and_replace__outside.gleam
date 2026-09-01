@@ -24,7 +24,7 @@ pub fn constructor(param: Param, outside: List(String)) -> Desugarer {
 }
 
 type Param =
-  grs.RegexpReplacementerSplitter
+  grs.RegexpReplacementSplitter
 
 type InnerParam =
   Param

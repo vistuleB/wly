@@ -1,5 +1,4 @@
 import desugaring/core
-import gleam/io
 import gleam/list
 import gleam/regexp.{type Regexp}
 import gleam/string.{inspect as ins}
@@ -24,14 +23,14 @@ pub type RegexpGroupSourceAndInstruction {
   )
 }
 
-pub type RegexpReplacementerSplitter {
-  RegexpReplacementerSplitter(
+pub type RegexpReplacementSplitter {
+  RegexpReplacementSplitter(
     re: Regexp,
     groups: List(RegexpGroupSourceAndInstruction),
   )
 }
 
-pub fn rrs_param_stringifier(rrs: RegexpReplacementerSplitter) -> String {
+pub fn rrs_param_stringifier(rrs: RegexpReplacementSplitter) -> String {
   rrs.groups
   |> list.map(fn(g) { ins(g.source) <> " -> " <> ins(g.instruction) })
   |> core.list_string_stringifier
@@ -70,16 +69,21 @@ fn replacement_nodes(
   }
 }
 
-fn rrs_split_content(
+fn rrs_splits_to_nodes(
   blame: Blame,
-  content: String,
-  w: RegexpReplacementerSplitter,
+  splits: List(String),
+  w: RegexpReplacementSplitter,
 ) -> List(VXML) {
-  assert content != ""
-  let splits = regexp.split(w.re, content)
   let num_groups = list.length(w.groups)
-  let num_splits = list.length(splits)
-  assert num_splits % { num_groups + 1 } == 1
+  let split_cycle_length = num_groups + 1
+  let splits = case list.length(splits) % split_cycle_length {
+    // Erlang's regexp splitter omits an empty final segment when the match
+    // reaches the end of the string. Restore it so every match has the same
+    // capture-group layout.
+    0 -> list.append(splits, [""])
+    1 -> splits
+    _ -> panic as "unexpected regexp capture-group layout"
+  }
 
   let reversed =
     list.index_fold(
@@ -91,7 +95,7 @@ fn rrs_split_content(
         index,
       ) {
         let #(b, grps, reversed) = acc
-        let mod_index = index % { num_groups + 1 } - 1
+        let mod_index = index % split_cycle_length - 1
         let #(instruction, grps) = case mod_index == -1 {
           True -> #(Keep, w.groups)
           False -> {
@@ -112,33 +116,10 @@ fn rrs_split_content(
   |> core.last_to_first_concatenation
 }
 
-fn rrs_split_line(line: Line, w: RegexpReplacementerSplitter) -> List(VXML) {
-  case line.content == "”  |_" {
-    True -> {
-      io.println("SEEING IT!")
-      io.println(string.inspect(w.groups))
-    }
-    False -> Nil
-  }
-  case regexp.check(w.re, line.content) {
-    False -> {
-      case line.content == "”  |_" {
-        True -> {
-          io.println("...IT DID NOT MATCH!")
-        }
-        False -> Nil
-      }
-      [T(line.blame, [line])]
-    }
-    True -> {
-      case line.content == "”  |_" {
-        True -> {
-          io.println("...IT DID MATCH!")
-        }
-        False -> Nil
-      }
-      rrs_split_content(line.blame, line.content, w)
-    }
+fn rrs_split_line(line: Line, w: RegexpReplacementSplitter) -> List(VXML) {
+  case regexp.split(w.re, line.content) {
+    [_] -> [T(line.blame, [line])]
+    splits -> rrs_splits_to_nodes(line.blame, splits, w)
   }
 }
 
@@ -146,10 +127,7 @@ fn rrs_split_line(line: Line, w: RegexpReplacementerSplitter) -> List(VXML) {
 // Nodemap API
 // *****************
 
-pub fn rrs_split_node(
-  vxml: VXML,
-  re: RegexpReplacementerSplitter,
-) -> List(VXML) {
+pub fn rrs_split_node(vxml: VXML, re: RegexpReplacementSplitter) -> List(VXML) {
   case vxml {
     V(_, _, _, _) -> [vxml]
     T(_, lines) -> {
@@ -163,7 +141,7 @@ pub fn rrs_split_node(
 
 fn rrs_split_nodes(
   nodes: List(VXML),
-  re: RegexpReplacementerSplitter,
+  re: RegexpReplacementSplitter,
 ) -> List(VXML) {
   nodes
   |> list.map(rrs_split_node(_, re))
@@ -172,13 +150,13 @@ fn rrs_split_nodes(
 
 pub fn rrs_split_node__batch(
   vxml: VXML,
-  rules: List(RegexpReplacementerSplitter),
+  rules: List(RegexpReplacementSplitter),
 ) -> List(VXML) {
   list.fold(rules, [vxml], rrs_split_nodes)
 }
 
 // *****************
-// RegexpReplacementerSplitter constructor helpers API
+// RegexpReplacementSplitter constructor helpers API
 // *****************
 
 pub const regex_prefix_to_make_unescaped = "(?<!\\\\)(?:(?:\\\\\\\\)*)"
@@ -194,7 +172,7 @@ pub fn parenthesize(s: String) -> String {
 pub fn unescaped_suffix_rr_splitter(
   re_suffix suffix: String,
   replacement instruction: SplitReplacementInstruction,
-) -> RegexpReplacementerSplitter {
+) -> RegexpReplacementSplitter {
   // the (even-length) backslash run in front of the delimiter gets its own
   // capture group and is Kept, rather than being swallowed together with the
   // delimiter: that is what lets "\\_" keep its literal backslash while the
@@ -202,7 +180,7 @@ pub fn unescaped_suffix_rr_splitter(
   let assert Ok(re) =
     { parenthesize(regex_prefix_to_make_unescaped) <> parenthesize(suffix) }
     |> regexp.from_string
-  RegexpReplacementerSplitter(re: re, groups: [
+  RegexpReplacementSplitter(re: re, groups: [
     RegexpGroupSourceAndInstruction(regex_prefix_to_make_unescaped, Keep),
     RegexpGroupSourceAndInstruction(suffix, instruction),
   ])
@@ -211,21 +189,21 @@ pub fn unescaped_suffix_rr_splitter(
 pub fn rr_splitter(
   re_string source: String,
   replacement instruction: SplitReplacementInstruction,
-) -> RegexpReplacementerSplitter {
+) -> RegexpReplacementSplitter {
   let assert Ok(re) = regexp.from_string(source |> parenthesize)
   let group = RegexpGroupSourceAndInstruction(source, instruction)
-  RegexpReplacementerSplitter(re: re, groups: [group])
+  RegexpReplacementSplitter(re: re, groups: [group])
 }
 
 pub fn rr_splitter_for_groups(
   pairs: List(#(String, SplitReplacementInstruction)),
-) -> RegexpReplacementerSplitter {
+) -> RegexpReplacementSplitter {
   let re_string =
     list.map(pairs, fn(p) { parenthesize(p.0) }) |> string.join("")
   let assert Ok(re) = regexp.from_string(re_string)
   let groups =
     list.map(pairs, fn(p) { RegexpGroupSourceAndInstruction(p.0, p.1) })
-  RegexpReplacementerSplitter(re: re, groups: groups)
+  RegexpReplacementSplitter(re: re, groups: groups)
 }
 
 // length of the run of backslashes at the very end of a string

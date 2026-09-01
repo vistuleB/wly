@@ -1,47 +1,164 @@
-# Desugaring
+# VXML Pipeline
 
-A collection of utilities for transforming [VXML](https://github.com/vistuleB/wly/tree/main/vxml) through composable VXML pipelines, then splitting and emitting the result as one or more target documents such as HTML or JSX.
+Run and debug [VXML](https://github.com/vistuleB/vxml) transformation
+pipelines.
 
-The package is currently named `desugaring`, but its central abstraction is closer to a VXML pipeline: parse or assemble source material into VXML, run a sequence of `VXML -> VXML` transforms, split the transformed tree into output fragments, emit each fragment, and write the resulting files.
+This Gleam package is currently named `desugaring`. It is intended to be
+published as `vxml_pipeline`. Until that rename occurs, the examples below use
+the current `desugaring` module paths.
 
-## Pipeline Model
+The package provides two related execution layers:
 
-The renderer in `src/desugaring.gleam` wires together these stages:
+- `run_pipeline` applies an ordered list of named VXML transformations to one
+  VXML tree.
+- `run_renderer` runs a complete file-oriented render: assemble, parse,
+  filter, transform, split, emit, write, and optionally prettify.
+
+The package also includes reusable desugarers, pipeline monitors, command-line
+argument handling, local-desugarer tooling, and a test framework for
+desugarers.
+
+## Data flow
+
+The complete renderer has the following stages:
 
 ```text
-source path
+input path
   -> Assembler
-    -> List(InputLine)
+  -> List(InputLine)
   -> Parser
-    -> VXML
+  -> VXML
   -> Filterer
-    -> VXML
+  -> VXML
   -> Pipeline
-    -> VXML
+  -> VXML
   -> Splitter
-    -> List(OutputFragment(_, VXML))
+  -> List(OutputFragment(classifier, VXML))
   -> Emitter
-    -> List(OutputFragment(_, List(OutputLine)))
+  -> List(OutputFragment(classifier, List(OutputLine)))
   -> Writer
-    -> output files
+  -> output files
+  -> optional Prettifier
 ```
 
-A `Pipeline` is a list of `Desugarer` values. Each desugarer is a named transformation over a VXML tree, with structured errors and warnings. Many desugarers are implemented as nodemaps: the desugarer supplies local node logic and the core nodemap-to-transform machinery performs the tree walk.
+Applications provide the stages that are specific to their input format and
+output format. The package supplies defaults for common single-file XML,
+Writerly, HTML, JSX, file-writing, and Prettier workflows.
 
-## Main Modules
+## Desugarers and pipelines
 
-- `desugaring` contains the renderer types, default parser/assembler/filterer/splitter/emitter/writer utilities, command-line option handling, tracking, dumping, and `run_renderer`.
-- `desugaring/core` contains the `Desugarer` and `Pipeline` types, warning/error types, VXML helpers, and shared desugarer utilities.
-- `desugaring/nodemaps_2_transform` contains the tree-walking machinery used by many desugarers.
-- `desugaring/tracking` contains selector types, selection operations, and tracking-output rendering.
-- `desugaring/line_wrapping` contains the blame-preserving line-wrapping engine.
-- `desugaring/desugarers` is generated and re-exports desugarer constructors.
-- `desugaring/pipelines` contains reusable groups of desugarers for common text-splitting patterns such as math delimiters, markdown links, and inline markup.
-- `desugaring/writerly_defaults` contains Writerly adapter defaults for the generic renderer.
+A `Desugarer` is one named VXML transformation:
 
-## Writerly Adapter
+```gleam
+pub type DesugarerTransform =
+  fn(VXML) ->
+    Result(#(VXML, List(DesugaringWarning)), DesugaringError)
 
-The renderer core is input-format-agnostic. Writerly-specific assembly, parsing, and emitting live in `desugaring/writerly_defaults`:
+pub type Desugarer {
+  Desugarer(
+    name: String,
+    stringified_param: Option(String),
+    stringified_outside: Option(String),
+    transform: DesugarerTransform,
+  )
+}
+
+pub type Pipeline =
+  List(Desugarer)
+```
+
+The generated `desugaring/desugarers` module exports the reusable desugarer
+constructors:
+
+```gleam
+import desugaring/core
+import desugaring/desugarers as dl
+
+let pipeline = [
+  dl.rename(#("Chapter", "section")),
+  dl.append_attribute(#("section", "class", "chapter", core.GoBack)),
+]
+```
+
+`run_pipeline` is useful when the application already has a VXML tree and does
+not need the file-oriented renderer:
+
+```gleam
+import desugaring as vp
+
+let result =
+  vp.run_pipeline(
+    vxml,
+    pipeline,
+    [],    // monitors
+    False, // monitor interactive mode
+    True,  // report long-running desugarers
+  )
+```
+
+On success, `run_pipeline` returns the transformed VXML, accumulated warnings,
+and one duration per desugaring step. Timing is part of pipeline execution;
+monitors do not measure desugarer durations.
+
+## Building a renderer
+
+The following is a complete single-file XML-to-JSX renderer of the same shape
+as `test/renderer_smoke.gleam`:
+
+```gleam
+import desugaring as vp
+import desugaring/core
+import desugaring/desugarers as dl
+
+fn pipeline() -> core.Pipeline {
+  [
+    dl.rename(#("Chapter", "section")),
+    dl.append_attribute(#("section", "class", "chapter", core.GoBack)),
+  ]
+}
+
+pub fn run() {
+  let options = vp.vanilla_options()
+
+  let parameters =
+    vp.RendererParameters(
+      input_dir: "input.xml",
+      output_dir: "build/output",
+      prettifier_behavior: vp.PrettifierOff,
+    )
+
+  let renderer =
+    vp.Renderer(
+      assembler: vp.default_file_assembler,
+      parser: vp.default_xml_parser,
+      filterer: vp.default_filterer(_, options, []),
+      pipeline: pipeline(),
+      splitter: vp.stub_splitter(".tsx"),
+      emitter: vp.stub_jsx_emitter,
+      writer: vp.default_writer,
+      prettifier: vp.empty_prettifier,
+    )
+
+  vp.run_renderer(renderer, parameters, options)
+}
+```
+
+`run_renderer` returns the relative paths written during the run. Its error
+type retains the error type of each application-provided stage. It prints its
+own progress block and terminates that block with one blank line.
+
+The default writer creates missing parent directories and overwrites output
+files. Prettifier modes are:
+
+- `PrettifierOff`
+- `PrettifierOverwriteOutputDir`
+- `PrettifierToBespokeDir(Option(String))`
+
+## Writerly input
+
+Writerly support is kept in a separate adapter module because the renderer
+core operates on `InputLine`, `OutputLine`, and VXML rather than on Writerly
+syntax directly:
 
 ```gleam
 import desugaring/writerly_defaults as wd
@@ -51,65 +168,329 @@ wd.default_writerly_parser
 wd.default_writerly_emitter
 ```
 
-Those defaults adapt Writerly source trees to the same renderer stages used by XML, VXML, or other input formats.
+The Writerly assembler accepts either a file or a directory tree. It reports
+the assembled directory tree as verbose feedback and respects the renderer's
+path-selection options.
 
-## Smoke Test
+## Feedback
 
-`test/renderer_smoke.gleam` is the basic renderer smoke test. It reads `samples/smoke.xml`, parses it as XML-backed VXML, runs a small generic pipeline, emits JSX-like output, and writes to `build/renderer-smoke-output`.
+Assemblers, parsers, filterers, splitters, emitters, and writers return their
+payload together with `Feedback`:
 
-Run it with:
+```gleam
+pub type Feedback {
+  NoFeedback
+  SomeFeedback(List(FeedbackBlock))
+}
 
-```sh
-gleam run -m renderer_smoke
+pub type FeedbackBlock {
+  FeedbackBlock(lines: List(String), margin: FeedbackMargin)
+}
+
+pub type FeedbackMargin {
+  AtRunnerMargin
+  Verbatim
+}
 ```
 
-Run a compile check with:
+Stage implementations construct their own feedback. The renderer prints it
+when verbose output is enabled. `AtRunnerMargin` places the block at the
+renderer runner's margin; `Verbatim` leaves its lines unindented.
+
+## Monitors
+
+A monitor observes the VXML between pipeline steps. It may retain state,
+produce feedback, or stop the pipeline with an error:
+
+```gleam
+vp.new_monitor(
+  "example",
+  initial_state,
+  fn(vxml, state, context) {
+    // context contains the step number and adjacent desugarers
+    Ok(#(next_state, vp.NoFeedback))
+  },
+)
+```
+
+`PipelineStepContext` contains:
+
+- the current step number;
+- the previous desugarer, if any;
+- the next desugarer, if any.
+
+A monitor error becomes a `PipelineMonitorError` and identifies the monitor,
+step number, and message. Monitor feedback is sent to the pipeline runner as
+discrete feedback blocks. Interactive mode pauses once for each feedback block.
+
+The built-in `--track` and `--dump` facilities are implemented as monitors.
+
+## Renderer parameters and options
+
+`RendererParameters` contains values required for a run:
+
+```gleam
+vp.RendererParameters(
+  input_dir: "src/content",
+  output_dir: "build/output",
+  prettifier_behavior: vp.PrettifierOff,
+)
+```
+
+`RendererOptions` controls optional behavior. Start from
+`vanilla_options()` and update only the relevant fields:
+
+```gleam
+let options =
+  vp.RendererOptions(
+    ..vp.vanilla_options(),
+    verbose: True,
+    artifacts: True,
+    warnings: True,
+  )
+```
+
+Options include filtering selectors, monitor configuration, tracking and dump
+factories, timing-table configuration, warning and artifact reporting,
+long-running-step reports, output-table widths, and stage dumps.
+
+## Command-line integration
+
+The package can parse its standard renderer options together with a declared
+set of application-specific options. Application-specific values are stored in
+`ParsedCLIArguments.user_args`; the package groups them but does not interpret
+them.
+
+A typical entry point has this shape:
+
+```gleam
+import argv
+import desugaring as vp
+import gleam/io
+import local_desugarers
+import on
+
+pub fn main() {
+  io.println("")
+
+  let args = argv.load().arguments
+
+  use args <- on.error_ok(
+    vp.read_from_dot_last_command(args),
+    handle_cli_error,
+  )
+
+  use arguments <- on.error_ok(
+    vp.process_command_line_arguments(args, ["--local-option"]),
+    handle_cli_error,
+  )
+
+  use help_requested <- on.error_ok(
+    vp.handle_help_requests(arguments, local_cli_usage),
+    handle_cli_error,
+  )
+
+  use maintenance_requested <- on.error_ok(
+    vp.handle_maintenance_requests(
+      arguments,
+      local_desugarers.assertive_tests,
+    ),
+    handle_cli_error,
+  )
+
+  use _ <- on.stay(case help_requested || maintenance_requested {
+    True -> on.Return(Nil)
+    False -> on.Stay(Nil)
+  })
+
+  use _ <- on.error_ok(
+    vp.write_to_dot_last_command(args),
+    handle_cli_error,
+  )
+
+  // Construct and run the application renderer here.
+}
+```
+
+The application can apply parsed standard values to its defaults with:
+
+```gleam
+vp.amend_renderer_parameters_by_arguments(parameters, arguments)
+vp.amend_renderer_options_by_arguments(options, arguments)
+```
+
+`CLIError` distinguishes argument parsing, `.last-command` reading, decoding
+and writing, maintenance operations, and application-defined failures.
+Applications can wrap a local failure with `ClientSideError` and use
+`cli_error_message` for a common presentation path.
+
+### `.last-command`
+
+`read_from_dot_last_command` replaces the argument list only when it is exactly
+`["--last-command"]`. If `--last-command` appears with another argument,
+command-line parsing rejects it. `write_to_dot_last_command` stores an
+unambiguous encoding of the effective argument list in `.last-command`.
+
+The read and write functions use the current working directory. Applications
+normally write only a command that proceeds to ordinary rendering; help,
+maintenance, and local one-off operations can return before the write.
+
+### Standard diagnostic options
+
+The built-in help describes all accepted forms. The principal options are:
+
+- `--help`, `--esoteric`, and `--track-help`
+- `--input-dir` and `--output-dir`
+- `--only`
+- `--track` and `--dump`
+- `--table` and `--times`
+- `--verbose`, `--artifacts`, and `--warnings`
+- `--prettier-off`, `--prettier-on`, and `--prettier-check`
+- stage dumps for assembled input, parsed VXML, filtered VXML, splitter
+  fragments, and emitter fragments
+
+Use `--track-help` for the selector-window, step-range, and output-formatting
+syntax accepted by `--track`.
+
+## Authoring a desugarer
+
+Client desugarers are ordinary Gleam modules. `desugaring/authoring` constructs
+the public `Desugarer` value while keeping parameter validation separate from
+the transform:
+
+```gleam
+import desugaring/authoring
+import desugaring/core.{type Desugarer, type DesugarerTransform}
+
+pub const name = "example"
+
+pub fn constructor(param: Param) -> Desugarer {
+  authoring.desugarer(
+    name: name,
+    param: param,
+    prepare: param_to_inner_param,
+    transform: inner_param_to_transform,
+  )
+}
+```
+
+`authoring` also provides constructors for infallible, no-parameter, and
+`outside`-aware desugarers. `authoring.blame(name, line_no)` creates blame for
+VXML introduced by a desugarer.
+
+Most reusable desugarers express their local operation as a typed nodemap and
+convert it to a full-tree transform with `desugaring/nodemaps_2_transform`.
+Applications may also implement `DesugarerTransform` directly.
+
+The repository's complete source conventions are recorded in
+`DESUGARER_REWRITE_STYLE.md`.
+
+## Testing desugarers
+
+`desugaring/testing` provides VXML-to-VXML test data and collection helpers:
+
+```gleam
+let collection =
+  testing.collection(
+    "example",
+    [testing.data(param, "<> Input", "<> Expected")],
+    constructor,
+  )
+
+let passed =
+  testing.run([collection])
+  |> testing.all_passed
+```
+
+The test machinery parses the source VXML, applies the desugarer, serializes
+the result, and compares it with the expected VXML.
+
+Run the package checks and renderer smoke test with:
 
 ```sh
 gleam check
+gleam run -m renderer_smoke
 ```
 
-## Local Desugarers
+Run the package's generated desugarer test registry with:
 
-A consumer project can keep its own desugarers in `src/desugarers/`. The
-generated local registry has the fixed path `src/local_desugarers.gleam`, so
-imports are consistent across consumer projects:
-
-```gleam
-import desugaring/desugarers as dl
-import local_desugarers as local_dl
+```sh
+gleam run -m desugarers
+gleam run -m desugarers -- rename
 ```
 
-Regenerate the local registry from the consumer project's Gleam root:
+## Local desugarers in an application
+
+An application can keep private desugarers in this fixed layout:
+
+```text
+src/
+  desugarers/
+    example.gleam
+  local_desugarers.gleam
+  local_desugarer_tests.gleam
+```
+
+Generate `src/local_desugarers.gleam` from `src/desugarers/`:
 
 ```sh
 gleam run -m desugaring/generate_local_desugarers_dot_gleam
 ```
 
-The generator exports each module's `constructor` and collects each module's
-`assertive_tests`.
-
-Renumber blame references after editing local desugarers:
+Renumber `authoring.blame` line references:
 
 ```sh
 gleam run -m desugaring/renumber_local_desugarer_blames
 ```
 
-With a consumer-provided `src/local_desugarer_tests.gleam`, test all local
-desugarers or one named desugarer:
+The generated registry exports each module's `constructor` and an
+`assertive_tests` list. A small application-owned `local_desugarer_tests.gleam`
+can pass that list to `desugaring/testing.test_desugarers`.
 
-```sh
-gleam run -m local_desugarer_tests
-gleam run -m local_desugarer_tests -- my_desugarer
-```
+When command-line maintenance handling is installed, the application also
+accepts:
 
-## Current Boundaries
+- `--renumber`
+- `--generate` and `--regenerate`
+- `--desugarer-tests` and `--test-desugarers`
+- `--desugarers`, which renumbers, regenerates, and tests
 
-The package still contains both generic and project-specific desugarers. Files prefixed with names such as `ti2_`, `ii2_`, and `dr_` are project-specific and are expected to move or be separated later. The LBP desugarers have moved into their consumer project as the first client-owned desugarer pilot. The generated `desugaring/desugarers` module currently exports the remaining desugarers together, so package consumers should treat that surface as transitional.
+These operations use paths relative to the application's current working
+directory.
 
-The intended future shape is:
+## Module guide
 
-- generic VXML pipeline core,
-- reusable generic desugarers,
-- adapter modules for specific input formats such as Writerly,
-- project-specific desugarers outside the core package.
+- `desugaring` — renderer stages, execution, feedback, monitors, renderer
+  options, CLI handling, and default generic stages.
+- `desugaring/core` — desugarer and pipeline types, errors and warnings, VXML
+  helpers, and lower-level utilities used by desugarers.
+- `desugaring/desugarers` — generated registry of reusable desugarer
+  constructors.
+- `desugaring/pipelines` — reusable multi-desugarer fragments for delimiters,
+  inline markup, and link parsing.
+- `desugaring/authoring` — constructors and blame helpers for client-authored
+  desugarers.
+- `desugaring/testing` — public desugarer testing API.
+- `desugaring/nodemaps_2_transform` — tree walkers that convert typed nodemaps
+  into desugarer transforms.
+- `desugaring/tracking` and `desugaring/selectors` — VXML selection and monitor
+  output.
+- `desugaring/line_wrapping` — blame-preserving line wrapping.
+- `desugaring/writerly_defaults` — Writerly assembler, parser, and emitter
+  adapters.
+
+## Current naming and release status
+
+The source package and module namespace are still `desugaring`. The planned
+published package name is `vxml_pipeline`. The rename will change import paths;
+it does not change the distinction between a `Pipeline` (only the ordered VXML
+transformations) and a `Renderer` (the complete input-to-files process).
+
+The package currently depends on local Writerly source through a path
+dependency, so the package manifest still requires release preparation before
+publication. See `CLIENT_DESUGARER_MIGRATION.md` and `PUBLIC_API_BOUNDARY.md`
+for the remaining migration constraints.
+
+## License
+
+MIT

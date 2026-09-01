@@ -146,7 +146,7 @@ fn naive_unescaped_split_pair_fold_data(
 
 type RRSSplitPairFoldData {
   RRSSplitPairFoldData(
-    splitter: grs.RegexpReplacementerSplitter,
+    splitter: grs.RegexpReplacementSplitter,
     tag: String,
     original: String,
   )
@@ -296,12 +296,6 @@ fn split_pair_fold_for_delimiter_pair(
   let #(d1, d2) = core.opening_and_closing_singletons_for_pair(pair)
   case closing_equals_opening(pair) {
     True -> {
-      // let RRSSplitPairFoldData(rrs, tag, original) = rrs_split_pair_fold_data(d1)
-      // [
-      //   dl.regex_split_and_replace__outside(rrs, forbidden),
-      //   dl.pair(#(tag, tag, wrapper, unbridgeable)),
-      //   dl.fold_into_text(#(tag, original))
-      // ]
       let NaiveUnescapedSplitPairFoldData(s, e, r, tag) =
         naive_unescaped_split_pair_fold_data(d1)
       [
@@ -447,7 +441,6 @@ pub fn symmetric_delim_splitting(
     ])
 
   [
-    dl.identity(),
     dl.regex_split_and_replace__outside(opening_or_closing_grs, forbidden),
     dl.regex_split_and_replace__outside(opening_grs, forbidden),
     dl.regex_split_and_replace__outside(closing_grs, forbidden),
@@ -577,7 +570,7 @@ pub fn markdown_link_splitting(
 ) -> Pipeline {
   let text_folder = fn(v: VXML) -> String {
     let assert V(_, _, [Attr(_, "href", value)], _) = v
-    "]aaa\\(" <> value <> "\\)"
+    "]\\(" <> value <> "\\)"
   }
   let start_tag = "MDLinkOpening"
   let end_tag = "MDLinkClosing"
