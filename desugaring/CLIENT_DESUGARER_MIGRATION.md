@@ -1,47 +1,25 @@
-# Client desugarer migration
+# Client desugarer migration status
 
-The migration must preserve the current workflow while consumer projects still
-house their desugarers directly in this repository. Work is ordered so that
-new facilities are additive before any existing workflow is changed.
+The maintained consumer projects now keep their project-specific desugarers
+locally rather than in this repository:
 
-## Migration sequence
+- `courses`
+- `dr`
+- `little-bo-peep-solid`
+- `ti2_html`
 
-1. Stabilize the compatibility API before moving definitions.
-   - Keep the existing `desugaring/*` module paths supported.
-   - Record which modules own public custom-type constructors in
-     `PUBLIC_API_BOUNDARY.md`.
-   - Do not use aliases as facades for constructor-owning types; Gleam aliases
-     do not re-export constructors.
-   - Keep all existing `desugaring/core` imports and desugarers working.
-2. Add developer tooling alongside the current shell scripts.
-   - Provide `blames`, `lint`, `generate-registry`, `new`, and `check` commands.
-   - Require explicit target directories initially.
-3. Test developer tools against copied fixtures.
-   - Cover representative, malformed, and unconventional client desugarers.
-   - Do not rewrite the live desugarer directory.
-4. Adopt the tools in check-only mode inside `wly`.
-   - Compare blame and registry results with the existing scripts.
-   - Run lint informationally without modifying files or failing CI.
-5. Make new generation mechanically equivalent to the existing scripts.
-   - Review every intentional difference and eliminate nondeterminism.
-6. Let one consumer opt in without relocating its desugarers.
-   - Use the public testing facade and check-only tooling first.
-7. Switch `wly` itself to the new tools.
-   - Keep compatibility wrappers during the transition.
-   - Commit mechanical migrations separately from behavioral changes.
-8. Move client desugarers out of `wly`, one consumer at a time.
-   - Establish the client registry and output equivalence before moving files.
-   - Perform optional style cleanup only after relocation.
-9. Deprecate old entry points after all known consumers have migrated.
+Each consumer can generate `src/local_desugarers.gleam`, renumber local blame
+references, and run its local assertive tests through the maintenance API.
 
-## Design constraints
+The remaining release work is package-level rather than consumer migration:
 
-- Client desugarers remain ordinary Gleam modules.
-- Constructor-owning public types remain in their compatibility modules until
-  a deliberate breaking migration.
-- Runtime authoring and testing APIs do not perform filesystem mutation.
-- Source rewriting and inspection are explicit developer-tool operations.
-- Check modes do not write files.
-- Generated output is deterministic and carries a tool version.
-- Structural requirements and optional house style produce distinct diagnostic
-  levels.
+1. Preserve the constructor-owning compatibility API documented in
+   `PUBLIC_API_BOUNDARY.md`.
+2. Decide whether the Writerly adapter belongs in a small companion package or
+   remains a published dependency of `vxml_pipeline`.
+3. Replace the local Writerly path dependency before publication.
+4. Audit public declarations so implementation helpers do not become an
+   accidental permanent API.
+5. Verify the maintained consumers against the release candidate.
+
+The `ii2` project is defunct and is not part of the release compatibility set.

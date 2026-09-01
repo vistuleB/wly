@@ -49,14 +49,15 @@ constructor imports.
 
 ### `desugaring`
 
-- `MonitorOutputMargin`
-- `MonitorOutput`
+- `FeedbackMargin`
+- `FeedbackBlock`
+- `Feedback`
 - `PipelineStepContext`
 - renderer stage and option records
-- command-line amendment and error types
+- parsed command-line argument and error types
 - pipeline and renderer result/error types
 
-Monitor callbacks construct `MonitorOutput` values and inspect
+Monitor callbacks construct `Feedback` and `FeedbackBlock` values and inspect
 `PipelineStepContext` values. These types therefore cannot be replaced by a
 facade alias without also introducing a different constructor/accessor API.
 
@@ -100,8 +101,8 @@ Until a deliberate breaking module migration:
    been re-exported.
 4. Prefer opaque types plus constructor/accessor functions only when that is
    the intended API, not as an incidental compatibility workaround.
-5. Test every public-boundary change against the known consumers: `courses`,
-   `dr`, `little-bo-peep-solid`, `ti2_html`, and `ii2`.
+5. Test every public-boundary change against the maintained consumers:
+   `courses`, `dr`, `little-bo-peep-solid`, and `ti2_html`.
 6. Reserve module-path renaming for a coordinated breaking release.
 
 ## First independent release

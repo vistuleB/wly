@@ -193,7 +193,7 @@ Writerly, HTML, JSX, file-writing, and Prettier workflows.
 ### Building a renderer
 
 The following is a complete single-file XML-to-JSX renderer of the same shape
-as `test/renderer_smoke.gleam`:
+as `test/renderer_integration_test.gleam`:
 
 ```gleam
 import desugaring as vp
@@ -462,12 +462,15 @@ let passed =
 The test machinery parses the source VXML, applies the desugarer, serializes
 the result, and compares it with the expected VXML.
 
-Run the package checks and renderer smoke test with:
+Run the complete package test suite, including the renderer integration test
+and generated desugarer tests, with:
 
 ```sh
-gleam check
-gleam run -m renderer_smoke
+gleam test
 ```
+
+Run only the renderer integration test with
+`gleam run -m renderer_integration_test`.
 
 Run the package's generated desugarer test registry with:
 
@@ -541,14 +544,15 @@ directory.
 ## Current naming and release status
 
 The source package and module namespace are still `desugaring`. The planned
-published package name is `vxml_pipeline`. The rename will change import paths;
-it does not change the distinction between a `Pipeline` (only the ordered VXML
-transformations) and a `Renderer` (the complete input-to-files process).
+published package name is `vxml_pipeline`. A Gleam package name does not
+determine its module names, so the first release can retain the established
+`desugaring` and `desugaring/*` imports. The rename does not change the
+distinction between a `Pipeline` (only the ordered VXML transformations) and a
+`Renderer` (the complete input-to-files process).
 
 The package currently depends on local Writerly source through a path
 dependency, so the package manifest still requires release preparation before
-publication. See `CLIENT_DESUGARER_MIGRATION.md` and `PUBLIC_API_BOUNDARY.md`
-for the remaining migration constraints.
+publication. See `PUBLIC_API_BOUNDARY.md` for the compatibility constraints.
 
 ## License
 

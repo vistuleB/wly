@@ -45,4 +45,3 @@ simplifile = { version = ">= 2.3.0 and < 3.0.0" }
 splitter = { version = ">= 1.1.0 and < 2.0.0" }
 vxml = { version = ">= 1.0.5 and < 2.0.0" }
 writerly = { path = "../writerly" }
-xmlm = { version = ">= 1.0.0 and < 2.0.0" }
