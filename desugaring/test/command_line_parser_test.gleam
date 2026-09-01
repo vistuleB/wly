@@ -1,4 +1,5 @@
 import desugaring
+import gleam/option
 
 fn assert_parses(arguments: List(String)) -> Nil {
   let assert Ok(_) = desugaring.process_command_line_arguments(arguments, [])
@@ -93,12 +94,33 @@ pub fn main() {
   assert_parses(["--only", "chapter&language=en"])
   assert_does_not_parse(["--only", "chapter&language"])
   assert_does_not_parse(["--only", "chapter&language=en=extra"])
-  let assert Error(desugaring.UnknownOptionArgument("--help")) =
-    desugaring.process_command_line_arguments(["--help"], [])
-  let assert Error(desugaring.UnknownOptionArgument("--esoteric")) =
-    desugaring.process_command_line_arguments(["--esoteric"], [])
-  let assert Error(desugaring.UnknownOptionArgument("--track-help")) =
-    desugaring.process_command_line_arguments(["--track-help"], [])
+  assert_parses(["--help"])
+  assert_parses(["-h"])
+  assert_parses(["-help"])
+  assert_parses(["--esoteric"])
+  assert_parses(["--track-help"])
+  assert_parses(["--renumber"])
+  assert_parses(["--generate"])
+  assert_parses(["--regenerate"])
+  assert_parses(["--desugarers"])
+  assert_parses(["--desugarer-tests"])
+  assert_parses(["--desugarer-tests", "one", "two"])
+  assert_parses(["--test-desugarers", "one"])
+  let assert Ok(requests) =
+    desugaring.process_command_line_arguments(
+      [
+        "-h", "--esoteric", "--track-help", "--renumber", "--regenerate",
+        "--desugarers", "--test-desugarers", "one", "two",
+      ],
+      [],
+    )
+  assert requests.help
+  assert requests.esoteric
+  assert requests.track_help
+  assert requests.renumber
+  assert requests.generate
+  assert requests.desugarers
+  assert requests.desugarer_tests == option.Some(["one", "two"])
   assert_does_not_parse([
     "--track",
     "needle",

@@ -1,24 +1,32 @@
 import desugaring
 
 pub fn main() {
-  let args = ["--which", "course", "--verbose"]
-  assert desugaring.handle_help_requests(args, fn() {
+  let assert Ok(arguments) =
+    desugaring.process_command_line_arguments(
+      ["--which", "course", "--verbose"],
+      ["--which"],
+    )
+  assert desugaring.handle_help_requests(arguments, fn() {
       panic as "local usage must not be evaluated without --help"
     })
-    == #(args, False)
+    == False
 
-  assert desugaring.handle_help_requests(
+  let assert Ok(arguments) =
+    desugaring.process_command_line_arguments(
       [
         "--which", "course", "--track-help", "--help", "--verbose", "--esoteric",
         "--help",
       ],
-      fn() { "local usage" },
+      ["--which"],
     )
-    == #(["--which", "course", "--verbose"], True)
+  assert desugaring.handle_help_requests(arguments, fn() { "local usage" })
+    == True
 
-  assert desugaring.handle_help_requests(
+  let assert Ok(arguments) =
+    desugaring.process_command_line_arguments(
       ["--which", "course", "-h", "-help"],
-      fn() { "local usage" },
+      ["--which"],
     )
-    == #(["--which", "course"], True)
+  assert desugaring.handle_help_requests(arguments, fn() { "local usage" })
+    == True
 }

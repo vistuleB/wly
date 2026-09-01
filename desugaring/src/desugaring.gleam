@@ -548,8 +548,15 @@ type VxmlMonitorOutput {
   TrackingVerbatim
 }
 
-pub type CommandLineAmendments {
-  CommandLineAmendments(
+pub type ParsedCLIArguments {
+  ParsedCLIArguments(
+    help: Bool,
+    esoteric: Bool,
+    track_help: Bool,
+    renumber: Bool,
+    generate: Bool,
+    desugarers: Bool,
+    desugarer_tests: Option(List(String)),
     input_dir: Option(String),
     output_dir: Option(String),
     only_paths: List(String),
@@ -573,8 +580,15 @@ pub type CommandLineAmendments {
   )
 }
 
-fn empty_command_line_amendments() -> CommandLineAmendments {
-  CommandLineAmendments(
+fn empty_parsed_cli_arguments() -> ParsedCLIArguments {
+  ParsedCLIArguments(
+    help: False,
+    esoteric: False,
+    track_help: False,
+    renumber: False,
+    generate: False,
+    desugarers: False,
+    desugarer_tests: None,
     input_dir: None,
     output_dir: None,
     only_paths: [],
@@ -824,22 +838,15 @@ fn print_with_terminal_blank_line(message: String) {
   }
 }
 
-/// Print requested help and remove help flags from command-line arguments.
+/// Print requested help sections.
 ///
 /// Each requested help section is printed at most once. `local_cli_usage` is
 /// evaluated and appended only when `--help` is present.
 pub fn handle_help_requests(
-  args: List(String),
+  arguments: ParsedCLIArguments,
   local_cli_usage: fn() -> String,
-) -> #(List(String), Bool) {
-  let basic =
-    list.contains(args, "--help")
-    || list.contains(args, "-help")
-    || list.contains(args, "-h")
-  let esoteric = list.contains(args, "--esoteric")
-  let track = list.contains(args, "--track-help")
-
-  case basic {
+) -> Bool {
+  case arguments.help {
     True -> {
       basic_cli_usage("'gleam run' command line options (basic):")
       case local_cli_usage() {
@@ -849,46 +856,30 @@ pub fn handle_help_requests(
     }
     False -> Nil
   }
-  case esoteric {
+  case arguments.esoteric {
     True -> advanced_cli_usage("'gleam run' command line options (esoteric):")
     False -> Nil
   }
-  case track {
+  case arguments.track_help {
     True -> track_cli_usage("'gleam run -- --track' command line options:")
     False -> Nil
   }
-
-  let args =
-    list.filter(args, fn(arg) {
-      arg != "--help"
-      && arg != "-help"
-      && arg != "-h"
-      && arg != "--esoteric"
-      && arg != "--track-help"
-    })
-  #(args, basic || esoteric || track)
+  arguments.help || arguments.esoteric || arguments.track_help
 }
 
-/// Run requested local-desugarer maintenance and remove its command-line flags.
+/// Run requested local-desugarer maintenance.
 ///
 /// Each operation runs at most once. `--desugarers` requests blame
 /// renumbering, local-library generation, and all local desugarer tests.
 pub fn handle_maintenance_requests(
-  args: List(String),
+  arguments: ParsedCLIArguments,
   local_desugarer_tests: List(fn() -> core.AssertiveTestCollection),
-) -> Result(#(List(String), Bool), String) {
-  let renumber =
-    list.contains(args, "--renumber") || list.contains(args, "--desugarers")
-  let generate =
-    list.contains(args, "--generate")
-    || list.contains(args, "--regenerate")
-    || list.contains(args, "--desugarers")
-  use #(args, requested_test_names) <- result.try(
-    extract_desugarer_test_request(args),
-  )
+) -> Result(Bool, String) {
+  let renumber = arguments.renumber || arguments.desugarers
+  let generate = arguments.generate || arguments.desugarers
   let requested_test_names = case
-    requested_test_names,
-    list.contains(args, "--desugarers")
+    arguments.desugarer_tests,
+    arguments.desugarers
   {
     None, True -> Some([])
     requested, _ -> requested
@@ -909,14 +900,7 @@ pub fn handle_maintenance_requests(
   }
   use _ <- result.try(maintenance_result)
 
-  let args =
-    list.filter(args, fn(arg) {
-      arg != "--renumber"
-      && arg != "--generate"
-      && arg != "--regenerate"
-      && arg != "--desugarers"
-    })
-  Ok(#(args, renumber || generate || tests_requested))
+  Ok(renumber || generate || tests_requested)
 }
 
 fn perform_requested_maintenance(
@@ -971,47 +955,6 @@ fn perform_requested_maintenance(
   }
 }
 
-fn extract_desugarer_test_request(
-  args: List(String),
-) -> Result(#(List(String), Option(List(String))), String) {
-  extract_desugarer_test_request_loop(args, [])
-}
-
-fn extract_desugarer_test_request_loop(
-  args: List(String),
-  reversed_before: List(String),
-) -> Result(#(List(String), Option(List(String))), String) {
-  case args {
-    [] -> Ok(#(list.reverse(reversed_before), None))
-    [arg, ..after] ->
-      case is_desugarer_test_option(arg) {
-        True ->
-          case list.any(after, is_desugarer_test_option) {
-            True -> Error("Duplicate desugarer-test options.")
-            False -> {
-              let #(names, after) =
-                list.split_while(after, fn(arg) {
-                  !string.starts_with(arg, "-")
-                })
-              Ok(#(
-                list.append(list.reverse(reversed_before), after),
-                Some(names),
-              ))
-            }
-          }
-        False ->
-          extract_desugarer_test_request_loop(after, [arg, ..reversed_before])
-      }
-  }
-}
-
-fn is_desugarer_test_option(arg: String) -> Bool {
-  case arg {
-    "--desugarer-tests" | "--test-desugarers" -> True
-    _ -> False
-  }
-}
-
 pub type CommandLineError {
   ExpectedDoubleDashString(String)
   UnknownOptionArgument(String)
@@ -1029,45 +972,90 @@ pub type CommandLineError {
 pub fn process_command_line_arguments(
   arguments: List(String),
   user_keys: List(String),
-) -> Result(CommandLineAmendments, CommandLineError) {
+) -> Result(ParsedCLIArguments, CommandLineError) {
+  let arguments = list.map(arguments, normalize_command_line_option)
   use list_key_values <- on.error_ok(double_dash_keys(arguments), fn(bad_key) {
     Error(ExpectedDoubleDashString(bad_key))
   })
 
   list_key_values
   |> list.fold(
-    Ok(empty_command_line_amendments()),
+    Ok(empty_parsed_cli_arguments()),
     fn(
-      result: Result(CommandLineAmendments, CommandLineError),
+      result: Result(ParsedCLIArguments, CommandLineError),
       pair: #(String, List(String)),
     ) {
-      use amendments <- on.ok(result)
+      use arguments <- on.ok(result)
       let #(option, values) = pair
       case option {
+        "--help" ->
+          case values {
+            [] -> Ok(ParsedCLIArguments(..arguments, help: True))
+            _ -> Error(UnexpectedArgumentsToOption(option))
+          }
+
+        "--esoteric" ->
+          case values {
+            [] -> Ok(ParsedCLIArguments(..arguments, esoteric: True))
+            _ -> Error(UnexpectedArgumentsToOption(option))
+          }
+
+        "--track-help" ->
+          case values {
+            [] -> Ok(ParsedCLIArguments(..arguments, track_help: True))
+            _ -> Error(UnexpectedArgumentsToOption(option))
+          }
+
+        "--renumber" ->
+          case values {
+            [] -> Ok(ParsedCLIArguments(..arguments, renumber: True))
+            _ -> Error(UnexpectedArgumentsToOption(option))
+          }
+
+        "--generate" ->
+          case values {
+            [] -> Ok(ParsedCLIArguments(..arguments, generate: True))
+            _ -> Error(UnexpectedArgumentsToOption(option))
+          }
+
+        "--desugarers" ->
+          case values {
+            [] -> Ok(ParsedCLIArguments(..arguments, desugarers: True))
+            _ -> Error(UnexpectedArgumentsToOption(option))
+          }
+
+        "--desugarer-tests" -> {
+          use _ <- on.ok(case arguments.desugarer_tests {
+            None -> Ok(Nil)
+            Some(_) -> Error(DuplicateOption(option))
+          })
+          Ok(ParsedCLIArguments(..arguments, desugarer_tests: Some(values)))
+        }
+
         "--times" -> {
-          use _ <- on.ok(case amendments.times {
+          use _ <- on.ok(case arguments.times {
             None -> Ok(Nil)
             Some(_) -> Error(DuplicateOption(option))
           })
           use arg <- on.ok(parse_times_args(values))
           Ok(
-            CommandLineAmendments(
-              ..amendments,
+            ParsedCLIArguments(
+              ..arguments,
               times: arg |> core.with_default(default_times_table_char_width),
             ),
           )
         }
 
         "--input-dir" -> {
-          use _ <- on.ok(case amendments.input_dir {
+          use _ <- on.ok(case arguments.input_dir {
             None -> Ok(Nil)
             Some(_) -> Error(DuplicateOption(option))
           })
           case values {
             [one] ->
               Ok(
-                CommandLineAmendments(
-                  ..amendments,
+                ParsedCLIArguments(
+                  ..arguments,
                   input_dir: Some(one |> core.drop_ending_slash),
                 ),
               )
@@ -1077,15 +1065,15 @@ pub fn process_command_line_arguments(
         }
 
         "--output-dir" -> {
-          use _ <- on.ok(case amendments.output_dir {
+          use _ <- on.ok(case arguments.output_dir {
             None -> Ok(Nil)
             Some(_) -> Error(DuplicateOption(option))
           })
           case values {
             [one] ->
               Ok(
-                CommandLineAmendments(
-                  ..amendments,
+                ParsedCLIArguments(
+                  ..arguments,
                   output_dir: Some(one |> core.drop_ending_slash),
                 ),
               )
@@ -1102,9 +1090,9 @@ pub fn process_command_line_arguments(
             |> result.map(list.flatten),
           )
 
-          CommandLineAmendments(
-            ..amendments,
-            warnings: Some(option.unwrap(amendments.warnings, False)),
+          ParsedCLIArguments(
+            ..arguments,
+            warnings: Some(option.unwrap(arguments.warnings, False)),
           )
           |> amend_only_args(args)
           |> Ok
@@ -1112,25 +1100,20 @@ pub fn process_command_line_arguments(
 
         "--table" ->
           case list.is_empty(values) {
-            True -> Ok(CommandLineAmendments(..amendments, table: Some(True)))
+            True -> Ok(ParsedCLIArguments(..arguments, table: Some(True)))
             False -> Error(UnexpectedArgumentsToOption("--table"))
           }
 
         "--no-table" ->
           case list.is_empty(values) {
-            True -> Ok(CommandLineAmendments(..amendments, table: Some(False)))
+            True -> Ok(ParsedCLIArguments(..arguments, table: Some(False)))
             False -> Error(UnexpectedArgumentsToOption("--no-table"))
           }
 
         "--prettier-off" ->
           case values {
             [] ->
-              Ok(
-                CommandLineAmendments(
-                  ..amendments,
-                  prettier: Some(PrettifierOff),
-                ),
-              )
+              Ok(ParsedCLIArguments(..arguments, prettier: Some(PrettifierOff)))
             _ -> Error(UnexpectedArgumentsToOption("--prettier-off"))
           }
 
@@ -1138,8 +1121,8 @@ pub fn process_command_line_arguments(
           case values {
             [] ->
               Ok(
-                CommandLineAmendments(
-                  ..amendments,
+                ParsedCLIArguments(
+                  ..arguments,
                   prettier: Some(PrettifierOverwriteOutputDir),
                 ),
               )
@@ -1150,8 +1133,8 @@ pub fn process_command_line_arguments(
           case values {
             [] ->
               Ok(
-                CommandLineAmendments(
-                  ..amendments,
+                ParsedCLIArguments(
+                  ..arguments,
                   prettier: Some(PrettifierToBespokeDir(None)),
                 ),
               )
@@ -1162,8 +1145,8 @@ pub fn process_command_line_arguments(
           case values {
             [dir] ->
               Ok(
-                CommandLineAmendments(
-                  ..amendments,
+                ParsedCLIArguments(
+                  ..arguments,
                   prettier: Some(PrettifierToBespokeDir(Some(dir))),
                 ),
               )
@@ -1173,14 +1156,14 @@ pub fn process_command_line_arguments(
         "--track" -> {
           use tracker <- on.ok(parse_track_args(values))
           Ok(
-            CommandLineAmendments(
-              ..amendments,
+            ParsedCLIArguments(
+              ..arguments,
               tracking_monitor_factory: Some(join_tracking_monitor_factory(
-                amendments.tracking_monitor_factory,
+                arguments.tracking_monitor_factory,
                 tracker,
               )),
               monitor_interactive_mode: {
-                amendments.monitor_interactive_mode
+                arguments.monitor_interactive_mode
                 || tracker.monitor_interactive_mode
               },
             ),
@@ -1190,14 +1173,14 @@ pub fn process_command_line_arguments(
         "--track-steps" -> {
           use tracker <- on.ok(parse_track_steps_args(values))
           Ok(
-            CommandLineAmendments(
-              ..amendments,
+            ParsedCLIArguments(
+              ..arguments,
               tracking_monitor_factory: Some(join_tracking_monitor_factory(
-                amendments.tracking_monitor_factory,
+                arguments.tracking_monitor_factory,
                 tracker,
               )),
               monitor_interactive_mode: {
-                amendments.monitor_interactive_mode
+                arguments.monitor_interactive_mode
                 || tracker.monitor_interactive_mode
               },
             ),
@@ -1208,15 +1191,15 @@ pub fn process_command_line_arguments(
           use #(specs, output, monitor_interactive_mode) <- on.ok(
             parse_dump_args(values),
           )
-          let amendments =
-            CommandLineAmendments(..amendments, monitor_interactive_mode: {
-              amendments.monitor_interactive_mode || monitor_interactive_mode
+          let arguments =
+            ParsedCLIArguments(..arguments, monitor_interactive_mode: {
+              arguments.monitor_interactive_mode || monitor_interactive_mode
             })
-          case amendments.dump_monitor_factory {
+          case arguments.dump_monitor_factory {
             None ->
               Ok(
-                CommandLineAmendments(
-                  ..amendments,
+                ParsedCLIArguments(
+                  ..arguments,
                   dump_monitor_factory: Some(DumpMonitorFactory(specs, output)),
                 ),
               )
@@ -1226,8 +1209,8 @@ pub fn process_command_line_arguments(
                 output,
               ))
               Ok(
-                CommandLineAmendments(
-                  ..amendments,
+                ParsedCLIArguments(
+                  ..arguments,
                   dump_monitor_factory: Some(DumpMonitorFactory(
                     list.append(existing_specs, specs),
                     output,
@@ -1241,29 +1224,28 @@ pub fn process_command_line_arguments(
 
         "--dump-assembled" ->
           case list.is_empty(values) {
-            True ->
-              Ok(CommandLineAmendments(..amendments, dump_assembled: True))
+            True -> Ok(ParsedCLIArguments(..arguments, dump_assembled: True))
             False -> Error(UnexpectedArgumentsToOption(option))
           }
 
         "--dump-parsed" ->
           case list.is_empty(values) {
-            True -> Ok(CommandLineAmendments(..amendments, dump_parsed: True))
+            True -> Ok(ParsedCLIArguments(..arguments, dump_parsed: True))
             False -> Error(UnexpectedArgumentsToOption(option))
           }
 
         "--dump-filtered" ->
           case list.is_empty(values) {
-            True -> Ok(CommandLineAmendments(..amendments, dump_filtered: True))
+            True -> Ok(ParsedCLIArguments(..arguments, dump_filtered: True))
             False -> Error(UnexpectedArgumentsToOption(option))
           }
 
         "--dump-splitter" ->
           Ok(
-            CommandLineAmendments(
-              ..amendments,
+            ParsedCLIArguments(
+              ..arguments,
               splitter_fragment_path_matches: combine_fragment_path_matches(
-                amendments.splitter_fragment_path_matches,
+                arguments.splitter_fragment_path_matches,
                 values,
               ),
             ),
@@ -1271,10 +1253,10 @@ pub fn process_command_line_arguments(
 
         "--dump-emitter" ->
           Ok(
-            CommandLineAmendments(
-              ..amendments,
+            ParsedCLIArguments(
+              ..arguments,
               emitter_fragment_path_matches: combine_fragment_path_matches(
-                amendments.emitter_fragment_path_matches,
+                arguments.emitter_fragment_path_matches,
                 values,
               ),
             ),
@@ -1282,42 +1264,37 @@ pub fn process_command_line_arguments(
 
         "--succinct" ->
           case list.is_empty(values) {
-            True ->
-              Ok(CommandLineAmendments(..amendments, verbose: Some(False)))
+            True -> Ok(ParsedCLIArguments(..arguments, verbose: Some(False)))
             False -> Error(UnexpectedArgumentsToOption(option))
           }
 
         "--verbose" ->
           case list.is_empty(values) {
-            True -> Ok(CommandLineAmendments(..amendments, verbose: Some(True)))
+            True -> Ok(ParsedCLIArguments(..arguments, verbose: Some(True)))
             False -> Error(UnexpectedArgumentsToOption(option))
           }
 
         "--artifacts" ->
           case list.is_empty(values) {
-            True ->
-              Ok(CommandLineAmendments(..amendments, artifacts: Some(True)))
+            True -> Ok(ParsedCLIArguments(..arguments, artifacts: Some(True)))
             False -> Error(UnexpectedArgumentsToOption(option))
           }
 
         "--no-artifacts" ->
           case list.is_empty(values) {
-            True ->
-              Ok(CommandLineAmendments(..amendments, artifacts: Some(False)))
+            True -> Ok(ParsedCLIArguments(..arguments, artifacts: Some(False)))
             False -> Error(UnexpectedArgumentsToOption(option))
           }
 
         "--warnings" ->
           case list.is_empty(values) {
-            True ->
-              Ok(CommandLineAmendments(..amendments, warnings: Some(True)))
+            True -> Ok(ParsedCLIArguments(..arguments, warnings: Some(True)))
             False -> Error(UnexpectedArgumentsToOption(option))
           }
 
         "--no-warnings" ->
           case list.is_empty(values) {
-            True ->
-              Ok(CommandLineAmendments(..amendments, warnings: Some(False)))
+            True -> Ok(ParsedCLIArguments(..arguments, warnings: Some(False)))
             False -> Error(UnexpectedArgumentsToOption(option))
           }
 
@@ -1325,9 +1302,9 @@ pub fn process_command_line_arguments(
           case list.contains(user_keys, option) {
             True ->
               Ok(
-                CommandLineAmendments(
-                  ..amendments,
-                  user_args: dict.insert(amendments.user_args, option, values),
+                ParsedCLIArguments(
+                  ..arguments,
+                  user_args: dict.insert(arguments.user_args, option, values),
                 ),
               )
             False -> Error(UnknownOptionArgument(option))
@@ -1336,6 +1313,15 @@ pub fn process_command_line_arguments(
       }
     },
   )
+}
+
+fn normalize_command_line_option(argument: String) -> String {
+  case argument {
+    "-h" | "-help" -> "--help"
+    "--regenerate" -> "--generate"
+    "--test-desugarers" -> "--desugarer-tests"
+    _ -> argument
+  }
 }
 
 // General command-line tokenization
@@ -1378,25 +1364,25 @@ fn double_dash_keys(
 // --only parsing
 
 fn amend_only_args(
-  amendments: CommandLineAmendments,
+  arguments: ParsedCLIArguments,
   args: List(#(String, String, String)),
-) -> CommandLineAmendments {
-  CommandLineAmendments(
-    ..amendments,
+) -> ParsedCLIArguments {
+  ParsedCLIArguments(
+    ..arguments,
     only_paths: list.append(
-      amendments.only_paths,
+      arguments.only_paths,
       args
         |> list.filter(fn(a) { a.0 != "" })
         |> list.map(fn(a) { a.0 }),
     ),
     only_key_vals: list.append(
-      amendments.only_key_vals,
+      arguments.only_key_vals,
       args
         |> list.filter(fn(a) { a.0 == "" && { a.1 != "" || a.2 != "" } })
         |> list.map(fn(a) { #(a.1, a.2) }),
     ),
     only_path_key_vals: list.append(
-      amendments.only_path_key_vals,
+      arguments.only_path_key_vals,
       args
         |> list.filter(fn(a) { a.0 != "" && { a.1 != "" || a.2 != "" } }),
     ),
@@ -2199,15 +2185,15 @@ fn parse_times_args(
   }
 }
 
-pub fn amend_renderer_parameters_by_command_line_amendments(
+pub fn amend_renderer_parameters_by_arguments(
   parameters: RendererParameters,
-  amendments: CommandLineAmendments,
+  arguments: ParsedCLIArguments,
 ) -> RendererParameters {
   RendererParameters(
-    input_dir: option.unwrap(amendments.input_dir, parameters.input_dir),
-    output_dir: option.unwrap(amendments.output_dir, parameters.output_dir),
+    input_dir: option.unwrap(arguments.input_dir, parameters.input_dir),
+    output_dir: option.unwrap(arguments.output_dir, parameters.output_dir),
     prettifier_behavior: option.unwrap(
-      amendments.prettier,
+      arguments.prettier,
       parameters.prettifier_behavior,
     ),
   )
@@ -2247,48 +2233,48 @@ fn append_optional_monitor_factory(
   }
 }
 
-pub fn amend_renderer_options_by_command_line_amendments(
+pub fn amend_renderer_options_by_arguments(
   options: RendererOptions(fragment_classifier),
-  amendments: CommandLineAmendments,
+  arguments: ParsedCLIArguments,
 ) -> RendererOptions(fragment_classifier) {
   RendererOptions(
-    verbose: option.unwrap(amendments.verbose, options.verbose),
-    artifacts: option.unwrap(amendments.artifacts, options.artifacts),
-    steps_table: option.unwrap(amendments.table, options.steps_table),
-    profiling_table: option.or(amendments.times, options.profiling_table),
+    verbose: option.unwrap(arguments.verbose, options.verbose),
+    artifacts: option.unwrap(arguments.artifacts, options.artifacts),
+    steps_table: option.unwrap(arguments.table, options.steps_table),
+    profiling_table: option.or(arguments.times, options.profiling_table),
     monitor_interactive_mode: {
-      options.monitor_interactive_mode || amendments.monitor_interactive_mode
+      options.monitor_interactive_mode || arguments.monitor_interactive_mode
     },
-    warnings: option.unwrap(amendments.warnings, options.warnings),
+    warnings: option.unwrap(arguments.warnings, options.warnings),
     report_long_running_desugarers: options.report_long_running_desugarers,
-    only_paths: list.append(options.only_paths, amendments.only_paths),
-    only_key_vals: list.append(options.only_key_vals, amendments.only_key_vals),
+    only_paths: list.append(options.only_paths, arguments.only_paths),
+    only_key_vals: list.append(options.only_key_vals, arguments.only_key_vals),
     only_path_key_vals: list.append(
       options.only_path_key_vals,
-      amendments.only_path_key_vals,
+      arguments.only_path_key_vals,
     ),
     monitors: options.monitors,
     monitor_factories: options.monitor_factories
-      |> append_optional_monitor_factory(amendments.tracking_monitor_factory)
-      |> append_optional_monitor_factory(amendments.dump_monitor_factory),
+      |> append_optional_monitor_factory(arguments.tracking_monitor_factory)
+      |> append_optional_monitor_factory(arguments.dump_monitor_factory),
     output_lines_table_default_comment_columns: options.output_lines_table_default_comment_columns,
     output_lines_table_default_blame_columns: options.output_lines_table_default_blame_columns,
-    dump_assembled_lines: amendments.dump_assembled
+    dump_assembled_lines: arguments.dump_assembled
       || options.dump_assembled_lines,
-    dump_parsed_vxml: amendments.dump_parsed || options.dump_parsed_vxml,
-    dump_filtered_vxml: amendments.dump_filtered || options.dump_filtered_vxml,
+    dump_parsed_vxml: arguments.dump_parsed || options.dump_parsed_vxml,
+    dump_filtered_vxml: arguments.dump_filtered || options.dump_filtered_vxml,
     dump_splitter_fragments: fn(fr: OutputFragment(fragment_classifier, VXML)) {
       options.dump_splitter_fragments(fr)
-      || exists_match(
-        amendments.splitter_fragment_path_matches,
-        string.contains(fr.path, _),
-      )
+      || exists_match(arguments.splitter_fragment_path_matches, string.contains(
+        fr.path,
+        _,
+      ))
     },
     dump_emitter_fragments: fn(
       fr: OutputFragment(fragment_classifier, List(OutputLine)),
     ) {
       options.dump_emitter_fragments(fr)
-      || exists_match(amendments.emitter_fragment_path_matches, string.contains(
+      || exists_match(arguments.emitter_fragment_path_matches, string.contains(
         fr.path,
         _,
       ))
