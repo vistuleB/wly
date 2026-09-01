@@ -184,6 +184,45 @@ pub fn parser_preserves_blame_across_assembled_files_test() {
   )
 }
 
+pub fn parser_rejects_invalid_tag_names_test() {
+  let assert Error(wl.BadTag(_, "not a tag")) =
+    wl.string_to_writerly("|> not a tag", "doc")
+}
+
+pub fn parser_rejects_indentation_not_divisible_by_four_test() {
+  let assert Error(wl.IndentationNotMultipleOfFour(_, "too shallow")) =
+    wl.string_to_writerly("|> Book\n  too shallow", "doc")
+}
+
+pub fn parser_rejects_skipped_indentation_levels_test() {
+  let assert Error(wl.IndentationTooLarge(_, _, _, _)) =
+    wl.string_to_writerly("|> Book\n        too deep", "doc")
+}
+
+pub fn parser_rejects_unclosed_code_blocks_test() {
+  let assert Error(wl.CodeBlockNotClosed(_)) =
+    wl.string_to_writerly("|> Book\n    ```gleam\n    pub fn main() {}", "doc")
+}
+
+pub fn parser_rejects_annotated_closing_code_fences_test() {
+  let assert Error(wl.CodeBlockUnwantedAnnotationAtClose(_, _, "gleam")) =
+    wl.string_to_writerly(
+      "|> Book\n    ```gleam\n    body\n    ```gleam",
+      "doc",
+    )
+}
+
+pub fn parser_rejects_invalid_code_block_attribute_keys_test() {
+  let assert Error(wl.BadKey(_, "bad key")) =
+    wl.string_to_writerly("|> Book\n    ```gleam&bad key=value\n    ```", "doc")
+}
+
+pub fn single_root_parser_reports_missing_and_nonunique_roots_test() {
+  let assert Error(wl.MissingRoot(_)) = wl.string_to_writerly("\n", "doc")
+  let assert Error(wl.NonUniqueRoot(_)) =
+    wl.string_to_writerly("first\n\nsecond", "doc")
+}
+
 pub fn writerly_tag_converts_to_vxml_element_test() {
   let assert Ok(wly_parsed) = wl.string_to_writerly("|> Book\n    a=b", "doc")
 

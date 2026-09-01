@@ -12,6 +12,10 @@ This Gleam package constitutes Writerly's reference implementation. It can:
 - assemble a document distributed across a directory of `.wly` files,
   according to Writerly's own multi-file document specification.
 
+The [Writerly extension for VS Code](https://github.com/vistuleB/writerly-vscode-extension)
+provides syntax highlighting, diagnostics, document navigation, and support
+for working with referenced files.
+
 Further help turning a parsed VXML tree into a target format is provided by the
 `vxml_pipeline` package.
 

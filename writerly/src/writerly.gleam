@@ -52,7 +52,6 @@ pub type ParseError {
     opening_blame: Blame,
     annotation: String,
   )
-  DuplicateIdInCodeBlockLanguageAnnotation(blame: Blame)
   ExcessiveLeadingAttributeSpaces(blame: Blame, maximum: Int, found: Int)
   NonUniqueRoot(blame: Blame)
   MissingRoot(blame: Blame)
@@ -1263,14 +1262,14 @@ pub fn vxml_to_writerly(vxml: VXML) -> Result(Writerly, Nil) {
 //
 // Writerly -> Writerly
 //
-// pub fn annotawriterly_annotate_blames
+// pub fn annotate_blames
 // ************************************************************
 
 /// Adds structural descriptions to the blame comments throughout a tree.
 ///
 /// This is intended for diagnostic tables. Source locations and node contents
 /// are otherwise unchanged.
-pub fn writerly_annotate_blames(writerly: Writerly) -> Writerly {
+pub fn annotate_blames(writerly: Writerly) -> Writerly {
   case writerly {
     BlankLine(blame) -> BlankLine(blame |> pc("BlankLine"))
     Paragraph(blame, lines) ->
@@ -1321,7 +1320,7 @@ pub fn writerly_annotate_blames(writerly: Writerly) -> Writerly {
           )
         }),
         children
-          |> list.map(writerly_annotate_blames),
+          |> list.map(annotate_blames),
       )
   }
 }
@@ -1501,7 +1500,7 @@ pub fn writerly_table(
 ) -> String {
   let rgxs = our_regexes()
   writerly
-  |> writerly_annotate_blames
+  |> annotate_blames
   |> writerly_to_output_lines_internal(0, True, rgxs)
   |> io_l.output_lines_table(banner, indent)
 }
