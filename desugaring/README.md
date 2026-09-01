@@ -18,7 +18,152 @@ The package also includes reusable desugarers, pipeline monitors, command-line
 argument handling, local-desugarer tooling, and a test framework for
 desugarers.
 
-## Data flow
+## Desugarers
+
+The atomic unit encapsulating a named VXML-to-VXML transformation is a
+*Desugarer*. It accepts one VXML tree and either returns a transformed VXML
+tree with warnings or returns a `DesugaringError`:
+
+```gleam
+pub type DesugarerTransform =
+  fn(VXML) ->
+    Result(#(VXML, List(DesugaringWarning)), DesugaringError)
+
+pub type Desugarer {
+  Desugarer(
+    name: String,
+    ...
+    transform: DesugarerTransform,
+  )
+}
+```
+
+The generated `desugaring/desugarers` module exports the reusable desugarer
+constructors:
+
+```gleam
+import desugaring/core
+import desugaring/desugarers as dl
+
+let pipeline = [
+  dl.rename(#("Chapter", "section")),
+  dl.append_attribute(#("section", "class", "chapter", core.GoBack)),
+]
+```
+
+Each constructor validates or prepares its parameters when it creates the
+`Desugarer`. The resulting transform is then ready to be applied repeatedly.
+
+### Authoring a desugarer
+
+Client-defined desugarers are ordinary Gleam modules. The
+`desugaring/authoring` module packages parameter preparation and transform
+construction into a `Desugarer`:
+
+```gleam
+import desugaring/authoring
+import desugaring/core.{
+  type Desugarer, type DesugarerTransform, type DesugaringError,
+}
+
+pub const name = "example"
+
+pub fn constructor(param: Param) -> Desugarer {
+  authoring.desugarer(
+    name: name,
+    param: param,
+    prepare: param_to_inner_param,
+    transform: inner_param_to_transform,
+  )
+}
+
+type Param = String
+type InnerParam = String
+
+fn param_to_inner_param(param: Param) -> Result(InnerParam, DesugaringError) {
+  Ok(param)
+}
+
+fn inner_param_to_transform(inner: InnerParam) -> DesugarerTransform {
+  fn(vxml) {
+    // Use `inner` to transform `vxml` here.
+    let _ = inner
+    Ok(#(vxml, []))
+  }
+}
+```
+
+`authoring` also provides constructors for infallible, no-parameter, and
+`outside`-aware desugarers. `authoring.blame(name, line_no)` creates provenance
+for VXML introduced by a desugarer.
+
+Most reusable desugarers define a typed operation on one node and use
+`desugaring/nodemaps_2_transform` to walk the complete tree. A desugarer may
+instead implement `DesugarerTransform` directly when its operation requires
+different traversal behavior.
+
+The repository's complete source conventions are recorded in
+`DESUGARER_REWRITE_STYLE.md`. Desugarer testing and application-local
+desugarer registries are described later in this README.
+
+## Pipelines and `run_pipeline`
+
+A `Pipeline` is an ordered list of desugarers:
+
+```gleam
+pub type Pipeline =
+  List(Desugarer)
+```
+
+`run_pipeline` applies each desugarer to an existing VXML tree. It does not
+assemble input, parse a source format, split output, emit another format, or
+write files. This makes it suitable for standalone use when an application
+already owns those operations.
+
+The function requires:
+
+- the initial VXML tree;
+- the pipeline;
+- a list of monitors, which may be empty;
+- whether monitor output is interactive;
+- whether to report desugarers that remain running for a long time.
+
+```gleam
+import desugaring as vp
+import desugaring/core
+import desugaring/desugarers as dl
+
+let pipeline: core.Pipeline = [
+  dl.rename(#("Chapter", "section")),
+]
+
+let result =
+  vp.run_pipeline(
+    vxml,
+    pipeline,
+    [],    // monitors
+    False, // monitor interactive mode
+    True,  // report long-running desugarers
+  )
+```
+
+On success, `run_pipeline` returns the transformed VXML, accumulated warnings,
+and one duration per desugaring step. It returns a `PipelineExecutionError`
+when a desugarer fails, a monitor stops execution, or the user exits an
+interactive run. Timing is part of pipeline execution; monitors do not measure
+desugarer durations.
+
+No renderer or command-line setup is required for standalone execution. A
+Gleam program can construct or parse a VXML value, build a pipeline, call
+`run_pipeline`, and handle the returned `Result` directly.
+
+## Renderers
+
+A `Renderer` places a pipeline inside a complete file-oriented process. It
+coordinates application-provided stages for obtaining VXML and turning the
+final VXML into output files.
+
+### Data flow
 
 The complete renderer has the following stages:
 
@@ -45,62 +190,7 @@ Applications provide the stages that are specific to their input format and
 output format. The package supplies defaults for common single-file XML,
 Writerly, HTML, JSX, file-writing, and Prettier workflows.
 
-## Desugarers and pipelines
-
-A `Desugarer` is one named VXML transformation:
-
-```gleam
-pub type DesugarerTransform =
-  fn(VXML) ->
-    Result(#(VXML, List(DesugaringWarning)), DesugaringError)
-
-pub type Desugarer {
-  Desugarer(
-    name: String,
-    stringified_param: Option(String),
-    stringified_outside: Option(String),
-    transform: DesugarerTransform,
-  )
-}
-
-pub type Pipeline =
-  List(Desugarer)
-```
-
-The generated `desugaring/desugarers` module exports the reusable desugarer
-constructors:
-
-```gleam
-import desugaring/core
-import desugaring/desugarers as dl
-
-let pipeline = [
-  dl.rename(#("Chapter", "section")),
-  dl.append_attribute(#("section", "class", "chapter", core.GoBack)),
-]
-```
-
-`run_pipeline` is useful when the application already has a VXML tree and does
-not need the file-oriented renderer:
-
-```gleam
-import desugaring as vp
-
-let result =
-  vp.run_pipeline(
-    vxml,
-    pipeline,
-    [],    // monitors
-    False, // monitor interactive mode
-    True,  // report long-running desugarers
-  )
-```
-
-On success, `run_pipeline` returns the transformed VXML, accumulated warnings,
-and one duration per desugaring step. Timing is part of pipeline execution;
-monitors do not measure desugarer durations.
-
-## Building a renderer
+### Building a renderer
 
 The following is a complete single-file XML-to-JSX renderer of the same shape
 as `test/renderer_smoke.gleam`:
@@ -352,39 +442,6 @@ The built-in help describes all accepted forms. The principal options are:
 Use `--track-help` for the selector-window, step-range, and output-formatting
 syntax accepted by `--track`.
 
-## Authoring a desugarer
-
-Client desugarers are ordinary Gleam modules. `desugaring/authoring` constructs
-the public `Desugarer` value while keeping parameter validation separate from
-the transform:
-
-```gleam
-import desugaring/authoring
-import desugaring/core.{type Desugarer, type DesugarerTransform}
-
-pub const name = "example"
-
-pub fn constructor(param: Param) -> Desugarer {
-  authoring.desugarer(
-    name: name,
-    param: param,
-    prepare: param_to_inner_param,
-    transform: inner_param_to_transform,
-  )
-}
-```
-
-`authoring` also provides constructors for infallible, no-parameter, and
-`outside`-aware desugarers. `authoring.blame(name, line_no)` creates blame for
-VXML introduced by a desugarer.
-
-Most reusable desugarers express their local operation as a typed nodemap and
-convert it to a full-tree transform with `desugaring/nodemaps_2_transform`.
-Applications may also implement `DesugarerTransform` directly.
-
-The repository's complete source conventions are recorded in
-`DESUGARER_REWRITE_STYLE.md`.
-
 ## Testing desugarers
 
 `desugaring/testing` provides VXML-to-VXML test data and collection helpers:
@@ -466,8 +523,10 @@ directory.
   helpers, and lower-level utilities used by desugarers.
 - `desugaring/desugarers` — generated registry of reusable desugarer
   constructors.
-- `desugaring/pipelines` — reusable multi-desugarer fragments for delimiters,
-  inline markup, and link parsing.
+- `desugaring/delimited_syntax` — reusable multi-desugarer fragments for
+  delimiters, inline markup, and link parsing.
+- `desugaring/split_replacement` — literal and regular-expression splitting
+  rules that replace matched segments with VXML.
 - `desugaring/authoring` — constructors and blame helpers for client-authored
   desugarers.
 - `desugaring/testing` — public desugarer testing API.

@@ -287,12 +287,11 @@ Pre-built defaults are available:
 | `nodemaps_2_desugarer_transforms.gleam` | Converts nodemap functions into `DesugarerTransform`s (the "walk" machinery) |
 | `desugarer_library.gleam` | **Auto-generated** — re-exports all desugarers as `pub const`s + `assertive_tests` list |
 | `selector_library.gleam` | **Auto-generated** — re-exports all selectors as `pub const`s |
-| `prefabricated_pipelines.gleam` | Higher-level pipeline fragments (LaTeX math splitting, markdown links, italic/bold, …) |
+| `delimited_syntax.gleam` | Pipeline fragments for LaTeX math, inline markup, and links |
 | `assertive_testing.gleam` | Test runner for desugarer unit tests |
-| `group_replacement_splitting.gleam` | Regex-based text splitting helpers used by desugarers |
+| `split_replacement.gleam` | Literal and regex split-replacement rules used by desugarers |
 | `table_and_co_printer.gleam` | Pretty-printing tables for debug output |
 | `roman.gleam` | Roman numeral utilities |
-| `prefabricated_pipelines.gleam` | Reusable multi-step pipeline sub-sequences |
 
 ### Desugarer Directory (`./src/desugarers/`)
 
@@ -376,17 +375,17 @@ Rather than writing recursive tree-walk logic directly, desugarers supply a *nod
 
 Each variant has a corresponding `*_2_desugarer_transform` function that wraps it into a full `DesugarerTransform`.
 
-### Prefabricated Pipelines (`prefabricated_pipelines.gleam`)
+### Delimited syntax pipelines (`desugaring/delimited_syntax.gleam`)
 
 Higher-order helpers that produce multi-step `Pipeline` sub-sequences:
 
 - `create_mathblock_elements(parsed_delimiters, produced_delimiter)` — splits `$$…$$` / `\[…\]` / `\begin{align}…\end{align}` into `MathBlock` nodes.
 - `create_math_elements(parsed, produced, backup)` — splits `$…$` / `\(…\)` into `Math` nodes.
-- `barbaric_symmetric_delim_splitting(regex, ordinary, tag, forbidden)` — generic symmetric delimiter splitting (used for `_italic_` and `*bold*`).
-- `asymmetric_delim_splitting(…)` — for asymmetric open/close delimiters.
-- `annotated_backtick_splitting(tag, annotation_key, forbidden)` — splits `` `{annotation}`` patterns.
-- `markdown_link_splitting(forbidden)` — splits `[text](url)` into `a` nodes.
-- `splitting_empty_lines_cleanup()` — concatenates text nodes and removes leftover empty-line sentinels after a splitting pass.
+- `permissive_symmetric_delimiter_pipeline(regex, ordinary, tag, forbidden)` — generic symmetric delimiter splitting (used for `_italic_` and `*bold*`).
+- `asymmetric_delimiter_pipeline(…)` — for asymmetric open/close delimiters.
+- `annotated_backtick_pipeline(tag, annotation_key, forbidden)` — splits `` `{annotation}`` patterns.
+- `markdown_link_pipeline(forbidden)` — splits `[text](url)` into `a` nodes.
+- `split_replacement_cleanup()` — concatenates text nodes and removes leftover empty-line sentinels after a splitting pass.
 
 ### Adding a New Desugarer
 

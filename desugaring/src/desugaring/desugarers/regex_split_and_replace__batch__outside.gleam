@@ -2,8 +2,8 @@ import desugaring/authoring
 import desugaring/core.{
   type Desugarer, type DesugarerTransform, type DesugaringError,
 }
-import desugaring/group_replacement_splitting as grs
 import desugaring/nodemaps_2_transform as n2t
+import desugaring/split_replacement as sr
 
 pub const name = "regex_split_and_replace__batch__outside"
 
@@ -24,7 +24,7 @@ pub fn constructor(param: Param, outside: List(String)) -> Desugarer {
 }
 
 type Param =
-  List(grs.RegexpReplacementSplitter)
+  List(sr.RegexpSplitRule)
 
 type InnerParam =
   Param
@@ -37,7 +37,10 @@ fn inner_param_to_transform(
   inner: InnerParam,
   outside: List(String),
 ) -> DesugarerTransform {
-  let nodemap: n2t.OneToManyNoErrorNodemap = grs.rrs_split_node__batch(_, inner)
+  let nodemap: n2t.OneToManyNoErrorNodemap = sr.apply_regexp_split_rules(
+    _,
+    inner,
+  )
   nodemap
   |> n2t.one_to_many_no_error_nodemap_2_desugarer_transform_with_forbidden(
     outside,
@@ -52,8 +55,8 @@ fn assertive_tests_data() -> List(core.AssertiveTestDataWithOutside(Param)) {
   [
     core.AssertiveTestDataWithOutside(
       param: [
-        grs.rr_splitter("_", grs.Tag("Underscore")),
-        grs.rr_splitter("\\*", grs.Tag("Star")),
+        sr.regexp_split_rule("_", sr.Tag("Underscore")),
+        sr.regexp_split_rule("\\*", sr.Tag("Star")),
       ],
       outside: ["Protected"],
       source: "

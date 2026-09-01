@@ -2,8 +2,8 @@ import desugaring/authoring
 import desugaring/core.{
   type Desugarer, type DesugarerTransform, type DesugaringError,
 }
-import desugaring/group_replacement_splitting as grs
 import desugaring/nodemaps_2_transform as n2t
+import desugaring/split_replacement as sr
 
 pub const name = "naive_unescaped_split_and_replace__outside"
 
@@ -30,7 +30,7 @@ type Param =
     // Replacement for an escaped splitter, including its backslash.
     String,
     // Splitter replacement instruction.
-    grs.SplitReplacementInstruction,
+    sr.SplitReplacement,
   )
 
 type InnerParam =
@@ -44,7 +44,7 @@ fn inner_param_to_transform(
   inner: InnerParam,
   outside: List(String),
 ) -> DesugarerTransform {
-  let nodemap: n2t.OneToManyNoErrorNodemap = grs.naive_unescaped_split_node(
+  let nodemap: n2t.OneToManyNoErrorNodemap = sr.naive_unescaped_split_node(
     _,
     inner.0,
     inner.1,

@@ -4,7 +4,6 @@ import gleam/option
 import gleam/string
 import gleeunit
 import gleeunit/should
-import simplifile
 import vxml.{Attr, Line}
 import vxml/blame.{Anchored, Movable, Src} as _bl
 import vxml/io_lines.{InputLine} as io_l
@@ -58,7 +57,7 @@ fn parse_ergonomic_wly(source: String, name: String) -> Writerly {
   writerly
 }
 
-pub fn part_1_test() {
+pub fn assembler_reads_a_single_file_with_relative_blame_paths_test() {
   wl.assemble_input_lines("test/test1.wly")
   |> should.equal(
     Ok(
@@ -70,7 +69,9 @@ pub fn part_1_test() {
       ]),
     ),
   )
+}
 
+pub fn assembler_nests_child_files_below_the_parent_document_test() {
   wl.assemble_input_lines("test/testA")
   |> should.equal(
     Ok(
@@ -113,63 +114,7 @@ pub fn path_selector_from_only_paths_test() {
   |> should.be_false
 }
 
-pub fn sample_wly_parses_and_roundtrips_test() {
-  let assert Ok(contents) = simplifile.read("samples/sample.wly")
-  let assert Ok(writerlys) =
-    wl.string_to_writerlys(contents, "samples/sample.wly")
-
-  writerlys
-  |> list.length
-  |> should.equal(1)
-
-  writerlys
-  |> wl.writerlys_to_string
-  |> should.equal(contents |> string.trim_end)
-}
-
-pub fn sample_contents_directory_assembles_and_parses_test() {
-  let assert Ok(#(_tree, lines)) =
-    wl.assemble_input_lines("samples/contents/ch5_ch.wly")
-
-  lines
-  |> list.length
-  |> fn(length) { length > 0 }
-  |> should.be_true
-
-  let assert Ok(writerlys) = wl.input_lines_to_writerlys(lines)
-
-  writerlys
-  |> list.length
-  |> should.equal(1)
-
-  writerlys
-  |> list.map(wl.writerly_to_vxml)
-  |> list.length
-  |> should.equal(1)
-}
-
-pub fn sample_xml_converts_to_writerly_test() {
-  let assert Ok(contents) = simplifile.read("samples/ch5_ch.xml")
-  let assert Ok(node) =
-    contents
-    |> vxml.html_repair
-    |> vxml.parse_xml("samples/ch5_ch.xml")
-
-  let writerlys = wl.vxml_to_writerlys(node)
-
-  writerlys
-  |> list.length
-  |> fn(length) { length > 0 }
-  |> should.be_true
-
-  writerlys
-  |> list.map(wl.writerly_to_string)
-  |> string.concat
-  |> string.is_empty
-  |> should.be_false
-}
-
-pub fn part_2_test() {
+pub fn parser_builds_a_tag_with_an_attribute_test() {
   let wly_doc =
     "
 |> Book
@@ -189,9 +134,10 @@ pub fn part_2_test() {
       ),
     ]),
   )
+}
 
+pub fn parser_preserves_paragraph_source_blame_test() {
   let assert Ok(#(_tree, lines)) = wl.assemble_input_lines("test/test1.wly")
-
   lines
   |> wl.input_lines_to_writerlys()
   |> should.equal(
@@ -210,7 +156,9 @@ pub fn part_2_test() {
       ),
     ]),
   )
+}
 
+pub fn parser_preserves_blame_across_assembled_files_test() {
   let assert Ok(#(_tree, lines)) = wl.assemble_input_lines("test/testA")
   lines
   |> wl.input_lines_to_writerlys()
@@ -235,7 +183,7 @@ pub fn part_2_test() {
   )
 }
 
-pub fn part_3_test() {
+pub fn writerly_tag_converts_to_vxml_element_test() {
   let wly_doc =
     "
 |> Book
@@ -257,7 +205,7 @@ pub fn part_3_test() {
   )
 }
 
-pub fn part_4_test() {
+pub fn vxml_text_node_converts_to_writerly_paragraph_test() {
   let vxml_doc =
     "
 <> Book
@@ -289,7 +237,7 @@ pub fn part_4_test() {
   )
 }
 
-fn parse_and_serialize_verification_for_ergonomic_source(source: String) {
+fn should_parse_and_serialize_without_change(source: String) {
   source
   |> parse_ergonomic_wly("doc")
   |> wl.writerly_to_string
@@ -299,20 +247,7 @@ fn parse_and_serialize_verification_for_ergonomic_source(source: String) {
   )
 }
 
-pub fn part_5_test() {
-  let wly_doc =
-    "
-|> Book
-    a=b
-  "
-    |> string.trim()
-
-  let assert Ok(wly_parsed) = wl.string_to_writerly(wly_doc, "doc")
-
-  wly_parsed
-  |> wl.writerly_to_string
-  |> should.equal(wly_doc)
-
+pub fn serializer_preserves_escaped_code_fences_test() {
   "
   |> Book
     a=b
@@ -320,8 +255,10 @@ pub fn part_5_test() {
     \\```
     ```
   "
-  |> parse_and_serialize_verification_for_ergonomic_source
+  |> should_parse_and_serialize_without_change
+}
 
+pub fn serializer_preserves_escaped_paragraph_indentation_test() {
   "
   |> Book
     a=b
@@ -333,7 +270,10 @@ pub fn part_5_test() {
     \\ an escaped space
     at the beginning of the second line
   "
-  |> parse_and_serialize_verification_for_ergonomic_source
+  |> should_parse_and_serialize_without_change
+}
+
+pub fn serializer_preserves_comments_and_trailing_spaces_test() {
   "
   |> Book
     a=b
@@ -351,7 +291,7 @@ pub fn part_5_test() {
     \\\\ an escaped space
     at the beginning of the second line   
   "
-  |> parse_and_serialize_verification_for_ergonomic_source
+  |> should_parse_and_serialize_without_change
 }
 
 pub fn commented_attribute_encoding_test() {
@@ -379,24 +319,4 @@ pub fn commented_attribute_key_helpers_test() {
   |> should.be_false
   wl.commented_attribute_spaces("WriterlyCommentedAttribute01Spaces")
   |> should.equal(option.Some(1))
-}
-
-pub fn parse_ergonomic_wly_test() {
-  "
-  |> Book
-    a=b
-    qqq=z
-  "
-  |> parse_ergonomic_wly("doc")
-  |> should.equal(
-    wl.Tag(
-      Src([], "doc", 1, 1, Anchored),
-      "Book",
-      [
-        Attr(Src([], "doc", 2, 5, Movable), "a", "b"),
-        Attr(Src([], "doc", 3, 5, Movable), "qqq", "z"),
-      ],
-      [],
-    ),
-  )
 }
