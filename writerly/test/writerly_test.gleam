@@ -1,11 +1,11 @@
 import dirtree.{Dirpath, Filepath} as _dt
 import gleam/list
-import gleam/option
+import gleam/option.{Some}
 import gleam/string
 import gleeunit
 import gleeunit/should
-import vxml.{Attr, Line}
-import vxml/blame.{Anchored, Movable, Src} as _bl
+import vxml.{type Attr, Attr, Line}
+import vxml/blame.{Anchored, Movable, Src, no_blame} as _bl
 import vxml/io_lines.{InputLine} as io_l
 import writerly.{type Writerly, Paragraph} as wl
 
@@ -13,32 +13,29 @@ pub fn main() -> Nil {
   gleeunit.main()
 }
 
-fn trim_end_spaces_and_one_newline(q: String) -> String {
-  case string.ends_with(q, " ") {
-    True -> q |> string.drop_end(1) |> trim_end_spaces_and_one_newline
+fn trim_fixture_end(source: String) -> String {
+  case string.ends_with(source, " ") {
+    True -> source |> string.drop_end(1) |> trim_fixture_end
     False ->
-      case string.ends_with(q, "\n") {
-        True -> q |> string.drop_end(1)
-        False -> q
+      case string.ends_with(source, "\n") {
+        True -> source |> string.drop_end(1)
+        False -> source
       }
   }
 }
 
-fn ergonomic_source_trim(source: String) -> String {
+fn trim_fixture(source: String) -> String {
   case string.starts_with(source, "\n") {
-    True -> string.drop_start(source, 1) |> trim_end_spaces_and_one_newline
-    False -> source |> trim_end_spaces_and_one_newline
+    True -> string.drop_start(source, 1) |> trim_fixture_end
+    False -> source |> trim_fixture_end
   }
 }
 
-// this allows to load a Writerly document written as a multi-line
-// string with two spaces of indentations and an initial arbitrary
-// indentation and to pretend as if it had 4 spaces of indentation
-// and an initial indentation of 0:
-fn ergonomic_source_to_standard_source(source: String) -> String {
+/// Turn a legibly indented two-space test fixture into four-space Writerly.
+fn normalize_fixture(source: String) -> String {
   let lines =
     source
-    |> ergonomic_source_trim
+    |> trim_fixture
     |> io_l.string_to_input_lines("", 0)
 
   let assert [first, ..] = lines
@@ -48,13 +45,23 @@ fn ergonomic_source_to_standard_source(source: String) -> String {
   |> io_l.input_lines_to_string
 }
 
-// see comment above
-fn parse_ergonomic_wly(source: String, name: String) -> Writerly {
+fn parse_fixture(source: String) -> Writerly {
   let assert Ok(writerly) =
     source
-    |> ergonomic_source_to_standard_source
-    |> wl.string_to_writerly(name)
+    |> normalize_fixture
+    |> wl.string_to_writerly("fixture.wly")
   writerly
+}
+
+fn assert_round_trip(source: String) {
+  source
+  |> parse_fixture
+  |> wl.writerly_to_string
+  |> should.equal(normalize_fixture(source))
+}
+
+fn attr_pairs(attrs: List(Attr)) -> List(#(String, String)) {
+  list.map(attrs, fn(attr) { #(attr.key, attr.val) })
 }
 
 pub fn assembler_reads_a_single_file_with_relative_blame_paths_test() {
@@ -115,13 +122,7 @@ pub fn path_selector_from_only_paths_test() {
 }
 
 pub fn parser_builds_a_tag_with_an_attribute_test() {
-  let wly_doc =
-    "
-|> Book
-    a=b
-  "
-    |> string.trim()
-  wl.string_to_writerlys(wly_doc, "doc")
+  wl.string_to_writerlys("|> Book\n    a=b", "doc")
   |> should.equal(
     Ok([
       wl.Tag(
@@ -184,14 +185,7 @@ pub fn parser_preserves_blame_across_assembled_files_test() {
 }
 
 pub fn writerly_tag_converts_to_vxml_element_test() {
-  let wly_doc =
-    "
-|> Book
-    a=b
-  "
-    |> string.trim()
-
-  let assert Ok(wly_parsed) = wl.string_to_writerly(wly_doc, "doc")
+  let assert Ok(wly_parsed) = wl.string_to_writerly("|> Book\n    a=b", "doc")
 
   wly_parsed
   |> wl.writerly_to_vxml()
@@ -206,15 +200,7 @@ pub fn writerly_tag_converts_to_vxml_element_test() {
 }
 
 pub fn vxml_text_node_converts_to_writerly_paragraph_test() {
-  let vxml_doc =
-    "
-<> Book
-  a=b
-  <>
-    'first'
-    'second'
-  "
-    |> string.trim
+  let vxml_doc = "<> Book\n  a=b\n  <>\n    'first'\n    'second'"
 
   let assert Ok([vxml_parsed]) = vxml.parse_string(vxml_doc, "doc", True)
 
@@ -237,17 +223,7 @@ pub fn vxml_text_node_converts_to_writerly_paragraph_test() {
   )
 }
 
-fn should_parse_and_serialize_without_change(source: String) {
-  source
-  |> parse_ergonomic_wly("doc")
-  |> wl.writerly_to_string
-  |> should.equal(
-    source
-    |> ergonomic_source_to_standard_source,
-  )
-}
-
-pub fn serializer_preserves_escaped_code_fences_test() {
+pub fn round_trip_preserves_escaped_code_fences_test() {
   "
   |> Book
     a=b
@@ -255,43 +231,44 @@ pub fn serializer_preserves_escaped_code_fences_test() {
     \\```
     ```
   "
-  |> should_parse_and_serialize_without_change
+  |> assert_round_trip
 }
 
-pub fn serializer_preserves_escaped_paragraph_indentation_test() {
+pub fn round_trip_preserves_escaped_paragraph_indentation_test() {
   "
   |> Book
-    a=b
-    ```
-    \\```
-    ```
-
     A paragraph with
     \\ an escaped space
     at the beginning of the second line
   "
-  |> should_parse_and_serialize_without_change
+  |> assert_round_trip
 }
 
-pub fn serializer_preserves_comments_and_trailing_spaces_test() {
+pub fn round_trip_preserves_code_block_indentation_test() {
+  "
+  |> Book
+    ```
+      hallo
+    \\```
+    \\\\```
+    ```
+  "
+  |> assert_round_trip
+}
+
+pub fn round_trip_preserves_comments_and_trailing_spaces_test() {
   "
   |> Book
     a=b
     !!someguy=aa
     t=w
 
-    ```
-      hallo
-    \\```
-    \\\\```
-    ```
-
     A paragraph with  
     \\ an escaped space
     \\\\ an escaped space
     at the beginning of the second line   
   "
-  |> should_parse_and_serialize_without_change
+  |> assert_round_trip
 }
 
 pub fn commented_attribute_encoding_test() {
@@ -312,11 +289,71 @@ pub fn commented_attribute_encoding_test() {
 
 pub fn commented_attribute_key_helpers_test() {
   wl.commented_attribute_spaces("WriterlyCommentedAttribute0Spaces")
-  |> should.equal(option.Some(0))
-  wl.commented_attribute_spaces("WriterlyCommentedAttribute1000Spaces")
-  |> should.equal(option.Some(1000))
-  wl.is_commented_attribute_key("WriterlyCommentedAttribute1001Spaces")
+  |> should.equal(Some(0))
+  wl.commented_attribute_spaces("WriterlyCommentedAttribute100Spaces")
+  |> should.equal(Some(100))
+  wl.is_commented_attribute_key("WriterlyCommentedAttribute101Spaces")
   |> should.be_false
   wl.commented_attribute_spaces("WriterlyCommentedAttribute01Spaces")
-  |> should.equal(option.Some(1))
+  |> should.equal(Some(1))
+}
+
+pub fn code_block_info_string_and_attributes_round_trip_test() {
+  let source =
+    "|> Book\n    ```python&id=example&title=a\\&b&path=c\\\\d&empty=\n    body\n    ```"
+  let assert Ok(
+    wl.Tag(_, "Book", _, [wl.CodeBlock(_, attrs, [Line(_, "body")])]) as writerly,
+  ) = wl.string_to_writerly(source, "doc")
+  attr_pairs(attrs)
+  |> should.equal([
+    #(wl.code_block_info_string_attribute_key, "python"),
+    #("id", "example"),
+    #("title", "a&b"),
+    #("path", "c\\d"),
+    #("empty", ""),
+  ])
+  writerly |> wl.writerly_to_string |> should.equal(source)
+}
+
+pub fn code_block_info_string_attribute_may_appear_anywhere_test() {
+  let writerly =
+    wl.CodeBlock(
+      no_blame,
+      [
+        Attr(no_blame, "id", "example"),
+        Attr(no_blame, wl.code_block_info_string_attribute_key, " python "),
+        Attr(no_blame, "class", " listing "),
+      ],
+      [],
+    )
+
+  let serialized = "```python&id=example&class=listing\n```"
+  writerly |> wl.writerly_to_string |> should.equal(serialized)
+
+  let assert Ok(wl.CodeBlock(_, attrs, [])) =
+    wl.string_to_writerly(serialized, "doc")
+  attr_pairs(attrs)
+  |> should.equal([
+    #(wl.code_block_info_string_attribute_key, "python"),
+    #("id", "example"),
+    #("class", "listing"),
+  ])
+}
+
+fn assert_excessive_leading_spaces(source: String) {
+  let assert Error(wl.ExcessiveLeadingAttributeSpaces(_, 100, 101)) =
+    wl.string_to_writerly(source, "doc")
+  Nil
+}
+
+pub fn parser_rejects_excessive_leading_attribute_spaces_test() {
+  let excessive = string.repeat(" ", 101)
+
+  assert_excessive_leading_spaces("|> Book\n    key=" <> excessive <> "hidden")
+
+  assert_excessive_leading_spaces("|> Book\n    !!" <> excessive <> "key=value")
+
+  assert_excessive_leading_spaces(
+    "|> Book\n    ```python&id=" <> excessive <> "hidden\n    ```",
+  )
 }

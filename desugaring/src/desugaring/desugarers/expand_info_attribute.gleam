@@ -8,6 +8,7 @@ import gleam/list
 import gleam/option.{None, Some}
 import on
 import vxml.{type VXML, V}
+import writerly
 
 pub const name = "expand_info_attribute"
 
@@ -16,7 +17,8 @@ pub const name = "expand_info_attribute"
 // 🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️🏖️️️️️🏖️
 
 /// Expands HTML `info` shorthand into language, id, class,
-/// and style attributes on the configured element tags.
+/// and style attributes on the configured element tags. Writerly's
+/// `WriterlyCodeBlockInfoString` encoding is accepted as an alias.
 pub fn constructor(param: Param) -> Desugarer {
   authoring.desugarer(
     name: name,
@@ -51,6 +53,22 @@ fn nodemap(vxml: VXML, inner: InnerParam) -> Result(VXML, DesugaringError) {
             attrs,
             "info",
           ))
+          use #(writerly_info, attrs) <- on.ok(
+            core.attrs_extract_unique_key_or_none(
+              attrs,
+              writerly.code_block_info_string_attribute_key,
+            ),
+          )
+          use info <- on.ok(case info, writerly_info {
+            Some(_), Some(_) ->
+              Error(DesugaringError(
+                blame,
+                "both 'info' and 'WriterlyCodeBlockInfoString' attributes",
+              ))
+            Some(info), None -> Ok(Some(info))
+            None, Some(info) -> Ok(Some(info))
+            None, None -> Ok(None)
+          })
           use info <- on.none_some(info, fn() { Ok(vxml) })
           use #(language, id, class, style) <- on.error_ok(
             core.html_info_shorthand_to_attrs(info.blame, info.val),
@@ -165,6 +183,24 @@ fn assertive_tests_data() -> List(testing.AssertiveTestData(Param)) {
       expected: "
                 <> root
                   <> pre
+                    class=listing
+                    <>
+                      'plain code block'
+                ",
+    ),
+    testing.data(
+      param: ["pre"],
+      source: "
+                <> root
+                  <> pre
+                    WriterlyCodeBlockInfoString=python.listing
+                    <>
+                      'plain code block'
+                ",
+      expected: "
+                <> root
+                  <> pre
+                    language=python
                     class=listing
                     <>
                       'plain code block'

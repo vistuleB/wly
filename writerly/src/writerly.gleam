@@ -42,6 +42,7 @@ pub type ParseError {
     annotation: String,
   )
   DuplicateIdInCodeBlockLanguageAnnotation(blame: Blame)
+  ExcessiveLeadingAttributeSpaces(blame: Blame, maximum: Int, found: Int)
   NonUniqueRoot(blame: Blame)
   MissingRoot(blame: Blame)
 }
@@ -49,44 +50,41 @@ pub type ParseError {
 pub type AssemblyError {
   ReadFileError(String)
   ReadFileOrDirectoryError(String)
-  // We accept both .emu and .wly extensions, but do not allow both versions
-  // of the same filename in one assembled document.
-  TwoFilesSameName(String)
   NoFilesFound(String)
-}
-
-pub type AssemblyOrParseError {
-  ParseError(ParseError)
-  AssemblyError(AssemblyError)
 }
 
 const commented_attribute_key_prefix = "WriterlyCommentedAttribute"
 
 const commented_attribute_key_suffix = "Spaces"
 
-const maximum_commented_attribute_spaces = 1000
+const maximum_leading_attribute_spaces = 100
+
+/// The synthetic VXML attribute that carries a code block's leading info
+/// string separately from its structured `&key=value` annotations.
+pub const code_block_info_string_attribute_key = "WriterlyCodeBlockInfoString"
 
 /// Returns the encoded number of spaces in a Writerly commented attribute.
-/// Only keys encoding between zero and 1000 spaces are recognized.
+/// Only keys encoding between zero and 100 spaces are recognized.
 pub fn commented_attribute_spaces(key: String) -> Option(Int) {
-  case
-    string.starts_with(key, commented_attribute_key_prefix) &&
-    string.ends_with(key, commented_attribute_key_suffix)
-  {
-    True -> {
-      let encoded =
-        key
-        |> string.drop_start(string.length(commented_attribute_key_prefix))
-        |> string.drop_end(string.length(commented_attribute_key_suffix))
+  case string.starts_with(key, commented_attribute_key_prefix) {
+    False -> None
+    True ->
+      case string.ends_with(key, commented_attribute_key_suffix) {
+        False -> None
+        True -> {
+          let encoded =
+            key
+            |> string.drop_start(string.length(commented_attribute_key_prefix))
+            |> string.drop_end(string.length(commented_attribute_key_suffix))
 
-      case int.parse(encoded) {
-        Ok(spaces)
-          if spaces >= 0 && spaces <= maximum_commented_attribute_spaces
-        -> Some(spaces)
-        _ -> None
+          case int.parse(encoded) {
+            Ok(spaces)
+              if spaces >= 0 && spaces <= maximum_leading_attribute_spaces
+            -> Some(spaces)
+            _ -> None
+          }
+        }
       }
-    }
-    _ -> None
   }
 }
 
@@ -97,7 +95,7 @@ pub fn is_commented_attribute_key(key: String) -> Bool {
 
 /// Constructs a Writerly commented-attribute key for a bounded space count.
 pub fn commented_attribute_key(spaces: Int) -> Option(String) {
-  case spaces >= 0 && spaces <= maximum_commented_attribute_spaces {
+  case spaces >= 0 && spaces <= maximum_leading_attribute_spaces {
     True -> Some(make_commented_attribute_key(spaces))
     False -> None
   }
@@ -113,6 +111,22 @@ fn split_leading_spaces(value: String, spaces: Int) -> #(Int, String) {
   case string.starts_with(value, " ") {
     True -> split_leading_spaces(string.drop_start(value, 1), spaces + 1)
     False -> #(spaces, value)
+  }
+}
+
+fn parse_attribute_value(
+  blame: Blame,
+  raw_value: String,
+) -> Result(String, ParseError) {
+  let #(spaces, _) = split_leading_spaces(raw_value, 0)
+  case spaces > maximum_leading_attribute_spaces {
+    True ->
+      Error(ExcessiveLeadingAttributeSpaces(
+        blame,
+        maximum_leading_attribute_spaces,
+        spaces,
+      ))
+    False -> Ok(string.trim(raw_value))
   }
 }
 
@@ -211,7 +225,7 @@ fn dir_and_filename_2_path(dir: String, path: String) -> String {
 fn drop_slash(s: String) {
   case string.ends_with(s, "/") {
     True -> string.drop_end(s, 1)
-    False -> string.drop_end(s, 0)
+    False -> s
   }
 }
 
@@ -409,7 +423,7 @@ pub fn assemble_input_lines(
 // pub fn string_to_writerly
 // ************************************************************
 
-type FileHead =
+type InputLines =
   List(InputLine)
 
 type Encounter {
@@ -439,7 +453,10 @@ fn nonempty_suffix_encounter(blame: Blame, suffix: String) -> Encounter {
   }
 }
 
-fn filehead_encounter(indent: Int, head: FileHead) -> #(Encounter, FileHead) {
+fn input_lines_encounter(
+  indent: Int,
+  head: InputLines,
+) -> #(Encounter, InputLines) {
   use first, rest <- on.empty_nonempty(head, fn() { #(EncounteredFileEnd, []) })
 
   let InputLine(blame, first_indent, suffix) = first
@@ -481,10 +498,10 @@ fn drop_text_line_escape(
 
 fn parse_text_lines_at_indent(
   indent: Int,
-  head: FileHead,
+  head: InputLines,
   rgxs: OurRegexes,
-) -> Result(#(List(Line), Encounter, FileHead), ParseError) {
-  let #(encounter, rest) = filehead_encounter(indent, head)
+) -> Result(#(List(Line), Encounter, InputLines), ParseError) {
+  let #(encounter, rest) = input_lines_encounter(indent, head)
 
   case encounter {
     EncounteredTextLine(blame, suffix) -> {
@@ -502,9 +519,9 @@ fn parse_text_lines_at_indent(
 
 fn parse_comment_lines_at_indent(
   indent: Int,
-  head: FileHead,
-) -> Result(#(List(Line), Encounter, FileHead), ParseError) {
-  let #(encounter, rest) = filehead_encounter(indent, head)
+  head: InputLines,
+) -> Result(#(List(Line), Encounter, InputLines), ParseError) {
+  let #(encounter, rest) = input_lines_encounter(indent, head)
 
   case encounter {
     EncounteredCommentLine(blame, suffix) -> {
@@ -521,10 +538,10 @@ fn parse_comment_lines_at_indent(
 
 fn parse_attrs_at_indent(
   indent: Int,
-  head: FileHead,
+  head: InputLines,
   rgxs: OurRegexes,
-) -> Result(#(List(Attr), Encounter, FileHead), ParseError) {
-  let #(encounter, rest) = filehead_encounter(indent, head)
+) -> Result(#(List(Attr), Encounter, InputLines), ParseError) {
+  let #(encounter, rest) = input_lines_encounter(indent, head)
 
   use #(blame, suffix) <- on.stay(case encounter {
     EncounteredTextLine(blame, suffix) -> on.Stay(#(blame, suffix))
@@ -532,12 +549,24 @@ fn parse_attrs_at_indent(
     EncounteredCommentLine(blame, suffix) -> {
       let #(spaces, val) =
         suffix |> string.drop_start(2) |> split_leading_spaces(0)
-      let attr = Attr(blame, make_commented_attribute_key(spaces), val)
-      use #(attrs, encounter, rest) <- on.error_ok(
-        parse_attrs_at_indent(indent, rest, rgxs),
-        fn(e) { on.Return(Error(e)) },
-      )
-      on.Return(Ok(#([attr, ..attrs], encounter, rest)))
+      case spaces > maximum_leading_attribute_spaces {
+        True ->
+          on.Return(
+            Error(ExcessiveLeadingAttributeSpaces(
+              blame,
+              maximum_leading_attribute_spaces,
+              spaces,
+            )),
+          )
+        False -> {
+          let attr = Attr(blame, make_commented_attribute_key(spaces), val)
+          use #(attrs, encounter, rest) <- on.error_ok(
+            parse_attrs_at_indent(indent, rest, rgxs),
+            fn(e) { on.Return(Error(e)) },
+          )
+          on.Return(Ok(#([attr, ..attrs], encounter, rest)))
+        }
+      }
     }
 
     _ -> on.Return(Ok(#([], encounter, rest)))
@@ -558,7 +587,7 @@ fn parse_attrs_at_indent(
     fn() { Ok(#([], encounter, rest)) },
   )
 
-  let val = string.trim(val)
+  use val <- on.ok(parse_attribute_value(blame, val))
   let attr = Attr(blame, key, val)
   use #(attrs, encounter, rest) <- on.ok(parse_attrs_at_indent(
     indent,
@@ -570,21 +599,27 @@ fn parse_attrs_at_indent(
 
 fn parse_writerlys_at_indent_from_nonempty_suffix(
   indent: Int,
-  rest: FileHead,
+  rest: InputLines,
   rgxs: OurRegexes,
   blame: Blame,
   suffix: String,
-) -> Result(#(List(Writerly), List(Writerly), Encounter, FileHead), ParseError) {
+) -> Result(
+  #(List(Writerly), List(Writerly), Encounter, InputLines),
+  ParseError,
+) {
   let encounter = nonempty_suffix_encounter(blame, suffix)
   parse_writerlys_at_indent_from_encounter(indent, rest, rgxs, encounter)
 }
 
 fn parse_writerlys_at_indent_from_encounter(
   indent: Int,
-  rest: FileHead,
+  rest: InputLines,
   rgxs: OurRegexes,
   encounter: Encounter,
-) -> Result(#(List(Writerly), List(Writerly), Encounter, FileHead), ParseError) {
+) -> Result(
+  #(List(Writerly), List(Writerly), Encounter, InputLines),
+  ParseError,
+) {
   case encounter {
     EncounteredFileEnd -> {
       Ok(#([], [], EncounteredFileEnd, []))
@@ -719,10 +754,10 @@ fn parse_writerlys_at_indent_from_encounter(
 
 fn parse_code_block_at_indent(
   indent: Int,
-  head: FileHead,
+  head: InputLines,
   initial_blame: Blame,
   rgxs: OurRegexes,
-) -> Result(#(List(Line), FileHead), ParseError) {
+) -> Result(#(List(Line), InputLines), ParseError) {
   use first, rest <- on.empty_nonempty(head, fn() {
     Error(CodeBlockNotClosed(initial_blame))
   })
@@ -784,29 +819,28 @@ fn parse_code_block_at_indent(
 }
 
 fn attrs_to_code_block_info(attrs: List(Attr)) -> String {
-  let #(info, attrs) =
-    list.fold(attrs, #(None, []), fn(acc, attr) {
-      case attr.key == "info" && acc.0 == None {
-        True -> #(Some(attr), acc.1)
-        False -> #(acc.0, [attr, ..acc.1])
-      }
+  let #(info_attrs, attrs) =
+    list.partition(attrs, fn(attr) {
+      attr.key == code_block_info_string_attribute_key
     })
+  let info = case info_attrs {
+    [] -> None
+    [info] -> Some(info)
+    _ -> panic as "multiple WriterlyCodeBlockInfoString attributes"
+  }
   let escape = fn(s) {
     s
     |> string.replace("\\", "\\\\")
     |> string.replace("&", "\\&")
   }
   let keyval_maker = fn(attr: Attr) -> String {
-    { attr.key <> "=" <> attr.val }
+    { attr.key <> "=" <> string.trim(attr.val) }
     |> escape
   }
-  let keyvals =
-    attrs
-    |> list.reverse
-    |> list.map(keyval_maker)
+  let keyvals = attrs |> list.map(keyval_maker)
   let info = case info {
     None -> ""
-    Some(info) -> info.val |> escape
+    Some(info) -> info.val |> string.trim |> escape
   }
   [info, ..keyvals] |> string.join("&")
 }
@@ -825,7 +859,7 @@ fn code_block_info_to_attrs(
   })
 
   use <- on.false_true(info |> string.contains("&"), fn() {
-    Ok([Attr(blame, "info", info)])
+    Ok([Attr(blame, code_block_info_string_attribute_key, info)])
   })
 
   let pieces = regexp.split(rgxs.unescaped_ampersand, info)
@@ -877,7 +911,7 @@ fn code_block_info_to_attrs(
   }
 
   let assert [info, ..keyvals] = keyvals
-  let info = Attr(info.0, "writerly-code-block-info", info.1)
+  let info = Attr(info.0, code_block_info_string_attribute_key, info.1)
 
   use keyvals <- on.ok(
     list.try_map(keyvals, fn(kv) {
@@ -886,7 +920,7 @@ fn code_block_info_to_attrs(
         string.split_once(kv, "=")
         |> result.unwrap(#(kv, ""))
       let key = string.trim(key)
-      let val = string.trim(val)
+      use val <- on.ok(parse_attribute_value(blame, val))
       case regexp.check(rgxs.is_valid_key, key) {
         False -> Error(BadKey(blame, key))
         True -> Ok(Attr(blame, key, val))
@@ -904,10 +938,13 @@ fn code_block_info_to_attrs(
 
 fn parse_writerlys_at_indent(
   indent: Int,
-  head: FileHead,
+  head: InputLines,
   rgxs: OurRegexes,
-) -> Result(#(List(Writerly), List(Writerly), Encounter, FileHead), ParseError) {
-  let #(encounter, rest) = filehead_encounter(indent, head)
+) -> Result(
+  #(List(Writerly), List(Writerly), Encounter, InputLines),
+  ParseError,
+) {
+  let #(encounter, rest) = input_lines_encounter(indent, head)
   parse_writerlys_at_indent_from_encounter(indent, rest, rgxs, encounter)
 }
 
@@ -953,7 +990,7 @@ fn our_regexes() -> OurRegexes {
 }
 
 pub fn input_lines_to_writerlys(
-  lines: FileHead,
+  lines: InputLines,
 ) -> Result(List(Writerly), ParseError) {
   let rgxs = our_regexes()
   use #(writerlys, _, _, _) <- on.ok(parse_writerlys_at_indent(0, lines, rgxs))
@@ -968,7 +1005,7 @@ fn is_not_blank_line(w: Writerly) -> Bool {
 }
 
 pub fn input_lines_to_writerly(
-  lines: FileHead,
+  lines: InputLines,
 ) -> Result(Writerly, ParseError) {
   use writerlys <- on.ok(input_lines_to_writerlys(lines))
   case list.filter(writerlys, is_not_blank_line) {
@@ -1054,7 +1091,7 @@ pub fn writerlys_to_vxmls(writerlys: List(Writerly)) -> List(VXML) {
   writerlys |> list.map(writerly_to_vxml)
 }
 
-pub fn input_lines_to_vxml(lines: FileHead) -> Result(VXML, ParseError) {
+pub fn input_lines_to_vxml(lines: InputLines) -> Result(VXML, ParseError) {
   input_lines_to_writerly(lines)
   |> result.map(writerly_to_vxml)
 }

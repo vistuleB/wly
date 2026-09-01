@@ -65,6 +65,8 @@ In particular:
 - Writerly parent-child relationships are indentation-based using 4 spaces of indentation.
 - Writerly separates paragraphs by blank lines. But note that XML does not have a primitive concept of a "paragraph"—this is why Writerly is a semantic _superset_ of XML!
 - Writerly tag attributes (the equivalent of HTML and XML tag attributes) are listed directly below the `|> tag` as lines of the form `key=val` with 4 spaces of indentation. A line that does not parse as an attribute key-value pair is either interpreted as text or as a new node, depending on whether the line starts with `|>` or not. A blank line can also be used to separate the last key-value pair from the first text child, allowing the first text child to start with text of the form `key=val`, that would otherwise be parsed as a tag attribute.
+- Attribute values are trimmed when parsed. More than 100 leading spaces before an attribute value are rejected. The same limit applies to commented attributes written with `!!` in an attribute position.
+- A code-fence info string may contain structured `&key=value` annotations, such as `` ```python&id=example ``. In VXML, the leading info string is stored in the synthetic `WriterlyCodeBlockInfoString` attribute, followed by the structured attributes in source order. Literal ampersands and backslashes are escaped with a backslash in the fence annotation.
 - Blank lines are _bona fide_ semantic elements of the document. Introducing a blank line between two adjacent tags or not may produce different results depending on the desugaring process that is used to process the Writerly document into a target document of a different format.
 
 Writerly documents take extension `.wly`.

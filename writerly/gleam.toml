@@ -1,7 +1,7 @@
 name = "writerly"
 version = "1.0.0"
-
-your_mom = "asinine"
+description = "Parse, serialize, and assemble Writerly documents."
+licences = ["MIT"]
 
 [dependencies]
 vxml = ">= 1.0.5 and < 2.0.0"
