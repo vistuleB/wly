@@ -313,7 +313,24 @@ A monitor error becomes a `PipelineMonitorError` and identifies the monitor,
 step number, and message. Monitor feedback is sent to the pipeline runner as
 discrete feedback blocks. Interactive mode pauses once for each feedback block.
 
-The built-in `--track` and `--dump` facilities are implemented as monitors.
+The built-in `--track`, `--dump`, and `--validate-vxml` facilities are
+implemented as monitors. Applications can install VXML validation directly:
+
+```gleam
+vp.vxml_validation_monitor(
+  False, // do not warn about boundary whitespace in attribute values
+)
+```
+
+Invalid VXML stops the pipeline at the first invalid state. Passing `True`
+also reports leading or trailing attribute-value whitespace as monitor
+feedback; that whitespace remains valid VXML.
+
+`empty_text_node_monitor()` is a narrower monitor that rejects only text nodes
+with no lines. It does not validate tags, attributes, or individual line
+contents. The corresponding command-line form is
+`--validate-vxml -lines-only`. It cannot be combined with
+`-warn-attribute-whitespace`.
 
 ## Renderer parameters and options
 
@@ -432,7 +449,7 @@ The built-in help describes all accepted forms. The principal options are:
 - `--help`, `--esoteric`, and `--track-help`
 - `--input-dir` and `--output-dir`
 - `--only`
-- `--track` and `--dump`
+- `--track`, `--dump`, and `--validate-vxml`
 - `--table` and `--times`
 - `--verbose`, `--artifacts`, and `--warnings`
 - `--prettier-off`, `--prettier-on`, and `--prettier-check`

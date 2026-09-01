@@ -1,23 +1,19 @@
 # Writerly
 
 Writerly is a lightweight, indentation-based markup language for authoring
-tree-structured documents. Its syntax is descended from
-[Elm-Markup](https://github.com/mdgriffith/elm-markup), while its data model is
-a semantic superset of XML: elements and attributes are joined by first-class
-paragraphs, blank lines, comments, and fenced code blocks.
+tree-structured documents that resemble ordinary prose. Its syntax is
+descended from [Elm-Markup](https://github.com/mdgriffith/elm-markup).
 
-Writerly is suited to long-form, structured documents whose source should
-remain comfortable to edit by hand, while still producing an explicit tree
-that applications can transform into HTML, LaTeX, JSX, or other output
-formats.
+This Gleam package constitutes Writerly's reference implementation. It can:
 
-This Gleam package can:
+- parse Writerly source into a typed AST;
+- serialize the same AST back to Writerly source;
+- convert between Writerly and [VXML](https://hexdocs.pm/vxml/);
+- assemble a document distributed across a directory of `.wly` files,
+  according to Writerly's own multi-file document specification.
 
-- parse Writerly source into a typed Writerly tree;
-- serialize a Writerly tree back to Writerly source;
-- convert between Writerly and
-  [VXML](https://hexdocs.pm/vxml/), an XML-like intermediate representation;
-- assemble a document distributed across a directory of `.wly` files.
+Further help turning a parsed VXML tree into a target format is provided by the
+`vxml_pipeline` package.
 
 ## Example
 
@@ -30,6 +26,7 @@ This Gleam package can:
 
     |> Section
         class=example
+        id=zz33455
 
         A blank line separates this paragraph from the next.
 
@@ -42,7 +39,8 @@ This Gleam package can:
     !! This comment remains part of the Writerly tree.
 ````
 
-`|> Chapter` introduces an element. Its attributes and children are indented
+The pipe symbol `|>` starts a new node, with the tag name
+and nothing else on the same line. Its attributes and children are indented
 by four spaces. Blank lines are represented explicitly rather than discarded.
 
 ## Use from Gleam
@@ -110,8 +108,10 @@ book/
 ```
 
 Sibling files are processed in lexicographic path order. Their contents are
-indented beneath `__parent.wly`; nested directories are assembled recursively.
-Files and directories whose names start with `#` are ignored.
+indented beneath the contents of `__parent.wly` if a `__parent.wly` file is present.
+Otherwise they are concatenated at their native level of indentation.
+Nested directories are assembled recursively.
+Files and directories whose names start with `#` or do not end with `.wly` are ignored.
 
 Use `assemble_input_lines_with_path_selector` to select source paths, or
 `path_selector_from_only_paths` to construct a selector from a list of paths.

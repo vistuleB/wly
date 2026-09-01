@@ -1,3 +1,10 @@
+//// Parse, serialize, assemble, and convert Writerly documents.
+////
+//// Writerly is an indentation-based markup language descended from
+//// [Elm-Markup](https://github.com/mdgriffith/elm-markup). It represents
+//// elements, attributes, paragraphs, blank lines, comments, and fenced code
+//// blocks, and converts them to and from VXML.
+
 import dirtree.{type DirTree} as dt
 import gleam/int
 import gleam/list
@@ -16,6 +23,9 @@ import vxml/io_lines.{type InputLine, type OutputLine, InputLine, OutputLine} as
 // public types
 // ************************************************************
 
+/// A node in a parsed Writerly document.
+///
+/// Every node and its contained VXML values retain source-provenance `Blame`.
 pub type Writerly {
   BlankLine(blame: Blame)
   Paragraph(blame: Blame, lines: List(Line))
@@ -24,6 +34,7 @@ pub type Writerly {
   Tag(blame: Blame, name: String, attrs: List(Attr), children: List(Writerly))
 }
 
+/// An error encountered while parsing Writerly source.
 pub type ParseError {
   BadTag(blame: Blame, bad_name: String)
   BadKey(blame: Blame, bad_key: String)
@@ -47,6 +58,7 @@ pub type ParseError {
   MissingRoot(blame: Blame)
 }
 
+/// An error encountered while assembling Writerly source files.
 pub type AssemblyError {
   ReadFileError(String)
   ReadFileOrDirectoryError(String)
@@ -347,6 +359,12 @@ fn input_lines_for_dirtree_at_depth(
   }
 }
 
+/// Assembles selected `.wly` files from a file or directory.
+///
+/// The selector receives paths relative to the input directory. A selected
+/// file is included along with any `__parent.wly` files needed to contain it.
+/// The returned directory tree records the selected layout; the input lines
+/// retain their relative source paths and are indented according to that tree.
 pub fn assemble_input_lines_with_path_selector(
   dirpath_or_filepath: String,
   path_selector: fn(String) -> Bool,
@@ -387,6 +405,12 @@ pub fn assemble_input_lines_with_path_selector(
   Ok(#(tree, lines))
 }
 
+/// Builds a path selector from inclusive and exclusive path fragments.
+///
+/// Ordinary fragments include paths containing that fragment. Fragments
+/// beginning with `!` exclude matching paths. With only exclusions, all other
+/// paths are included. With both forms, a path must match an inclusion and no
+/// exclusion. An empty list selects every path.
 pub fn path_selector_from_only_paths(
   only_paths: List(String),
 ) -> fn(String) -> Bool {
@@ -405,6 +429,10 @@ pub fn path_selector_from_only_paths(
   }
 }
 
+/// Assembles every eligible `.wly` file from a file or directory.
+///
+/// Files and directories with a path component beginning with `#` are ignored.
+/// See `assemble_input_lines_with_path_selector` for selective assembly.
 pub fn assemble_input_lines(
   dirpath_or_filepath: String,
 ) -> Result(#(DirTree, List(InputLine)), AssemblyError) {
@@ -989,6 +1017,7 @@ fn our_regexes() -> OurRegexes {
   )
 }
 
+/// Parses input lines into zero or more top-level Writerly nodes.
 pub fn input_lines_to_writerlys(
   lines: InputLines,
 ) -> Result(List(Writerly), ParseError) {
@@ -1004,6 +1033,11 @@ fn is_not_blank_line(w: Writerly) -> Bool {
   }
 }
 
+/// Parses input lines containing exactly one non-blank top-level node.
+///
+/// Top-level blank lines do not count toward cardinality. Returns `MissingRoot`
+/// when there is no non-blank root and `NonUniqueRoot` when there is more than
+/// one.
 pub fn input_lines_to_writerly(
   lines: InputLines,
 ) -> Result(Writerly, ParseError) {
@@ -1015,6 +1049,9 @@ pub fn input_lines_to_writerly(
   }
 }
 
+/// Parses a source string into zero or more top-level Writerly nodes.
+///
+/// `filename` is recorded in the source blame attached to parsed values.
 pub fn string_to_writerlys(
   source: String,
   filename: String,
@@ -1024,6 +1061,9 @@ pub fn string_to_writerlys(
   |> input_lines_to_writerlys
 }
 
+/// Parses a source string containing exactly one non-blank top-level node.
+///
+/// `filename` is recorded in the source blame attached to parsed values.
 pub fn string_to_writerly(
   source: String,
   filename: String,
@@ -1048,6 +1088,11 @@ const writerly_code_block_vxml_tag = "WriterlyCodeBlock"
 
 const writerly_comment_vxml_tag = "WriterlyComment"
 
+/// Converts one Writerly node to its VXML representation.
+///
+/// Paragraphs become text nodes. Blank lines, comments, and code blocks use
+/// the reserved `WriterlyBlankLine`, `WriterlyComment`, and
+/// `WriterlyCodeBlock` element names.
 pub fn writerly_to_vxml(t: Writerly) -> VXML {
   case t {
     BlankLine(blame) ->
@@ -1087,10 +1132,12 @@ pub fn writerly_to_vxml(t: Writerly) -> VXML {
   }
 }
 
+/// Converts Writerly nodes to VXML nodes in the same order.
 pub fn writerlys_to_vxmls(writerlys: List(Writerly)) -> List(VXML) {
   writerlys |> list.map(writerly_to_vxml)
 }
 
+/// Parses input lines with one non-blank root and converts it to VXML.
 pub fn input_lines_to_vxml(lines: InputLines) -> Result(VXML, ParseError) {
   input_lines_to_writerly(lines)
   |> result.map(writerly_to_vxml)
@@ -1149,6 +1196,11 @@ fn is_t(vxml: VXML) -> Bool {
   }
 }
 
+/// Converts one VXML node to zero or more Writerly nodes.
+///
+/// An empty VXML text node produces no Writerly node. Reserved Writerly
+/// elements must have the structure produced by `writerly_to_vxml`; malformed
+/// reserved elements cause an assertion failure.
 pub fn vxml_to_writerlys(vxml: VXML) -> List(Writerly) {
   // This would return Writerly rather than List(Writerly), except that an
   // empty text node produces no Writerly value.
@@ -1187,12 +1239,17 @@ pub fn vxml_to_writerlys(vxml: VXML) -> List(Writerly) {
   }
 }
 
+/// Converts VXML nodes to Writerly nodes, omitting empty text nodes.
 pub fn vxmls_to_writerlys(vxmls: List(VXML)) -> List(Writerly) {
   vxmls
   |> list.map(vxml_to_writerlys)
   |> list.flatten
 }
 
+/// Converts VXML that corresponds to exactly one Writerly node.
+///
+/// Returns `Error(Nil)` for an empty text node. Panics if one VXML node expands
+/// into multiple Writerly nodes.
 pub fn vxml_to_writerly(vxml: VXML) -> Result(Writerly, Nil) {
   case vxml |> vxml_to_writerlys {
     [one] -> Ok(one)
@@ -1209,6 +1266,10 @@ pub fn vxml_to_writerly(vxml: VXML) -> Result(Writerly, Nil) {
 // pub fn annotawriterly_annotate_blames
 // ************************************************************
 
+/// Adds structural descriptions to the blame comments throughout a tree.
+///
+/// This is intended for diagnostic tables. Source locations and node contents
+/// are otherwise unchanged.
 pub fn writerly_annotate_blames(writerly: Writerly) -> Writerly {
   case writerly {
     BlankLine(blame) -> BlankLine(blame |> pc("BlankLine"))
@@ -1400,12 +1461,14 @@ fn writerly_to_output_lines_internal(
   }
 }
 
+/// Serializes one Writerly node to VXML `OutputLine` values.
 pub fn writerly_to_output_lines(writerly: Writerly) -> List(OutputLine) {
   let rgxs = our_regexes()
   writerly
   |> writerly_to_output_lines_internal(0, False, rgxs)
 }
 
+/// Serializes Writerly nodes to one flat list of VXML `OutputLine` values.
 pub fn writerlys_to_output_lines(
   writerlys: List(Writerly),
 ) -> List(OutputLine) {
@@ -1414,18 +1477,23 @@ pub fn writerlys_to_output_lines(
   |> list.flatten
 }
 
+/// Serializes one Writerly node to Writerly source.
 pub fn writerly_to_string(writerly: Writerly) -> String {
   writerly
   |> writerly_to_output_lines()
   |> io_l.output_lines_to_string
 }
 
+/// Serializes Writerly nodes to Writerly source in the same order.
 pub fn writerlys_to_string(writerlys: List(Writerly)) -> String {
   writerlys
   |> writerlys_to_output_lines()
   |> io_l.output_lines_to_string
 }
 
+/// Renders a blame-annotated diagnostic table for one Writerly tree.
+///
+/// `banner` labels the table and `indent` sets its left margin.
 pub fn writerly_table(
   writerly: Writerly,
   banner: String,

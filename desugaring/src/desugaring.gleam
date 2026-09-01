@@ -24,7 +24,7 @@ import input
 import on
 import shellout
 import simplifile
-import vxml.{type VXML, V} as vp
+import vxml.{type VXML, T, V} as vp
 import vxml/blame.{type Blame, Ext} as bl
 import vxml/io_lines.{type InputLine, type OutputLine, OutputLine} as io_l
 
@@ -76,6 +76,12 @@ pub opaque type Monitor {
 pub opaque type MonitorFactory {
   TrackingMonitorFactory(Tracker)
   DumpMonitorFactory(List(PipelineStepSpec), VxmlMonitorOutput)
+  VxmlValidationMonitorFactory(VxmlValidationMode)
+}
+
+type VxmlValidationMode {
+  ValidateAllVxml(warn_about_attribute_boundary_whitespace: Bool)
+  ValidateTextLinesOnly
 }
 
 pub fn new_monitor(
@@ -565,6 +571,7 @@ pub type ParsedCLIArguments {
     prettier: Option(PrettifierMode),
     tracking_monitor_factory: Option(MonitorFactory),
     dump_monitor_factory: Option(MonitorFactory),
+    vxml_validation_monitor_factory: Option(MonitorFactory),
     monitor_interactive_mode: Bool,
     table: Option(Bool),
     times: Option(Int),
@@ -617,6 +624,7 @@ fn empty_parsed_cli_arguments() -> ParsedCLIArguments {
     prettier: None,
     tracking_monitor_factory: None,
     dump_monitor_factory: None,
+    vxml_validation_monitor_factory: None,
     monitor_interactive_mode: False,
     table: None,
     times: None,
@@ -681,6 +689,11 @@ pub fn basic_cli_usage(header: String) {
     "",
     "--track-help",
     "  -> print detailed '--track' instructions and examples",
+    "",
+    "--validate-vxml [-warn-attribute-whitespace | -lines-only]",
+    "  -> validate VXML before and after every pipeline step; optionally",
+    "     warn about attribute boundary whitespace, or only reject empty",
+    "     text nodes",
     "",
     "--last-command",
     "  -> repeat the command-line arguments saved in .last-command;",
@@ -1326,6 +1339,34 @@ fn process_command_line_arguments_(
             }
             _ -> panic as "dump monitor factory had unexpected variant"
           }
+        }
+
+        "--validate-vxml" -> {
+          use _ <- on.ok(case arguments.vxml_validation_monitor_factory {
+            None -> Ok(Nil)
+            Some(_) -> Error(DuplicateOption(option))
+          })
+          let conflicting =
+            list.contains(values, "-warn-attribute-whitespace")
+            && list.contains(values, "-lines-only")
+          use mode <- on.ok(case conflicting {
+            True -> Error(ConflictingOptionArguments("--validate-vxml"))
+            False ->
+              case values {
+                [] -> Ok(ValidateAllVxml(False))
+                ["-warn-attribute-whitespace"] -> Ok(ValidateAllVxml(True))
+                ["-lines-only"] -> Ok(ValidateTextLinesOnly)
+                _ -> Error(UnexpectedArgumentsToOption("--validate-vxml"))
+              }
+          })
+          Ok(
+            ParsedCLIArguments(
+              ..arguments,
+              vxml_validation_monitor_factory: Some(
+                VxmlValidationMonitorFactory(mode),
+              ),
+            ),
+          )
         }
 
         "--dump-assembled" ->
@@ -2362,7 +2403,10 @@ pub fn amend_renderer_options_by_arguments(
     monitors: options.monitors,
     monitor_factories: options.monitor_factories
       |> append_optional_monitor_factory(arguments.tracking_monitor_factory)
-      |> append_optional_monitor_factory(arguments.dump_monitor_factory),
+      |> append_optional_monitor_factory(arguments.dump_monitor_factory)
+      |> append_optional_monitor_factory(
+        arguments.vxml_validation_monitor_factory,
+      ),
     output_lines_table_default_comment_columns: options.output_lines_table_default_comment_columns,
     output_lines_table_default_blame_columns: options.output_lines_table_default_blame_columns,
     dump_assembled_lines: arguments.dump_assembled
@@ -2397,6 +2441,120 @@ fn resolve_absolute_step(step: Int, pipeline: Pipeline) -> Int {
 }
 
 // Monitor construction and pipeline-step resolution
+
+fn vxml_validation_problem_message(
+  problem: vp.VXMLSerializationProblem,
+) -> String {
+  case problem {
+    vp.BadTag(problem) -> "invalid tag: " <> ins(problem)
+    vp.BadAttributeKey(problem) -> "invalid attribute key: " <> ins(problem)
+    vp.BadAttributeValue(problem) -> "invalid attribute value: " <> ins(problem)
+    vp.BadText(problem) -> "invalid text node: " <> ins(problem)
+  }
+}
+
+fn blame_location_suffix(blame: Blame) -> String {
+  case bl.blame_digest(blame) {
+    "" -> " (no blame)"
+    digest -> " at " <> digest
+  }
+}
+
+fn attribute_boundary_whitespace_warnings(vxml: VXML) -> List(String) {
+  case vxml {
+    T(..) -> []
+    V(_, _, attrs, children) -> {
+      let local_warnings =
+        attrs
+        |> list.filter(fn(attr) { string.trim(attr.val) != attr.val })
+        |> list.map(fn(attr) {
+          "attribute "
+          <> ins(attr.key)
+          <> " has leading or trailing whitespace"
+          <> blame_location_suffix(attr.blame)
+        })
+      list.append(
+        local_warnings,
+        children |> list.flat_map(attribute_boundary_whitespace_warnings),
+      )
+    }
+  }
+}
+
+/// Builds a monitor that validates VXML before and after every pipeline step.
+///
+/// Invalid VXML stops the pipeline. When
+/// `warn_about_attribute_boundary_whitespace` is `True`, the monitor also
+/// emits feedback for attribute values with leading or trailing whitespace.
+/// Such whitespace is valid VXML and is not otherwise rejected.
+pub fn vxml_validation_monitor(
+  warn_about_attribute_boundary_whitespace: Bool,
+) -> Monitor {
+  new_monitor("validate-vxml", [], fn(vxml, previous_warnings, _) {
+    use _ <- on.error_ok(vp.validate(vxml), fn(error) {
+      let vp.VXMLValidationError(blame, problem) = error
+      Error(
+        vxml_validation_problem_message(problem) <> blame_location_suffix(blame),
+      )
+    })
+    let warnings = case warn_about_attribute_boundary_whitespace {
+      False -> []
+      True ->
+        vxml
+        |> attribute_boundary_whitespace_warnings
+        |> list.unique
+    }
+    let new_warnings =
+      warnings
+      |> list.filter(fn(warning) { !list.contains(previous_warnings, warning) })
+    let feedback = case new_warnings {
+      [] -> NoFeedback
+      warnings ->
+        SomeFeedback([
+          FeedbackBlock(
+            lines: [
+              "⚠️ VXML attribute-whitespace warning:",
+              ..list.map(warnings, fn(warning) { "- " <> warning })
+            ],
+            margin: AtRunnerMargin,
+          ),
+        ])
+    }
+    Ok(#(warnings, feedback))
+  })
+}
+
+fn first_empty_text_node_blame(vxml: VXML) -> Option(Blame) {
+  case vxml {
+    T(blame, []) -> Some(blame)
+    T(_, [_, ..]) -> None
+    V(_, _, _, children) -> first_empty_text_node_blame_in(children)
+  }
+}
+
+fn first_empty_text_node_blame_in(vxmls: List(VXML)) -> Option(Blame) {
+  case vxmls {
+    [] -> None
+    [first, ..rest] ->
+      case first_empty_text_node_blame(first) {
+        Some(blame) -> Some(blame)
+        None -> first_empty_text_node_blame_in(rest)
+      }
+  }
+}
+
+/// Builds a monitor that rejects empty VXML text nodes.
+///
+/// Unlike `vxml_validation_monitor`, this monitor does not validate tags,
+/// attributes, or text-line contents.
+pub fn empty_text_node_monitor() -> Monitor {
+  new_monitor("validate-vxml-lines", Nil, fn(vxml, state, _) {
+    case first_empty_text_node_blame(vxml) {
+      None -> Ok(#(state, NoFeedback))
+      Some(blame) -> Error("empty text node" <> blame_location_suffix(blame))
+    }
+  })
+}
 
 fn list_int_cleaner(ze_list: List(Int)) -> List(Int) {
   ze_list |> list.unique |> list.sort(int.compare)
@@ -2721,6 +2879,14 @@ fn make_monitors(
             options.output_lines_table_default_blame_columns,
             options.output_lines_table_default_comment_columns,
           )
+        VxmlValidationMonitorFactory(mode) ->
+          case mode {
+            ValidateAllVxml(warn_about_attribute_boundary_whitespace) ->
+              Ok(vxml_validation_monitor(
+                warn_about_attribute_boundary_whitespace,
+              ))
+            ValidateTextLinesOnly -> Ok(empty_text_node_monitor())
+          }
       }
     }),
     fn(message) { Error(DesugarerNameNotFoundError(message)) },

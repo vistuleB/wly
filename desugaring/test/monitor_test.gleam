@@ -2,6 +2,7 @@ import desugaring as ds
 import desugaring/desugarers as dl
 import gleam/list
 import gleam/option.{None, Some}
+import gleam/string
 import vxml
 import vxml/blame
 
@@ -34,4 +35,60 @@ pub fn main() {
   assert name == "test-monitor"
   assert step_no == 1
   assert message == "requested stop"
+
+  let invalid = vxml.V(blame.no_blame, "bad-tag", [], [])
+  let result =
+    ds.run_pipeline(
+      invalid,
+      [],
+      [ds.vxml_validation_monitor(False)],
+      False,
+      True,
+    )
+  let assert Error(ds.PipelineMonitorError(failure)) = result
+  let ds.MonitorFailure(name, step_no, message) = failure
+  assert name == "validate-vxml"
+  assert step_no == 0
+  assert string.contains(message, "invalid tag")
+  assert string.contains(message, "bad-tag")
+
+  let empty_text = vxml.T(blame.no_blame, [])
+  let result =
+    ds.run_pipeline(empty_text, [], [ds.empty_text_node_monitor()], False, True)
+  let assert Error(ds.PipelineMonitorError(failure)) = result
+  let ds.MonitorFailure(name, step_no, message) = failure
+  assert name == "validate-vxml-lines"
+  assert step_no == 0
+  assert message == "empty text node (no blame)"
+
+  let invalid_tag_with_nonempty_lines =
+    vxml.V(blame.no_blame, "bad-tag", [], [
+      vxml.T(blame.no_blame, [vxml.Line(blame.no_blame, "content")]),
+    ])
+  let assert Ok(_) =
+    ds.run_pipeline(
+      invalid_tag_with_nonempty_lines,
+      [],
+      [ds.empty_text_node_monitor()],
+      False,
+      True,
+    )
+
+  let whitespace_is_valid =
+    vxml.V(
+      blame.no_blame,
+      "root",
+      [
+        vxml.Attr(blame.no_blame, "class", " padded "),
+      ],
+      [],
+    )
+  let assert Ok(_) =
+    ds.run_pipeline(
+      whitespace_is_valid,
+      [],
+      [ds.vxml_validation_monitor(True)],
+      False,
+      True,
+    )
 }

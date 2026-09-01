@@ -47,6 +47,18 @@ pub fn main() {
   assert_parses(["--dump", "10", "--dump", "20"])
   assert_parses(["--dump", "-cc10", "10", "--dump", "-bc20", "20"])
   assert_parses(["--dump", "-verbatim", "10", "--dump", "-verbatim", "20"])
+  assert_parses(["--validate-vxml"])
+  assert_parses(["--validate-vxml", "-warn-attribute-whitespace"])
+  assert_parses(["--validate-vxml", "-lines-only"])
+  assert_does_not_parse(["--validate-vxml", "-unknown"])
+  assert_does_not_parse(["--validate-vxml", "--validate-vxml"])
+  let assert Error(desugaring.CommandLineArgumentError(desugaring.ConflictingOptionArguments(
+    "--validate-vxml",
+  ))) =
+    desugaring.process_command_line_arguments(
+      ["--validate-vxml", "-lines-only", "-warn-attribute-whitespace"],
+      [],
+    )
   let assert Error(desugaring.CommandLineArgumentError(desugaring.ConflictingOptionArguments(
     "--dump",
   ))) =
